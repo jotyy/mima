@@ -53,7 +53,7 @@ function TabsList({
 			{children}
 			<TabsPrimitive.Indicator
 				data-slot="tabs-indicator"
-				className="ease-emphasized group-data-[variant=default]/tabs-list:bg-surface group-data-[variant=default]/tabs-list:shadow-pill group-data-[variant=ghost]/tabs-list:bg-tint/6 pointer-events-none absolute top-(--active-tab-top) left-(--active-tab-left) -z-10 h-(--active-tab-height) w-(--active-tab-width) rounded-md transition-[left,top,width,height] duration-200 motion-reduce:transition-none"
+				className="ease-emphasized group-data-[variant=default]/tabs-list:bg-surface group-data-[variant=default]/tabs-list:shadow-pill group-data-[variant=ghost]/tabs-list:bg-tint/6 pointer-events-none absolute top-(--active-tab-top) left-(--active-tab-left) -z-10 h-(--active-tab-height) w-(--active-tab-width) rounded-md transition-all duration-200 motion-reduce:transition-none"
 			/>
 		</TabsPrimitive.List>
 	);

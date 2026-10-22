@@ -6,6 +6,7 @@ export const cn = createCn({
 	extend: {
 		theme: {
 			text: [
+				"tiny",
 				"micro",
 				"caption",
 				"body-sm",

@@ -34,8 +34,6 @@
 	},
 	"devDependencies": {
 		"@mima/config": "workspace:*",
-		"@tanstack/react-query-devtools": "^5.104.2",
-		"@tanstack/react-router-devtools": "^1.167.2",
 		"@tanstack/router-plugin": "^1.168.45",
 		"@types/node": "^26.6.5",
 		"@types/react": "^19.3.0",

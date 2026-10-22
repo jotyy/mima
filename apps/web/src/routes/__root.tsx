@@ -1,20 +1,15 @@
-import type { AppRouterClient } from "@mima/api/routers/index";
 import { Toaster } from "@mima/ui/components/sonner";
-import { createORPCClient } from "@orpc/client";
-import { createTanstackQueryUtils } from "@orpc/tanstack-query";
+import { TooltipProvider } from "@mima/ui/components/tooltip";
 import type { QueryClient } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import {
 	createRootRouteWithContext,
 	HeadContent,
+	Link,
 	Outlet,
 } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import { useState } from "react";
 
-import Header from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
-import { link, type orpc } from "@/utils/orpc";
+import type { orpc } from "@/utils/orpc";
 
 import "../index.css";
 
@@ -25,29 +20,31 @@ export interface RouterAppContext {
 
 export const Route = createRootRouteWithContext<RouterAppContext>()({
 	component: RootComponent,
+	notFoundComponent: NotFound,
 	head: () => ({
 		meta: [
-			{
-				title: "mima",
-			},
+			{ title: "mima" },
 			{
 				name: "description",
-				content: "mima is a web application",
+				content: "A password manager for small teams and their agents.",
 			},
 		],
-		links: [
-			{
-				rel: "icon",
-				href: "/favicon.ico",
-			},
-		],
+		links: [{ rel: "icon", href: "/favicon.ico" }],
 	}),
 });
 
-function RootComponent() {
-	const [client] = useState<AppRouterClient>(() => createORPCClient(link));
-	const [orpcUtils] = useState(() => createTanstackQueryUtils(client));
+function NotFound() {
+	return (
+		<div className="bg-frame flex min-h-svh flex-col items-center justify-center gap-2 text-center">
+			<h1 className="text-fg text-h4">Nothing here</h1>
+			<Link to="/" className="text-body-sm text-link hover:underline">
+				Back to the overview
+			</Link>
+		</div>
+	);
+}
 
+function RootComponent() {
 	return (
 		<>
 			<HeadContent />
@@ -55,16 +52,13 @@ function RootComponent() {
 				attribute="class"
 				defaultTheme="system"
 				disableTransitionOnChange
-				storageKey="vite-ui-theme"
+				storageKey="mima-theme"
 			>
-				<div className="grid h-svh grid-rows-[auto_1fr]">
-					<Header />
+				<TooltipProvider delay={300}>
 					<Outlet />
-				</div>
-				<Toaster richColors />
+				</TooltipProvider>
+				<Toaster position="bottom-right" />
 			</ThemeProvider>
-			<TanStackRouterDevtools position="bottom-left" />
-			<ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />
 		</>
 	);
 }
