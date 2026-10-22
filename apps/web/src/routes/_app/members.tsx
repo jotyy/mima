@@ -4,7 +4,9 @@ import { Button } from "@mima/ui/components/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
+	DropdownMenuGroup,
 	DropdownMenuItem,
+	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@mima/ui/components/dropdown-menu";
@@ -18,141 +20,292 @@ import {
 } from "@mima/ui/components/select";
 import {
 	DotsThreeIcon,
+	LinkIcon,
 	UserMinusIcon,
-	UserSwitchIcon,
+	VaultIcon,
+	XIcon,
 } from "@phosphor-icons/react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import {
+	GiveAccessDialog,
+	InviteLinkDialog,
+} from "@/components/member-dialogs";
 import { notify } from "@/components/notify";
-import { Page } from "@/components/page";
-import { currentMemberId, members, vaults, workspace } from "@/fixtures/vault";
-import { initials, timeAgo } from "@/lib/format";
+import { Page, SectionTitle } from "@/components/page";
+import { ago, initials } from "@/lib/format";
+import { useKeyring } from "@/lib/keyring";
+import {
+	errorMessage,
+	type Member,
+	useActions,
+	useMembers,
+	useWorkspace,
+} from "@/lib/vault-data";
 
 export const Route = createFileRoute("/_app/members")({
 	component: Members,
 });
 
 const roles = [
-	{ value: "Member", label: "Member" },
-	{ value: "Admin", label: "Admin" },
+	{ value: "member", label: "Member" },
+	{ value: "admin", label: "Admin" },
 ];
 
 function Members() {
+	const { me } = useKeyring();
+	const members = useMembers();
+	const workspace = useWorkspace();
+	const actions = useActions();
+	const isAdmin = me?.role !== "member";
 	const [email, setEmail] = useState("");
-	const [role, setRole] = useState("Member");
-	const people = members.filter((member) => !member.invited);
+	const [role, setRole] = useState<"member" | "admin">("member");
+	const [link, setLink] = useState<{ email: string; token: string } | null>(
+		null,
+	);
+	const [giving, setGiving] = useState<Member | null>(null);
+	const [removing, setRemoving] = useState<Member | null>(null);
+	const people = members.data?.members ?? [];
+	const invites = members.data?.invites ?? [];
+
+	const invite = async (address: string, as: "member" | "admin") => {
+		try {
+			const { token } = await actions.invite(address, as);
+			setLink({ email: address, token });
+			return true;
+		} catch (err) {
+			notify.error("Couldn't create the invite", errorMessage(err));
+			return false;
+		}
+	};
+
+	const run = async (work: Promise<unknown>, message: string) => {
+		try {
+			await work;
+			notify.success(message);
+		} catch (err) {
+			notify.error("That didn't work", errorMessage(err));
+		}
+	};
 
 	return (
 		<Page
 			title="Members"
-			description={`${people.length} people in ${workspace.name}. Invites expire after 7 days.`}
+			description={`${people.length} ${people.length === 1 ? "person" : "people"} in ${workspace.data?.workspaceName ?? "this workspace"}.`}
 		>
-			<form
-				className="rounded-window bg-surface shadow-card mb-3 flex items-center gap-2 p-2"
-				onSubmit={(event) => {
-					event.preventDefault();
-					if (!email) return;
-					notify.success(`Invite sent to ${email}`);
-					setEmail("");
-				}}
-			>
-				<Input
-					type="email"
-					placeholder="name@acme.example"
-					aria-label="Email address"
-					value={email}
-					onChange={(event) => setEmail(event.target.value)}
-					className="flex-1 border-transparent hover:border-transparent"
-				/>
-				<Select
-					items={roles}
-					value={role}
-					onValueChange={(value) => value && setRole(String(value))}
+			{isAdmin && (
+				<form
+					className="rounded-window bg-surface shadow-card mb-6 flex items-center gap-2 p-2"
+					onSubmit={async (event) => {
+						event.preventDefault();
+						if (email && (await invite(email.trim(), role))) setEmail("");
+					}}
 				>
-					<SelectTrigger className="w-28">
-						<SelectValue />
-					</SelectTrigger>
-					<SelectContent>
-						{roles.map((r) => (
-							<SelectItem key={r.value} value={r.value}>
-								{r.label}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-				<Button type="submit">Invite</Button>
-			</form>
+					<Input
+						type="email"
+						required
+						placeholder="name@company.com"
+						aria-label="Email to invite"
+						value={email}
+						onChange={(event) => setEmail(event.target.value)}
+						className="flex-1 border-transparent hover:border-transparent"
+					/>
+					<Select
+						items={roles}
+						value={role}
+						onValueChange={(value) =>
+							value && setRole(value as "member" | "admin")
+						}
+					>
+						<SelectTrigger className="w-28" aria-label="Role">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							{roles.map((r) => (
+								<SelectItem key={r.value} value={r.value}>
+									{r.label}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+					<Button type="submit">Invite</Button>
+				</form>
+			)}
 
-			<section className="divide-line-subtle rounded-window bg-surface shadow-card flex flex-col divide-y">
-				{members.map((member) => {
-					const vaultCount = vaults.filter((vault) =>
-						vault.memberIds.includes(member.id),
-					).length;
+			<SectionTitle>People</SectionTitle>
+			<section
+				aria-label="People"
+				className="rounded-window bg-surface shadow-card divide-line-subtle mb-6 flex flex-col divide-y"
+			>
+				{people.map((person) => {
+					const isMe = person.userId === me?.id;
+					const shared = person.sharedVaultIds.length;
 					return (
 						<div
-							key={member.id}
+							key={person.userId}
 							className="flex items-center gap-3 px-3.5 py-3"
 						>
 							<Avatar>
-								<AvatarFallback>{initials(member.name)}</AvatarFallback>
+								<AvatarFallback>{initials(person.name)}</AvatarFallback>
 							</Avatar>
 							<div className="flex min-w-0 flex-1 flex-col gap-0.5">
 								<div className="flex items-center gap-2">
-									<span className="text-body-sm text-fg">{member.name}</span>
-									{member.id === currentMemberId && (
-										<Badge variant="secondary">You</Badge>
-									)}
-									{member.invited && <Badge variant="brand">Invited</Badge>}
+									<span className="text-body-sm text-fg">{person.name}</span>
+									{isMe && <Badge variant="secondary">You</Badge>}
 								</div>
-								<span className="text-caption text-fg-subtle">
-									{member.email}
+								<span className="text-caption text-fg-subtle truncate">
+									{person.email}
 								</span>
 							</div>
-							<span className="text-caption text-fg-muted w-20">
-								{member.role}
+							<span className="text-caption text-fg-muted w-16 capitalize">
+								{person.role}
 							</span>
-							<span className="text-caption text-fg-subtle w-20">
-								{member.invited
-									? "—"
-									: `${vaultCount} ${vaultCount === 1 ? "vault" : "vaults"}`}
-							</span>
-							<span className="text-caption text-fg-subtle w-24 text-right">
-								{member.invited
-									? "invite pending"
-									: member.lastActiveMin === 0
-										? "active now"
-										: timeAgo(member.lastActiveMin)}
-							</span>
-							<DropdownMenu>
-								<DropdownMenuTrigger
-									render={
-										<Button
-											variant="ghost"
-											size="icon-sm"
-											aria-label={`Manage ${member.name}`}
-											disabled={member.id === currentMemberId}
-										/>
-									}
+							{shared === 0 && person.role !== "owner" && isAdmin ? (
+								<Button
+									variant="outline"
+									size="xs"
+									onClick={() => setGiving(person)}
 								>
-									<DotsThreeIcon />
-								</DropdownMenuTrigger>
-								<DropdownMenuContent align="end" className="w-44">
-									<DropdownMenuItem>
-										<UserSwitchIcon />
-										Change role
-									</DropdownMenuItem>
-									<DropdownMenuSeparator />
-									<DropdownMenuItem variant="destructive">
-										<UserMinusIcon />
-										{member.invited ? "Cancel invite" : "Remove"}
-									</DropdownMenuItem>
-								</DropdownMenuContent>
-							</DropdownMenu>
+									<VaultIcon data-icon="inline-start" />
+									Give access
+								</Button>
+							) : (
+								<span className="text-caption text-fg-subtle w-24">
+									{shared} shared {shared === 1 ? "vault" : "vaults"}
+								</span>
+							)}
+							<span className="text-caption text-fg-subtle w-20 text-right">
+								{isMe ? "now" : ago(person.lastSeenAt ?? person.createdAt)}
+							</span>
+							{isAdmin && !isMe && person.role !== "owner" ? (
+								<DropdownMenu>
+									<DropdownMenuTrigger
+										render={
+											<Button
+												variant="ghost"
+												size="icon-sm"
+												aria-label={`Manage ${person.name}`}
+											/>
+										}
+									>
+										<DotsThreeIcon />
+									</DropdownMenuTrigger>
+									<DropdownMenuContent align="end" className="w-48">
+										<DropdownMenuItem onClick={() => setGiving(person)}>
+											<VaultIcon />
+											Vault access
+										</DropdownMenuItem>
+										<DropdownMenuGroup>
+											<DropdownMenuLabel>Role</DropdownMenuLabel>
+											{roles.map((r) => (
+												<DropdownMenuItem
+													key={r.value}
+													disabled={person.role === r.value}
+													onClick={() =>
+														run(
+															actions.setRole(
+																person.userId,
+																r.value as "member" | "admin",
+															),
+															`${person.name} is now ${r.label.toLowerCase()}`,
+														)
+													}
+												>
+													{r.label}
+												</DropdownMenuItem>
+											))}
+										</DropdownMenuGroup>
+										<DropdownMenuSeparator />
+										<DropdownMenuItem
+											variant="destructive"
+											onClick={() => setRemoving(person)}
+										>
+											<UserMinusIcon />
+											Remove
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
+							) : (
+								<span className="size-7" />
+							)}
 						</div>
 					);
 				})}
 			</section>
+
+			{isAdmin && invites.length > 0 && (
+				<>
+					<SectionTitle>Waiting to join</SectionTitle>
+					<section
+						aria-label="Invites"
+						className="rounded-window bg-surface shadow-card divide-line-subtle flex flex-col divide-y"
+					>
+						{invites.map((pending) => (
+							<div
+								key={pending.id}
+								className="flex items-center gap-3 px-3.5 py-3"
+							>
+								<Avatar>
+									<AvatarFallback>{initials(pending.email)}</AvatarFallback>
+								</Avatar>
+								<div className="flex min-w-0 flex-1 flex-col gap-0.5">
+									<span className="text-body-sm text-fg truncate">
+										{pending.email}
+									</span>
+									<span className="text-caption text-fg-subtle">
+										Invited {ago(pending.createdAt)} as {pending.role}
+									</span>
+								</div>
+								<Button
+									variant="outline"
+									size="xs"
+									onClick={() => invite(pending.email, pending.role)}
+								>
+									<LinkIcon data-icon="inline-start" />
+									New link
+								</Button>
+								<Button
+									variant="ghost"
+									size="icon-sm"
+									aria-label={`Cancel invite for ${pending.email}`}
+									onClick={() =>
+										run(actions.revokeInvite(pending.id), "Invite canceled")
+									}
+								>
+									<XIcon />
+								</Button>
+							</div>
+						))}
+					</section>
+				</>
+			)}
+
+			<InviteLinkDialog
+				invite={link}
+				onOpenChange={(open) => !open && setLink(null)}
+			/>
+			<GiveAccessDialog
+				member={giving}
+				onOpenChange={(open) => !open && setGiving(null)}
+			/>
+			<ConfirmDialog
+				open={Boolean(removing)}
+				onOpenChange={(open) => !open && setRemoving(null)}
+				title={`Remove ${removing?.name}?`}
+				description="They lose access to every vault right away, and their private vault is deleted. Change any secrets they could see."
+				confirm="Remove"
+				destructive
+				onConfirm={async () => {
+					if (removing) {
+						await run(
+							actions.removeMember(removing.userId),
+							`${removing.name} was removed`,
+						);
+					}
+				}}
+			/>
 		</Page>
 	);
 }

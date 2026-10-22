@@ -1,30 +1,23 @@
 import { Avatar, AvatarFallback } from "@mima/ui/components/avatar";
 import { cn } from "@mima/ui/lib/utils";
 
-import {
-	type ActivityEvent,
-	findAgent,
-	findItem,
-	findMember,
-	findVault,
-} from "@/fixtures/vault";
-import { initials, timeAgo, toneDot } from "@/lib/format";
+import { describeEvent } from "@/lib/describe-event";
+import { ago, initials, toneDot } from "@/lib/format";
+import type { useLookup } from "@/lib/use-lookup";
+import type { VaultEvent } from "@/lib/vault-data";
 
 import { ItemTile } from "./item-tile";
 
 export function ActivityRow({
 	event,
+	lookup,
 	compact,
 }: {
-	event: ActivityEvent;
+	event: VaultEvent;
+	lookup: ReturnType<typeof useLookup>;
 	compact?: boolean;
 }) {
-	const item = findItem(event.itemId);
-	const vault = item && findVault(item.vaultId);
-	const name =
-		event.actor.kind === "agent"
-			? findAgent(event.actor.id)?.name
-			: findMember(event.actor.id)?.name;
+	const text = describeEvent(event, lookup);
 
 	return (
 		<li
@@ -33,32 +26,33 @@ export function ActivityRow({
 				compact ? "px-2 py-2" : "px-3.5 py-2.5",
 			)}
 		>
-			{event.actor.kind === "agent" ? (
+			{event.actorType === "agent" ? (
 				<ItemTile kind="agent" />
 			) : (
 				<Avatar size="sm">
-					<AvatarFallback>{initials(name ?? "?")}</AvatarFallback>
+					<AvatarFallback>{initials(event.actorName)}</AvatarFallback>
 				</Avatar>
 			)}
 			<p className="text-body-sm text-fg-muted min-w-0 flex-1 truncate">
-				<span className="text-fg">{name}</span> {event.action}{" "}
-				<span className="text-fg">{item?.name}</span>
-				{event.detail && !compact && (
-					<span className="text-fg-subtle">
-						{" "}
-						· {event.action === "injected" ? "into " : ""}
-						{event.detail}
-					</span>
+				<span className="text-fg">{text.actor}</span> {text.verb}
+				{text.object && <span className="text-fg"> {text.object}</span>}
+				{text.detail && !compact && (
+					<span className="text-fg-subtle"> · {text.detail}</span>
 				)}
 			</p>
-			{vault && !compact && (
-				<span className="text-caption text-fg-subtle flex items-center gap-1.5">
-					<span className={`size-1.5 rounded-full ${toneDot[vault.tone]}`} />
-					{vault.name}
+			{text.vault && !compact && (
+				<span className="text-caption text-fg-subtle flex shrink-0 items-center gap-1.5">
+					<span
+						className={`size-1.5 rounded-full ${toneDot[text.vault.tone]}`}
+					/>
+					{text.vault.name}
 				</span>
 			)}
-			<time className="text-caption text-fg-subtle w-16 shrink-0 text-right tabular-nums">
-				{timeAgo(event.min)}
+			<time
+				dateTime={new Date(event.createdAt).toISOString()}
+				className="text-caption text-fg-subtle w-16 shrink-0 text-right tabular-nums"
+			>
+				{ago(event.createdAt)}
 			</time>
 		</li>
 	);

@@ -93,3 +93,11 @@ export async function openAllItems(page: Page) {
 		.getByRole("link", { name: "All items" })
 		.click();
 }
+
+/** A sidebar link by its label; links can carry a count, such as "Agents 2". */
+export function sidebarLink(page: Page, name: string) {
+	const label = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	return page
+		.getByRole("navigation")
+		.getByRole("link", { name: new RegExp(`^${label}( \\d+)?$`) });
+}

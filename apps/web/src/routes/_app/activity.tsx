@@ -1,3 +1,4 @@
+import { Skeleton } from "@mima/ui/components/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@mima/ui/components/tabs";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
@@ -5,39 +6,44 @@ import { useState } from "react";
 import { ActivityRow } from "@/components/activity-row";
 import { Page } from "@/components/page";
 import { StatCard } from "@/components/stat-card";
-import { activity } from "@/fixtures/vault";
+import { useLookup } from "@/lib/use-lookup";
+import { useEvents } from "@/lib/vault-data";
 
 export const Route = createFileRoute("/_app/activity")({
 	component: Activity,
 });
 
+const DAY = 24 * 60 * 60 * 1000;
+
 function Activity() {
+	const events = useEvents();
+	const lookup = useLookup();
 	const [who, setWho] = useState("all");
-	const events = activity.filter(
-		(event) => who === "all" || event.actor.kind === who,
-	);
-	const today = activity.filter((event) => event.min < 60 * 24);
+	const all = events.data ?? [];
+	const shown = all.filter((event) => who === "all" || event.actorType === who);
+	const since = (ms: number) =>
+		all.filter((e) => Date.now() - new Date(e.createdAt).getTime() < ms);
 
 	return (
 		<Page
 			title="Activity"
-			description="Every reveal, copy and agent run, newest first. Nothing here can be edited."
+			description="Every reveal, copy and agent run, newest first. Nobody can edit this log."
 		>
 			<div className="mb-3 grid grid-cols-3 gap-3">
 				<StatCard
 					label="Events today"
-					value={today.length}
+					value={since(DAY).length}
 					note="by people and agents"
 				/>
 				<StatCard
-					label="Agent injections"
-					value={today.filter((e) => e.action === "injected").length}
-					note="values never left mima"
+					label="Agent runs today"
+					value={since(DAY).filter((e) => e.action === "injected").length}
+					note="values went to commands, not agents"
 				/>
 				<StatCard
-					label="Denied"
-					value={activity.filter((e) => e.action === "denied").length}
-					note="in the last 7 days"
+					label="Denied this week"
+					value={since(7 * DAY).filter((e) => e.action === "denied").length}
+					note="agent requests turned down"
 				/>
 			</div>
 
@@ -51,14 +57,29 @@ function Activity() {
 						</TabsList>
 					</Tabs>
 					<span className="text-caption text-fg-subtle mr-2">
-						{events.length} events
+						{shown.length} {shown.length === 1 ? "event" : "events"}
 					</span>
 				</div>
-				<ol className="divide-line-subtle flex flex-col divide-y">
-					{events.map((event) => (
-						<ActivityRow key={event.id} event={event} />
-					))}
-				</ol>
+				{events.isPending ? (
+					<div className="flex flex-col gap-2 p-3.5">
+						<Skeleton className="h-6" />
+						<Skeleton className="h-6" />
+						<Skeleton className="h-6" />
+					</div>
+				) : shown.length === 0 ? (
+					<p className="text-caption text-fg-subtle px-3.5 py-10 text-center">
+						Nothing here yet.
+					</p>
+				) : (
+					<ol
+						aria-label="Events"
+						className="divide-line-subtle flex flex-col divide-y"
+					>
+						{shown.map((event) => (
+							<ActivityRow key={event.id} event={event} lookup={lookup} />
+						))}
+					</ol>
+				)}
 			</section>
 		</Page>
 	);

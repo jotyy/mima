@@ -1,184 +1,229 @@
 import { Badge } from "@mima/ui/components/badge";
 import { Button } from "@mima/ui/components/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@mima/ui/components/dropdown-menu";
 import { Switch } from "@mima/ui/components/switch";
-import { PlusIcon, ShieldCheckIcon } from "@phosphor-icons/react";
+import {
+	ClockIcon,
+	DotsThreeIcon,
+	PlusIcon,
+	ShieldCheckIcon,
+	TrashIcon,
+} from "@phosphor-icons/react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { NewAgentDialog } from "@/components/agent-dialogs";
+import { ApprovalCard } from "@/components/approval-card";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ConnectAgentCard } from "@/components/connect-agent-card";
 import { ItemTile } from "@/components/item-tile";
 import { notify } from "@/components/notify";
 import { Page, SectionTitle } from "@/components/page";
+import { ago } from "@/lib/format";
+import { useLookup } from "@/lib/use-lookup";
 import {
-	type ApprovalRequest,
-	agents,
-	approvalRequests,
-	findAgent,
-	findItem,
-	findMember,
-	itemReference,
-} from "@/fixtures/vault";
-import { timeAgo } from "@/lib/format";
+	type Agent,
+	errorMessage,
+	useActions,
+	useAgents,
+	useRequests,
+} from "@/lib/vault-data";
 
 export const Route = createFileRoute("/_app/agents")({
 	component: Agents,
 });
 
-function Agents() {
-	const [requests, setRequests] = useState(approvalRequests);
+const kindLabel = { mcp: "Coding agent", cli: "Script", ci: "CI" } as const;
 
-	const settle = (request: ApprovalRequest, outcome: string) => {
-		setRequests((current) => current.filter((r) => r.id !== request.id));
-		const agent = findAgent(request.agentId);
-		const item = findItem(request.itemId);
-		notify.success(outcome, `${agent?.name} → ${item?.name}`);
-	};
+function Agents() {
+	const agents = useAgents();
+	const requests = useRequests();
+	const lookup = useLookup();
+	const [creating, setCreating] = useState(false);
+	const pending = requests.data ?? [];
+	const list = agents.data ?? [];
 
 	return (
 		<Page
 			title="Agents"
-			description="Agents use secrets through mima without ever seeing them."
+			description="Agents run commands with your secrets without ever seeing them."
 		>
 			<SectionTitle>
 				Waiting for you
-				{requests.length > 0 && (
+				{pending.length > 0 && (
 					<Badge variant="brand" className="ml-2">
-						{requests.length}
+						{pending.length}
 					</Badge>
 				)}
 			</SectionTitle>
-			{requests.length === 0 ? (
+			{pending.length === 0 ? (
 				<div className="rounded-window border-line text-caption text-fg-subtle mb-8 flex items-center justify-center gap-2 border border-dashed py-8">
 					<ShieldCheckIcon className="size-4" />
-					Nothing to approve. New requests show up here and on your phone.
+					Nothing to approve. When an agent asks for a new item, it shows up
+					here.
 				</div>
 			) : (
 				<div className="mb-8 flex flex-col gap-3">
-					{requests.map((request) => (
-						<ApprovalCard
-							key={request.id}
-							request={request}
-							onSettle={settle}
-						/>
+					{pending.map((request) => (
+						<ApprovalCard key={request.id} request={request} lookup={lookup} />
 					))}
 				</div>
 			)}
 
 			<SectionTitle
 				action={
-					<Button variant="ghost" size="xs">
-						<PlusIcon data-icon="inline-start" />
-						New agent
-					</Button>
+					list.length > 0 && (
+						<Button variant="ghost" size="xs" onClick={() => setCreating(true)}>
+							<PlusIcon data-icon="inline-start" />
+							New agent
+						</Button>
+					)
 				}
 			>
 				Agents
 			</SectionTitle>
-			<section className="divide-line-subtle rounded-window bg-surface shadow-card mb-8 flex flex-col divide-y">
-				{agents.map((agent) => {
-					const owner = findMember(agent.ownerId);
-					return (
-						<div key={agent.id} className="flex items-center gap-3 px-3.5 py-3">
-							<ItemTile kind="agent" />
-							<div className="flex min-w-0 flex-1 flex-col gap-0.5">
-								<div className="flex items-center gap-2">
-									<span className="text-body-sm text-fg">{agent.name}</span>
-									<Badge variant="secondary">{agent.kind}</Badge>
-								</div>
-								<span className="text-caption text-fg-subtle truncate">
-									{agent.host} · owned by {owner?.name} · {agent.itemIds.length}{" "}
-									{agent.itemIds.length === 1 ? "item" : "items"} ·{" "}
-									{agent.expiresInDays
-										? `expires in ${agent.expiresInDays}d`
-										: "no expiry"}
-								</span>
-							</div>
-							<div className="text-caption flex w-28 flex-col items-end gap-0.5">
-								<span className="text-fg tabular-nums">
-									{agent.runsThisWeek} runs
-								</span>
-								<span className="text-fg-subtle">
-									seen {timeAgo(agent.lastSeenMin)}
-								</span>
-							</div>
-							<Switch
-								defaultChecked={agent.enabled}
-								aria-label={`Enable ${agent.name}`}
-								onCheckedChange={(checked) =>
-									notify.info(
-										checked
-											? `${agent.name} is enabled`
-											: `${agent.name} is paused. Its token stops working right away.`,
-									)
-								}
-							/>
-						</div>
-					);
-				})}
-			</section>
+			{list.length === 0 ? (
+				<p className="text-caption text-fg-subtle mb-3">
+					No agents yet. Create one below to let a coding agent, script or CI
+					job use secrets.
+				</p>
+			) : (
+				<section
+					aria-label="Agents"
+					className="rounded-window bg-surface shadow-card divide-line-subtle mb-8 flex flex-col divide-y"
+				>
+					{list.map((agent) => (
+						<AgentRow key={agent.id} agent={agent} />
+					))}
+				</section>
+			)}
 
-			<SectionTitle>Connect another agent</SectionTitle>
+			<SectionTitle>
+				{list.length > 0 ? "Connect another agent" : "Connect an agent"}
+			</SectionTitle>
 			<ConnectAgentCard />
+			<NewAgentDialog open={creating} onOpenChange={setCreating} />
 		</Page>
 	);
 }
 
-function ApprovalCard({
-	request,
-	onSettle,
-}: {
-	request: ApprovalRequest;
-	onSettle: (request: ApprovalRequest, outcome: string) => void;
-}) {
-	const agent = findAgent(request.agentId);
-	const item = findItem(request.itemId);
-	const owner = agent && findMember(agent.ownerId);
-	if (!agent || !item) return null;
+function AgentRow({ agent }: { agent: Agent }) {
+	const actions = useActions();
+	const [deleting, setDeleting] = useState(false);
+	const expires = agent.expiresAt ? new Date(agent.expiresAt) : null;
+	const expired = expires ? expires.getTime() < Date.now() : false;
+	const daysLeft = expires
+		? Math.ceil((expires.getTime() - Date.now()) / 86_400_000)
+		: null;
+	const grants = agent.grants.length;
+
+	const run = async (work: Promise<unknown>, message: string) => {
+		try {
+			await work;
+			notify.success(message);
+		} catch (err) {
+			notify.error("That didn't work", errorMessage(err));
+		}
+	};
 
 	return (
-		<section className="rounded-window bg-surface shadow-card flex flex-col">
-			<div className="flex items-start gap-3 p-3.5">
-				<ItemTile kind="agent" />
-				<div className="flex min-w-0 flex-1 flex-col gap-1">
-					<p className="text-body-sm text-fg">
-						<span className="font-medium">{agent.name}</span> wants to use{" "}
-						<span className="font-medium">{item.name}</span>
-					</p>
-					<p className="text-caption text-fg-subtle">
-						{agent.host} · {owner?.name} · {timeAgo(request.requestedMin)}
-					</p>
+		<div className="flex items-center gap-3 px-3.5 py-3">
+			<ItemTile kind="agent" />
+			<div className="flex min-w-0 flex-1 flex-col gap-0.5">
+				<div className="flex items-center gap-2">
+					<span className="text-body-sm text-fg">{agent.name}</span>
+					<Badge variant="secondary">{kindLabel[agent.kind]}</Badge>
+					{expired && <Badge variant="destructive">Expired</Badge>}
+					{!agent.enabled && <Badge>Paused</Badge>}
 				</div>
-				<Badge variant="warning">First use</Badge>
-			</div>
-			<div className="bg-surface-sunken text-caption mx-3.5 mb-3.5 flex flex-col gap-1 rounded-lg px-3 py-2.5 font-mono">
-				<span className="text-fg-subtle">$ mima run -- {request.command}</span>
-				<span className="text-fg-muted">injects {itemReference(item)}</span>
-			</div>
-			<div className="rounded-b-window border-line-subtle bg-surface-sunken flex items-center justify-end gap-2 border-t px-3.5 py-2.5">
-				<span className="text-caption text-fg-subtle mr-auto">
-					The value goes to the command, never to the agent.
+				<span className="text-caption text-fg-subtle truncate">
+					{[
+						agent.host ?? "not used yet",
+						`owned by ${agent.ownerName}`,
+						`${grants} ${grants === 1 ? "item" : "items"}`,
+						expires
+							? expired
+								? "access expired"
+								: `expires in ${daysLeft} ${daysLeft === 1 ? "day" : "days"}`
+							: "no expiry",
+					].join(" · ")}
 				</span>
-				<Button
-					variant="ghost"
-					size="sm"
-					onClick={() => onSettle(request, "Denied")}
-				>
-					Deny
-				</Button>
-				<Button
-					variant="outline"
-					size="sm"
-					onClick={() => onSettle(request, "Allowed once")}
-				>
-					Allow once
-				</Button>
-				<Button
-					size="sm"
-					onClick={() => onSettle(request, "Allowed for 1 hour")}
-				>
-					Allow for 1 hour
-				</Button>
 			</div>
-		</section>
+			<div className="text-caption flex w-28 flex-col items-end gap-0.5">
+				<span className="text-fg tabular-nums">
+					{agent.runsThisWeek} {agent.runsThisWeek === 1 ? "run" : "runs"} this
+					week
+				</span>
+				<span className="text-fg-subtle">
+					{agent.lastSeenAt ? `seen ${ago(agent.lastSeenAt)}` : "never seen"}
+				</span>
+			</div>
+			<Switch
+				checked={agent.enabled}
+				aria-label={`${agent.name} enabled`}
+				onCheckedChange={(checked) =>
+					run(
+						actions.updateAgent(agent.id, { enabled: checked }),
+						checked
+							? `${agent.name} is on`
+							: `${agent.name} is paused; its token stops working now`,
+					)
+				}
+			/>
+			<DropdownMenu>
+				<DropdownMenuTrigger
+					render={
+						<Button
+							variant="ghost"
+							size="icon-sm"
+							aria-label={`${agent.name} options`}
+						/>
+					}
+				>
+					<DotsThreeIcon />
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end" className="w-48">
+					{[7, 30].map((days) => (
+						<DropdownMenuItem
+							key={days}
+							onClick={() =>
+								run(
+									actions.updateAgent(agent.id, { extendDays: days }),
+									`${agent.name} extended by ${days} days`,
+								)
+							}
+						>
+							<ClockIcon />
+							Extend {days} days
+						</DropdownMenuItem>
+					))}
+					<DropdownMenuSeparator />
+					<DropdownMenuItem
+						variant="destructive"
+						onClick={() => setDeleting(true)}
+					>
+						<TrashIcon />
+						Delete agent
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+			<ConfirmDialog
+				open={deleting}
+				onOpenChange={setDeleting}
+				title={`Delete ${agent.name}?`}
+				description="Its token stops working and every item it could use is revoked. This can't be undone."
+				confirm="Delete agent"
+				destructive
+				onConfirm={() =>
+					run(actions.deleteAgent(agent.id), `Deleted ${agent.name}`)
+				}
+			/>
+		</div>
 	);
 }

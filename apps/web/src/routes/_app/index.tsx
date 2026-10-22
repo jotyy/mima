@@ -10,6 +10,7 @@ import {
 	EnvelopeSimpleIcon,
 	MagnifyingGlassIcon,
 	ShieldCheckIcon,
+	UserPlusIcon,
 	WarningIcon,
 } from "@phosphor-icons/react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -18,22 +19,28 @@ import { type ComponentType, type ReactNode, useState } from "react";
 import { ActivityRow } from "@/components/activity-row";
 import { CopyButton } from "@/components/copy-button";
 import { ItemTile } from "@/components/item-tile";
+import {
+	GiveAccessDialog,
+	InviteLinkDialog,
+} from "@/components/member-dialogs";
 import { notify } from "@/components/notify";
 import { Page, SectionTitle } from "@/components/page";
+import { ago } from "@/lib/format";
+import { useKeyring } from "@/lib/keyring";
+import { useLookup } from "@/lib/use-lookup";
 import {
-	activity,
-	agents,
-	approvalRequests,
-	currentMemberId,
-	findAgent,
-	findItem,
-	findMember,
-	findVault,
-	items,
-	members,
-	vaults,
-} from "@/fixtures/vault";
-import { timeAgo } from "@/lib/format";
+	type AccessRequest,
+	errorMessage,
+	type Item,
+	type Member,
+	useActions,
+	useAgents,
+	useEvents,
+	useItems,
+	useMembers,
+	useRequests,
+	useVaults,
+} from "@/lib/vault-data";
 
 export const Route = createFileRoute("/_app/")({
 	component: Overview,
@@ -48,20 +55,16 @@ const kinds = [
 ];
 
 function Overview() {
-	const me = findMember(currentMemberId);
-	const [needs, setNeeds] = useState(buildNeeds);
-	const done = (id: string, message: string) => {
-		setNeeds((current) => current.filter((need) => need.id !== id));
-		notify.success(message);
-	};
-
+	const { me } = useKeyring();
+	const needs = useNeeds();
 	const firstName = me?.name.split(" ")[0];
+
 	return (
 		<Page
 			title="Overview"
 			description={
-				needs.length
-					? `Hi ${firstName}. ${needs.length} things need you.`
+				needs.rows.length
+					? `Hi ${firstName}. ${needs.rows.length} ${needs.rows.length === 1 ? "thing needs" : "things need"} you.`
 					: `Hi ${firstName}. Nothing needs you right now.`
 			}
 		>
@@ -70,36 +73,43 @@ function Overview() {
 			<div className="mt-8">
 				<SectionTitle>
 					Needs you
-					{needs.length > 0 && (
+					{needs.rows.length > 0 && (
 						<Badge variant="brand" className="ml-2">
-							{needs.length}
+							{needs.rows.length}
 						</Badge>
 					)}
 				</SectionTitle>
-				{needs.length === 0 ? (
+				{needs.rows.length === 0 ? (
 					<div className="rounded-window border-line text-caption text-fg-subtle flex items-center justify-center gap-2 border border-dashed py-8">
 						<CheckCircleIcon className="text-success size-4" />
-						All clear. Approvals and weak passwords show up here.
+						All clear. Agent requests, weak passwords and new teammates show up
+						here.
 					</div>
 				) : (
-					<section className="rounded-window bg-surface shadow-card divide-line-subtle flex flex-col divide-y">
-						{needs.map((need) => (
-							<NeedRow key={need.id} need={need} onDone={done} />
+					<section
+						aria-label="Needs you"
+						className="rounded-window bg-surface shadow-card divide-line-subtle flex flex-col divide-y"
+					>
+						{needs.rows.map((row) => (
+							<NeedRow key={row.id} {...row} />
 						))}
 					</section>
 				)}
 			</div>
 
-			<div className="mt-8 grid grid-cols-2 gap-3">
+			<div className="mt-8 grid grid-cols-2 items-start gap-3">
 				<RecentItems />
 				<RecentActivity />
 			</div>
+			{needs.dialogs}
 		</Page>
 	);
 }
 
 function SearchCard() {
 	const navigate = useNavigate();
+	const items = useItems();
+	const vaults = useVaults();
 	const [kind, setKind] = useState("all");
 	const [query, setQuery] = useState("");
 
@@ -140,8 +150,9 @@ function SearchCard() {
 					<MagnifyingGlassIcon className="text-fg-subtle size-4" />
 					<input
 						value={query}
+						aria-label="Search everything"
 						onChange={(event) => setQuery(event.target.value)}
-						placeholder={`Search ${items.length} items in ${vaults.length} vaults`}
+						placeholder={`Search ${items.data?.length ?? 0} items in ${vaults.data?.length ?? 0} vaults`}
 						className="text-fg text-field min-w-0 flex-1 bg-transparent outline-none"
 					/>
 					<Button type="submit" variant="brand" size="icon" aria-label="Search">
@@ -156,59 +167,105 @@ function SearchCard() {
 	);
 }
 
-type Need = {
+type NeedRowProps = {
 	id: string;
 	icon: ComponentType<{ className?: string }>;
 	tone: string;
 	title: ReactNode;
 	meta: string;
-	actions: (onDone: (id: string, message: string) => void) => ReactNode;
+	actions: ReactNode;
 };
 
-function buildNeeds(): Need[] {
-	const approvals = approvalRequests.flatMap((request): Need[] => {
-		const agent = findAgent(request.agentId);
-		const item = findItem(request.itemId);
-		if (!agent || !item) return [];
-		const id = `approval-${request.id}`;
-		return [
-			{
+function useNeeds() {
+	const { me } = useKeyring();
+	const requests = useRequests();
+	const items = useItems();
+	const agents = useAgents();
+	const members = useMembers();
+	const vaults = useVaults();
+	const actions = useActions();
+	const navigate = useNavigate();
+	const lookup = useLookup();
+	const [busy, setBusy] = useState<string | null>(null);
+	const [giving, setGiving] = useState<Member | null>(null);
+	const [link, setLink] = useState<{ email: string; token: string } | null>(
+		null,
+	);
+	const isAdmin = me?.role !== "member";
+	const hasSharedVaults = (vaults.data ?? []).some((v) => !v.personal);
+
+	const run = async (
+		id: string,
+		work: () => Promise<unknown>,
+		message: string,
+	) => {
+		setBusy(id);
+		try {
+			await work();
+			notify.success(message);
+		} catch (err) {
+			notify.error("That didn't work", errorMessage(err));
+		} finally {
+			setBusy(null);
+		}
+	};
+
+	const approvals = (requests.data ?? []).map(
+		(request: AccessRequest): NeedRowProps => {
+			const agent = lookup.agents.get(request.agentId);
+			const item = lookup.items.get(request.itemId);
+			const id = `approval-${request.id}`;
+			return {
 				id,
 				icon: ShieldCheckIcon,
 				tone: "text-brand",
 				title: (
 					<>
-						<span className="font-medium">{agent.name}</span> wants{" "}
-						<span className="font-medium">{item.name}</span>
+						<span className="font-medium">{agent?.name ?? "An agent"}</span>{" "}
+						wants <span className="font-medium">{item?.name ?? "an item"}</span>
 					</>
 				),
-				meta: `for ${request.command} · ${timeAgo(request.requestedMin)}`,
-				actions: (onDone) => (
+				meta: `for ${request.command} · ${ago(request.createdAt)}`,
+				actions: (
 					<>
 						<Button
 							variant="ghost"
 							size="sm"
-							onClick={() => onDone(id, `Denied ${agent.name}`)}
+							disabled={busy === id}
+							onClick={() =>
+								run(
+									id,
+									() => actions.deny(request),
+									`Denied ${agent?.name ?? "the agent"}`,
+								)
+							}
 						>
 							Deny
 						</Button>
 						<Button
 							variant="outline"
 							size="sm"
-							onClick={() => onDone(id, `Allowed ${agent.name} once`)}
+							disabled={busy === id || !item}
+							onClick={() =>
+								run(
+									id,
+									() => actions.approve(request, "once"),
+									`Allowed ${agent?.name ?? "the agent"} once`,
+								)
+							}
 						>
 							Allow once
 						</Button>
 					</>
 				),
-			},
-		];
-	});
+			};
+		},
+	);
 
-	const weak = items
-		.filter((item) => item.strength === "weak")
+	const weak = (items.data ?? [])
+		.filter((item: Item) => item.strength === "weak")
 		.map(
-			(item): Need => ({
+			(item): NeedRowProps => ({
 				id: `weak-${item.id}`,
 				icon: WarningIcon,
 				tone: "text-warning",
@@ -217,12 +274,17 @@ function buildNeeds(): Need[] {
 						<span className="font-medium">{item.name}</span> has a weak password
 					</>
 				),
-				meta: `${findVault(item.vaultId)?.name} · changed ${timeAgo(item.updatedMin)}`,
-				actions: () => (
+				meta: `${lookup.vaults.get(item.vaultId)?.name ?? ""} · changed ${ago(item.updatedAt)}`,
+				actions: (
 					<Button
 						variant="outline"
 						size="sm"
-						render={<Link to="/items" search={{ id: item.id }} />}
+						onClick={() =>
+							navigate({
+								to: "/items",
+								search: { id: item.id, vault: item.vaultId },
+							})
+						}
 					>
 						Change
 					</Button>
@@ -230,31 +292,47 @@ function buildNeeds(): Need[] {
 			}),
 		);
 
-	const expiring = agents
-		.filter(
-			(agent) =>
+	const soon = Date.now() + 3 * 86_400_000;
+	const expiring = (agents.data ?? [])
+		.filter((agent) => {
+			const at = agent.expiresAt ? new Date(agent.expiresAt).getTime() : null;
+			return (
 				agent.enabled &&
-				agent.expiresInDays !== null &&
-				agent.expiresInDays <= 3,
-		)
-		.map((agent): Need => {
+				at !== null &&
+				at < soon &&
+				(agent.ownerId === me?.id || isAdmin)
+			);
+		})
+		.map((agent): NeedRowProps => {
 			const id = `expiring-${agent.id}`;
+			const left = Math.ceil(
+				(new Date(agent.expiresAt as Date).getTime() - Date.now()) / 86_400_000,
+			);
 			return {
 				id,
 				icon: ClockIcon,
 				tone: "text-fg-muted",
 				title: (
 					<>
-						<span className="font-medium">{agent.name}</span> loses access in{" "}
-						{agent.expiresInDays} days
+						<span className="font-medium">{agent.name}</span>{" "}
+						{left <= 0
+							? "lost access"
+							: `loses access in ${left} ${left === 1 ? "day" : "days"}`}
 					</>
 				),
-				meta: `${agent.host} · owned by ${findMember(agent.ownerId)?.name}`,
-				actions: (onDone) => (
+				meta: `${agent.host ?? "not used yet"} · owned by ${agent.ownerName}`,
+				actions: (
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={() => onDone(id, `Extended ${agent.name} by 7 days`)}
+						disabled={busy === id}
+						onClick={() =>
+							run(
+								id,
+								() => actions.updateAgent(agent.id, { extendDays: 7 }),
+								`Extended ${agent.name} by 7 days`,
+							)
+						}
 					>
 						Extend 7 days
 					</Button>
@@ -262,73 +340,146 @@ function buildNeeds(): Need[] {
 			};
 		});
 
-	const invites = members
-		.filter((member) => member.invited)
-		.map((member): Need => {
-			const id = `invite-${member.id}`;
-			return {
-				id,
-				icon: EnvelopeSimpleIcon,
-				tone: "text-fg-muted",
-				title: (
-					<>
-						<span className="font-medium">{member.name}</span> hasn't joined yet
-					</>
-				),
-				meta: `invite sent ${timeAgo(member.invitedMin ?? 0)} to ${member.email}`,
-				actions: (onDone) => (
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() =>
-							onDone(id, `Sent the invite to ${member.email} again`)
-						}
-					>
-						Resend
-					</Button>
-				),
-			};
-		});
+	const newcomers =
+		isAdmin && hasSharedVaults
+			? (members.data?.members ?? [])
+					.filter(
+						(m) =>
+							m.role !== "owner" &&
+							m.userId !== me?.id &&
+							m.sharedVaultIds.length === 0,
+					)
+					.map(
+						(member): NeedRowProps => ({
+							id: `newcomer-${member.userId}`,
+							icon: UserPlusIcon,
+							tone: "text-brand",
+							title: (
+								<>
+									<span className="font-medium">{member.name}</span> joined and
+									can't open any shared vault yet
+								</>
+							),
+							meta: `${member.email} · joined ${ago(member.createdAt)}`,
+							actions: (
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => setGiving(member)}
+								>
+									Give access
+								</Button>
+							),
+						}),
+					)
+			: [];
 
-	return [...approvals, ...weak, ...expiring, ...invites];
+	const invites = isAdmin
+		? (members.data?.invites ?? []).map((pending): NeedRowProps => {
+				const id = `invite-${pending.id}`;
+				return {
+					id,
+					icon: EnvelopeSimpleIcon,
+					tone: "text-fg-muted",
+					title: (
+						<>
+							<span className="font-medium">{pending.email}</span> hasn't joined
+							yet
+						</>
+					),
+					meta: `invited ${ago(pending.createdAt)} as ${pending.role}`,
+					actions: (
+						<Button
+							variant="outline"
+							size="sm"
+							disabled={busy === id}
+							onClick={async () => {
+								setBusy(id);
+								try {
+									const { token } = await actions.invite(
+										pending.email,
+										pending.role,
+									);
+									setLink({ email: pending.email, token });
+								} catch (err) {
+									notify.error("Couldn't create a new link", errorMessage(err));
+								} finally {
+									setBusy(null);
+								}
+							}}
+						>
+							New link
+						</Button>
+					),
+				};
+			})
+		: [];
+
+	return {
+		rows: [...approvals, ...newcomers, ...weak, ...expiring, ...invites],
+		dialogs: (
+			<>
+				<GiveAccessDialog
+					member={giving}
+					onOpenChange={(open) => !open && setGiving(null)}
+				/>
+				<InviteLinkDialog
+					invite={link}
+					onOpenChange={(open) => !open && setLink(null)}
+				/>
+			</>
+		),
+	};
 }
 
-function NeedRow({
-	need,
-	onDone,
-}: {
-	need: Need;
-	onDone: (id: string, message: string) => void;
-}) {
-	const Icon = need.icon;
+function NeedRow({ icon: Icon, tone, title, meta, actions }: NeedRowProps) {
 	return (
 		<div className="flex items-center gap-3 px-3.5 py-3">
 			<span className="bg-surface shadow-pill flex size-7 shrink-0 items-center justify-center rounded-md">
-				<Icon className={cn("size-4", need.tone)} />
+				<Icon className={cn("size-4", tone)} />
 			</span>
 			<div className="flex min-w-0 flex-1 flex-col gap-0.5">
-				<p className="text-body-sm text-fg truncate">{need.title}</p>
-				<p className="text-caption text-fg-subtle truncate">{need.meta}</p>
+				<p className="text-body-sm text-fg truncate">{title}</p>
+				<p className="text-caption text-fg-subtle truncate">{meta}</p>
 			</div>
-			<div className="flex shrink-0 items-center gap-1.5">
-				{need.actions(onDone)}
-			</div>
+			<div className="flex shrink-0 items-center gap-1.5">{actions}</div>
 		</div>
 	);
 }
 
 function RecentItems() {
+	const { me } = useKeyring();
+	const items = useItems();
+	const events = useEvents();
+	const lookup = useLookup();
+	const actions = useActions();
 	const [tab, setTab] = useState("recent");
-	const list = items
-		.filter((item) =>
-			tab === "recent" ? item.usedMin !== undefined : item.favorite,
-		)
-		.sort((a, b) => (a.usedMin ?? 0) - (b.usedMin ?? 0))
-		.slice(0, 5);
+
+	const used = new Map<string, Date>();
+	for (const event of events.data ?? []) {
+		if (
+			event.actorId === me?.id &&
+			(event.action === "copied" || event.action === "revealed") &&
+			event.itemId &&
+			!used.has(event.itemId)
+		) {
+			used.set(event.itemId, new Date(event.createdAt));
+		}
+	}
+	const recent = [...used.entries()]
+		.map(([id, at]) => ({ item: lookup.items.get(id), at }))
+		.filter((row): row is { item: Item; at: Date } => Boolean(row.item));
+	const list =
+		tab === "recent"
+			? recent.slice(0, 5)
+			: (items.data ?? [])
+					.filter((item) => item.favorite)
+					.slice(0, 5)
+					.map((item) => ({ item, at: undefined }));
 
 	return (
 		<section className="rounded-window bg-surface shadow-card flex flex-col p-1.5">
-			<div className="flex items-center justify-between pb-1">
+			<div className="pb-1">
 				<Tabs value={tab} onValueChange={(value) => setTab(String(value))}>
 					<TabsList variant="ghost">
 						<TabsTrigger value="recent">Recently used</TabsTrigger>
@@ -336,45 +487,69 @@ function RecentItems() {
 					</TabsList>
 				</Tabs>
 			</div>
-			<ul className="flex flex-col gap-0.5">
-				{list.map((item) => (
-					<li
-						key={item.id}
-						className="group/row hover:bg-tint/3 flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors"
-					>
-						<ItemTile kind={item.kind} />
-						<Link
-							to="/items"
-							search={{ id: item.id }}
-							className="flex min-w-0 flex-1 flex-col"
+			{list.length === 0 ? (
+				<p className="text-caption text-fg-subtle px-2 py-6 text-center">
+					{tab === "recent"
+						? "Items you copy or reveal show up here."
+						: "Star an item to keep it here."}
+				</p>
+			) : (
+				<ul className="flex flex-col gap-0.5">
+					{list.map(({ item, at }) => (
+						<li
+							key={item.id}
+							className="group/row hover:bg-tint/3 flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors"
 						>
-							<span className="text-body-sm text-fg truncate">{item.name}</span>
-							<span className="text-caption text-fg-subtle truncate">
-								{item.username ?? findVault(item.vaultId)?.name}
-							</span>
-						</Link>
-						<div className="flex items-center opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100">
-							{item.username && (
-								<CopyButton value={item.username} label="username" />
+							<ItemTile kind={item.kind} />
+							<Link
+								to="/items"
+								search={{ id: item.id, vault: item.vaultId }}
+								className="flex min-w-0 flex-1 flex-col"
+							>
+								<span className="text-body-sm text-fg truncate">
+									{item.name}
+								</span>
+								<span className="text-caption text-fg-subtle truncate">
+									{item.username ?? lookup.vaults.get(item.vaultId)?.name}
+								</span>
+							</Link>
+							<div className="flex items-center opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100">
+								{item.username && (
+									<CopyButton
+										value={item.username}
+										label="username"
+										source={item.name}
+										secret={false}
+										onCopied={() => actions.logUse(item, "copied", "username")}
+									/>
+								)}
+								{item.secret && (
+									<CopyButton
+										value={item.secret}
+										label={item.kind === "login" ? "password" : "value"}
+										source={item.name}
+										onCopied={() => actions.logUse(item, "copied", "secret")}
+									/>
+								)}
+							</div>
+							{at && (
+								<span className="text-caption text-fg-subtle w-14 shrink-0 text-right tabular-nums">
+									{ago(at)}
+								</span>
 							)}
-							{item.secret && (
-								<CopyButton
-									value={item.secret}
-									label={item.kind === "login" ? "password" : "value"}
-								/>
-							)}
-						</div>
-						<span className="text-caption text-fg-subtle w-14 shrink-0 text-right tabular-nums">
-							{timeAgo(item.usedMin ?? 0)}
-						</span>
-					</li>
-				))}
-			</ul>
+						</li>
+					))}
+				</ul>
+			)}
 		</section>
 	);
 }
 
 function RecentActivity() {
+	const events = useEvents();
+	const lookup = useLookup();
+	const latest = (events.data ?? []).slice(0, 6);
+
 	return (
 		<section className="rounded-window bg-surface shadow-card flex flex-col p-1.5">
 			<div className="flex h-8 items-center justify-between pr-1.5 pb-1 pl-2">
@@ -387,11 +562,17 @@ function RecentActivity() {
 					<ArrowUpRightIcon className="size-3" />
 				</Link>
 			</div>
-			<ol className="flex flex-col">
-				{activity.slice(0, 5).map((event) => (
-					<ActivityRow key={event.id} event={event} compact />
-				))}
-			</ol>
+			{latest.length === 0 ? (
+				<p className="text-caption text-fg-subtle px-2 py-6 text-center">
+					Nothing yet.
+				</p>
+			) : (
+				<ol className="flex flex-col">
+					{latest.map((event) => (
+						<ActivityRow key={event.id} event={event} lookup={lookup} compact />
+					))}
+				</ol>
+			)}
 		</section>
 	);
 }

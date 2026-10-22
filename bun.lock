@@ -17,6 +17,21 @@
         "varlock": "catalog:",
       },
     },
+    "apps/cli": {
+      "name": "@mima/cli",
+      "version": "0.0.0",
+      "bin": {
+        "mima": "./src/index.ts",
+      },
+      "dependencies": {
+        "@mima/crypto": "workspace:*",
+      },
+      "devDependencies": {
+        "@mima/config": "workspace:*",
+        "@types/bun": "^1.3.14",
+        "typescript": "catalog:",
+      },
+    },
     "apps/extension": {
       "name": "extension",
       "version": "0.0.0",
@@ -765,6 +780,8 @@
     "@mima/api": ["@mima/api@workspace:packages/api"],
 
     "@mima/auth": ["@mima/auth@workspace:packages/auth"],
+
+    "@mima/cli": ["@mima/cli@workspace:apps/cli"],
 
     "@mima/config": ["@mima/config@workspace:packages/config"],
 
