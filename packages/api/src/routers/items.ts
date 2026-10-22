@@ -269,7 +269,7 @@ export const itemsRouter = {
 		.input(
 			z.object({
 				id: z.string(),
-				action: z.enum(["revealed", "copied"]),
+				action: z.enum(["revealed", "copied", "filled"]),
 				field: z.string().max(40),
 			}),
 		)

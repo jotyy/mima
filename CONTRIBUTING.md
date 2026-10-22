@@ -19,7 +19,7 @@ bun run dev
 
 `bun run dev` starts the whole stack with Alchemy: the web app on <http://localhost:3001>, the API on <http://localhost:3000>, and a local D1 database. It needs no Cloudflare account. Code changes reload on their own; after adding a migration, stop and start it again so the migration is applied.
 
-`bun run dev:extension` starts the browser extension separately.
+`bun run dev:extension` starts the browser extension separately, in a browser of its own. The end-to-end tests build it and load it into Chromium.
 
 ## Checks
 

@@ -54,6 +54,8 @@ export function describeEvent(
 			return parts(`revealed the ${field(event.detail)} of`, itemName);
 		case "copied":
 			return parts(`copied the ${field(event.detail)} of`, itemName);
+		case "filled":
+			return parts("filled in", itemName, "from the browser extension");
 		case "injected":
 			return parts(
 				"injected",

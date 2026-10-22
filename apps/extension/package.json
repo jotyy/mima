@@ -2,7 +2,7 @@
 	"name": "extension",
 	"version": "0.0.0",
 	"private": true,
-	"description": "manifest.json description",
+	"description": "Fill and copy your mima items in the browser.",
 	"type": "module",
 	"scripts": {
 		"dev": "wxt --port 5555",
@@ -11,18 +11,26 @@
 		"build:firefox": "wxt build -b firefox",
 		"zip": "wxt zip",
 		"zip:firefox": "wxt zip -b firefox",
-		"compile": "tsc --noEmit",
+		"check-types": "tsc --noEmit",
 		"postinstall": "wxt prepare"
 	},
 	"dependencies": {
-		"react": "^19.2.4",
-		"react-dom": "^19.2.4"
+		"@mima/api": "workspace:*",
+		"@mima/crypto": "workspace:*",
+		"@mima/ui": "workspace:*",
+		"@orpc/client": "catalog:",
+		"@phosphor-icons/react": "^2.1.10",
+		"react": "^19.3.0",
+		"react-dom": "^19.3.0"
 	},
 	"devDependencies": {
-		"@types/react": "^19.2.14",
-		"@types/react-dom": "^19.2.3",
+		"@tailwindcss/vite": "^4.3.3",
+		"@types/chrome": "^0.1.21",
+		"@types/react": "^19.3.0",
+		"@types/react-dom": "^19.3.0",
 		"@wxt-dev/module-react": "^1.1.5",
-		"typescript": "^5.9.3",
+		"tailwindcss": "catalog:",
+		"typescript": "catalog:",
 		"web-ext": "^10.5.0",
 		"wxt": "^0.21.3"
 	}

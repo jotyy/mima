@@ -1,0 +1,43 @@
+# Browser extension
+
+The extension shows the items for the site you're on, fills the login form with one click, and copies usernames and passwords. It decrypts on your computer, like the web app, and works in Chrome, Edge, Brave, Arc and other Chromium browsers.
+
+## Install
+
+The extension isn't in a store yet, so you build it from this repository and load it unpacked:
+
+```sh
+bun install
+bun run --cwd apps/extension build
+```
+
+1. Open `chrome://extensions` and turn on **Developer mode**.
+2. Choose **Load unpacked** and pick `apps/extension/.output/chrome-mv3`.
+3. Pin mima to the toolbar.
+
+A Firefox build exists (`bun run --cwd apps/extension build:firefox`), but it isn't tested yet.
+
+## Connect and sign in
+
+Open the extension and enter the address you open mima at, such as `mima.example.com`. The extension finds your server from there. Then sign in with your email and master password.
+
+## Use it
+
+- **On a login page**, the items saved for that site come first. Choose **Fill** to put the username and password into the form.
+- **Search** to find any item; the buttons copy its username or password.
+- **Lock** forgets the key. The extension also locks itself after 15 idle minutes, and whenever the browser closes.
+
+Fills and copies appear in **Activity**, like everything else.
+
+## What it can access
+
+The extension asks to read and change data on all sites. It needs that to fill forms on whatever site you're on, and to reach your mima server, whose address is different for every team. It only touches a page when you choose **Fill**.
+
+What it stores:
+
+| Where                                                          | What                                                |
+| -------------------------------------------------------------- | --------------------------------------------------- |
+| Extension storage (on disk)                                    | Your mima address, your email and the session token |
+| Session storage (memory only, cleared when the browser closes) | Your unlocked private key and when you last used it |
+
+Your master password is never stored. Pages and other extensions can't read the extension's storage.

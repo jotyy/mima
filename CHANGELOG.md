@@ -19,5 +19,6 @@ The first public version.
 - Recently deleted: deleted items can be restored for 30 days, and the deletion can be undone from its notification.
 - Earlier passwords: a changed password or value stays on the item, encrypted, with when it was replaced and by whom.
 - Agents and `mima run`, which hands an item's value to a command without showing it to the caller, with approvals in the web app.
+- A browser extension for Chromium browsers that lists the items for the current site, fills login forms and copies usernames and passwords.
 - Layouts for phones, light and dark themes, and installing mima as an app (PWA).
 - Self-hosting on Cloudflare Workers and D1 with Alchemy.

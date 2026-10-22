@@ -48,6 +48,10 @@ An agent's key pair is created in the browser. Its private key goes into the tok
 
 Anyone who holds an agent token can use whatever that agent has been allowed to use. Treat a token like a password, give each agent only the items it needs, and pause or delete agents you no longer use.
 
+## Browser extension
+
+The extension signs in with the same auth key as the web app and keeps the session token in its own storage, sending it as a bearer token. The API accepts sign-ins from `chrome-extension://` and `moz-extension://` origins for this, since each install has its own ID. The unlocked private key is kept only in the extension's session storage, which lives in memory, can't be read by pages or content scripts, and is cleared when the browser closes or after 15 idle minutes. Filling runs a small script in the page only when you choose **Fill**. See [Browser extension](browser-extension.md).
+
 ## Limits
 
 These are the things mima does not protect against. Please read them before you rely on it.

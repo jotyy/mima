@@ -26,6 +26,7 @@ mima is for small teams who want one place for their shared logins, API keys and
 - **Hard to lose things.** Deleting an item moves it to Recently deleted for 30 days, with Undo right in the notification. A changed password stays under Earlier.
 - **An activity log.** Every reveal, copy, share, import and backup is recorded, so the team knows who used what.
 - **Move in, move out.** Import CSV exports from 1Password, Bitwarden, LastPass, Chrome, Firefox and Safari. Download a decrypted backup that mima and most password managers can import.
+- **A browser extension.** It lists the items saved for the site you're on and fills the login form in one click. See [Browser extension](docs/browser-extension.md).
 - **Quick to use.** A command palette (<kbd>⌘</kbd> <kbd>K</kbd>) that copies a password without opening the item, a clipboard that clears itself after 90 seconds, light and dark themes, and a layout that works on phones. It installs as an app (PWA).
 - **Secrets for scripts and agents, when you need them.** `mima run` hands an item's value to a command without showing it to the agent or script that started it. The first run waits until a person approves it. See [Agents and scripts](docs/agents.md).
 
@@ -74,6 +75,7 @@ bunx alchemy deploy --stage production
 
 - [Self-hosting](docs/self-hosting.md): deploy, configure and upgrade your instance
 - [Security](docs/security.md): the encryption design and its limits
+- [Browser extension](docs/browser-extension.md): install it and fill logins
 - [Agents and scripts](docs/agents.md): `mima run` and approvals
 - [Contributing](CONTRIBUTING.md): set up a development environment and send a change
 - [Changelog](CHANGELOG.md)
@@ -85,7 +87,7 @@ apps/
   web/         React app (TanStack Router, React Query, Tailwind CSS)
   server/      API on Cloudflare Workers (Hono, oRPC, Better Auth)
   cli/         mima run, for scripts and agents
-  extension/   browser extension (early work)
+  extension/   browser extension: fill and copy on any site
 packages/
   crypto/      the end-to-end encryption, shared by the web app and the CLI
   api/         API routes and access rules

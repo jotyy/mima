@@ -192,7 +192,8 @@ export type EventAction =
 	| "invited"
 	| "imported"
 	| "exported"
-	| "restored";
+	| "restored"
+	| "filled";
 
 /** Append-only audit log. `detail` is plaintext: never put a secret in it. */
 export const event = sqliteTable(

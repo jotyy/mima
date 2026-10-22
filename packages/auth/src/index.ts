@@ -3,6 +3,7 @@ import type { Database } from "@mima/db";
 import * as schema from "@mima/db/schema/auth";
 import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
+import { bearer } from "better-auth/plugins";
 
 export type AuthConfig = {
 	BETTER_AUTH_URL: string;
@@ -20,7 +21,13 @@ export function createAuth(
 			provider: "sqlite",
 			schema,
 		}),
-		trustedOrigins: [env.CORS_ORIGIN, ...desktopOrigins],
+		// The browser extension signs in from its own origin, which differs per install.
+		trustedOrigins: [
+			env.CORS_ORIGIN,
+			"chrome-extension://",
+			"moz-extension://",
+			...desktopOrigins,
+		],
 		// The "password" is the auth key derived from the master password on the device;
 		// the master password itself never reaches the server.
 		emailAndPassword: {
@@ -49,7 +56,9 @@ export function createAuth(
 				httpOnly: true,
 			},
 		},
-		plugins: [],
+		// The extension can't rely on cookies across sites, so it sends the session token
+		// as a bearer token; the web app keeps using its cookie.
+		plugins: [bearer()],
 	});
 }
 
