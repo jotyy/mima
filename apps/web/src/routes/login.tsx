@@ -1,4 +1,3 @@
-import { Button } from "@mima/ui/components/button";
 import { Input } from "@mima/ui/components/input";
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
@@ -8,6 +7,7 @@ import {
 	Field,
 	FormError,
 	PasswordInput,
+	SubmitButton,
 } from "@/components/auth-layout";
 import Loader from "@/components/loader";
 import { useKeyring, WrongPasswordError } from "@/lib/keyring";
@@ -35,14 +35,11 @@ function SignIn() {
 		<AuthLayout
 			title={`Sign in to ${workspace.data?.workspaceName ?? "mima"}`}
 			description="Use the email and master password you joined with."
-			footer={
-				<p className="text-caption text-fg-muted mt-4">
-					New here? Ask someone in your workspace for an invite link.
-				</p>
-			}
+			footer={<p>New here? Ask a teammate for an invite link.</p>}
+			note="Forgot your master password? Nobody can reset it, not even an admin: it is the only key to your items."
 		>
 			<form
-				className="flex flex-col gap-3"
+				className="flex flex-col gap-4"
 				onSubmit={async (event) => {
 					event.preventDefault();
 					setBusy(true);
@@ -67,6 +64,8 @@ function SignIn() {
 						autoComplete="username"
 						required
 						autoFocus
+						placeholder="you@company.com"
+						className="h-10"
 						value={email}
 						onChange={(event) => setEmail(event.target.value)}
 					/>
@@ -75,19 +74,16 @@ function SignIn() {
 					<PasswordInput
 						autoComplete="current-password"
 						required
+						className="h-10"
 						value={password}
 						onChange={(event) => setPassword(event.target.value)}
 					/>
 				</Field>
 				<FormError>{error}</FormError>
-				<Button type="submit" size="lg" className="mt-1 w-full" disabled={busy}>
-					{busy ? "Unlocking…" : "Sign in"}
-				</Button>
+				<SubmitButton busy={busy} busyLabel="Unlocking…">
+					Sign in
+				</SubmitButton>
 			</form>
-			<p className="text-caption text-fg-subtle mt-4 text-center">
-				Forgot your master password? Nobody can reset it, not even an admin: it
-				is the only key to your items.
-			</p>
 		</AuthLayout>
 	);
 }

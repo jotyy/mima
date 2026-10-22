@@ -16,6 +16,7 @@ import {
 	Field,
 	FormError,
 	PasswordInput,
+	SubmitButton,
 } from "@/components/auth-layout";
 import Loader from "@/components/loader";
 import { useKeyring } from "@/lib/keyring";
@@ -55,7 +56,12 @@ function Join() {
 				title="This invite doesn't work"
 				description="It was used already or it expired. Ask for a new link."
 			>
-				<Button className="w-full" render={<Link to="/login" />}>
+				<Button
+					variant="brand"
+					size="lg"
+					className="h-10 w-full rounded-full"
+					render={<Link to="/login" />}
+				>
 					Go to sign in
 				</Button>
 			</AuthLayout>
@@ -69,7 +75,7 @@ function Join() {
 			description={`${invite.data.invitedBy} invited ${invite.data.email}.`}
 		>
 			<form
-				className="flex flex-col gap-3"
+				className="flex flex-col gap-4"
 				onSubmit={async (event) => {
 					event.preventDefault();
 					setError("");
@@ -103,6 +109,7 @@ function Join() {
 			>
 				<Field label="Your name">
 					<Input
+						className="h-10"
 						required
 						autoFocus
 						autoComplete="name"
@@ -112,6 +119,7 @@ function Join() {
 				</Field>
 				<Field label="Master password">
 					<PasswordInput
+						className="h-10"
 						required
 						showStrength
 						autoComplete="new-password"
@@ -121,6 +129,7 @@ function Join() {
 				</Field>
 				<Field label="Repeat it">
 					<PasswordInput
+						className="h-10"
 						required
 						autoComplete="new-password"
 						value={confirm}
@@ -132,9 +141,9 @@ function Join() {
 					Nobody can reset your master password. Store it somewhere safe.
 				</div>
 				<FormError>{error}</FormError>
-				<Button type="submit" size="lg" className="mt-1 w-full" disabled={busy}>
-					{busy ? "Creating your keys…" : `Join ${workspaceName}`}
-				</Button>
+				<SubmitButton busy={busy} busyLabel="Creating your keys…">
+					{`Join ${workspaceName}`}
+				</SubmitButton>
 			</form>
 		</AuthLayout>
 	);

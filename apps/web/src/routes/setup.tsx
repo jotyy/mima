@@ -9,6 +9,7 @@ import {
 	Field,
 	FormError,
 	PasswordInput,
+	SubmitButton,
 } from "@/components/auth-layout";
 import Loader from "@/components/loader";
 import { useKeyring } from "@/lib/keyring";
@@ -46,7 +47,7 @@ function Setup() {
 			description="You'll be its owner. Invite your team once you're in."
 		>
 			<form
-				className="flex flex-col gap-3"
+				className="flex flex-col gap-4"
 				onSubmit={async (event) => {
 					event.preventDefault();
 					setError("");
@@ -82,6 +83,7 @@ function Setup() {
 			>
 				<Field label="Workspace name">
 					<Input
+						className="h-10"
 						required
 						autoFocus
 						placeholder="Acme"
@@ -91,6 +93,7 @@ function Setup() {
 				</Field>
 				<Field label="Your name">
 					<Input
+						className="h-10"
 						required
 						autoComplete="name"
 						value={form.name}
@@ -99,6 +102,7 @@ function Setup() {
 				</Field>
 				<Field label="Email">
 					<Input
+						className="h-10"
 						required
 						type="email"
 						autoComplete="username"
@@ -108,6 +112,7 @@ function Setup() {
 				</Field>
 				<Field label="Master password">
 					<PasswordInput
+						className="h-10"
 						required
 						showStrength
 						autoComplete="new-password"
@@ -117,6 +122,7 @@ function Setup() {
 				</Field>
 				<Field label="Repeat it">
 					<PasswordInput
+						className="h-10"
 						required
 						autoComplete="new-password"
 						value={form.confirm}
@@ -129,9 +135,9 @@ function Setup() {
 					your items can't be recovered.
 				</div>
 				<FormError>{error}</FormError>
-				<Button type="submit" size="lg" className="mt-1 w-full" disabled={busy}>
-					{busy ? "Creating your keys…" : "Create workspace"}
-				</Button>
+				<SubmitButton busy={busy} busyLabel="Creating your keys…">
+					Create workspace
+				</SubmitButton>
 			</form>
 		</AuthLayout>
 	);

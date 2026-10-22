@@ -1,10 +1,15 @@
-import { Button } from "@mima/ui/components/button";
 import { useState } from "react";
 
 import { useKeyring, WrongPasswordError } from "@/lib/keyring";
 import { errorMessage, useWorkspace } from "@/lib/vault-data";
 
-import { AuthLayout, Field, FormError, PasswordInput } from "./auth-layout";
+import {
+	AuthLayout,
+	Field,
+	FormError,
+	PasswordInput,
+	SubmitButton,
+} from "./auth-layout";
 
 export function UnlockScreen() {
 	const keyring = useKeyring();
@@ -16,10 +21,24 @@ export function UnlockScreen() {
 	return (
 		<AuthLayout
 			title={`Unlock ${workspace.data?.workspaceName ?? "mima"}`}
-			description={keyring.me?.email}
+			description={
+				<>Locked to keep your items safe. Signed in as {keyring.me?.email}.</>
+			}
+			footer={
+				<p>
+					Not {keyring.me?.name}?{" "}
+					<button
+						type="button"
+						onClick={() => keyring.signOut()}
+						className="text-brand hover:text-brand-hover underline-offset-4 hover:underline"
+					>
+						Sign out
+					</button>
+				</p>
+			}
 		>
 			<form
-				className="flex flex-col gap-3"
+				className="flex flex-col gap-4"
 				onSubmit={async (event) => {
 					event.preventDefault();
 					setBusy(true);
@@ -40,6 +59,7 @@ export function UnlockScreen() {
 			>
 				<Field label="Master password">
 					<PasswordInput
+						className="h-10"
 						autoFocus
 						required
 						autoComplete="current-password"
@@ -48,17 +68,10 @@ export function UnlockScreen() {
 					/>
 				</Field>
 				<FormError>{error}</FormError>
-				<Button type="submit" size="lg" className="mt-1 w-full" disabled={busy}>
-					{busy ? "Unlocking…" : "Unlock"}
-				</Button>
+				<SubmitButton busy={busy} busyLabel="Unlocking…">
+					Unlock
+				</SubmitButton>
 			</form>
-			<button
-				type="button"
-				onClick={() => keyring.signOut()}
-				className="text-caption text-fg-muted decoration-fg/25 hover:text-fg mx-auto mt-5 block underline-offset-4 hover:underline"
-			>
-				Not {keyring.me?.name}? Sign out
-			</button>
 		</AuthLayout>
 	);
 }
