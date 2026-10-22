@@ -6,17 +6,30 @@ import {
 } from "@mima/ui/components/tooltip";
 import { CheckIcon, CopyIcon } from "@phosphor-icons/react";
 import { useState } from "react";
-import { toast } from "sonner";
 
-export function CopyButton({ value, label }: { value: string; label: string }) {
+import { copyToClipboard } from "./notify";
+
+export function CopyButton({
+	value,
+	label,
+	source,
+	secret = true,
+	onCopied,
+}: {
+	value: string;
+	label: string;
+	/** Where the value came from, e.g. the item name. */
+	source?: string;
+	/** Secrets clear from the clipboard after 90 seconds. */
+	secret?: boolean;
+	onCopied?: () => void;
+}) {
 	const [copied, setCopied] = useState(false);
 
 	const copy = async () => {
-		await navigator.clipboard.writeText(value);
+		if (!(await copyToClipboard(value, { label, source, secret }))) return;
 		setCopied(true);
-		toast.success(`Copied ${label}`, {
-			description: "Clears from the clipboard in 90 seconds.",
-		});
+		onCopied?.();
 		setTimeout(() => setCopied(false), 1500);
 	};
 

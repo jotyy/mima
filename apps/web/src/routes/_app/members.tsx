@@ -23,8 +23,8 @@ import {
 } from "@phosphor-icons/react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { toast } from "sonner";
 
+import { notify } from "@/components/notify";
 import { Page } from "@/components/page";
 import { currentMemberId, members, vaults, workspace } from "@/fixtures/vault";
 import { initials, timeAgo } from "@/lib/format";
@@ -53,10 +53,7 @@ function Members() {
 				onSubmit={(event) => {
 					event.preventDefault();
 					if (!email) return;
-					toast.success(`Invite sent to ${email}`, {
-						description:
-							"They join after signing in and registering a passkey.",
-					});
+					notify.success(`Invite sent to ${email}`);
 					setEmail("");
 				}}
 			>

@@ -17,7 +17,6 @@ import {
 	TrashIcon,
 } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
-import { toast } from "sonner";
 
 import {
 	agents,
@@ -30,6 +29,7 @@ import { timeAgo, toneDot } from "@/lib/format";
 
 import { CopyButton } from "./copy-button";
 import { ItemTile, kindLabel } from "./item-tile";
+import { notify } from "./notify";
 import { OneTimeCode } from "./one-time-code";
 import { SecretValue } from "./secret-value";
 
@@ -198,7 +198,7 @@ export function ItemDetail({ item }: { item: Item }) {
 									defaultChecked={agent.enabled}
 									aria-label={`Allow ${agent.name}`}
 									onCheckedChange={(checked) =>
-										toast(
+										notify.info(
 											checked
 												? `${agent.name} can use ${item.name} again`
 												: `${agent.name} can no longer use ${item.name}`,

@@ -10,9 +10,6 @@ export const db = Cloudflare.D1.Database("database", {
 
 export const server = Cloudflare.Worker("server", {
 	main: "../../apps/server/src/index.ts",
-	compatibility: {
-		flags: ["nodejs_compat"],
-	},
 	env: {
 		DB: db,
 		CORS_ORIGIN: Config.String("CORS_ORIGIN"),

@@ -14,11 +14,11 @@ import {
 } from "@phosphor-icons/react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { type ComponentType, type ReactNode, useState } from "react";
-import { toast } from "sonner";
 
 import { ActivityRow } from "@/components/activity-row";
 import { CopyButton } from "@/components/copy-button";
 import { ItemTile } from "@/components/item-tile";
+import { notify } from "@/components/notify";
 import { Page, SectionTitle } from "@/components/page";
 import {
 	activity,
@@ -52,7 +52,7 @@ function Overview() {
 	const [needs, setNeeds] = useState(buildNeeds);
 	const done = (id: string, message: string) => {
 		setNeeds((current) => current.filter((need) => need.id !== id));
-		toast.success(message);
+		notify.success(message);
 	};
 
 	const firstName = me?.name.split(" ")[0];

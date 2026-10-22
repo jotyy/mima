@@ -57,7 +57,7 @@ function RootComponent() {
 				<TooltipProvider delay={300}>
 					<Outlet />
 				</TooltipProvider>
-				<Toaster position="bottom-right" />
+				<Toaster position="bottom-center" offset={24} gap={8} />
 			</ThemeProvider>
 		</>
 	);

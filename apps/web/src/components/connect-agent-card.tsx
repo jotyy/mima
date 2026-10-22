@@ -11,9 +11,9 @@ import { Tabs, TabsList, TabsTrigger } from "@mima/ui/components/tabs";
 import { ArrowUpRightIcon, CopyIcon, RobotIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
-import { toast } from "sonner";
 
 import { CopyButton } from "./copy-button";
+import { copyToClipboard } from "./notify";
 import { SecretValue } from "./secret-value";
 
 const agentChoices = [
@@ -140,8 +140,10 @@ export function ConnectAgentCard() {
 							size="default"
 							className="ml-auto"
 							onClick={async () => {
-								await navigator.clipboard.writeText(prompts[prompt]);
-								toast.success("Copied prompt");
+								await copyToClipboard(prompts[prompt], {
+									label: "prompt",
+									secret: false,
+								});
 							}}
 						>
 							<CopyIcon data-icon="inline-start" />

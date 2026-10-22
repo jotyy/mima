@@ -1,24 +1,27 @@
 import type { Context as ApiContext } from "@mima/api/context";
 import type { Context as HonoContext } from "hono";
 
-import { getDb } from "./services";
-import { createAuth } from "./services";
+import { ENV } from "./env.server";
+import { createAuth, getDb } from "./services";
 
 export type CreateContextOptions = {
-  context: HonoContext;
+	context: HonoContext;
 };
 
-export async function createContext({ context }: CreateContextOptions): Promise<ApiContext> {
-  const db = await getDb();
-  const session = await (
-    await createAuth(db)
-  ).api.getSession({
-    headers: context.req.raw.headers,
-  });
-  return {
-    db,
-    session,
-  };
+export async function createContext({
+	context,
+}: CreateContextOptions): Promise<ApiContext> {
+	const db = getDb();
+	const auth = await createAuth(db);
+	const headers = context.req.raw.headers;
+	const session = await auth.api.getSession({ headers });
+	return {
+		db,
+		session,
+		auth,
+		headers,
+		secret: ENV.BETTER_AUTH_SECRET,
+	};
 }
 
 export type Context = Awaited<ReturnType<typeof createContext>>;

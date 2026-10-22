@@ -4,10 +4,10 @@ import { Switch } from "@mima/ui/components/switch";
 import { PlusIcon, ShieldCheckIcon } from "@phosphor-icons/react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { ConnectAgentCard } from "@/components/connect-agent-card";
 import { ItemTile } from "@/components/item-tile";
+import { notify } from "@/components/notify";
 import { Page, SectionTitle } from "@/components/page";
 import {
 	type ApprovalRequest,
@@ -31,7 +31,7 @@ function Agents() {
 		setRequests((current) => current.filter((r) => r.id !== request.id));
 		const agent = findAgent(request.agentId);
 		const item = findItem(request.itemId);
-		toast.success(`${outcome}: ${agent?.name} → ${item?.name}`);
+		notify.success(outcome, `${agent?.name} → ${item?.name}`);
 	};
 
 	return (
@@ -105,7 +105,7 @@ function Agents() {
 								defaultChecked={agent.enabled}
 								aria-label={`Enable ${agent.name}`}
 								onCheckedChange={(checked) =>
-									toast(
+									notify.info(
 										checked
 											? `${agent.name} is enabled`
 											: `${agent.name} is paused. Its token stops working right away.`,

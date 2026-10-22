@@ -35,7 +35,7 @@ import {
 } from "@phosphor-icons/react";
 import { Link, Outlet, useNavigate } from "@tanstack/react-router";
 import { useTheme } from "next-themes";
-import type { ComponentType, ReactNode } from "react";
+import { type ComponentType, type ReactNode, useEffect } from "react";
 
 import {
 	approvalRequests,
@@ -49,6 +49,14 @@ import { initials, toneDot } from "@/lib/format";
 import { MimaMark } from "./mima-mark";
 
 export function AppShell() {
+	// Notifications sit centered over the content, not over the whole window.
+	useEffect(() => {
+		document.documentElement.style.setProperty("--toast-shift", "7rem");
+		return () => {
+			document.documentElement.style.removeProperty("--toast-shift");
+		};
+	}, []);
+
 	return (
 		<div className="bg-frame flex h-svh flex-col">
 			<TopBar />
