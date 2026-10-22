@@ -1,31 +1,31 @@
 {
-  "name": "server",
-  "type": "module",
-  "main": "src/index.ts",
-  "scripts": {
-    "build": "tsc -b ../../packages/api && tsdown",
-    "check-types": "tsc -b ../../packages/api && tsc --noEmit",
-    "compile": "bun build --compile --no-compile-autoload-dotenv --minify --sourcemap --bytecode ./src/index.ts --outfile server",
-    "env:generate": "varlock codegen"
-  },
-  "dependencies": {
-    "@mima/api": "workspace:*",
-    "@mima/auth": "workspace:*",
-    "@mima/db": "workspace:*",
-    "@orpc/openapi": "catalog:",
-    "@orpc/server": "catalog:",
-    "@orpc/zod": "catalog:",
-    "better-auth": "catalog:",
-    "hono": "^4.13.7",
-    "varlock": "catalog:",
-    "zod": "catalog:"
-  },
-  "devDependencies": {
-    "@cloudflare/workers-types": "catalog:",
-    "@mima/config": "workspace:*",
-    "@mima/infra": "workspace:*",
-    "@types/node": "^26.4.1",
-    "tsdown": "^0.23.0",
-    "typescript": "catalog:"
-  }
+	"name": "server",
+	"type": "module",
+	"main": "src/index.ts",
+	"scripts": {
+		"build": "tsc -b ../../packages/api && tsdown",
+		"check-types": "tsc -b ../../packages/api && tsc --noEmit",
+		"compile": "bun build --compile --no-compile-autoload-dotenv --minify --sourcemap --bytecode ./src/index.ts --outfile server",
+		"env:generate": "varlock codegen"
+	},
+	"dependencies": {
+		"@mima/api": "workspace:*",
+		"@mima/auth": "workspace:*",
+		"@mima/db": "workspace:*",
+		"@orpc/openapi": "catalog:",
+		"@orpc/server": "catalog:",
+		"@orpc/zod": "catalog:",
+		"better-auth": "catalog:",
+		"hono": "^4.13.7",
+		"varlock": "catalog:",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "catalog:",
+		"@mima/config": "workspace:*",
+		"@mima/infra": "workspace:*",
+		"@types/node": "^26.4.1",
+		"tsdown": "^0.23.0",
+		"typescript": "catalog:"
+	}
 }

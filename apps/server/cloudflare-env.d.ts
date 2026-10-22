@@ -6,11 +6,11 @@ import type { ServerEnv } from "@mima/infra/alchemy.run";
 export type CloudflareEnv = ServerEnv;
 
 declare global {
-  type Env = CloudflareEnv;
+	type Env = CloudflareEnv;
 }
 
 declare module "cloudflare:workers" {
-  namespace Cloudflare {
-    export interface Env extends CloudflareEnv {}
-  }
+	namespace Cloudflare {
+		export interface Env extends CloudflareEnv {}
+	}
 }

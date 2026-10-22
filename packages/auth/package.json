@@ -1,24 +1,24 @@
 {
-  "name": "@mima/auth",
-  "type": "module",
-  "exports": {
-    ".": "./src/index.ts",
-    "./*": "./src/*.ts"
-  },
-  "scripts": {
-    "build": "tsc -b",
-    "check-types": "tsc -b"
-  },
-  "dependencies": {
-    "@better-auth/core": "1.7.7",
-    "@better-auth/drizzle-adapter": "1.7.7",
-    "@mima/db": "workspace:*",
-    "better-auth": "catalog:",
-    "drizzle-orm": "catalog:",
-    "zod": "catalog:"
-  },
-  "devDependencies": {
-    "@mima/config": "workspace:*",
-    "typescript": "catalog:"
-  }
+	"name": "@mima/auth",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./*": "./src/*.ts"
+	},
+	"scripts": {
+		"build": "tsc -b",
+		"check-types": "tsc -b"
+	},
+	"dependencies": {
+		"@better-auth/core": "1.7.7",
+		"@better-auth/drizzle-adapter": "1.7.7",
+		"@mima/db": "workspace:*",
+		"better-auth": "catalog:",
+		"drizzle-orm": "catalog:",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@mima/config": "workspace:*",
+		"typescript": "catalog:"
+	}
 }
