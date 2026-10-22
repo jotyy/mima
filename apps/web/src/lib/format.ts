@@ -28,3 +28,8 @@ export function ago(date: Date | string | null | undefined) {
 	if (!date) return "never";
 	return timeAgo(Math.floor((Date.now() - new Date(date).getTime()) / 60_000));
 }
+
+/** "1 item", "3 items". */
+export function plural(n: number, noun: string) {
+	return `${n} ${noun}${n === 1 ? "" : "s"}`;
+}

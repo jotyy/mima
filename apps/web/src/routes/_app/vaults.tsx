@@ -56,12 +56,12 @@ function Vaults() {
 			description="Group items and choose who can open them."
 		>
 			{vaults.isPending ? (
-				<div className="grid grid-cols-2 gap-3">
+				<div className="grid grid-cols-1 gap-3 md:grid-cols-2">
 					<Skeleton className="rounded-window h-40" />
 					<Skeleton className="rounded-window h-40" />
 				</div>
 			) : (
-				<div className="grid grid-cols-2 gap-3">
+				<div className="grid grid-cols-1 gap-3 md:grid-cols-2">
 					{sorted.map((vault) => (
 						<VaultCard key={vault.id} vault={vault} />
 					))}

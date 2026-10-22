@@ -14,14 +14,22 @@ import {
 } from "@mima/ui/components/dropdown-menu";
 import { Kbd } from "@mima/ui/components/kbd";
 import {
+	Sheet,
+	SheetContent,
+	SheetTitle,
+	SheetTrigger,
+} from "@mima/ui/components/sheet";
+import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
 } from "@mima/ui/components/tooltip";
+import { cn } from "@mima/ui/lib/utils";
 import {
 	CaretUpDownIcon,
 	GearSixIcon,
 	KeyIcon,
+	ListIcon,
 	LockSimpleIcon,
 	MagnifyingGlassIcon,
 	PulseIcon,
@@ -33,7 +41,7 @@ import {
 	UsersThreeIcon,
 	VaultIcon,
 } from "@phosphor-icons/react";
-import { Link, Outlet } from "@tanstack/react-router";
+import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useTheme } from "next-themes";
 import {
 	type ComponentType,
@@ -98,7 +106,7 @@ export function AppShell() {
 		<div className="bg-frame flex h-svh flex-col">
 			<TopBar onSearch={() => setSearching(true)} />
 			<div className="flex min-h-0 flex-1">
-				<Sidebar />
+				<Sidebar className="max-md:hidden" />
 				<main ref={main} className="min-w-0 flex-1 overflow-y-auto">
 					<Outlet />
 				</main>
@@ -114,8 +122,9 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
 	const pending = requests.data?.length ?? 0;
 
 	return (
-		<header className="flex h-14 shrink-0 items-center justify-between px-4">
+		<header className="flex h-14 shrink-0 items-center justify-between px-2 md:px-4">
 			<div className="flex items-center gap-1">
+				<MobileNav />
 				<div className="text-body-sm text-fg flex items-center gap-2 px-2 font-medium">
 					<MimaMark />
 					{workspace.data?.workspaceName ?? "mima"}
@@ -144,14 +153,55 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
 					className="text-body-sm text-fg hover:bg-tint/4 flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors"
 				>
 					<ShieldCheckIcon className="text-brand size-4" />
-					{pending} waiting for approval
+					{pending}
+					<span className="max-sm:hidden">waiting for approval</span>
 				</Link>
 			)}
 		</header>
 	);
 }
 
-function Sidebar() {
+/** On narrow screens the sidebar lives in a sheet; it closes after each navigation. */
+function MobileNav() {
+	const [open, setOpen] = useState(false);
+	const href = useRouterState({ select: (state) => state.location.href });
+	// biome-ignore lint/correctness/useExhaustiveDependencies: close whenever the page changes
+	useEffect(() => setOpen(false), [href]);
+
+	return (
+		<Sheet open={open} onOpenChange={setOpen}>
+			<SheetTrigger
+				render={
+					<Button
+						variant="ghost"
+						size="icon"
+						aria-label="Menu"
+						className="md:hidden"
+					/>
+				}
+			>
+				<ListIcon />
+			</SheetTrigger>
+			<SheetContent
+				// Tapping the page you're already on changes nothing, so close on any link.
+				onClick={(event) => {
+					if ((event.target as Element).closest("a")) setOpen(false);
+				}}
+			>
+				<SheetTitle>Menu</SheetTitle>
+				<Sidebar mobile className="h-full w-full" />
+			</SheetContent>
+		</Sheet>
+	);
+}
+
+function Sidebar({
+	mobile,
+	className,
+}: {
+	mobile?: boolean;
+	className?: string;
+}) {
 	const vaults = useVaults();
 	const requests = useRequests();
 	const deleted = useDeletedItems();
@@ -161,8 +211,14 @@ function Sidebar() {
 	);
 
 	return (
-		<aside className="flex w-56 shrink-0 flex-col px-3 pb-3">
-			<nav className="mt-16 flex min-h-0 flex-col overflow-y-auto">
+		<aside className={cn("flex w-56 shrink-0 flex-col px-3 pb-3", className)}>
+			<nav
+				aria-label={mobile ? "Menu" : undefined}
+				className={cn(
+					"flex min-h-0 flex-col overflow-y-auto",
+					mobile ? "mt-5" : "mt-16",
+				)}
+			>
 				<NavGroup>
 					<NavLink to="/" icon={SquaresFourIcon} exact>
 						Overview

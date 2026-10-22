@@ -17,7 +17,7 @@ import {
 import { cn } from "@mima/ui/lib/utils";
 import { FileCsvIcon, WarningIcon } from "@phosphor-icons/react";
 import { type DragEvent, useEffect, useId, useState } from "react";
-
+import { plural } from "@/lib/format";
 import {
 	ImportError,
 	type ParsedImport,
@@ -291,8 +291,8 @@ function Review({
 					<span className="text-body-sm text-fg truncate">{file}</span>
 					<span className="text-caption text-fg-muted">
 						{parsed.source === "CSV" ? "CSV" : `${parsed.source} export`} ·{" "}
-						{count(logins, "login")}
-						{notes > 0 && `, ${count(notes, "note")}`}
+						{plural(logins, "login")}
+						{notes > 0 && `, ${plural(notes, "note")}`}
 					</span>
 				</div>
 				<Select
@@ -340,14 +340,14 @@ function Review({
 				<ul className="text-caption text-fg-muted flex flex-col gap-1">
 					{duplicates > 0 && (
 						<li>
-							{count(duplicates, "item")} already in this vault{" "}
+							{plural(duplicates, "item")} already in this vault{" "}
 							{duplicates === 1 ? "is" : "are"} left out.
 						</li>
 					)}
 					{parsed.skipped > 0 && (
 						<li>
-							{count(parsed.skipped, "row")} with no password or note, or a card
-							or identity, {parsed.skipped === 1 ? "is" : "are"} skipped.
+							{plural(parsed.skipped, "row")} with no password or note, or a
+							card or identity, {parsed.skipped === 1 ? "is" : "are"} skipped.
 						</li>
 					)}
 				</ul>
@@ -360,8 +360,4 @@ function Review({
 			</p>
 		</div>
 	);
-}
-
-function count(n: number, noun: string) {
-	return `${n} ${noun}${n === 1 ? "" : "s"}`;
 }

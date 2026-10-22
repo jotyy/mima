@@ -25,7 +25,7 @@ import {
 } from "@/components/member-dialogs";
 import { notify } from "@/components/notify";
 import { Page, SectionTitle } from "@/components/page";
-import { ago } from "@/lib/format";
+import { ago, plural } from "@/lib/format";
 import { useKeyring } from "@/lib/keyring";
 import { useLookup } from "@/lib/use-lookup";
 import {
@@ -97,7 +97,7 @@ function Overview() {
 				)}
 			</div>
 
-			<div className="mt-8 grid grid-cols-2 items-start gap-3">
+			<div className="mt-8 grid grid-cols-1 items-start gap-3 md:grid-cols-2">
 				<RecentItems />
 				<RecentActivity />
 			</div>
@@ -129,7 +129,11 @@ function SearchCard() {
 				}}
 			>
 				<div className="flex items-center justify-between p-1.5">
-					<Tabs value={kind} onValueChange={(value) => setKind(String(value))}>
+					<Tabs
+						value={kind}
+						onValueChange={(value) => setKind(String(value))}
+						className="min-w-0 overflow-x-auto"
+					>
 						<TabsList>
 							{kinds.map((k) => (
 								<TabsTrigger key={k.value} value={k.value}>
@@ -140,7 +144,7 @@ function SearchCard() {
 					</Tabs>
 					<Link
 						to="/items"
-						className="text-caption text-fg-muted hover:text-fg mr-1.5 flex items-center gap-1"
+						className="text-caption text-fg-muted hover:text-fg mr-1.5 flex shrink-0 items-center gap-1 max-sm:hidden"
 					>
 						All items
 						<ArrowUpRightIcon className="size-3" />
@@ -152,7 +156,7 @@ function SearchCard() {
 						value={query}
 						aria-label="Search everything"
 						onChange={(event) => setQuery(event.target.value)}
-						placeholder={`Search ${items.data?.length ?? 0} items in ${vaults.data?.length ?? 0} vaults`}
+						placeholder={`Search ${plural(items.data?.length ?? 0, "item")} in ${plural(vaults.data?.length ?? 0, "vault")}`}
 						className="text-fg text-field min-w-0 flex-1 bg-transparent outline-none"
 					/>
 					<Button type="submit" variant="brand" size="icon" aria-label="Search">

@@ -198,12 +198,14 @@ function Row({
 	children: ReactNode;
 }) {
 	return (
-		<div className="flex items-center justify-between gap-6 px-4 py-3.5">
+		<div className="flex flex-col gap-3 px-4 py-3.5 md:flex-row md:items-center md:justify-between md:gap-6">
 			<div className="flex min-w-0 flex-col gap-0.5">
 				<span className="text-body-sm text-fg">{label}</span>
 				{hint && <span className="text-caption text-fg-muted">{hint}</span>}
 			</div>
-			<div className="flex shrink-0 items-center gap-2">{children}</div>
+			<div className="flex shrink-0 items-center gap-2 max-md:w-full">
+				{children}
+			</div>
 		</div>
 	);
 }
@@ -224,7 +226,7 @@ function SaveField({
 
 	return (
 		<form
-			className="flex items-center gap-2"
+			className="flex items-center gap-2 max-md:w-full"
 			onSubmit={async (event) => {
 				event.preventDefault();
 				if (!changed) return;
@@ -240,7 +242,7 @@ function SaveField({
 		>
 			<Input
 				aria-label={label}
-				className="w-56"
+				className="md:w-56"
 				value={draft}
 				maxLength={80}
 				onChange={(event) => setDraft(event.target.value)}

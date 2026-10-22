@@ -316,14 +316,14 @@ function Row({
 }) {
 	return (
 		// biome-ignore lint/a11y/noLabelWithoutControl: the control is passed as children
-		<label className="grid grid-cols-4 items-start gap-3">
-			<span className="text-caption text-fg-muted pt-2">
+		<label className="grid items-start gap-1.5 md:grid-cols-4 md:gap-3">
+			<span className="text-caption text-fg-muted md:pt-2">
 				{label}
 				{hint && (
 					<span className="text-micro text-fg-subtle mt-0.5 block">{hint}</span>
 				)}
 			</span>
-			<span className="col-span-3 flex flex-col gap-1.5">{children}</span>
+			<span className="flex flex-col gap-1.5 md:col-span-3">{children}</span>
 		</label>
 	);
 }

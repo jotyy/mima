@@ -15,11 +15,11 @@ export function Page({
 	return (
 		<div
 			className={cn(
-				"mx-auto w-full px-6 pt-6 pb-16",
+				"mx-auto w-full px-4 pt-4 pb-16 md:px-6 md:pt-6",
 				wide ? "max-w-6xl" : "max-w-4xl",
 			)}
 		>
-			<header className="mb-8 flex flex-col items-center gap-1.5 text-center">
+			<header className="mb-6 flex flex-col items-center gap-1.5 text-center text-balance md:mb-8">
 				<h1 className="text-fg text-h4">{title}</h1>
 				<p className="text-body-sm text-fg-muted">{description}</p>
 			</header>

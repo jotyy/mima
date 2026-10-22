@@ -8,6 +8,7 @@ import { Skeleton } from "@mima/ui/components/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@mima/ui/components/tabs";
 import { cn } from "@mima/ui/lib/utils";
 import {
+	CaretLeftIcon,
 	LockSimpleIcon,
 	MagnifyingGlassIcon,
 	PlusIcon,
@@ -22,7 +23,7 @@ import { ItemDetail } from "@/components/item-detail";
 import { ItemDialog } from "@/components/item-dialog";
 import { ItemTile } from "@/components/item-tile";
 import { Page } from "@/components/page";
-import { toneDot } from "@/lib/format";
+import { plural, toneDot } from "@/lib/format";
 import {
 	type ItemKind,
 	useItems,
@@ -83,7 +84,7 @@ function Items() {
 		? vault.personal
 			? "Only you can open this vault."
 			: `${vault.description ? `${vault.description} ` : ""}Shared with ${vault.members.length} ${vault.members.length === 1 ? "person" : "people"}.`
-		: `${count(items.data?.length ?? 0, "item")} across ${count(vaults.data?.length ?? 0, "vault")}.`;
+		: `${plural(items.data?.length ?? 0, "item")} across ${plural(vaults.data?.length ?? 0, "vault")}.`;
 
 	return (
 		<Page
@@ -91,8 +92,9 @@ function Items() {
 			title={vault ? vault.name : "All items"}
 			description={description}
 		>
-			<div className="mb-3 flex items-center justify-between gap-3">
+			<div className="mb-3 flex flex-wrap-reverse items-center justify-between gap-3">
 				<Tabs
+					className="max-md:w-full max-md:overflow-x-auto"
 					value={search.kind ?? "all"}
 					onValueChange={(value) =>
 						navigate({
@@ -112,8 +114,8 @@ function Items() {
 						))}
 					</TabsList>
 				</Tabs>
-				<div className="flex items-center gap-2">
-					<InputGroup className="bg-surface w-64">
+				<div className="flex items-center gap-2 max-md:w-full">
+					<InputGroup className="bg-surface md:w-64">
 						<InputGroupAddon>
 							<MagnifyingGlassIcon />
 						</InputGroupAddon>
@@ -133,21 +135,25 @@ function Items() {
 							}
 						/>
 					</InputGroup>
-					<Button variant="outline" onClick={() => setImporting(true)}>
+					<Button
+						variant="outline"
+						aria-label="Import"
+						onClick={() => setImporting(true)}
+					>
 						<UploadSimpleIcon data-icon="inline-start" />
-						Import
+						<span className="max-md:hidden">Import</span>
 					</Button>
-					<Button onClick={() => setNew(true)}>
+					<Button aria-label="New item" onClick={() => setNew(true)}>
 						<PlusIcon data-icon="inline-start" />
-						New item
+						<span className="max-md:hidden">New item</span>
 					</Button>
 				</div>
 			</div>
 
 			{items.isPending ? (
-				<div className="grid grid-cols-5 gap-3">
-					<Skeleton className="rounded-window col-span-2 h-72" />
-					<Skeleton className="rounded-window col-span-3 h-72" />
+				<div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+					<Skeleton className="rounded-window h-72 md:col-span-2" />
+					<Skeleton className="rounded-window h-72 max-md:hidden md:col-span-3" />
 				</div>
 			) : inScope.length === 0 ? (
 				<EmptyVault
@@ -156,10 +162,14 @@ function Items() {
 					vault={vault}
 				/>
 			) : (
-				<div className="grid grid-cols-5 items-start gap-3">
+				// On phones the list and the open item take turns: picking an item shows it alone.
+				<div className="grid grid-cols-1 items-start gap-3 md:grid-cols-5">
 					<section
 						aria-label="Items"
-						className="rounded-window bg-surface shadow-card col-span-2 flex flex-col gap-0.5 p-1.5"
+						className={cn(
+							"rounded-window bg-surface shadow-card flex flex-col gap-0.5 p-1.5 md:col-span-2",
+							search.id && "max-md:hidden",
+						)}
 					>
 						{visible.length === 0 && (
 							<p className="text-caption text-fg-subtle px-3 py-10 text-center">
@@ -205,7 +215,23 @@ function Items() {
 							);
 						})}
 					</section>
-					<div className="col-span-3">
+					<div
+						className={cn(
+							"flex flex-col gap-2 md:col-span-3",
+							!search.id && "max-md:hidden",
+						)}
+					>
+						<Button
+							variant="ghost"
+							size="sm"
+							className="w-fit md:hidden"
+							onClick={() =>
+								navigate({ search: (prev) => ({ ...prev, id: undefined }) })
+							}
+						>
+							<CaretLeftIcon data-icon="inline-start" />
+							{vault ? vault.name : "All items"}
+						</Button>
 						{selected ? (
 							<ItemDetail key={selected.id} item={selected} />
 						) : (
@@ -233,10 +259,6 @@ function Items() {
 			/>
 		</Page>
 	);
-}
-
-function count(n: number, noun: string) {
-	return `${n} ${noun}${n === 1 ? "" : "s"}`;
 }
 
 /** The kind of things a team keeps here, drifting past on an empty vault. */
