@@ -1,6 +1,6 @@
 import { accessRequest, agent, agentGrant, item } from "@mima/db/schema/vault";
 import { ORPCError } from "@orpc/server";
-import { and, eq, gt, inArray } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { publicProcedure } from "../index";
@@ -71,7 +71,10 @@ export const agentApiRouter = {
 			const ids = [...new Set(input.itemIds)];
 			const now = new Date();
 			const [items, grants, requests] = await Promise.all([
-				db.select().from(item).where(inArray(item.id, ids)),
+				db
+					.select()
+					.from(item)
+					.where(and(inArray(item.id, ids), isNull(item.deletedAt))),
 				db
 					.select()
 					.from(agentGrant)

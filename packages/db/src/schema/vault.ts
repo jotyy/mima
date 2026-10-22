@@ -97,6 +97,9 @@ export const item = sqliteTable(
 		updatedBy: text("updated_by").notNull(),
 		createdAt: createdAt(),
 		updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+		/** Set when moved to Recently deleted; the row is removed for good 30 days later. */
+		deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
+		deletedBy: text("deleted_by"),
 	},
 	(table) => [index("item_vault_idx").on(table.vaultId)],
 );
@@ -188,7 +191,8 @@ export type EventAction =
 	| "joined"
 	| "invited"
 	| "imported"
-	| "exported";
+	| "exported"
+	| "restored";
 
 /** Append-only audit log. `detail` is plaintext: never put a secret in it. */
 export const event = sqliteTable(

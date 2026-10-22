@@ -1,6 +1,6 @@
 import { favorite, item } from "@mima/db/schema/vault";
 import { ORPCError } from "@orpc/server";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, lt } from "drizzle-orm";
 import { z } from "zod";
 
 import { memberProcedure } from "../index";
@@ -15,11 +15,23 @@ import {
 const data = z.string().min(20).max(64_000);
 const wrapped = z.string().min(20).max(1_000);
 
+const KEEP_DELETED_MS = 30 * 24 * 60 * 60 * 1000;
+
 export const itemsRouter = {
+	/** Every item in the person's vaults, including those in Recently deleted. */
 	list: memberProcedure.handler(async ({ context }) => {
 		const { db, userId } = context;
 		const vaultIds = await myVaultIds(db, userId);
 		if (vaultIds.length === 0) return [];
+		// Items deleted more than 30 days ago go for good the next time someone looks.
+		await db
+			.delete(item)
+			.where(
+				and(
+					inArray(item.vaultId, vaultIds),
+					lt(item.deletedAt, new Date(Date.now() - KEEP_DELETED_MS)),
+				),
+			);
 		const [rows, favorites] = await Promise.all([
 			db.select().from(item).where(inArray(item.vaultId, vaultIds)),
 			db
@@ -163,11 +175,63 @@ export const itemsRouter = {
 			return { revision: current.revision + 1 };
 		}),
 
+	/** Moves the item to Recently deleted, where anyone in its vault can restore it. */
 	remove: memberProcedure
 		.input(z.object({ id: z.string() }))
 		.handler(async ({ context, input }) => {
 			const { db, userId } = context;
 			const current = await requireItemAccess(db, userId, input.id);
+			await db.batch([
+				db
+					.update(item)
+					.set({ deletedAt: new Date(), deletedBy: userId })
+					.where(eq(item.id, input.id)),
+				logEvent(db, {
+					actorType: "member",
+					actorId: userId,
+					action: "deleted",
+					itemId: input.id,
+					vaultId: current.vaultId,
+				}),
+			]);
+		}),
+
+	restore: memberProcedure
+		.input(z.object({ id: z.string() }))
+		.handler(async ({ context, input }) => {
+			const { db, userId } = context;
+			const current = await requireItemAccess(db, userId, input.id, {
+				deleted: true,
+			});
+			if (!current.deletedAt) return;
+			await db.batch([
+				db
+					.update(item)
+					.set({ deletedAt: null, deletedBy: null })
+					.where(eq(item.id, input.id)),
+				logEvent(db, {
+					actorType: "member",
+					actorId: userId,
+					action: "restored",
+					itemId: input.id,
+					vaultId: current.vaultId,
+				}),
+			]);
+		}),
+
+	/** Removes an item from Recently deleted for good. Grants and requests go with it. */
+	purge: memberProcedure
+		.input(z.object({ id: z.string() }))
+		.handler(async ({ context, input }) => {
+			const { db, userId } = context;
+			const current = await requireItemAccess(db, userId, input.id, {
+				deleted: true,
+			});
+			if (!current.deletedAt) {
+				throw new ORPCError("BAD_REQUEST", {
+					message: "Delete the item first",
+				});
+			}
 			await db.batch([
 				db.delete(item).where(eq(item.id, input.id)),
 				logEvent(db, {
@@ -176,6 +240,7 @@ export const itemsRouter = {
 					action: "deleted",
 					itemId: input.id,
 					vaultId: current.vaultId,
+					detail: "for good",
 				}),
 			]);
 		}),

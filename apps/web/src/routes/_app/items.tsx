@@ -83,7 +83,7 @@ function Items() {
 		? vault.personal
 			? "Only you can open this vault."
 			: `${vault.description ? `${vault.description} ` : ""}Shared with ${vault.members.length} ${vault.members.length === 1 ? "person" : "people"}.`
-		: `${items.data?.length ?? 0} items across ${vaults.data?.length ?? 0} vaults.`;
+		: `${count(items.data?.length ?? 0, "item")} across ${count(vaults.data?.length ?? 0, "vault")}.`;
 
 	return (
 		<Page
@@ -233,6 +233,10 @@ function Items() {
 			/>
 		</Page>
 	);
+}
+
+function count(n: number, noun: string) {
+	return `${n} ${noun}${n === 1 ? "" : "s"}`;
 }
 
 /** The kind of things a team keeps here, drifting past on an empty vault. */

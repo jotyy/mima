@@ -17,7 +17,7 @@ export const eventsRouter = {
 		.handler(async ({ context, input }) => {
 			const { db, userId } = context;
 			const [itemIds, vaultIds] = await Promise.all([
-				accessibleItemIds(db, userId),
+				accessibleItemIds(db, userId, { deleted: true }),
 				myVaultIds(db, userId),
 			]);
 			const visible = [

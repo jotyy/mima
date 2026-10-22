@@ -1,7 +1,7 @@
 import { user } from "@mima/db/schema/auth";
 import { item, member, vault, vaultAccess } from "@mima/db/schema/vault";
 import { ORPCError } from "@orpc/server";
-import { and, count, eq, inArray } from "drizzle-orm";
+import { and, count, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { memberProcedure } from "../index";
@@ -31,7 +31,7 @@ export const vaultsRouter = {
 			db
 				.select({ vaultId: item.vaultId, n: count() })
 				.from(item)
-				.where(inArray(item.vaultId, ids))
+				.where(and(inArray(item.vaultId, ids), isNull(item.deletedAt)))
 				.groupBy(item.vaultId),
 		]);
 		return vaults.map((v) => ({

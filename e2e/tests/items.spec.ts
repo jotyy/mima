@@ -177,16 +177,96 @@ test("the command palette copies a password without opening the item", async ({
 	).toBe(20);
 });
 
-test("delete asks first, then the vault is empty again", async ({ page }) => {
+test("a new password keeps the old one under Earlier", async ({ page }) => {
+	await signIn(page, owner);
+	await openAllItems(page);
+	const card = await detail(page);
+	await card.getByRole("button", { name: "Copy password" }).click();
+	const old = await page.evaluate(() => navigator.clipboard.readText());
+	expect(old).toHaveLength(20);
+	await expect(card.getByText(/earlier password/)).toHaveCount(0);
+
+	await card.getByRole("button", { name: "Edit" }).click();
+	const dialog = page.getByRole("dialog");
+	await dialog
+		.getByLabel("Password", { exact: true })
+		.fill("example-new-password-2026");
+	await dialog.getByRole("button", { name: "Save" }).click();
+	await expect(dialog).toBeHidden();
+
+	await card.getByRole("button", { name: "1 earlier password" }).click();
+	await card.getByRole("button", { name: "Reveal earlier password" }).click();
+	await expect(card.getByText(old, { exact: true })).toBeVisible();
+	await expect(card.getByText(`changed by ${owner.name}`)).toBeVisible();
+});
+
+test("delete moves an item to Recently deleted, and Undo brings it back", async ({
+	page,
+}) => {
 	await signIn(page, owner);
 	await openAllItems(page);
 	const card = await detail(page);
 	await card.getByRole("button", { name: "More actions" }).click();
 	await page.getByRole("menuitem", { name: "Delete item" }).click();
+	await expect(page.getByText("Nothing stored yet")).toBeVisible();
+	await expect(
+		page.getByText("Moved GitHub (work) to Recently deleted"),
+	).toBeVisible();
+
+	await page.getByRole("button", { name: "Undo" }).click();
+	await expect(page.getByText("Restored GitHub (work)")).toBeVisible();
+	await expect(
+		page.getByRole("region", { name: "Items" }).getByText("GitHub (work)"),
+	).toBeVisible();
+});
+
+test("a deleted item can be restored from Recently deleted, or removed for good", async ({
+	page,
+}) => {
+	await signIn(page, owner);
+	await openAllItems(page);
+	const card = await detail(page);
+	await card.getByRole("button", { name: "More actions" }).click();
+	await page.getByRole("menuitem", { name: "Delete item" }).click();
+	await expect(page.getByText("Nothing stored yet")).toBeVisible();
+
+	await page
+		.getByRole("navigation")
+		.getByRole("link", { name: /^Recently deleted/ })
+		.click();
+	const deleted = page.getByRole("region", { name: "Deleted items" });
+	await expect(deleted.getByText("GitHub (work)")).toBeVisible();
+	await expect(deleted.getByText(`by ${owner.name}`)).toBeVisible();
+	await expect(deleted.getByText("30 days left")).toBeVisible();
+	await deleted.getByRole("button", { name: "Restore" }).click();
+	await expect(page.getByText("Restored GitHub (work)")).toBeVisible();
+	await expect(page.getByText("Nothing here.")).toBeVisible();
+	// The sidebar link only shows while something is in there.
+	await expect(
+		page
+			.getByRole("navigation")
+			.getByRole("link", { name: /^Recently deleted/ }),
+	).toHaveCount(0);
+
+	// The restored item kept everything, including its history.
+	await openAllItems(page);
+	await expect(
+		card.getByRole("button", { name: "1 earlier password" }),
+	).toBeVisible();
+
+	await card.getByRole("button", { name: "More actions" }).click();
+	await page.getByRole("menuitem", { name: "Delete item" }).click();
+	await page
+		.getByRole("navigation")
+		.getByRole("link", { name: /^Recently deleted/ })
+		.click();
+	await deleted.getByRole("button", { name: "More for GitHub (work)" }).click();
+	await page.getByRole("menuitem", { name: "Delete for good" }).click();
 	const confirm = page.getByRole("dialog");
 	await expect(
-		confirm.getByRole("heading", { name: /Delete GitHub/ }),
+		confirm.getByRole("heading", { name: "Delete GitHub (work) for good?" }),
 	).toBeVisible();
-	await confirm.getByRole("button", { name: "Delete item" }).click();
-	await expect(page.getByText("Nothing stored yet")).toBeVisible();
+	await confirm.getByRole("button", { name: "Delete for good" }).click();
+	await expect(page.getByText("GitHub (work) is gone for good")).toBeVisible();
+	await expect(page.getByText("Nothing here.")).toBeVisible();
 });

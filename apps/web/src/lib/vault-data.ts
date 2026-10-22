@@ -36,7 +36,13 @@ export type ItemFields = {
 	totp?: string;
 	notes?: string;
 	tags?: string[];
+	/** Earlier passwords or values, newest first. Kept inside the encrypted item. */
+	history?: PreviousSecret[];
 };
+
+export type PreviousSecret = { secret: string; until: string; by?: string };
+
+const HISTORY_LIMIT = 10;
 
 export type VaultMeta = { name: string; description: string; tone: Tone };
 
@@ -87,7 +93,25 @@ export function useVaults() {
 	return useQuery(useVaultQueryOptions());
 }
 
+/** Items that aren't in Recently deleted, sorted by name. */
 export function useItems() {
+	return useItemQuery((all) => all.filter((item) => !item.deletedAt));
+}
+
+/** Items in Recently deleted, most recently deleted first. */
+export function useDeletedItems() {
+	return useItemQuery((all) =>
+		all
+			.filter((item) => item.deletedAt)
+			.sort(
+				(a, b) =>
+					new Date(b.deletedAt ?? 0).getTime() -
+					new Date(a.deletedAt ?? 0).getTime(),
+			),
+	);
+}
+
+function useItemQuery(select: (all: Item[]) => Item[]) {
 	const keyring = useKeyring();
 	const queryClient = useQueryClient();
 	const vaultOptions = useVaultQueryOptions();
@@ -121,6 +145,7 @@ export function useItems() {
 				.filter((item) => item !== null)
 				.sort((a, b) => a.name.localeCompare(b.name));
 		},
+		select,
 	});
 }
 
@@ -233,13 +258,28 @@ export function useActions() {
 				await refresh(queryClient);
 			},
 
+			/** Saves new fields; a changed password or value joins the item's history. */
 			async updateItem(item: Item, fields: ItemFields, target?: Vault) {
 				const moving = target && target.id !== item.vaultId;
+				const replaced = item.secret && fields.secret !== item.secret;
+				const history = replaced
+					? [
+							{
+								secret: item.secret as string,
+								until: new Date().toISOString(),
+								by: me?.name,
+							},
+							...(item.history ?? []),
+						].slice(0, HISTORY_LIMIT)
+					: item.history;
 				return after(
 					client.items.update({
 						id: item.id,
 						revision: item.revision,
-						data: await sealJson(item.key, fields),
+						data: await sealJson(item.key, {
+							...fields,
+							...(history?.length ? { history } : {}),
+						}),
 						...(moving
 							? {
 									vaultId: target.id,
@@ -251,6 +291,8 @@ export function useActions() {
 			},
 
 			deleteItem: (item: Item) => after(client.items.remove({ id: item.id })),
+			restoreItem: (item: Item) => after(client.items.restore({ id: item.id })),
+			purgeItem: (item: Item) => after(client.items.purge({ id: item.id })),
 
 			toggleFavorite: (item: Item) =>
 				after(client.items.favorite({ id: item.id, value: !item.favorite })),

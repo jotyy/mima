@@ -8,6 +8,7 @@ import {
 	PulseIcon,
 	RobotIcon,
 	SquaresFourIcon,
+	TrashIcon,
 	UploadSimpleIcon,
 	UsersThreeIcon,
 	VaultIcon,
@@ -33,7 +34,14 @@ type Result = {
 
 const pages: {
 	label: string;
-	to: "/" | "/agents" | "/activity" | "/vaults" | "/members" | "/settings";
+	to:
+		| "/"
+		| "/agents"
+		| "/activity"
+		| "/vaults"
+		| "/members"
+		| "/settings"
+		| "/deleted";
 	icon: ComponentType<{ className?: string }>;
 }[] = [
 	{ label: "Overview", to: "/", icon: SquaresFourIcon },
@@ -42,6 +50,7 @@ const pages: {
 	{ label: "Vaults", to: "/vaults", icon: VaultIcon },
 	{ label: "Members", to: "/members", icon: UsersThreeIcon },
 	{ label: "Settings", to: "/settings", icon: GearSixIcon },
+	{ label: "Recently deleted", to: "/deleted", icon: TrashIcon },
 ];
 
 export function CommandPalette({

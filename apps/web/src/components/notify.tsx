@@ -88,6 +88,29 @@ export const notify = {
 	success: (title: string, detail?: string) => show("success", title, detail),
 	error: (title: string, detail?: string) => show("error", title, detail),
 	info: (title: string, detail?: string) => show("info", title, detail),
+	/** A success with a way back, kept up a little longer so there's time to use it. */
+	undo(title: string, onUndo: () => void) {
+		const id = toast.custom(
+			() => (
+				<Pill className="pr-1.5">
+					{icons.success}
+					<span className="truncate">{title}</span>
+					<span className="bg-cta-fg/20 h-4 w-px" />
+					<button
+						type="button"
+						onClick={() => {
+							toast.dismiss(id);
+							onUndo();
+						}}
+						className="hover:bg-cta-fg/10 text-caption h-7 rounded-full px-2.5 font-medium transition-colors"
+					>
+						Undo
+					</button>
+				</Pill>
+			),
+			{ duration: 8000 },
+		);
+	},
 };
 
 let clearTimer: ReturnType<typeof setTimeout> | undefined;

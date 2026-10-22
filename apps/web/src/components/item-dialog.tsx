@@ -233,6 +233,7 @@ export function ItemDialog({
 					{showSecret && (
 						<Row label={secretLabel[form.kind]}>
 							<SecretInput
+								label={secretLabel[form.kind]}
 								kind={form.kind}
 								value={form.secret}
 								onChange={(value) => set("secret", value)}
@@ -327,11 +328,15 @@ function Row({
 	);
 }
 
+// The row's <label> also wraps the strength meter and buttons, so the field names
+// itself rather than taking all of that text as its name.
 function SecretInput({
+	label,
 	kind,
 	value,
 	onChange,
 }: {
+	label: string;
 	kind: ItemKind;
 	value: string;
 	onChange: (value: string) => void;
@@ -340,6 +345,7 @@ function SecretInput({
 	if (kind === "ssh-key") {
 		return (
 			<Textarea
+				aria-label={label}
 				value={value}
 				className="text-caption min-h-24 font-mono"
 				placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
@@ -353,6 +359,7 @@ function SecretInput({
 			<div className="flex gap-1.5">
 				<div className="relative flex-1">
 					<Input
+						aria-label={label}
 						value={value}
 						type={visible ? "text" : "password"}
 						autoComplete="new-password"

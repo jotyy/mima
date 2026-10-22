@@ -18,6 +18,7 @@ import {
 import { cn } from "@mima/ui/lib/utils";
 import {
 	ArrowSquareOutIcon,
+	CaretRightIcon,
 	DotsThreeIcon,
 	PencilSimpleIcon,
 	PlusIcon,
@@ -38,7 +39,6 @@ import {
 	useVaults,
 } from "@/lib/vault-data";
 
-import { ConfirmDialog } from "./confirm-dialog";
 import { CopyButton } from "./copy-button";
 import { GrantDialog } from "./grant-dialog";
 import { ItemDialog } from "./item-dialog";
@@ -67,7 +67,6 @@ export function ItemDetail({ item }: { item: Item }) {
 	const agents = useAgents();
 	const members = useMembers();
 	const [editing, setEditing] = useState(false);
-	const [deleting, setDeleting] = useState(false);
 	const [granting, setGranting] = useState(false);
 
 	const vault = vaults.data?.find((v) => v.id === item.vaultId);
@@ -86,6 +85,19 @@ export function ItemDetail({ item }: { item: Item }) {
 		} catch (err) {
 			notify.error("That didn't work", errorMessage(err));
 		}
+	};
+
+	// No confirmation: the item waits in Recently deleted, and the toast can undo it.
+	const remove = async () => {
+		try {
+			await actions.deleteItem(item);
+		} catch (err) {
+			return notify.error("Couldn't delete it", errorMessage(err));
+		}
+		navigate({ to: "/items", search: (prev) => ({ ...prev, id: undefined }) });
+		notify.undo(`Moved ${item.name} to Recently deleted`, () =>
+			run(actions.restoreItem(item), `Restored ${item.name}`),
+		);
 	};
 
 	return (
@@ -183,10 +195,7 @@ export function ItemDetail({ item }: { item: Item }) {
 									))}
 							</DropdownMenuGroup>
 							<DropdownMenuSeparator />
-							<DropdownMenuItem
-								variant="destructive"
-								onClick={() => setDeleting(true)}
-							>
+							<DropdownMenuItem variant="destructive" onClick={remove}>
 								<TrashIcon />
 								Delete item
 							</DropdownMenuItem>
@@ -221,6 +230,14 @@ export function ItemDetail({ item }: { item: Item }) {
 						/>
 					</Field>
 				)}
+				{item.history?.length ? (
+					<EarlierSecrets
+						item={item}
+						label={label.toLowerCase()}
+						onReveal={log("revealed", `earlier ${label.toLowerCase()}`)}
+						onCopied={log("copied", `earlier ${label.toLowerCase()}`)}
+					/>
+				) : null}
 				{item.totp && (
 					<Field label="One-time code">
 						<OneTimeCode
@@ -316,22 +333,60 @@ export function ItemDetail({ item }: { item: Item }) {
 
 			<ItemDialog open={editing} onOpenChange={setEditing} item={item} />
 			<GrantDialog item={item} open={granting} onOpenChange={setGranting} />
-			<ConfirmDialog
-				open={deleting}
-				onOpenChange={setDeleting}
-				title={`Delete ${item.name}?`}
-				description="Everyone with access to this vault loses it, and agents can't use it anymore. This can't be undone."
-				confirm="Delete item"
-				destructive
-				onConfirm={async () => {
-					await run(actions.deleteItem(item), `Deleted ${item.name}`);
-					navigate({
-						to: "/items",
-						search: (prev) => ({ ...prev, id: undefined }),
-					});
-				}}
-			/>
 		</section>
+	);
+}
+
+/** Values the item had before, newest first, folded away until someone asks. */
+function EarlierSecrets({
+	item,
+	label,
+	onReveal,
+	onCopied,
+}: {
+	item: Item;
+	label: string;
+	onReveal: () => void;
+	onCopied: () => void;
+}) {
+	const [open, setOpen] = useState(false);
+	const history = item.history ?? [];
+	return (
+		<div className="flex gap-4 py-2.5">
+			<dt className="text-caption text-fg-subtle w-28 shrink-0">Earlier</dt>
+			<dd className="flex min-w-0 flex-1 flex-col gap-2">
+				<button
+					type="button"
+					aria-expanded={open}
+					onClick={() => setOpen((value) => !value)}
+					className="text-caption text-fg-muted hover:text-fg flex w-fit items-center gap-1 transition-colors"
+				>
+					<CaretRightIcon
+						className={cn("size-3 transition-transform", open && "rotate-90")}
+					/>
+					{history.length} earlier {history.length === 1 ? label : `${label}s`}
+				</button>
+				{open && (
+					<ol className="flex flex-col gap-2">
+						{history.map((entry) => (
+							<li key={entry.until} className="flex flex-col">
+								<SecretValue
+									value={entry.secret}
+									label={`earlier ${label}`}
+									source={item.name}
+									onReveal={onReveal}
+									onCopied={onCopied}
+								/>
+								<span className="text-caption text-fg-subtle">
+									Used until {new Date(entry.until).toLocaleDateString()}
+									{entry.by && ` · changed by ${entry.by}`}
+								</span>
+							</li>
+						))}
+					</ol>
+				)}
+			</dd>
+		</div>
 	);
 }
 

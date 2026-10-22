@@ -44,6 +44,8 @@ export function describeEvent(
 				return parts("changed their master password");
 			return parts("updated", itemName);
 		case "deleted":
+			if (event.itemId && event.detail === "for good")
+				return parts("deleted", itemName, "for good");
 			if (event.itemId) return parts("deleted", itemName);
 			if (event.detail?.startsWith("agent "))
 				return parts("deleted the agent", event.detail.slice(6));
@@ -100,6 +102,8 @@ export function describeEvent(
 			);
 		case "invited":
 			return parts("invited", event.detail ?? "someone");
+		case "restored":
+			return parts("restored", itemName);
 		case "exported": {
 			const count = Number(event.detail ?? 0);
 			return parts(

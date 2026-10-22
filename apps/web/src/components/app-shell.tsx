@@ -29,6 +29,7 @@ import {
 	ShieldCheckIcon,
 	SignOutIcon,
 	SquaresFourIcon,
+	TrashIcon,
 	UsersThreeIcon,
 	VaultIcon,
 } from "@phosphor-icons/react";
@@ -44,7 +45,12 @@ import {
 
 import { initials, toneDot } from "@/lib/format";
 import { useKeyring } from "@/lib/keyring";
-import { useRequests, useVaults, useWorkspace } from "@/lib/vault-data";
+import {
+	useDeletedItems,
+	useRequests,
+	useVaults,
+	useWorkspace,
+} from "@/lib/vault-data";
 
 import { CommandPalette } from "./command-palette";
 import { MimaMark } from "./mima-mark";
@@ -148,6 +154,7 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
 function Sidebar() {
 	const vaults = useVaults();
 	const requests = useRequests();
+	const deleted = useDeletedItems();
 	const sorted = [...(vaults.data ?? [])].sort(
 		(a, b) =>
 			Number(b.personal) - Number(a.personal) || a.name.localeCompare(b.name),
@@ -163,6 +170,16 @@ function Sidebar() {
 					<NavLink to="/items" icon={KeyIcon} exact>
 						All items
 					</NavLink>
+					{!!deleted.data?.length && (
+						<NavLink
+							to="/deleted"
+							icon={TrashIcon}
+							count={deleted.data.length}
+							muted
+						>
+							Recently deleted
+						</NavLink>
+					)}
 				</NavGroup>
 				<NavGroup label="Vaults">
 					{sorted.map((vault) => (
@@ -223,6 +240,7 @@ function NavLink({
 	icon: Icon,
 	dot,
 	count,
+	muted,
 	exact,
 	children,
 }: {
@@ -233,11 +251,14 @@ function NavLink({
 		| "/activity"
 		| "/vaults"
 		| "/members"
-		| "/settings";
+		| "/settings"
+		| "/deleted";
 	search?: { vault?: string };
 	icon?: ComponentType<{ className?: string }>;
 	dot?: string;
 	count?: number;
+	/** Shows the count as plain text, for numbers that need no attention. */
+	muted?: boolean;
 	exact?: boolean;
 	children: ReactNode;
 }) {
@@ -255,11 +276,16 @@ function NavLink({
 				</span>
 			)}
 			<span className="flex-1 truncate">{children}</span>
-			{!!count && (
-				<span className="bg-brand text-brand-fg text-micro flex size-5 items-center justify-center rounded-full">
-					{count}
-				</span>
-			)}
+			{!!count &&
+				(muted ? (
+					<span className="text-caption text-fg-subtle tabular-nums">
+						{count}
+					</span>
+				) : (
+					<span className="bg-brand text-brand-fg text-micro flex size-5 items-center justify-center rounded-full">
+						{count}
+					</span>
+				))}
 		</Link>
 	);
 }

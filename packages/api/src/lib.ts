@@ -6,7 +6,7 @@ import {
 	vaultAccess,
 } from "@mima/db/schema/vault";
 import { ORPCError } from "@orpc/server";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 
 const alphabet = "0123456789abcdefghjkmnpqrstvwxyz";
 
@@ -49,24 +49,38 @@ export async function requireVaultAccess(
 	return row;
 }
 
+/** An item the person can open. Items in Recently deleted count only with `deleted`. */
 export async function requireItemAccess(
 	db: Database,
 	userId: string,
 	itemId: string,
+	{ deleted = false } = {},
 ) {
 	const [row] = await db.select().from(item).where(eq(item.id, itemId));
-	if (!row) throw new ORPCError("NOT_FOUND", { message: "Item not found" });
+	if (!row || (row.deletedAt && !deleted)) {
+		throw new ORPCError("NOT_FOUND", { message: "Item not found" });
+	}
 	await requireVaultAccess(db, userId, row.vaultId);
 	return row;
 }
 
-export async function accessibleItemIds(db: Database, userId: string) {
+/** Items in the person's vaults; deleted ones too with `deleted`, for the audit log. */
+export async function accessibleItemIds(
+	db: Database,
+	userId: string,
+	{ deleted = false } = {},
+) {
 	const vaultIds = await myVaultIds(db, userId);
 	if (vaultIds.length === 0) return [];
 	const rows = await db
 		.select({ id: item.id })
 		.from(item)
-		.where(inArray(item.vaultId, vaultIds));
+		.where(
+			and(
+				inArray(item.vaultId, vaultIds),
+				deleted ? undefined : isNull(item.deletedAt),
+			),
+		);
 	return rows.map((row) => row.id);
 }
 

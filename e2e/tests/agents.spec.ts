@@ -162,6 +162,35 @@ test("a forged token is rejected", async () => {
 	expect(run.stderr()).toContain("Unknown agent token");
 });
 
+test("a deleted item is out of reach for agents until it's restored", async ({
+	page,
+}) => {
+	await signIn(page, owner);
+	await sidebarLink(page, "Agents").click();
+	await page.getByRole("switch", { name: "Claude Code enabled" }).click();
+	await expect(page.getByText("Claude Code is on")).toBeVisible();
+
+	await openAllItems(page);
+	await page.getByRole("button", { name: "More actions" }).click();
+	await page.getByRole("menuitem", { name: "Delete item" }).click();
+	const blocked = mima(["run", "--", ...check], {
+		MIMA_TOKEN: token,
+		DATABASE_URL: reference,
+	});
+	expect(await blocked.exit).toBe(1);
+	expect(blocked.stderr()).toContain("doesn't exist or was deleted");
+
+	// Restoring brings back the item with its grant, so the agent runs without asking.
+	await page.getByRole("button", { name: "Undo" }).click();
+	await expect(page.getByText("Restored Postgres staging")).toBeVisible();
+	const run = mima(["run", "--", ...check], {
+		MIMA_TOKEN: token,
+		DATABASE_URL: reference,
+	});
+	expect(await run.exit).toBe(0);
+	expect(run.stdout()).toContain("MATCH");
+});
+
 test("the activity log shows each agent run and decision", async ({ page }) => {
 	await signIn(page, owner);
 	await sidebarLink(page, "Activity").click();
