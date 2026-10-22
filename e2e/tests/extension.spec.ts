@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-
+import { parseTotp, totpCode } from "@mima/crypto";
 import {
 	type BrowserContext,
 	chromium,
@@ -30,6 +30,7 @@ const login = {
 	name: "Example login",
 	username: "alex@example.test",
 	password: "example-fill-password-42",
+	totp: "JBSWY3DPEHPK3PXP",
 };
 const loginPage = `<!doctype html>
 <title>Example sign in</title>
@@ -40,7 +41,7 @@ const loginPage = `<!doctype html>
 </form>`;
 
 let context: BrowserContext;
-let worker: Worker;
+let worker: Worker | undefined;
 let extensionId = "";
 
 test.beforeAll(async ({ request }) => {
@@ -57,6 +58,7 @@ test.beforeAll(async ({ request }) => {
 	});
 	[worker] = context.serviceWorkers();
 	worker ??= await context.waitForEvent("serviceworker");
+	await context.grantPermissions(["clipboard-read", "clipboard-write"]);
 	extensionId = new URL(worker.url()).host;
 	// Every made-up site serves the same login form.
 	await context.route("https://*.example.test/**", (route) =>
@@ -72,6 +74,7 @@ test.beforeAll(async ({ request }) => {
 	await form.getByLabel("Username").fill(login.username);
 	await form.getByLabel("Password", { exact: true }).fill(login.password);
 	await form.getByLabel("Website").fill(site);
+	await form.getByLabel("One-time code").fill(login.totp);
 	await form.getByRole("button", { name: "Add item" }).click();
 	await expect(form).toBeHidden();
 	await expect(
@@ -93,9 +96,26 @@ async function openPopup(tabId?: number) {
 	return popup;
 }
 
+/** The codes valid around now, so a code copied just before a 30-second boundary counts. */
+async function validCodes() {
+	const config = parseTotp(login.totp);
+	if (!config) throw new Error("bad test secret");
+	const now = Date.now();
+	return Promise.all([totpCode(config, now), totpCode(config, now - 30_000)]);
+}
+
 async function tabIdOf(url: string) {
-	return worker.evaluate(
-		async (pattern) => (await chrome.tabs.query({ url: pattern }))[0]?.id,
+	// The extension's own service worker can look up tabs with the chrome API.
+	type Tabs = { query(filter: { url: string }): Promise<{ id?: number }[]> };
+	return worker?.evaluate(
+		async (pattern) =>
+			(
+				await (
+					globalThis as unknown as { chrome: { tabs: Tabs } }
+				).chrome.tabs.query({
+					url: pattern,
+				})
+			)[0]?.id,
 		`${url}/*`,
 	);
 }
@@ -140,7 +160,23 @@ test("Fill puts the username and password into the site's form", async () => {
 
 	await expect(page.getByLabel("Email")).toHaveValue(login.username);
 	await expect(page.getByLabel("Password")).toHaveValue(login.password);
+	// Fill leaves the one-time code on the clipboard for the next step.
+	const pasted = await page.evaluate(() => navigator.clipboard.readText());
+	expect(await validCodes()).toContain(pasted);
 	await page.close();
+});
+
+test("a login's one-time code can be copied from the popup", async () => {
+	const popup = await openPopup();
+	await popup
+		.getByRole("button", { name: `Copy one-time code for ${login.name}` })
+		.click();
+	await expect(
+		popup.getByText(/One-time code copied · \d+s left/),
+	).toBeVisible();
+	const copied = await popup.evaluate(() => navigator.clipboard.readText());
+	expect(await validCodes()).toContain(copied);
+	await popup.close();
 });
 
 test("search finds items, and other sites get nothing to fill", async () => {

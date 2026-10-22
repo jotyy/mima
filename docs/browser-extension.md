@@ -23,8 +23,8 @@ Open the extension and enter the address you open mima at, such as `mima.example
 
 ## Use it
 
-- **On a login page**, the items saved for that site come first. Choose **Fill** to put the username and password into the form.
-- **Search** to find any item; the buttons copy its username or password.
+- **On a login page**, the items saved for that site come first. Choose **Fill** to put the username and password into the form. If the login has a one-time code, Fill also copies the current code, ready to paste on the next step.
+- **Search** to find any item; the buttons copy its username, password or one-time code.
 - **Lock** forgets the key. The extension also locks itself after 15 idle minutes, and whenever the browser closes.
 
 Fills and copies appear in **Activity**, like everything else.

@@ -1,8 +1,10 @@
+import { parseTotp, totpCode, totpSecondsLeft } from "@mima/crypto";
 import { Button } from "@mima/ui/components/button";
 import { Input } from "@mima/ui/components/input";
 import { cn } from "@mima/ui/lib/utils";
 import {
 	ArrowSquareOutIcon,
+	ClockCountdownIcon,
 	CopyIcon,
 	GlobeIcon,
 	KeyIcon,
@@ -281,11 +283,21 @@ function Items({
 		setTimeout(() => setStatus(""), 2000);
 	};
 
-	const copy = async (entry: Entry, field: "username" | "secret") => {
+	const copy = async (entry: Entry, field: Field) => {
+		await touch();
+		if (field === "code") {
+			const code = await oneTimeCode(entry);
+			if (!code) return;
+			await navigator.clipboard.writeText(code.value);
+			flash(`One-time code copied · ${code.secondsLeft}s left`);
+			void client.items
+				.log({ id: entry.id, action: "copied", field: "one-time code" })
+				.catch(() => {});
+			return;
+		}
 		const value = entry[field];
 		if (!value) return;
 		await navigator.clipboard.writeText(value);
-		await touch();
 		flash(field === "secret" ? "Password copied" : "Username copied");
 		if (field === "secret") {
 			void client.items
@@ -296,6 +308,10 @@ function Items({
 
 	const fill = async (entry: Entry) => {
 		if (tab.id === undefined) return;
+		// The next page usually asks for the one-time code: copy it now, while the click
+		// still counts as the person's action, so it's ready to paste.
+		const code = await oneTimeCode(entry);
+		if (code) await navigator.clipboard.writeText(code.value).catch(() => {});
 		await touch();
 		const [result] = await browser.scripting.executeScript({
 			target: { tabId: tab.id },
@@ -427,6 +443,21 @@ function Items({
 	);
 }
 
+type Field = "username" | "secret" | "code";
+
+async function oneTimeCode(entry: Entry) {
+	const config = entry.totp ? parseTotp(entry.totp) : null;
+	if (!config) return null;
+	try {
+		return {
+			value: await totpCode(config),
+			secondsLeft: totpSecondsLeft(config),
+		};
+	} catch {
+		return null;
+	}
+}
+
 const kindIcon = {
 	login: GlobeIcon,
 	"api-key": KeyIcon,
@@ -443,7 +474,7 @@ function Row({
 	entry: Entry;
 	canFill: boolean;
 	onFill: (entry: Entry) => void;
-	onCopy: (entry: Entry, field: "username" | "secret") => void;
+	onCopy: (entry: Entry, field: Field) => void;
 }) {
 	const Icon = kindIcon[entry.kind];
 	return (
@@ -477,6 +508,17 @@ function Row({
 					onClick={() => onCopy(entry, "secret")}
 				>
 					<CopyIcon />
+				</Button>
+			)}
+			{entry.totp && (
+				<Button
+					variant="ghost"
+					size="icon-xs"
+					aria-label={`Copy one-time code for ${entry.name}`}
+					title="Copy one-time code"
+					onClick={() => onCopy(entry, "code")}
+				>
+					<ClockCountdownIcon />
 				</Button>
 			)}
 			{canFill && entry.kind === "login" && entry.secret && (
