@@ -8,6 +8,7 @@ import { Skeleton } from "@mima/ui/components/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@mima/ui/components/tabs";
 import { cn } from "@mima/ui/lib/utils";
 import {
+	LockSimpleIcon,
 	MagnifyingGlassIcon,
 	PlusIcon,
 	StarIcon,
@@ -22,7 +23,12 @@ import { ItemDialog } from "@/components/item-dialog";
 import { ItemTile } from "@/components/item-tile";
 import { Page } from "@/components/page";
 import { toneDot } from "@/lib/format";
-import { type ItemKind, useItems, useVaults } from "@/lib/vault-data";
+import {
+	type ItemKind,
+	useItems,
+	useVaults,
+	type Vault,
+} from "@/lib/vault-data";
 
 const searchSchema = z.object({
 	vault: z.string().optional(),
@@ -147,7 +153,7 @@ function Items() {
 				<EmptyVault
 					onAdd={() => setNew(true)}
 					onImport={() => setImporting(true)}
-					vaultName={vault?.name}
+					vault={vault}
 				/>
 			) : (
 				<div className="grid grid-cols-5 items-start gap-3">
@@ -252,11 +258,11 @@ const examples: { kind: ItemKind; name: string }[][] = [
 function EmptyVault({
 	onAdd,
 	onImport,
-	vaultName,
+	vault,
 }: {
 	onAdd: () => void;
 	onImport: () => void;
-	vaultName?: string;
+	vault?: Vault;
 }) {
 	return (
 		<div
@@ -294,16 +300,19 @@ function EmptyVault({
 					</div>
 				))}
 			</div>
-			<div className="animate-in fade-in slide-in-from-bottom-1 fill-mode-both flex flex-col gap-1 delay-200 duration-500">
-				<h2 className="text-body text-fg">
-					{vaultName ? `${vaultName} is empty` : "Nothing stored yet"}
+			<div className="animate-in fade-in slide-in-from-bottom-1 fill-mode-both flex flex-col items-center gap-1.5 delay-200 duration-500">
+				<h2 className="text-h5 text-fg">
+					{vault ? `Nothing in ${vault.name} yet` : "Nothing stored yet"}
 				</h2>
-				<p className="text-body-sm text-fg-muted max-w-sm">
-					Add a login, an API key or a note. It's encrypted on this device
-					before it's saved.
+				<p className="text-body-sm text-fg-muted max-w-md text-balance">
+					{!vault
+						? "Keep your team's logins, API keys and notes in one place."
+						: vault.personal
+							? "Logins, keys and notes only you can open."
+							: `Everyone with access to ${vault.name} can use what you add here.`}
 				</p>
 			</div>
-			<div className="animate-in fade-in slide-in-from-bottom-1 fill-mode-both delay-300 duration-500">
+			<div className="animate-in fade-in slide-in-from-bottom-1 fill-mode-both mt-2 flex flex-col items-center gap-4 delay-300 duration-500">
 				<div className="flex items-center gap-2">
 					<Button onClick={onAdd}>
 						<PlusIcon data-icon="inline-start" />
@@ -313,6 +322,10 @@ function EmptyVault({
 						Import from a CSV
 					</Button>
 				</div>
+				<p className="text-caption text-fg-subtle flex items-center gap-1.5">
+					<LockSimpleIcon className="size-3.5" />
+					Encrypted on this device before anything is saved
+				</p>
 			</div>
 		</div>
 	);
