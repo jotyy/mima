@@ -1,17 +1,17 @@
 import { cn } from "@mima/ui/lib/utils";
-import * as React from "react";
+import type * as React from "react";
 
 function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
-  return (
-    <textarea
-      data-slot="textarea"
-      className={cn(
-        "flex field-sizing-content min-h-16 w-full resize-none rounded-none border border-input bg-transparent px-2.5 py-2 text-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-1 aria-invalid:ring-destructive/20 md:text-xs dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
-        className,
-      )}
-      {...props}
-    />
-  );
+	return (
+		<textarea
+			data-slot="textarea"
+			className={cn(
+				"border-line bg-surface text-input text-fg hover:border-line-strong focus-visible:border-brand focus-visible:ring-brand-soft disabled:bg-surface-sunken aria-invalid:border-danger aria-invalid:ring-danger-soft flex field-sizing-content min-h-16 w-full rounded-lg border px-3 py-2 transition-[border-color,box-shadow] outline-none focus-visible:ring-3 disabled:cursor-not-allowed disabled:opacity-60 aria-invalid:ring-3",
+				className,
+			)}
+			{...props}
+		/>
+	);
 }
 
 export { Textarea };
