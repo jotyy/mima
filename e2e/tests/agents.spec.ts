@@ -201,3 +201,30 @@ test("the activity log shows each agent run and decision", async ({ page }) => {
 	await expect(events.getByText("let Claude Code use").first()).toBeVisible();
 	await expect(events.getByText("created the agent")).toBeVisible();
 });
+
+test("an agent can be extended, and deleting it stops its token for good", async ({
+	page,
+}) => {
+	await signIn(page, owner);
+	await sidebarLink(page, "Agents").click();
+	await page.getByRole("button", { name: "Claude Code options" }).click();
+	await page.getByRole("menuitem", { name: "Extend 7 days" }).click();
+	await expect(page.getByText("Claude Code extended by 7 days")).toBeVisible();
+
+	await page.getByRole("button", { name: "Claude Code options" }).click();
+	await page.getByRole("menuitem", { name: "Delete agent" }).click();
+	const confirm = page.getByRole("dialog");
+	await expect(
+		confirm.getByRole("heading", { name: "Delete Claude Code?" }),
+	).toBeVisible();
+	await confirm.getByRole("button", { name: "Delete agent" }).click();
+	await expect(page.getByText("Deleted Claude Code")).toBeVisible();
+	await expect(page.getByText("No agents yet")).toBeVisible();
+
+	const run = mima(["run", "--", ...check], {
+		MIMA_TOKEN: token,
+		DATABASE_URL: reference,
+	});
+	expect(await run.exit).toBe(1);
+	expect(run.stderr()).toContain("Unknown agent token");
+});

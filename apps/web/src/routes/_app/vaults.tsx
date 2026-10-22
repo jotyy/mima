@@ -27,7 +27,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { notify } from "@/components/notify";
 import { Page } from "@/components/page";
 import { VaultAccessDialog, VaultDialog } from "@/components/vault-dialogs";
-import { initials, toneDot } from "@/lib/format";
+import { initials, plural, toneDot } from "@/lib/format";
 import {
 	errorMessage,
 	useActions,
@@ -198,7 +198,7 @@ function VaultCard({ vault }: { vault: Vault }) {
 				open={deleting}
 				onOpenChange={setDeleting}
 				title={`Delete ${vault.name}?`}
-				description={`Its ${vault.itemCount} items are deleted for everyone, and agents lose access to them. This can't be undone.`}
+				description={`Its ${plural(vault.itemCount, "item")} ${vault.itemCount === 1 ? "is" : "are"} deleted for everyone, and agents lose access to them. This can't be undone.`}
 				confirm="Delete vault"
 				destructive
 				onConfirm={async () => {
