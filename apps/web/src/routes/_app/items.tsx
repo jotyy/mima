@@ -326,7 +326,7 @@ function EmptyVault({
 					</div>
 				))}
 			</div>
-			<div className="animate-in fade-in slide-in-from-bottom-1 fill-mode-both flex flex-col items-center gap-1.5 delay-200 duration-500">
+			<div className="flex flex-col items-center gap-1.5">
 				<h2 className="text-h5 text-fg">
 					{vault ? `Nothing in ${vault.name} yet` : "Nothing stored yet"}
 				</h2>
@@ -338,7 +338,7 @@ function EmptyVault({
 							: `Everyone with access to ${vault.name} can use what you add here.`}
 				</p>
 			</div>
-			<div className="animate-in fade-in slide-in-from-bottom-1 fill-mode-both mt-2 flex flex-col items-center gap-4 delay-300 duration-500">
+			<div className="mt-2 flex flex-col items-center gap-4">
 				<div className="flex items-center gap-2">
 					<Button onClick={onAdd}>
 						<PlusIcon data-icon="inline-start" />

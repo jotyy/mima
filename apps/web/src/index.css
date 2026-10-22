@@ -3,7 +3,7 @@
 /*
  * Empty vault: two rows of example items drift past in opposite directions, fading out
  * at the edges. Each track holds its chips twice, so sliding it by half loops seamlessly.
- * Hovering pauses them; the plus on the button turns a quarter.
+ * Hovering pauses them.
  */
 @keyframes marquee {
 	to {
@@ -35,14 +35,6 @@
 	&:hover > [data-slot="marquee-track"] {
 		animation-play-state: paused;
 	}
-}
-
-[data-slot="empty-vault"] [data-icon="inline-start"] {
-	transition: rotate 300ms var(--ease-emphasized);
-}
-
-[data-slot="empty-vault"] button:hover [data-icon="inline-start"] {
-	rotate: 90deg;
 }
 
 @media (prefers-reduced-motion: reduce) {
