@@ -1,5 +1,6 @@
 import {
 	type AccountKeys,
+	changeMasterPassword,
 	createAccount,
 	deriveMasterKeys,
 	newDataKey,
@@ -24,9 +25,21 @@ import { authClient } from "@/lib/auth-client";
 import { client } from "@/utils/orpc";
 
 // The keyring holds the unlocked private key and the vault keys in memory only. A reload,
-// "Lock" or 15 idle minutes forget them; the session cookie alone opens nothing.
+// "Lock" or a few idle minutes forget them; the session cookie alone opens nothing.
 
-export const AUTO_LOCK_MS = 15 * 60 * 1000;
+/** Idle minutes before the vault locks. Each device keeps its own choice. */
+export const AUTO_LOCK_CHOICES = [5, 15, 30, 60, 240] as const;
+export type AutoLockMinutes = (typeof AUTO_LOCK_CHOICES)[number];
+const AUTO_LOCK_KEY = "mima.autoLockMinutes";
+
+function storedAutoLock(): AutoLockMinutes {
+	try {
+		const value = Number(localStorage.getItem(AUTO_LOCK_KEY));
+		return AUTO_LOCK_CHOICES.find((choice) => choice === value) ?? 15;
+	} catch {
+		return 15;
+	}
+}
 
 export type Me = {
 	id: string;
@@ -56,6 +69,12 @@ type Keyring = {
 	lock: () => void;
 	signOut: () => Promise<void>;
 	vaultKey: (vaultId: string, wrappedKey: string) => Promise<CryptoKey>;
+	/** Checks the master password without changing anything, before a sensitive step. */
+	verifyPassword: (password: string) => Promise<boolean>;
+	changePassword: (current: string, next: string) => Promise<void>;
+	rename: (name: string) => Promise<void>;
+	autoLockMinutes: AutoLockMinutes;
+	setAutoLockMinutes: (minutes: AutoLockMinutes) => void;
 };
 
 const KeyringContext = createContext<Keyring | null>(null);
@@ -84,6 +103,8 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 	const [me, setMe] = useState<Me | null>(null);
 	const [epoch, setEpoch] = useState(0);
 	const [lastActive, setLastActive] = useState(() => Date.now());
+	const [autoLockMinutes, setAutoLock] = useState(storedAutoLock);
+	const autoLockMs = autoLockMinutes * 60_000;
 	const privateKey = useRef<CryptoKey | null>(null);
 	const vaultKeys = useRef(new Map<string, Promise<CryptoKey>>());
 
@@ -199,6 +220,66 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 		setStatus("signed-out");
 	}, [lock]);
 
+	const verifyPassword = useCallback(
+		async (password: string) => {
+			if (!me) return false;
+			const { wrapKey } = await deriveMasterKeys(
+				password,
+				me.keys.kdfSalt,
+				me.keys.kdfIterations,
+			);
+			try {
+				await openPrivateKey(wrapKey, me.keys.encryptedPrivateKey);
+				return true;
+			} catch {
+				return false;
+			}
+		},
+		[me],
+	);
+
+	const changePassword = useCallback(
+		async (current: string, next: string) => {
+			if (!me) throw new Error("Sign in first");
+			let changed: Awaited<ReturnType<typeof changeMasterPassword>>;
+			try {
+				changed = await changeMasterPassword(current, next, me.keys);
+			} catch {
+				throw new WrongPasswordError();
+			}
+			await client.account.changePassword({
+				currentAuthKey: changed.currentAuthKey,
+				authKey: changed.authKey,
+				keys: {
+					kdfSalt: changed.keys.kdfSalt,
+					kdfIterations: changed.keys.kdfIterations,
+					encryptedPrivateKey: changed.keys.encryptedPrivateKey,
+				},
+			});
+			await loadMe();
+		},
+		[me, loadMe],
+	);
+
+	const rename = useCallback(
+		async (name: string) => {
+			await client.account.updateProfile({ name });
+			await loadMe();
+			await queryClient.invalidateQueries();
+		},
+		[loadMe, queryClient],
+	);
+
+	const setAutoLockMinutes = useCallback((minutes: AutoLockMinutes) => {
+		setAutoLock(minutes);
+		setLastActive(Date.now());
+		try {
+			localStorage.setItem(AUTO_LOCK_KEY, String(minutes));
+		} catch {
+			// Private windows can refuse storage; the choice still holds for this tab.
+		}
+	}, []);
+
 	const vaultKey = useCallback(
 		(vaultId: string, wrappedKey: string) => {
 			const key = privateKey.current;
@@ -213,7 +294,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 		[me],
 	);
 
-	// Auto-lock after 15 idle minutes.
+	// Auto-lock after the chosen number of idle minutes.
 	useEffect(() => {
 		if (status !== "unlocked") return;
 		let last = Date.now();
@@ -228,28 +309,39 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 		for (const name of events)
 			window.addEventListener(name, touch, { passive: true });
 		const timer = setInterval(() => {
-			if (Date.now() - last > AUTO_LOCK_MS) lock();
+			if (Date.now() - last > autoLockMs) lock();
 		}, 10_000);
 		return () => {
 			for (const name of events) window.removeEventListener(name, touch);
 			clearInterval(timer);
 		};
-	}, [status, lock]);
+	}, [status, lock, autoLockMs]);
 
 	const value = useMemo<Keyring>(
 		() => ({
 			status,
 			me,
 			epoch,
-			locksAt: status === "unlocked" ? lastActive + AUTO_LOCK_MS : null,
+			locksAt: status === "unlocked" ? lastActive + autoLockMs : null,
 			signIn,
 			unlock,
 			register,
 			lock,
 			signOut,
 			vaultKey,
+			verifyPassword,
+			changePassword,
+			rename,
+			autoLockMinutes,
+			setAutoLockMinutes,
 		}),
 		[
+			autoLockMs,
+			autoLockMinutes,
+			verifyPassword,
+			changePassword,
+			rename,
+			setAutoLockMinutes,
 			status,
 			me,
 			epoch,

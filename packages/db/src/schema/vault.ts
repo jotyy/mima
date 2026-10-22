@@ -187,7 +187,8 @@ export type EventAction =
 	| "shared"
 	| "joined"
 	| "invited"
-	| "imported";
+	| "imported"
+	| "exported";
 
 /** Append-only audit log. `detail` is plaintext: never put a secret in it. */
 export const event = sqliteTable(

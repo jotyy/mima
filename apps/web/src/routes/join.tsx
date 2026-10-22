@@ -20,7 +20,7 @@ import {
 } from "@/components/auth-layout";
 import Loader from "@/components/loader";
 import { useKeyring } from "@/lib/keyring";
-import { passwordStrength } from "@/lib/secrets";
+import { newMasterPasswordProblem } from "@/lib/secrets";
 import { errorMessage, useWorkspace } from "@/lib/vault-data";
 import { client } from "@/utils/orpc";
 
@@ -79,18 +79,8 @@ function Join() {
 				onSubmit={async (event) => {
 					event.preventDefault();
 					setError("");
-					if (password.length < 12) {
-						return setError(
-							"Use at least 12 characters for your master password.",
-						);
-					}
-					if (passwordStrength(password) === "weak") {
-						return setError(
-							"That master password is easy to guess. Add more words or characters.",
-						);
-					}
-					if (password !== confirm)
-						return setError("The two passwords don't match.");
+					const problem = newMasterPasswordProblem(password, confirm);
+					if (problem) return setError(problem);
 					setBusy(true);
 					try {
 						await keyring.register({

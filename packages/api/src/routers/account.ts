@@ -1,4 +1,4 @@
-import { user } from "@mima/db/schema/auth";
+import { account, session, user } from "@mima/db/schema/auth";
 import {
 	invite,
 	member,
@@ -7,10 +7,10 @@ import {
 	vaultAccess,
 } from "@mima/db/schema/vault";
 import { ORPCError } from "@orpc/server";
-import { and, count, eq, gt, isNull } from "drizzle-orm";
+import { and, count, eq, gt, isNull, ne } from "drizzle-orm";
 import { z } from "zod";
 
-import { memberProcedure, publicProcedure } from "../index";
+import { adminProcedure, memberProcedure, publicProcedure } from "../index";
 import { hashToken, logEvent, newId } from "../lib";
 
 const DEFAULT_ITERATIONS = 600_000;
@@ -224,4 +224,106 @@ export const accountRouter = {
 			},
 		};
 	}),
+
+	updateProfile: memberProcedure
+		.input(z.object({ name: z.string().trim().min(1).max(80) }))
+		.handler(async ({ context, input }) => {
+			await context.db
+				.update(user)
+				.set({ name: input.name, updatedAt: new Date() })
+				.where(eq(user.id, context.userId));
+			return { name: input.name };
+		}),
+
+	/**
+	 * Swaps the auth key and the sealed private key together, so the account can never be
+	 * left with one but not the other. Other sessions are signed out.
+	 */
+	changePassword: memberProcedure
+		.input(
+			z.object({
+				currentAuthKey: z.string().length(64),
+				authKey: z.string().length(64),
+				keys: accountKeys.omit({ publicKey: true }),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			const { db, userId } = context;
+			const auth = await context.auth.$context;
+			const [credential] = await db
+				.select({ id: account.id, password: account.password })
+				.from(account)
+				.where(
+					and(eq(account.userId, userId), eq(account.providerId, "credential")),
+				);
+			const valid =
+				credential?.password &&
+				(await auth.password.verify({
+					hash: credential.password,
+					password: input.currentAuthKey,
+				}));
+			if (!credential || !valid) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "The current master password is wrong",
+				});
+			}
+			await db.batch([
+				db
+					.update(account)
+					.set({
+						password: await auth.password.hash(input.authKey),
+						updatedAt: new Date(),
+					})
+					.where(eq(account.id, credential.id)),
+				db
+					.update(member)
+					.set({
+						kdfSalt: input.keys.kdfSalt,
+						kdfIterations: input.keys.kdfIterations,
+						encryptedPrivateKey: input.keys.encryptedPrivateKey,
+					})
+					.where(eq(member.userId, userId)),
+				db
+					.delete(session)
+					.where(
+						and(
+							eq(session.userId, userId),
+							ne(session.id, context.session.session.id),
+						),
+					),
+				logEvent(db, {
+					actorType: "member",
+					actorId: userId,
+					action: "updated",
+					detail: "master password",
+				}),
+			]);
+			return { ok: true };
+		}),
+
+	renameWorkspace: adminProcedure
+		.input(z.object({ name: z.string().trim().min(1).max(40) }))
+		.handler(async ({ context, input }) => {
+			await context.db
+				.insert(setting)
+				.values({ key: "workspace_name", value: input.name })
+				.onConflictDoUpdate({
+					target: setting.key,
+					set: { value: input.name },
+				});
+			return { name: input.name };
+		}),
+
+	/** Records that someone downloaded a decrypted backup. Only the count is logged. */
+	exported: memberProcedure
+		.input(z.object({ count: z.number().int().min(0) }))
+		.handler(async ({ context, input }) => {
+			await logEvent(context.db, {
+				actorType: "member",
+				actorId: context.userId,
+				action: "exported",
+				detail: String(input.count),
+			});
+			return { ok: true };
+		}),
 };

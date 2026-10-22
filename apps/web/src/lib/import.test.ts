@@ -2,6 +2,7 @@
 
 import { describe, expect, test } from "bun:test";
 
+import { type BackupRow, toBackupCsv } from "./backup";
 import { ImportError, parseCsv, parseImport, sameItem } from "./import";
 
 // Every value here is made up; the headers match each app's real export.
@@ -119,4 +120,42 @@ test("sameItem ignores case in the name only", () => {
 	const a = { kind: "login" as const, name: "GitHub", secret: "x" };
 	expect(sameItem(a, { ...a, name: "github" })).toBe(true);
 	expect(sameItem(a, { ...a, secret: "y" })).toBe(false);
+});
+
+test("a mima backup imports back to the same items", () => {
+	const items: BackupRow[] = [
+		{
+			vault: "Engineering",
+			kind: "login",
+			name: "GitHub, main",
+			username: "alex@example.test",
+			secret: 'example "quoted" pass',
+			url: "https://github.com",
+			totp: "JBSWY3DPEHPK3PXP",
+			tags: ["work", "code"],
+		},
+		{
+			vault: "Engineering",
+			kind: "ssh-key",
+			name: "deploy@prod",
+			secret:
+				"-----BEGIN EXAMPLE KEY-----\nnot-a-real-key\n-----END EXAMPLE KEY-----",
+		},
+		{
+			vault: "Engineering",
+			kind: "api-key",
+			name: "Stripe",
+			secret: "sk_example_1",
+		},
+		{
+			vault: "Private",
+			kind: "note",
+			name: "Door codes",
+			notes: "Front: example-0000",
+		},
+	];
+	const result = parseImport(toBackupCsv(items));
+	expect(result.source).toBe("mima");
+	expect(result.skipped).toBe(0);
+	expect(result.items).toEqual(items.map(({ vault: _, ...fields }) => fields));
 });

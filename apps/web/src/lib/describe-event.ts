@@ -40,6 +40,8 @@ export function describeEvent(
 				return parts("created the agent", event.detail.slice(6));
 			return parts("created the vault", vault?.name);
 		case "updated":
+			if (!event.itemId && event.detail === "master password")
+				return parts("changed their master password");
 			return parts("updated", itemName);
 		case "deleted":
 			if (event.itemId) return parts("deleted", itemName);
@@ -98,6 +100,13 @@ export function describeEvent(
 			);
 		case "invited":
 			return parts("invited", event.detail ?? "someone");
+		case "exported": {
+			const count = Number(event.detail ?? 0);
+			return parts(
+				"downloaded a backup of",
+				`${count} ${count === 1 ? "item" : "items"}`,
+			);
+		}
 		case "imported": {
 			const count = Number(event.detail ?? 0);
 			return parts(

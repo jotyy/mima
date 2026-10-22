@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogTitle } from "@mima/ui/components/dialog";
 import { Kbd } from "@mima/ui/components/kbd";
 import { cn } from "@mima/ui/lib/utils";
 import {
+	GearSixIcon,
 	MagnifyingGlassIcon,
 	PlusIcon,
 	PulseIcon,
@@ -32,7 +33,7 @@ type Result = {
 
 const pages: {
 	label: string;
-	to: "/" | "/agents" | "/activity" | "/vaults" | "/members";
+	to: "/" | "/agents" | "/activity" | "/vaults" | "/members" | "/settings";
 	icon: ComponentType<{ className?: string }>;
 }[] = [
 	{ label: "Overview", to: "/", icon: SquaresFourIcon },
@@ -40,6 +41,7 @@ const pages: {
 	{ label: "Activity", to: "/activity", icon: PulseIcon },
 	{ label: "Vaults", to: "/vaults", icon: VaultIcon },
 	{ label: "Members", to: "/members", icon: UsersThreeIcon },
+	{ label: "Settings", to: "/settings", icon: GearSixIcon },
 ];
 
 export function CommandPalette({

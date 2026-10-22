@@ -22,11 +22,14 @@ const bitwarden = [
 ].join("\n");
 
 async function chooseFile(page: Page, name: string, contents: string) {
-	await page.getByRole("dialog").getByLabel("CSV file").setInputFiles({
-		name,
-		mimeType: "text/csv",
-		buffer: Buffer.from(contents),
-	});
+	await page
+		.getByRole("dialog")
+		.getByLabel("CSV file")
+		.setInputFiles({
+			name,
+			mimeType: "text/csv",
+			buffer: Buffer.from(contents),
+		});
 }
 
 test.beforeAll(async ({ request }) => {
@@ -44,9 +47,7 @@ test("an empty vault offers to import a CSV", async ({ page }) => {
 	await expect(dialog.getByText("Bitwarden", { exact: false })).toBeVisible();
 });
 
-test("a file that isn't a password export is turned away", async ({
-	page,
-}) => {
+test("a file that isn't a password export is turned away", async ({ page }) => {
 	await signIn(page, owner);
 	await openAllItems(page);
 	await page.getByRole("button", { name: "Import", exact: true }).click();
@@ -63,7 +64,9 @@ test("a Bitwarden export is reviewed, then imported encrypted", async ({
 	await chooseFile(page, "bitwarden_export.csv", bitwarden);
 
 	const dialog = page.getByRole("dialog");
-	await expect(dialog.getByText("Bitwarden export · 3 logins, 1 note")).toBeVisible();
+	await expect(
+		dialog.getByText("Bitwarden export · 3 logins, 1 note"),
+	).toBeVisible();
 	const list = dialog.getByRole("list", { name: "Items to import" });
 	await expect(list.getByRole("listitem")).toHaveCount(4);
 	await expect(list.getByText("Office Wi-Fi")).toBeVisible();
@@ -80,10 +83,9 @@ test("a Bitwarden export is reviewed, then imported encrypted", async ({
 		hasText: "Updated",
 	});
 	await expect(detail.getByText("admin", { exact: true })).toBeVisible();
-	await expect(detail.getByRole("link", { name: "192.168.1.1" })).toHaveAttribute(
-		"href",
-		"https://192.168.1.1",
-	);
+	await expect(
+		detail.getByRole("link", { name: "192.168.1.1" }),
+	).toHaveAttribute("href", "https://192.168.1.1");
 	await expect(detail.getByText("admin panel, ground floor")).toBeVisible();
 });
 

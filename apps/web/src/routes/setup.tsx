@@ -1,4 +1,3 @@
-import { Button } from "@mima/ui/components/button";
 import { Input } from "@mima/ui/components/input";
 import { WarningIcon } from "@phosphor-icons/react";
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
@@ -13,7 +12,7 @@ import {
 } from "@/components/auth-layout";
 import Loader from "@/components/loader";
 import { useKeyring } from "@/lib/keyring";
-import { passwordStrength } from "@/lib/secrets";
+import { newMasterPasswordProblem } from "@/lib/secrets";
 import { errorMessage, useWorkspace } from "@/lib/vault-data";
 
 export const Route = createFileRoute("/setup")({
@@ -51,19 +50,8 @@ function Setup() {
 				onSubmit={async (event) => {
 					event.preventDefault();
 					setError("");
-					if (form.password.length < 12) {
-						return setError(
-							"Use at least 12 characters for your master password.",
-						);
-					}
-					if (passwordStrength(form.password) === "weak") {
-						return setError(
-							"That master password is easy to guess. Add more words or characters.",
-						);
-					}
-					if (form.password !== form.confirm) {
-						return setError("The two passwords don't match.");
-					}
+					const problem = newMasterPasswordProblem(form.password, form.confirm);
+					if (problem) return setError(problem);
 					setBusy(true);
 					try {
 						await keyring.register({

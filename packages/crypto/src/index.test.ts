@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+	changeMasterPassword,
 	createAccount,
 	decodeAgentToken,
 	deriveMasterKeys,
@@ -44,6 +45,40 @@ describe("master password", () => {
 		const unlocked = await unlockAccount("hunter2-example", keys);
 		expect(unlocked.authKey).toBe(authKey);
 		await expect(unlockAccount("wrong", keys)).rejects.toThrow();
+	});
+
+	test("changing the master password keeps the key pair and drops the old password", async () => {
+		const account = await createAccount("old-example-pass", FAST);
+		const vaultKey = await newDataKey();
+		const wrapped = await wrapKeyFor(account.keys.publicKey, vaultKey);
+
+		const changed = await changeMasterPassword(
+			"old-example-pass",
+			"new-example-pass",
+			account.keys,
+			FAST,
+		);
+		expect(changed.currentAuthKey).toBe(account.authKey);
+		expect(changed.authKey).not.toBe(account.authKey);
+		expect(changed.keys.publicKey).toBe(account.keys.publicKey);
+		expect(changed.keys.kdfSalt).not.toBe(account.keys.kdfSalt);
+
+		// The new password opens the same private key, so shared vaults still open.
+		const unlocked = await unlockAccount("new-example-pass", changed.keys);
+		expect(unlocked.authKey).toBe(changed.authKey);
+		const opened = await unwrapKeyFrom(
+			unlocked.privateKey,
+			changed.keys.publicKey,
+			wrapped,
+		);
+		const sealed = await sealJson(vaultKey, { ok: true });
+		expect(await openJson(opened, sealed)).toEqual({ ok: true });
+		await expect(
+			unlockAccount("old-example-pass", changed.keys),
+		).rejects.toThrow();
+		await expect(
+			changeMasterPassword("wrong", "x", account.keys, FAST),
+		).rejects.toThrow();
 	});
 });
 

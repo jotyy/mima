@@ -290,6 +290,32 @@ export async function unlockAccount(password: string, keys: AccountKeys) {
 	};
 }
 
+/**
+ * Moves an account to a new master password: the same key pair, sealed under keys derived
+ * from the new password with a fresh salt. Throws if the current password is wrong.
+ */
+export async function changeMasterPassword(
+	current: string,
+	next: string,
+	keys: AccountKeys,
+	iterations = KDF_ITERATIONS,
+) {
+	const old = await deriveMasterKeys(current, keys.kdfSalt, keys.kdfIterations);
+	const privateKeyRaw = await open(old.wrapKey, keys.encryptedPrivateKey);
+	const kdfSalt = newSalt();
+	const fresh = await deriveMasterKeys(next, kdfSalt, iterations);
+	return {
+		currentAuthKey: old.authKey,
+		authKey: fresh.authKey,
+		keys: {
+			kdfSalt,
+			kdfIterations: iterations,
+			publicKey: keys.publicKey,
+			encryptedPrivateKey: await seal(fresh.wrapKey, privateKeyRaw),
+		} satisfies AccountKeys,
+	};
+}
+
 // --- Agent tokens ----------------------------------------------------------------
 
 /** `mima_agent_<id>.<secret>.<private key>`: everything an agent needs, shown once. */

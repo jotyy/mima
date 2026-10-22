@@ -20,6 +20,7 @@ import {
 } from "@mima/ui/components/tooltip";
 import {
 	CaretUpDownIcon,
+	GearSixIcon,
 	KeyIcon,
 	LockSimpleIcon,
 	MagnifyingGlassIcon,
@@ -225,7 +226,14 @@ function NavLink({
 	exact,
 	children,
 }: {
-	to: "/" | "/items" | "/agents" | "/activity" | "/vaults" | "/members";
+	to:
+		| "/"
+		| "/items"
+		| "/agents"
+		| "/activity"
+		| "/vaults"
+		| "/members"
+		| "/settings";
 	search?: { vault?: string };
 	icon?: ComponentType<{ className?: string }>;
 	dot?: string;
@@ -258,13 +266,14 @@ function NavLink({
 
 function LockBox() {
 	const { locksAt, lock } = useKeyring();
-	const [now, setNow] = useState(() => Date.now());
+	// Re-render every 15 seconds; a new lock time re-renders straight away.
+	const [, tick] = useState(0);
 	useEffect(() => {
-		const timer = setInterval(() => setNow(Date.now()), 15_000);
+		const timer = setInterval(() => tick((n) => n + 1), 15_000);
 		return () => clearInterval(timer);
 	}, []);
 	const minutes = locksAt
-		? Math.max(1, Math.ceil((locksAt - now) / 60_000))
+		? Math.max(1, Math.ceil((locksAt - Date.now()) / 60_000))
 		: 0;
 
 	return (
@@ -311,6 +320,11 @@ function UserMenu() {
 						{me.email} · {me.role}
 					</DropdownMenuLabel>
 				</DropdownMenuGroup>
+				<DropdownMenuSeparator />
+				<DropdownMenuItem render={<Link to="/settings" />}>
+					<GearSixIcon />
+					Settings
+				</DropdownMenuItem>
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>
 					<DropdownMenuLabel>Theme</DropdownMenuLabel>

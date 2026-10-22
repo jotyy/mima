@@ -4,6 +4,7 @@ import type { ItemFields } from "./vault-data";
 // Everything here runs on this device: the file is never uploaded as it is.
 
 export type ImportSource =
+	| "mima"
 	| "1Password"
 	| "Bitwarden"
 	| "LastPass"
@@ -67,6 +68,7 @@ type Row = (name: string) => string;
 
 function detect(columns: Columns): ImportSource {
 	const has = (...names: string[]) => names.every((name) => name in columns);
+	if (has("mima_kind")) return "mima";
 	if (has("login_password") || has("login_uri")) return "Bitwarden";
 	if (has("grouping") || has("extra")) return "LastPass";
 	if (has("formactionorigin") || has("httprealm")) return "Firefox";
@@ -120,14 +122,17 @@ export function parseImport(text: string): ParsedImport {
 		};
 
 		// Bitwarden marks cards and identities; LastPass marks notes with this URL.
+		// A mima backup is Bitwarden's layout with the item kind and tags alongside.
+		const bitwardenLayout = source === "Bitwarden" || source === "mima";
 		const type = get("type").toLowerCase();
-		if (source === "Bitwarden" && type && type !== "login" && type !== "note") {
+		if (bitwardenLayout && type && type !== "login" && type !== "note") {
 			skipped++;
 			continue;
 		}
 		const isNote =
-			(source === "Bitwarden" && type === "note") ||
+			(bitwardenLayout && type === "note") ||
 			(source === "LastPass" && field("url") === "http://sn");
+		const kind = get("mima_kind");
 
 		const item = toItem({
 			name: field("name"),
@@ -136,8 +141,9 @@ export function parseImport(text: string): ParsedImport {
 			password: field("password"),
 			totp: field("totp"),
 			notes: field("notes"),
-			tags: field("tags"),
+			tags: source === "mima" ? get("mima_tags") : field("tags"),
 			isNote,
+			kind: kind === "api-key" || kind === "ssh-key" ? kind : "login",
 		});
 		if (item) items.push(item);
 		else skipped++;
@@ -155,6 +161,7 @@ function toItem(row: {
 	notes: string;
 	tags: string;
 	isNote: boolean;
+	kind: "login" | "api-key" | "ssh-key";
 }): ItemFields | null {
 	const url = normalizeUrl(row.url);
 	const tags = row.tags
@@ -176,7 +183,7 @@ function toItem(row: {
 	}
 	if (!row.password && !row.username) return null;
 	return {
-		kind: "login",
+		kind: row.kind,
 		name: row.name || hostOf(url) || row.username,
 		...(row.username && { username: row.username }),
 		...(row.password && { secret: row.password }),

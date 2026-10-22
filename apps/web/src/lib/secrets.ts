@@ -128,3 +128,15 @@ export function generatePassword(length = 20, symbols = true) {
 	}
 	return chars.join("");
 }
+
+/** Why a new master password can't be used, or null when it's fine. */
+export function newMasterPasswordProblem(password: string, repeated: string) {
+	if (password.length < 12) {
+		return "Use at least 12 characters for your master password.";
+	}
+	if (passwordStrength(password) === "weak") {
+		return "That master password is easy to guess. Add more words or characters.";
+	}
+	if (password !== repeated) return "The two passwords don't match.";
+	return null;
+}
