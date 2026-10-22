@@ -171,14 +171,15 @@ export function ItemDialog({
 					<DialogTitle>{item ? `Edit ${item.name}` : "New item"}</DialogTitle>
 				</DialogHeader>
 				<form
-					className="flex flex-col gap-3.5"
+					className="flex min-w-0 flex-col gap-4"
 					onSubmit={(event) => {
 						event.preventDefault();
 						save();
 					}}
 				>
-					<div className="flex items-center justify-between gap-3">
+					<div className="flex flex-wrap items-center justify-between gap-3">
 						<Tabs
+							className="max-w-full overflow-x-auto"
 							value={form.kind}
 							onValueChange={(value) => set("kind", value as ItemKind)}
 						>
@@ -195,7 +196,11 @@ export function ItemDialog({
 							value={form.vaultId}
 							onValueChange={(value) => value && set("vaultId", String(value))}
 						>
-							<SelectTrigger size="sm" className="w-36" aria-label="Vault">
+							<SelectTrigger
+								size="sm"
+								className="w-36 max-sm:w-full"
+								aria-label="Vault"
+							>
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent align="end">
@@ -220,9 +225,7 @@ export function ItemDialog({
 						/>
 					</Row>
 					{form.kind !== "note" && (
-						<Row
-							label={form.kind === "login" ? "Username" : "Username (optional)"}
-						>
+						<Row label="Username" optional={form.kind !== "login"}>
 							<Input
 								value={form.username}
 								autoComplete="off"
@@ -241,37 +244,36 @@ export function ItemDialog({
 						</Row>
 					)}
 					{form.kind === "login" && (
-						<>
-							<Row label="Website">
+						<div className="grid gap-4 md:grid-cols-2">
+							<Row label="Website" optional>
 								<Input
 									value={form.url}
 									placeholder="github.com"
 									onChange={(event) => set("url", event.target.value)}
 								/>
 							</Row>
-							<Row
-								label="One-time code"
-								hint="Paste the setup key or otpauth:// link"
-							>
+							<Row label="One-time code" optional>
 								<Input
 									value={form.totp}
-									className="font-mono"
+									placeholder="Setup key or otpauth:// link"
+									className="font-mono placeholder:font-sans"
 									autoComplete="off"
 									onChange={(event) => set("totp", event.target.value)}
 								/>
 							</Row>
-						</>
+						</div>
 					)}
-					<Row label="Notes">
+					<Row label="Notes" optional={form.kind !== "note"}>
 						<Textarea
 							value={form.notes}
 							className={form.kind === "note" ? "min-h-32" : "min-h-16"}
 							onChange={(event) => set("notes", event.target.value)}
 						/>
 					</Row>
-					<Row label="Tags" hint="Separate with commas">
+					<Row label="Tags" optional>
 						<Input
 							value={form.tags}
+							placeholder="work, billing"
 							onChange={(event) => set("tags", event.target.value)}
 						/>
 					</Row>
@@ -305,25 +307,28 @@ function normalizeUrl(value: string) {
 	return /^[a-z]+:\/\//i.test(value) ? value : `https://${value}`;
 }
 
+/** A field with its label above it. "Optional" is visual only: the field isn't required. */
 function Row({
 	label,
-	hint,
+	optional,
 	children,
 }: {
 	label: string;
-	hint?: string;
+	optional?: boolean;
 	children: ReactNode;
 }) {
 	return (
 		// biome-ignore lint/a11y/noLabelWithoutControl: the control is passed as children
-		<label className="grid items-start gap-1.5 md:grid-cols-4 md:gap-3">
-			<span className="text-caption text-fg-muted md:pt-2">
-				{label}
-				{hint && (
-					<span className="text-micro text-fg-subtle mt-0.5 block">{hint}</span>
+		<label className="flex min-w-0 flex-col gap-1.5">
+			<span className="text-caption flex items-baseline justify-between gap-2">
+				<span className="text-fg-muted">{label}</span>
+				{optional && (
+					<span aria-hidden className="text-fg-subtle">
+						Optional
+					</span>
 				)}
 			</span>
-			<span className="flex flex-col gap-1.5 md:col-span-3">{children}</span>
+			{children}
 		</label>
 	);
 }
