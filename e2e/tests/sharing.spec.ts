@@ -36,6 +36,15 @@ test("the owner creates a shared vault and stores a secret in it", async ({
 	await expect(
 		page.getByRole("heading", { name: "Engineering", exact: true }),
 	).toBeVisible();
+	// Inside a vault, only that vault is the current page in the sidebar.
+	const nav = page.getByRole("navigation");
+	await expect(nav.getByRole("link", { name: "Engineering" })).toHaveAttribute(
+		"aria-current",
+		"page",
+	);
+	await expect(
+		nav.getByRole("link", { name: "All items" }),
+	).not.toHaveAttribute("aria-current", "page");
 	await page.getByRole("button", { name: "Add your first item" }).click();
 	const form = page.getByRole("dialog");
 	await form.getByRole("tab", { name: "API key" }).click();

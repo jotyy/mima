@@ -223,7 +223,7 @@ function Sidebar({
 					<NavLink to="/" icon={SquaresFourIcon} exact>
 						Overview
 					</NavLink>
-					<NavLink to="/items" icon={KeyIcon} exact>
+					<NavLink to="/items" search={{ vault: undefined }} icon={KeyIcon}>
 						All items
 					</NavLink>
 					{!!deleted.data?.length && (
@@ -322,7 +322,12 @@ function NavLink({
 		<Link
 			to={to}
 			search={search}
-			activeOptions={{ exact, includeSearch: Boolean(search) }}
+			// A search key set to undefined must be absent: "All items" isn't active in a vault.
+			activeOptions={{
+				exact,
+				includeSearch: Boolean(search),
+				explicitUndefined: true,
+			}}
 			className={navItem}
 		>
 			{Icon && <Icon className="size-4" />}
