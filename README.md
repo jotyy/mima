@@ -1,139 +1,107 @@
-# mima
+<p align="center">
+  <img src="apps/web/public/logo.svg" alt="mima" height="56">
+</p>
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines React, TanStack Router, Hono, ORPC, and more.
+<p align="center">
+  A self-hosted, end-to-end encrypted password manager for small teams.
+</p>
+
+<p align="center">
+  <a href="https://github.com/jotyy/mima/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/jotyy/mima/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="License: AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg"></a>
+</p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/items-dark.png">
+  <img alt="The Engineering vault in mima, with an AWS login open: username, hidden password, a live one-time code and the website." src="docs/images/items.png">
+</picture>
+
+mima is for small teams who want one place for their shared logins, API keys and notes, and want to run it themselves. It deploys to your own Cloudflare account (Workers and D1), and every item is encrypted in the browser before it is saved: the server never sees your master password or anything inside an item, not even its name.
 
 ## Features
 
-- **TypeScript** - For type safety and improved developer experience
-- **TanStack Router** - File-based routing with full type safety
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **Shared UI package** - shadcn/ui primitives live in `packages/ui`
-- **Hono** - Lightweight, performant server framework
-- **oRPC** - End-to-end type-safe APIs with OpenAPI integration
-- **workers** - Runtime environment
-- **Drizzle** - TypeScript-first ORM
-- **Cloudflare D1** - Database engine
-- **Authentication** - Better-Auth
-- **Turborepo** - Optimized monorepo build system
-- **Biome** - Linting and formatting
-- **PWA** - Progressive Web App support
+- **End-to-end encrypted.** Your master password never leaves your device. The server stores ciphertext, wrapped keys and public keys, nothing it can read.
+- **Vaults for sharing.** Everyone gets a private vault. Shared vaults are opened to people one by one, and taking someone out takes the vault away from them.
+- **The items a team actually keeps.** Logins with one-time codes (TOTP), API keys, SSH keys and secure notes, with a password generator and a strength check.
+- **Hard to lose things.** Deleting an item moves it to Recently deleted for 30 days, with Undo right in the notification. A changed password stays under Earlier.
+- **An activity log.** Every reveal, copy, share, import and backup is recorded, so the team knows who used what.
+- **Move in, move out.** Import CSV exports from 1Password, Bitwarden, LastPass, Chrome, Firefox and Safari. Download a decrypted backup that mima and most password managers can import.
+- **Quick to use.** A command palette (<kbd>⌘</kbd> <kbd>K</kbd>) that copies a password without opening the item, a clipboard that clears itself after 90 seconds, light and dark themes, and a layout that works on phones. It installs as an app (PWA).
+- **Secrets for scripts and agents, when you need them.** `mima run` hands an item's value to a command without showing it to the agent or script that started it. The first run waits until a person approves it. See [Agents and scripts](docs/agents.md).
 
-## Getting Started
+## How it works
 
-First, install the dependencies:
+```
+master password ──PBKDF2 (600,000 rounds)──▶ master key ──HKDF──┬─▶ auth key   sent to the server to sign in
+                                                               └─▶ wrap key   unlocks your private key
+your key pair (ECDH P-256)  receives vault keys from the people who share them with you
+vault key (AES-256-GCM)     wraps the key of each item in the vault
+item key  (AES-256-GCM)     encrypts one item
+```
 
-```bash
+Everything is WebCrypto, so the browser, the server and the CLI share one implementation in [`packages/crypto`](packages/crypto). The keys live in memory only: a reload, **Lock now** or a few idle minutes forget them. Read [Security](docs/security.md) for the full design, what the server can and can't see, and the limits of the model.
+
+## Quick start
+
+You need [Bun](https://bun.sh) 1.3 or later.
+
+```sh
+git clone https://github.com/jotyy/mima.git
+cd mima
 bun install
-```
-
-## Database Setup
-
-This project uses Cloudflare D1 (SQLite) with Drizzle ORM.
-
-Runtime database access uses the Cloudflare `DB` binding from `packages/infra/alchemy.run.ts`. If a local `DATABASE_URL` is present, it is only for database tooling.
-
-Alchemy provisions the D1 database and applies migrations during `deploy`.
-
-1. Generate migration files:
-
-```bash
-bun run db:generate
-```
-
-Then, run the development server:
-
-```bash
+cp apps/server/.env.example apps/server/.env   # then set BETTER_AUTH_SECRET
+cp apps/web/.env.example apps/web/.env
 bun run dev
 ```
 
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the web application.
-The API is running at [http://localhost:3000](http://localhost:3000).
+Open <http://localhost:3001>. The first person to visit creates the workspace and becomes its owner; everyone else joins with an invite link.
 
-## UI Customization
+`bun run dev` runs the whole stack locally (web app on port 3001, API on 3000, a local D1 database) and needs no Cloudflare account.
 
-React web apps in this stack share shadcn/ui primitives through `packages/ui`.
+## Self-hosting
 
-- Change design tokens and global styles in `packages/ui/src/styles/globals.css`
-- Update shared primitives in `packages/ui/src/components/*`
-- Adjust shadcn aliases or style config in `packages/ui/components.json` and `apps/web/components.json`
+mima deploys to your own Cloudflare account with [Alchemy](https://alchemy.run): one Worker for the API, one for the web app, and a D1 database. Migrations run as part of the deploy.
 
-### Add more shared components
-
-Run this from the project root to add more primitives to the shared UI package:
-
-```bash
-npx shadcn@latest add accordion dialog popover sheet table -c packages/ui
+```sh
+cd packages/infra
+bunx alchemy profile edit            # connect your Cloudflare account
+bunx alchemy deploy --stage production
 ```
 
-Import shared components like this:
+[Self-hosting](docs/self-hosting.md) covers the settings to put in place first, custom domains, upgrades and backups.
 
-```tsx
-import { Button } from "@mima/ui/components/button";
-```
+## Documentation
 
-### Add app-specific blocks
+- [Self-hosting](docs/self-hosting.md): deploy, configure and upgrade your instance
+- [Security](docs/security.md): the encryption design and its limits
+- [Agents and scripts](docs/agents.md): `mima run` and approvals
+- [Contributing](CONTRIBUTING.md): set up a development environment and send a change
+- [Changelog](CHANGELOG.md)
 
-If you want to add app-specific blocks instead of shared primitives, run the shadcn CLI from `apps/web`.
-
-## Environment Configuration
-
-Each app owns its environment schema in `.env.schema`. Varlock generates `src/env.ts` during installation; run `bun run env:generate` after changing a schema. Commit schemas, and keep secrets in ignored env files or your deployment platform.
-
-Import the generated `ENV` accessor in application code. Shared database and auth packages receive configuration or initialized clients from the application. See [Varlock's monorepo guide](https://varlock.dev/guides/monorepos/).
-
-For Cloudflare, Alchemy loads and validates deployment inputs with `varlock/auto-load` in its Node/Bun deployment process. Worker code reads native bindings; web clients use the framework's public env API through `src/env.public.ts` where needed. Alchemy supplies resource URLs and managed database credentials. In-Worker Varlock protections are deferred until an official Alchemy integration is available; see [the non-Wrangler deployment guidance](https://varlock.dev/integrations/cloudflare/#non-wrangler-deploy-tools-alchemy-sst-pulumi).
-
-Bun's automatic env loading is disabled in `bunfig.toml`; the framework integration or server bootstrap loads Varlock. Node deployments must include Varlock and its dependencies alongside the app schema.
-
-Run standalone Node/Bun tools that use Varlock from the owning app directory so they load that app's schema and env files. `env:generate` only generates TypeScript files; it does not initialize environment values in a subsequent command.
-
-## Deployment
-
-### Alchemy
-
-- Target: web on Cloudflare + server on Cloudflare
-- Configure provider accounts: `cd packages/infra && bunx alchemy profile edit`
-- Dev: bun run dev
-- Deploy: bun run deploy
-- Destroy: bun run destroy
-
-`alchemy profile edit` stores the selected Axiom, Cloudflare, Neon, PlanetScale, and/or Prisma provider profiles under `~/.alchemy`; no provider-specific setup command is required by this scaffold.
-
-Deploys are staged and default to a personal `dev_<username>` stage. For production, run the deploy with an explicit stage from `packages/infra`:
-
-```bash
-cd packages/infra && bunx alchemy deploy --stage production
-```
-
-### Production origins
-
-- Required after the first deploy: set `CORS_ORIGIN` in `apps/server/.env` to the exact deployed web origin, such as `https://app.example.com`, then deploy the server again.
-
-## Git Hooks and Formatting
-
-- Run checks: `bun run check`
-
-## Project Structure
+## Project layout
 
 ```
-mima/
-├── apps/
-│   ├── web/         # Frontend application (React + TanStack Router)
-│   └── server/      # Backend API (Hono, ORPC)
-├── packages/
-│   ├── ui/          # Shared shadcn/ui components and styles
-│   ├── api/         # API layer / business logic
-│   ├── auth/        # Authentication configuration & logic
-│   └── db/          # Database schema & queries
+apps/
+  web/         React app (TanStack Router, React Query, Tailwind CSS)
+  server/      API on Cloudflare Workers (Hono, oRPC, Better Auth)
+  cli/         mima run, for scripts and agents
+  extension/   browser extension (early work)
+packages/
+  crypto/      the end-to-end encryption, shared by the web app and the CLI
+  api/         API routes and access rules
+  db/          Drizzle schema and D1 migrations
+  auth/        Better Auth setup
+  ui/          design tokens and components
+  infra/       the Alchemy stack: what gets deployed
+e2e/           Playwright tests against a full local stack
 ```
 
-## Available Scripts
+## Contributing
 
-- `bun run dev`: Start all applications in development mode
-- `bun run build`: Build all applications
-- `bun run dev:web`: Start only the web application
-- `bun run dev:server`: Start only the server
-- `bun run check-types`: Check TypeScript types across all apps
-- `bun run db:generate`: Generate database client/types
-- `bun run check`: Run Biome formatting and linting
-- `cd apps/web && bun run generate-pwa-assets`: Generate PWA assets
+Bug reports, ideas and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) to get set up, and follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+Found a security problem? Please don't open an issue. Report it privately as described in [SECURITY.md](SECURITY.md).
+
+## License
+
+mima is free software under the [GNU Affero General Public License v3.0](LICENSE). If you run a modified version for other people over a network, you must offer them its source code.

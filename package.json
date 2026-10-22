@@ -1,5 +1,12 @@
 {
 	"name": "mima",
+	"description": "A self-hosted, end-to-end encrypted password manager for small teams.",
+	"license": "AGPL-3.0-only",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/jotyy/mima.git"
+	},
+	"bugs": "https://github.com/jotyy/mima/issues",
 	"private": true,
 	"workspaces": {
 		"packages": [
@@ -25,11 +32,11 @@
 	},
 	"type": "module",
 	"scripts": {
-		"dev": "turbo run dev",
+		"dev": "turbo run dev -F @mima/infra",
+		"dev:extension": "turbo run dev -F extension",
 		"build": "turbo run build",
 		"check-types": "turbo run check-types",
 		"dev:web": "turbo run dev:bare -F web --",
-		"dev:stack": "turbo run dev -F @mima/infra --",
 		"db:generate": "turbo run db:generate -F @mima/db --",
 		"deploy": "turbo run deploy -F @mima/infra --",
 		"destroy": "turbo run destroy -F @mima/infra --",

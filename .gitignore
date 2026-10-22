@@ -8,8 +8,7 @@ dist
 build
 *.tsbuildinfo
 
-# Generated files
-apps/web/src/routeTree.gen.ts
+# Generated files (the route tree is committed so a fresh clone type-checks)
 local.db
 local.db-*
 

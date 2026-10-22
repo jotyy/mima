@@ -1,0 +1,53 @@
+name: Bug report
+description: Something in mima doesn't work the way it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. **If it's a security problem, don't file it here**: see [SECURITY.md](https://github.com/jotyy/mima/blob/main/SECURITY.md).
+
+        Never paste real passwords, tokens or exports into an issue.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a shared vault
+        2. Choose …
+        3. See …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Commit or version
+      description: The commit you're running (`git rev-parse --short HEAD`), or "latest main".
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      multiple: true
+      options:
+        - Web app (desktop browser)
+        - Web app (phone)
+        - Installed app (PWA)
+        - mima CLI
+        - Self-hosting / deploy
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      placeholder: Safari 19 on macOS 26
+  - type: textarea
+    id: logs
+    attributes:
+      label: Errors or screenshots
+      description: Browser console errors, CLI output or screenshots. Remove anything secret first.

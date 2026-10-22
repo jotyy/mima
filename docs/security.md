@@ -1,0 +1,60 @@
+# Security
+
+mima is built so that the server holding your data can't read it. This page describes how, what the server can still see, and where the model stops protecting you. To report a vulnerability, see [SECURITY.md](../SECURITY.md).
+
+## Goals
+
+- Someone with the database, or full control of the API, learns no passwords, item names or item contents.
+- Your master password never leaves your device, so the server can't leak it.
+- People only open the vaults that were shared with them, enforced by cryptography as well as by the API.
+- Scripts and agents get the values they're allowed to use, inside the command they run, and nothing else.
+
+## Keys
+
+All cryptography is WebCrypto, implemented once in [`packages/crypto`](../packages/crypto/src/index.ts) and used by the web app and the CLI.
+
+```
+master password ──PBKDF2-SHA256, 600,000 rounds, 16-byte salt──▶ master key
+master key ──HKDF-SHA256 "mima/auth"──▶ auth key  (256 bits, sent to sign in)
+master key ──HKDF-SHA256 "mima/wrap"──▶ wrap key  (AES-256-GCM, never leaves the device)
+
+account key pair   ECDH P-256; the private key is sealed with the wrap key
+vault key          AES-256-GCM, one per vault, wrapped to each member's public key
+item key           AES-256-GCM, one per item, wrapped with its vault key
+```
+
+- **Signing in.** The browser asks for your salt, derives the auth key and uses it as the password for the session. The server stores only a hash of the auth key (Better Auth's default, scrypt). For an email it doesn't know, the server returns a stable made-up salt, so the sign-in page doesn't reveal who has an account.
+- **Unlocking.** The wrap key opens your private key. With it the browser unwraps the keys of your vaults, then the keys of their items. All of these stay in memory: reloading the page, choosing **Lock now** or staying idle (15 minutes by default, set per device) forgets them. The session cookie alone opens nothing.
+- **Encryption.** Every encrypted value is AES-256-GCM with a fresh random 12-byte IV, stored as `base64(iv).base64(ciphertext)`.
+- **Sharing.** To give someone a vault, the browser wraps the vault key to their public key: an ephemeral ECDH P-256 key pair, HKDF-SHA256 bound to the recipient's public key, then AES-256-GCM. Only their private key can open it.
+- **Changing the master password** derives new keys from a fresh salt and seals the same private key with the new wrap key. The server swaps the auth hash and the sealed key in one batch and signs out your other sessions. Your key pair, and so your access to shared vaults, stays the same.
+
+## What the server stores
+
+| Encrypted (the server can't read it)                                                                            | In plain text (the server can read it)                                                  |
+| --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Item contents: name, username, password or value, website, one-time code secret, notes, tags, earlier passwords | Email addresses, display names and roles                                                |
+| Vault names, descriptions and colors                                                                            | The workspace name                                                                      |
+| Your private key                                                                                                | Which vaults exist and who can open each one                                            |
+| Vault keys and item keys (wrapped)                                                                              | Item IDs, which vault they're in, ciphertext sizes, revision numbers, timestamps        |
+|                                                                                                                 | Favorites, and items in Recently deleted                                                |
+|                                                                                                                 | The activity log: who did what to which item ID, and when                               |
+|                                                                                                                 | Agent names, their public keys, a hash of their token secret, and the commands they ran |
+|                                                                                                                 | Public keys of people and agents                                                        |
+
+## Agents and scripts
+
+An agent's key pair is created in the browser. Its private key goes into the token, which is shown once and never stored by mima; the server keeps the public key and a SHA-256 hash of the token's secret. When a person approves a request, their browser wraps that item's key to the agent's public key. `mima run` decrypts the item on the machine where it runs, passes the value to the command in its environment, and masks the value in the command's output. See [Agents and scripts](agents.md).
+
+Anyone who holds an agent token can use whatever that agent has been allowed to use. Treat a token like a password, give each agent only the items it needs, and pause or delete agents you no longer use.
+
+## Limits
+
+These are the things mima does not protect against. Please read them before you rely on it.
+- **The server delivers the app.** mima runs in the browser, and the browser loads its code from your instance. Someone who controls the web app's hosting could ship code that captures your master password the next time you sign in. This holds for every web-based end-to-end encrypted app. Host mima yourself, keep your Cloudflare account secure, and limit who can deploy to it.
+- **Removing someone doesn't take back what they've seen.** Taking a person out of a vault deletes their copy of its key, so they can't open it through mima again. But they may have copied passwords, or the vault key, while they had access. Change the passwords that matter after someone leaves.
+- **Nobody can reset a master password.** It is the only key to your private key. If you forget it, your items can't be recovered by you, an admin or the server. An admin can invite you again so you start over.
+- **A compromised device is out of scope.** Malware on your computer can read what you can read while mima is unlocked.
+- **One-time codes live next to passwords.** Storing a TOTP secret in the same item as the password is convenient, but it means the item alone is enough to sign in.
+- **Metadata isn't hidden.** See the table above: the server knows who is in the workspace, who can open which vault, and when items are used.
+- **No independent audit yet.** The design is small and the code is open, but it hasn't been reviewed by a third party.

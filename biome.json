@@ -29,7 +29,10 @@
 			"!**/.svelte-kit",
 			"!**/wrangler.jsonc",
 			"!**/.source",
-			"!**/convex/_generated"
+			"!**/convex/_generated",
+			"!**/.wxt",
+			"!apps/*/src/env.ts",
+			"!packages/*/src/env.ts"
 		]
 	},
 	"formatter": {

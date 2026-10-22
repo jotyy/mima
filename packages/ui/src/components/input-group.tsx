@@ -9,6 +9,7 @@ import type * as React from "react";
 
 function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
 	return (
+		// biome-ignore lint/a11y/useSemanticElements: a fieldset would bring its own border and spacing; role="group" ties the input and its addons together
 		<div
 			data-slot="input-group"
 			role="group"
@@ -47,6 +48,8 @@ function InputGroupAddon({
 	...props
 }: React.ComponentProps<"div"> & VariantProps<typeof inputGroupAddonVariants>) {
 	return (
+		// biome-ignore lint/a11y/useSemanticElements: see InputGroup
+		// biome-ignore lint/a11y/useKeyWithClickEvents: a click on the addon only moves focus to the input, which the keyboard reaches directly
 		<div
 			role="group"
 			data-slot="input-group-addon"
