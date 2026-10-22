@@ -1,0 +1,26 @@
+{
+  "name": "@mima/db",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "check-types": "tsc -b",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:deploy": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "@libsql/client": "0.18.0",
+    "drizzle-orm": "catalog:",
+    "libsql": "0.5.29",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@mima/config": "workspace:*",
+    "drizzle-kit": "1.0.0-rc.4",
+    "typescript": "catalog:",
+    "varlock": "catalog:"
+  }
+}

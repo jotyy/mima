@@ -1,0 +1,3 @@
+{
+  "extends": "@mima/config/tsconfig.base.json"
+}
