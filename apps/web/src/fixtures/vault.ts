@@ -11,6 +11,7 @@ export interface Member {
 	role: "Owner" | "Admin" | "Member";
 	lastActiveMin: number;
 	invited?: boolean;
+	invitedMin?: number;
 }
 
 export interface Vault {
@@ -37,6 +38,9 @@ export interface Item {
 	updatedMin: number;
 	updatedBy: string;
 	strength?: "strong" | "fair" | "weak";
+	// Minutes since you last copied or revealed it.
+	usedMin?: number;
+	favorite?: boolean;
 }
 
 export interface Agent {
@@ -118,6 +122,7 @@ export const members: Member[] = [
 		role: "Member",
 		lastActiveMin: 0,
 		invited: true,
+		invitedMin: 4320,
 	},
 ];
 
@@ -159,6 +164,8 @@ export const vaults: Vault[] = [
 export const items: Item[] = [
 	{
 		id: "i-github",
+		usedMin: 9,
+		favorite: true,
 		kind: "login",
 		name: "GitHub",
 		slug: "github",
@@ -174,6 +181,8 @@ export const items: Item[] = [
 	},
 	{
 		id: "i-pg-staging",
+		usedMin: 34,
+		favorite: true,
 		kind: "api-key",
 		name: "Postgres · staging",
 		slug: "postgres-staging",
@@ -189,6 +198,7 @@ export const items: Item[] = [
 	},
 	{
 		id: "i-cloudflare",
+		usedMin: 180,
 		kind: "login",
 		name: "Cloudflare",
 		slug: "cloudflare",
@@ -204,6 +214,7 @@ export const items: Item[] = [
 	},
 	{
 		id: "i-cf-token",
+		usedMin: 60,
 		kind: "api-key",
 		name: "Cloudflare deploy token",
 		slug: "cloudflare-deploy-token",
@@ -217,6 +228,7 @@ export const items: Item[] = [
 	},
 	{
 		id: "i-stripe",
+		usedMin: 1500,
 		kind: "api-key",
 		name: "Stripe test key",
 		slug: "stripe-test-key",
@@ -243,6 +255,8 @@ export const items: Item[] = [
 	},
 	{
 		id: "i-support",
+		usedMin: 95,
+		favorite: true,
 		kind: "login",
 		name: "Support inbox",
 		slug: "support-inbox",
@@ -272,6 +286,7 @@ export const items: Item[] = [
 	},
 	{
 		id: "i-figma",
+		usedMin: 2900,
 		kind: "login",
 		name: "Figma",
 		slug: "figma",
@@ -311,6 +326,7 @@ export const items: Item[] = [
 	},
 	{
 		id: "i-wifi",
+		usedMin: 4300,
 		kind: "note",
 		name: "Office Wi-Fi",
 		slug: "office-wifi",
@@ -469,24 +485,6 @@ export const activity: ActivityEvent[] = [
 		itemId: "i-stripe",
 		detail: "Operations",
 	},
-];
-
-// Agent runs per day for the last 14 days, oldest first.
-export const agentRuns = [
-	{ allowed: 6, approval: 1, denied: 0 },
-	{ allowed: 9, approval: 0, denied: 0 },
-	{ allowed: 4, approval: 2, denied: 1 },
-	{ allowed: 12, approval: 1, denied: 0 },
-	{ allowed: 15, approval: 0, denied: 0 },
-	{ allowed: 3, approval: 0, denied: 0 },
-	{ allowed: 2, approval: 0, denied: 0 },
-	{ allowed: 11, approval: 1, denied: 0 },
-	{ allowed: 18, approval: 2, denied: 1 },
-	{ allowed: 14, approval: 0, denied: 0 },
-	{ allowed: 21, approval: 3, denied: 0 },
-	{ allowed: 17, approval: 1, denied: 2 },
-	{ allowed: 9, approval: 0, denied: 0 },
-	{ allowed: 13, approval: 2, denied: 0 },
 ];
 
 export const findItem = (id: string) => items.find((item) => item.id === id);
