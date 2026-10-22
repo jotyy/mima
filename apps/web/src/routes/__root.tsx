@@ -31,7 +31,6 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 				content: "A password manager for small teams and their agents.",
 			},
 		],
-		links: [{ rel: "icon", href: "/favicon.ico" }],
 	}),
 });
 

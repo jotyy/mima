@@ -24,8 +24,9 @@ export default defineConfig({
 			manifest: {
 				name: "mima",
 				short_name: "mima",
-				description: "mima - PWA Application",
-				theme_color: "#0c0c0c",
+				description: "A password manager for small teams and their agents.",
+				theme_color: "#FAFAFA",
+				background_color: "#FAFAFA",
 			},
 			pwaAssets: { disabled: false, config: true },
 			devOptions: { enabled: true },

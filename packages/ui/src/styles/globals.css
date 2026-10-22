@@ -32,14 +32,16 @@
 	--scrim: rgb(0 0 0 / 10%);
 	--skeleton: #ededed;
 
-	--brand: #2563eb;
-	--brand-hover: #2159d4;
-	--brand-pressed: #1e4fbc;
+	/* mima blue: the base of the logo mark. White text on it is 5.35:1. */
+	--brand: #1f5bf9;
+	--brand-hover: #1a4ce0;
+	--brand-pressed: #163fbf;
 	--brand-fg: #ffffff;
-	--brand-soft: #e9effd;
-	--brand-soft-strong: #d3e0fb;
-	--brand-line: #bed0f9;
-	--link: #2563eb;
+	--brand-soft: #ebf1ff;
+	--brand-soft-strong: #d6e3ff;
+	--brand-line: #b9ccff;
+	--brand-ink: #071b45;
+	--link: #1f5bf9;
 
 	--cta: #000000;
 	--cta-hover: #242426;
@@ -56,7 +58,7 @@
 	--danger-soft: #fef2f2;
 	--danger-line: #fecaca;
 
-	--series-1: #3b82f6;
+	--series-1: #1f5bf9;
 	--series-2: #14b8a6;
 	--series-3: #f59e0b;
 	--series-4: #8b5cf6;
@@ -97,14 +99,15 @@
 	--scrim: rgb(0 0 0 / 50%);
 	--skeleton: #262629;
 
-	--brand: #3b73ed;
-	--brand-hover: #5182ef;
-	--brand-pressed: #2159d4;
+	--brand: #3366f7;
+	--brand-hover: #2b5df0;
+	--brand-pressed: #2350d9;
 	--brand-fg: #ffffff;
-	--brand-soft: #172340;
-	--brand-soft-strong: #1c2d55;
-	--brand-line: #2c4a8a;
-	--link: #7ca1f3;
+	--brand-soft: #13224a;
+	--brand-soft-strong: #1a2e63;
+	--brand-line: #2a4a9a;
+	--brand-ink: #f4f4f5;
+	--link: #8eaeff;
 
 	--cta: #f4f4f5;
 	--cta-hover: #d4d4d8;
@@ -224,6 +227,7 @@
 	--color-brand-soft: var(--brand-soft);
 	--color-brand-soft-strong: var(--brand-soft-strong);
 	--color-brand-line: var(--brand-line);
+	--color-brand-ink: var(--brand-ink);
 	--color-link: var(--link);
 	--color-cta: var(--cta);
 	--color-cta-hover: var(--cta-hover);

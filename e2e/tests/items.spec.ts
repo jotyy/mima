@@ -88,7 +88,7 @@ test("reveal and copy the password; the clipboard pill counts down", async ({
 	const card = await detail(page);
 	await card.getByRole("button", { name: "Reveal password" }).click();
 	const password = (
-		await card.locator("dd .font-mono").first().innerText()
+		(await card.locator("dd .font-mono").first().textContent()) ?? ""
 	).trim();
 	expect(password.length).toBe(20);
 

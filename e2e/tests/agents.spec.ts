@@ -39,7 +39,7 @@ test.beforeAll(async ({ browser, request }) => {
 		.getByRole("main")
 		.locator("dl")
 		.getByText(/^mima:\/\/itm_/);
-	reference = (await ref.innerText()).trim();
+	reference = ((await ref.textContent()) ?? "").trim();
 	await page.close();
 });
 
@@ -53,7 +53,7 @@ test("creating an agent shows its token once", async ({ page }) => {
 	await dialog.getByRole("button", { name: "Create agent" }).click();
 	const env = dialog.getByTestId("agent-env");
 	await expect(env).toContainText("MIMA_TOKEN=mima_agent_");
-	token = /MIMA_TOKEN=(\S+)/.exec(await env.innerText())?.[1] ?? "";
+	token = /MIMA_TOKEN=(\S+)/.exec((await env.textContent()) ?? "")?.[1] ?? "";
 	expect(token).toMatch(/^mima_agent_agt_/);
 	await dialog.getByRole("button", { name: "I've stored it" }).click();
 	await expect(

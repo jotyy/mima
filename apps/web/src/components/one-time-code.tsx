@@ -25,6 +25,7 @@ export function OneTimeCode({
 		return () => clearInterval(timer);
 	}, []);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: the code only changes with the slot or the secret
 	useEffect(() => {
 		if (!config) return;
 		let cancelled = false;
@@ -34,8 +35,6 @@ export function OneTimeCode({
 		return () => {
 			cancelled = true;
 		};
-		// The code only changes when the slot does.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [slot, secret]);
 
 	if (!config || broken) {

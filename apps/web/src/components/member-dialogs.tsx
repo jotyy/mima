@@ -78,6 +78,7 @@ export function GiveAccessDialog({
 	const [chosen, setChosen] = useState<Set<string>>(new Set());
 	const [busy, setBusy] = useState(false);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: reset only when another person is opened
 	useEffect(() => {
 		if (member) {
 			setChosen(
@@ -110,6 +111,7 @@ export function GiveAccessDialog({
 							const has = member?.sharedVaultIds.includes(vault.id);
 							return (
 								<li key={vault.id}>
+									{/* biome-ignore lint/a11y/noLabelWithoutControl: the checkbox inside is the control */}
 									<label className="hover:bg-tint/3 flex items-center gap-2.5 rounded-lg px-2 py-2">
 										<Checkbox
 											checked={chosen.has(vault.id)}

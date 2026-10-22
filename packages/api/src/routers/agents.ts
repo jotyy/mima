@@ -270,7 +270,7 @@ export const requestsRouter = {
 				.select()
 				.from(accessRequest)
 				.where(eq(accessRequest.id, input.id));
-			if (!request || request.status !== "pending") {
+			if (request?.status !== "pending") {
 				throw new ORPCError("NOT_FOUND", {
 					message: "This request was already answered",
 				});
@@ -316,7 +316,7 @@ export const requestsRouter = {
 				.select()
 				.from(accessRequest)
 				.where(eq(accessRequest.id, input.id));
-			if (!request || request.status !== "pending") {
+			if (request?.status !== "pending") {
 				throw new ORPCError("NOT_FOUND", {
 					message: "This request was already answered",
 				});

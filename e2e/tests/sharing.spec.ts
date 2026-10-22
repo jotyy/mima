@@ -56,7 +56,7 @@ test("the owner invites a teammate and gets a one-time link", async ({
 	await page.getByRole("button", { name: "Invite" }).click();
 	const link = page.getByTestId("invite-link");
 	await expect(link).toContainText("/join?token=");
-	inviteUrl = (await link.innerText()).trim();
+	inviteUrl = ((await link.textContent()) ?? "").trim();
 	await page.getByRole("button", { name: "Done" }).click();
 	await expect(
 		page.getByRole("region", { name: "Invites" }).getByText(teammate.email),

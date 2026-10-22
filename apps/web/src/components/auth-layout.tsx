@@ -6,7 +6,7 @@ import { type ComponentProps, type ReactNode, useState } from "react";
 
 import { passwordStrength } from "@/lib/secrets";
 
-import { MimaMark } from "./mima-mark";
+import { MimaLogo } from "./mima-mark";
 
 export function AuthLayout({
 	title,
@@ -23,7 +23,7 @@ export function AuthLayout({
 		<div className="bg-frame flex min-h-svh flex-col items-center justify-center px-4 py-10">
 			<div className="rounded-window bg-surface shadow-card w-full max-w-sm p-6">
 				<div className="mb-6 flex flex-col items-center gap-3 text-center">
-					<MimaMark className="text-h5 size-9 rounded-lg" />
+					<MimaLogo className="mb-1 h-8" />
 					<div className="flex flex-col gap-1">
 						<h1 className="text-fg text-h5">{title}</h1>
 						{description && (
