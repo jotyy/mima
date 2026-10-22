@@ -164,10 +164,12 @@ function VaultCard({ vault }: { vault: Vault }) {
 						value={vault.itemCount}
 						label={vault.itemCount === 1 ? "item" : "items"}
 					/>
-					<Figure
-						value={agentCount}
-						label={agentCount === 1 ? "agent" : "agents"}
-					/>
+					{agentCount > 0 && (
+						<Figure
+							value={agentCount}
+							label={agentCount === 1 ? "agent" : "agents"}
+						/>
+					)}
 				</div>
 				<button
 					type="button"

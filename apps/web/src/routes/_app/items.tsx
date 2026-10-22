@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "@mima/ui/components/tabs";
 import { cn } from "@mima/ui/lib/utils";
 import { MagnifyingGlassIcon, PlusIcon, StarIcon } from "@phosphor-icons/react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import type { CSSProperties } from "react";
 import { z } from "zod";
 
 import { ItemDetail } from "@/components/item-detail";
@@ -214,13 +215,21 @@ function EmptyVault({
 	vaultName?: string;
 }) {
 	return (
-		<div className="rounded-window bg-surface shadow-card flex flex-col items-center gap-3 px-6 py-14 text-center">
-			<div className="flex gap-2">
-				<ItemTile kind="login" />
-				<ItemTile kind="api-key" />
-				<ItemTile kind="ssh-key" />
+		<div
+			data-slot="empty-vault"
+			className="rounded-window bg-surface shadow-card flex flex-col items-center gap-3 px-6 py-14 text-center"
+		>
+			<div data-slot="empty-tiles" className="mb-1">
+				{(["login", "api-key", "ssh-key"] as const).map((kind, index) => (
+					<ItemTile
+						key={kind}
+						kind={kind}
+						size="lg"
+						style={{ "--i": index } as CSSProperties}
+					/>
+				))}
 			</div>
-			<div className="flex flex-col gap-1">
+			<div className="animate-in fade-in slide-in-from-bottom-1 fill-mode-both flex flex-col gap-1 delay-200 duration-500">
 				<h2 className="text-body text-fg">
 					{vaultName ? `${vaultName} is empty` : "Nothing stored yet"}
 				</h2>
@@ -229,10 +238,12 @@ function EmptyVault({
 					before it's saved.
 				</p>
 			</div>
-			<Button onClick={onAdd}>
-				<PlusIcon data-icon="inline-start" />
-				Add your first item
-			</Button>
+			<div className="animate-in fade-in slide-in-from-bottom-1 fill-mode-both delay-300 duration-500">
+				<Button onClick={onAdd}>
+					<PlusIcon data-icon="inline-start" />
+					Add your first item
+				</Button>
+			</div>
 		</div>
 	);
 }

@@ -35,11 +35,17 @@ test.beforeAll(async ({ browser, request }) => {
 	await form.getByLabel("Name", { exact: true }).fill("Postgres staging");
 	await form.getByLabel("Value").fill(SECRET);
 	await form.getByRole("button", { name: "Add item" }).click();
-	const ref = page
-		.getByRole("main")
-		.locator("dl")
-		.getByText(/^mima:\/\/itm_/);
-	reference = ((await ref.textContent()) ?? "").trim();
+	await expect(form).toBeHidden();
+
+	// Agents stay out of the way: the reference lives behind the item's menu.
+	await expect(page.getByText(/^mima:\/\/itm_/)).toHaveCount(0);
+	await page.getByRole("button", { name: "More actions" }).click();
+	await page.getByRole("menuitem", { name: "Use with an agent…" }).click();
+	const use = page.getByRole("dialog");
+	await expect(use.getByText("No agents yet.")).toBeVisible();
+	reference = (
+		(await use.getByText(/^mima:\/\/itm_/).textContent()) ?? ""
+	).trim();
 	await page.close();
 });
 
@@ -108,13 +114,20 @@ test("allow once means once: the next run asks again, and deny stops it", async 
 test("an item granted until revoked works without asking", async ({ page }) => {
 	await signIn(page, owner);
 	await openAllItems(page);
-	await page.getByRole("button", { name: "Grant access" }).click();
+	await page.getByRole("button", { name: "More actions" }).click();
+	await page.getByRole("menuitem", { name: "Use with an agent…" }).click();
 	const dialog = page.getByRole("dialog");
 	await dialog.getByRole("tab", { name: "Until I revoke it" }).click();
 	await dialog.getByRole("button", { name: "Grant access" }).click();
 	await expect(
 		page.getByText("Claude Code can use Postgres staging"),
 	).toBeVisible();
+	await expect(
+		page.getByRole("heading", { name: "Agents that can use it" }),
+	).toBeVisible();
+	await expect(
+		page.getByRole("switch", { name: "Allow Claude Code" }),
+	).toBeChecked();
 
 	const run = mima(["run", "--", ...check], {
 		MIMA_TOKEN: token,

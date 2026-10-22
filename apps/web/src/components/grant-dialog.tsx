@@ -22,10 +22,12 @@ import {
 	type Duration,
 	errorMessage,
 	type Item,
+	itemReference,
 	useActions,
 	useAgents,
 } from "@/lib/vault-data";
 
+import { CopyButton } from "./copy-button";
 import { notify } from "./notify";
 
 export function GrantDialog({
@@ -39,6 +41,7 @@ export function GrantDialog({
 }) {
 	const agents = useAgents();
 	const actions = useActions();
+	const reference = itemReference(item);
 	const available = (agents.data ?? []).filter(
 		(agent) =>
 			agent.enabled && !agent.grants.some((grant) => grant.itemId === item.id),
@@ -60,15 +63,30 @@ export function GrantDialog({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Let an agent use {item.name}</DialogTitle>
+					<DialogTitle>Use {item.name} with an agent</DialogTitle>
 					<DialogDescription>
-						The agent gets the value inside the commands it runs with mima run.
-						It never sees the value itself, and you can revoke it any time.
+						Put this reference in an .env file and run the command with mima
+						run. The value goes into the command, never into the agent's output,
+						and the first run waits for your approval.
 					</DialogDescription>
 				</DialogHeader>
+				<div className="border-line bg-surface-sunken flex items-center gap-2 rounded-lg border py-1 pr-1 pl-3">
+					<code className="text-caption text-fg min-w-0 flex-1 truncate font-mono">
+						{reference}
+					</code>
+					<CopyButton value={reference} label="reference" secret={false} />
+				</div>
+				<div className="mt-2 flex flex-col gap-0.5">
+					<h3 className="text-body-sm text-fg">Skip the approval</h3>
+					<p className="text-caption text-fg-muted">
+						Let one agent use it without asking each time.
+					</p>
+				</div>
 				{choices.length === 0 ? (
 					<p className="border-line text-caption text-fg-muted rounded-lg border border-dashed px-3 py-4 text-center">
-						Every agent already has access, or there are none yet.{" "}
+						{agents.data?.length
+							? "Every agent can already use it."
+							: "No agents yet."}{" "}
 						<Link to="/agents" className="text-link hover:underline">
 							Create an agent
 						</Link>
@@ -105,9 +123,10 @@ export function GrantDialog({
 				)}
 				<DialogFooter>
 					<Button variant="ghost" onClick={() => onOpenChange(false)}>
-						Cancel
+						{choices.length === 0 ? "Done" : "Cancel"}
 					</Button>
 					<Button
+						hidden={choices.length === 0}
 						disabled={!agentId || busy}
 						onClick={async () => {
 							const agent = available.find((a) => a.id === agentId);

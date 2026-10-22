@@ -82,7 +82,7 @@ function Overview() {
 				{needs.rows.length === 0 ? (
 					<div className="rounded-window border-line text-caption text-fg-subtle flex items-center justify-center gap-2 border border-dashed py-8">
 						<CheckCircleIcon className="text-success size-4" />
-						All clear. Agent requests, weak passwords and new teammates show up
+						All clear. New teammates, weak passwords and access requests show up
 						here.
 					</div>
 				) : (

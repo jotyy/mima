@@ -175,20 +175,18 @@ function Sidebar() {
 						</NavLink>
 					))}
 				</NavGroup>
-				<NavGroup label="Agents">
-					<NavLink to="/agents" icon={RobotIcon} count={requests.data?.length}>
-						Agents
-					</NavLink>
-					<NavLink to="/activity" icon={PulseIcon}>
-						Activity
-					</NavLink>
-				</NavGroup>
 				<NavGroup label="Workspace">
 					<NavLink to="/vaults" icon={VaultIcon}>
 						Vaults
 					</NavLink>
 					<NavLink to="/members" icon={UsersThreeIcon}>
 						Members
+					</NavLink>
+					<NavLink to="/activity" icon={PulseIcon}>
+						Activity
+					</NavLink>
+					<NavLink to="/agents" icon={RobotIcon} count={requests.data?.length}>
+						Agents
 					</NavLink>
 				</NavGroup>
 			</nav>

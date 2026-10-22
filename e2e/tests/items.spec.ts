@@ -65,10 +65,10 @@ test("add a login with a generated password and a one-time code", async ({
 		"https://github.com",
 	);
 	await expect(card.getByText(/^\d{3} \d{3}$/)).toBeVisible();
-	await expect(
-		card.locator("dl").getByText(/^mima:\/\/itm_[a-z0-9]+$/),
-	).toBeVisible();
 	await expect(card.getByText("work", { exact: true })).toBeVisible();
+	// Agent details stay behind the menu until an agent can use the item.
+	await expect(card.getByText(/^mima:\/\/itm_/)).toHaveCount(0);
+	await expect(card.getByText("Agents that can use it")).toHaveCount(0);
 });
 
 test("the server only ever sees ciphertext", async ({ page }) => {

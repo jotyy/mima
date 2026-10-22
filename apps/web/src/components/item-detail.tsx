@@ -21,6 +21,7 @@ import {
 	DotsThreeIcon,
 	PencilSimpleIcon,
 	PlusIcon,
+	RobotIcon,
 	StarIcon,
 	TrashIcon,
 } from "@phosphor-icons/react";
@@ -31,7 +32,6 @@ import { ago, toneDot } from "@/lib/format";
 import {
 	errorMessage,
 	type Item,
-	itemReference,
 	useActions,
 	useAgents,
 	useMembers,
@@ -72,7 +72,6 @@ export function ItemDetail({ item }: { item: Item }) {
 
 	const vault = vaults.data?.find((v) => v.id === item.vaultId);
 	const editor = members.data?.members.find((m) => m.userId === item.updatedBy);
-	const reference = itemReference(item);
 	const withAccess = (agents.data ?? []).filter((agent) =>
 		agent.grants.some((grant) => grant.itemId === item.id),
 	);
@@ -153,6 +152,15 @@ export function ItemDetail({ item }: { item: Item }) {
 							<DotsThreeIcon />
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" className="w-52">
+							{item.secret && (
+								<>
+									<DropdownMenuItem onClick={() => setGranting(true)}>
+										<RobotIcon />
+										Use with an agent…
+									</DropdownMenuItem>
+									<DropdownMenuSeparator />
+								</>
+							)}
 							<DropdownMenuGroup>
 								<DropdownMenuLabel>Move to</DropdownMenuLabel>
 								{(vaults.data ?? [])
@@ -253,69 +261,52 @@ export function ItemDetail({ item }: { item: Item }) {
 						</div>
 					</Field>
 				)}
-				{item.secret && (
-					<Field label="Reference">
-						<code className="text-caption text-fg-muted min-w-0 flex-1 truncate font-mono">
-							{reference}
-						</code>
-						<CopyButton value={reference} label="reference" secret={false} />
-					</Field>
-				)}
 			</dl>
 
-			{item.secret && (
+			{withAccess.length > 0 && (
 				<div className="border-line-subtle mt-2 flex flex-col gap-2 border-t p-4">
 					<div className="flex items-center justify-between">
-						<h3 className="text-body-sm text-fg">Agent access</h3>
+						<h3 className="text-body-sm text-fg">Agents that can use it</h3>
 						<Button variant="ghost" size="xs" onClick={() => setGranting(true)}>
 							<PlusIcon data-icon="inline-start" />
-							Grant access
+							Add
 						</Button>
 					</div>
-					{withAccess.length === 0 ? (
-						<p className="text-caption text-fg-subtle">
-							No agent can use this item. Put{" "}
-							<code className="font-mono">{reference}</code> in an .env file and
-							run the command with mima run: the first time, you approve it
-							here.
-						</p>
-					) : (
-						<ul className="flex flex-col gap-1">
-							{withAccess.map((agent) => {
-								const grant = agent.grants.find((g) => g.itemId === item.id);
-								return (
-									<li
-										key={agent.id}
-										className="hover:bg-tint/3 flex items-center gap-2.5 rounded-lg px-2 py-1.5"
-									>
-										<ItemTile kind="agent" />
-										<div className="flex min-w-0 flex-1 flex-col">
-											<span className="text-body-sm text-fg">{agent.name}</span>
-											<span className="text-caption text-fg-subtle truncate">
-												{grant?.once
-													? "for one run"
-													: grant?.expiresAt
-														? `until ${new Date(grant.expiresAt).toLocaleString()}`
-														: "until you revoke it"}
-											</span>
-										</div>
-										<Switch
-											defaultChecked
-											aria-label={`Allow ${agent.name}`}
-											onCheckedChange={(checked) => {
-												if (!checked) {
-													run(
-														actions.revoke(agent.id, item.id),
-														`${agent.name} can no longer use ${item.name}`,
-													);
-												}
-											}}
-										/>
-									</li>
-								);
-							})}
-						</ul>
-					)}
+					<ul className="flex flex-col gap-1">
+						{withAccess.map((agent) => {
+							const grant = agent.grants.find((g) => g.itemId === item.id);
+							return (
+								<li
+									key={agent.id}
+									className="hover:bg-tint/3 flex items-center gap-2.5 rounded-lg px-2 py-1.5"
+								>
+									<ItemTile kind="agent" />
+									<div className="flex min-w-0 flex-1 flex-col">
+										<span className="text-body-sm text-fg">{agent.name}</span>
+										<span className="text-caption text-fg-subtle truncate">
+											{grant?.once
+												? "for one run"
+												: grant?.expiresAt
+													? `until ${new Date(grant.expiresAt).toLocaleString()}`
+													: "until you revoke it"}
+										</span>
+									</div>
+									<Switch
+										defaultChecked
+										aria-label={`Allow ${agent.name}`}
+										onCheckedChange={(checked) => {
+											if (!checked) {
+												run(
+													actions.revoke(agent.id, item.id),
+													`${agent.name} can no longer use ${item.name}`,
+												);
+											}
+										}}
+									/>
+								</li>
+							);
+						})}
+					</ul>
 				</div>
 			)}
 

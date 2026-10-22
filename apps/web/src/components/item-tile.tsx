@@ -7,6 +7,8 @@ import {
 	TerminalWindowIcon,
 } from "@phosphor-icons/react";
 
+import type { CSSProperties } from "react";
+
 import type { ItemKind } from "@/lib/vault-data";
 
 const kindIcon = {
@@ -28,14 +30,17 @@ export function ItemTile({
 	kind,
 	size = "default",
 	className,
+	style,
 }: {
 	kind: ItemKind | "agent";
 	size?: "default" | "lg";
 	className?: string;
+	style?: CSSProperties;
 }) {
 	const Icon = kindIcon[kind];
 	return (
 		<span
+			style={style}
 			className={cn(
 				"bg-surface text-fg-muted shadow-pill inline-flex shrink-0 items-center justify-center",
 				size === "lg" ? "size-10 rounded-lg" : "size-7 rounded-md",
