@@ -9,8 +9,9 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
 import { createContext } from "./context";
+import { resetDatabase } from "./e2e-reset";
 import { ENV } from "./env.server";
-import { createAuth } from "./services";
+import { createAuth, getDb } from "./services";
 
 const app = new Hono();
 
@@ -28,6 +29,16 @@ app.use(
 app.on(["POST", "GET"], "/api/auth/*", async (c) =>
 	(await createAuth()).handler(c.req.raw),
 );
+
+if (ENV.E2E_RESET_TOKEN) {
+	app.post("/__e2e/reset", async (c) => {
+		if (c.req.header("x-reset-token") !== ENV.E2E_RESET_TOKEN) {
+			return c.text("Forbidden", 403);
+		}
+		await resetDatabase(getDb());
+		return c.text("OK");
+	});
+}
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
 	plugins: [

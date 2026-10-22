@@ -1,4 +1,4 @@
-import type { Tone } from "@/fixtures/vault";
+import type { Tone } from "@/lib/vault-data";
 
 export function timeAgo(minutes: number) {
 	if (minutes < 1) return "just now";
@@ -23,3 +23,8 @@ export const toneDot: Record<Tone, string> = {
 	amber: "bg-chart-3",
 	violet: "bg-chart-4",
 };
+
+export function ago(date: Date | string | null | undefined) {
+	if (!date) return "never";
+	return timeAgo(Math.floor((Date.now() - new Date(date).getTime()) / 60_000));
+}

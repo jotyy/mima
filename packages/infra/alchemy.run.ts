@@ -4,6 +4,10 @@ import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
 import "varlock/auto-load";
 
+// The e2e suite runs its own stack (stage `e2e`) next to `bun run dev`, on other ports.
+const apiPort = Number(process.env.MIMA_API_PORT ?? 3000);
+const webPort = Number(process.env.MIMA_WEB_PORT ?? 3001);
+
 export const db = Cloudflare.D1.Database("database", {
 	migrations: "../../packages/db/src/migrations",
 });
@@ -12,12 +16,16 @@ export const server = Cloudflare.Worker("server", {
 	main: "../../apps/server/src/index.ts",
 	env: {
 		DB: db,
-		CORS_ORIGIN: Config.String("CORS_ORIGIN"),
+		CORS_ORIGIN: process.env.MIMA_WEB_PORT
+			? `http://localhost:${webPort}`
+			: Config.String("CORS_ORIGIN"),
 		BETTER_AUTH_SECRET: Config.Redacted("BETTER_AUTH_SECRET"),
 		BETTER_AUTH_URL: Cloudflare.Worker.URL,
+		// Only the e2e stack sets this; without it the reset route does not exist.
+		E2E_RESET_TOKEN: process.env.MIMA_E2E_RESET_TOKEN ?? "",
 	},
 	dev: {
-		port: 3000,
+		port: apiPort,
 	},
 });
 
@@ -44,7 +52,7 @@ export default Alchemy.Stack(
 				VITE_SERVER_URL: serverWorker.url.as<string>(),
 			},
 			dev: {
-				port: 3001,
+				port: webPort,
 			},
 		});
 

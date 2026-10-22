@@ -20,6 +20,12 @@ const createdAt = () =>
 
 export type Role = "owner" | "admin" | "member";
 
+/** Workspace-wide plaintext settings, such as its name. */
+export const setting = sqliteTable("setting", {
+	key: text("key").primaryKey(),
+	value: text("value").notNull(),
+});
+
 /** A person in the workspace, with the keys only their master password opens. */
 export const member = sqliteTable("member", {
 	userId: text("user_id")

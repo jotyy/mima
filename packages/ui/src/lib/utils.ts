@@ -10,7 +10,7 @@ export const cn = createCn({
 				"micro",
 				"caption",
 				"body-sm",
-				"input",
+				"field",
 				"body",
 				"h5",
 				"h4",

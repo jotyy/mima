@@ -19,86 +19,110 @@ import {
 	TooltipTrigger,
 } from "@mima/ui/components/tooltip";
 import {
-	ArrowUpRightIcon,
 	CaretUpDownIcon,
-	CodeIcon,
 	KeyIcon,
 	LockSimpleIcon,
 	MagnifyingGlassIcon,
 	PulseIcon,
-	QuestionIcon,
 	RobotIcon,
 	ShieldCheckIcon,
+	SignOutIcon,
 	SquaresFourIcon,
 	UsersThreeIcon,
 	VaultIcon,
 } from "@phosphor-icons/react";
-import { Link, Outlet, useNavigate } from "@tanstack/react-router";
+import { Link, Outlet } from "@tanstack/react-router";
 import { useTheme } from "next-themes";
-import { type ComponentType, type ReactNode, useEffect } from "react";
-
 import {
-	approvalRequests,
-	currentMemberId,
-	findMember,
-	vaults,
-	workspace,
-} from "@/fixtures/vault";
-import { initials, toneDot } from "@/lib/format";
+	type ComponentType,
+	type ReactNode,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 
+import { initials, toneDot } from "@/lib/format";
+import { useKeyring } from "@/lib/keyring";
+import { useRequests, useVaults, useWorkspace } from "@/lib/vault-data";
+
+import { CommandPalette } from "./command-palette";
 import { MimaMark } from "./mima-mark";
 
 export function AppShell() {
-	// Notifications sit centered over the content, not over the whole window.
+	const [searching, setSearching] = useState(false);
+	const main = useRef<HTMLElement>(null);
+
+	// Notifications sit centered over the content column (minus its scrollbar), not over
+	// the whole window: measure the column and shift the toast layer to match.
 	useEffect(() => {
-		document.documentElement.style.setProperty("--toast-shift", "7rem");
-		return () => {
-			document.documentElement.style.removeProperty("--toast-shift");
+		const element = main.current;
+		if (!element) return;
+		const root = document.documentElement;
+		const update = () => {
+			const box = element.getBoundingClientRect();
+			root.style.setProperty(
+				"--toast-center",
+				`${box.left + element.clientWidth / 2}px`,
+			);
 		};
+		update();
+		const observer = new ResizeObserver(update);
+		observer.observe(element);
+		window.addEventListener("resize", update);
+		return () => {
+			observer.disconnect();
+			window.removeEventListener("resize", update);
+			root.style.removeProperty("--toast-center");
+		};
+	}, []);
+
+	useEffect(() => {
+		const onKey = (event: KeyboardEvent) => {
+			if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+				event.preventDefault();
+				setSearching((open) => !open);
+			}
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
 	}, []);
 
 	return (
 		<div className="bg-frame flex h-svh flex-col">
-			<TopBar />
+			<TopBar onSearch={() => setSearching(true)} />
 			<div className="flex min-h-0 flex-1">
 				<Sidebar />
-				<main className="min-w-0 flex-1 overflow-y-auto">
+				<main ref={main} className="min-w-0 flex-1 overflow-y-auto">
 					<Outlet />
 				</main>
 			</div>
+			<CommandPalette open={searching} onOpenChange={setSearching} />
 		</div>
 	);
 }
 
-function TopBar() {
-	const pending = approvalRequests.length;
+function TopBar({ onSearch }: { onSearch: () => void }) {
+	const workspace = useWorkspace();
+	const requests = useRequests();
+	const pending = requests.data?.length ?? 0;
+
 	return (
 		<header className="flex h-14 shrink-0 items-center justify-between px-4">
 			<div className="flex items-center gap-1">
-				<DropdownMenu>
-					<DropdownMenuTrigger
-						render={<Button variant="ghost" className="text-fg gap-2 px-2" />}
-					>
-						<MimaMark />
-						<span className="font-medium">{workspace.name}</span>
-						<CaretUpDownIcon className="text-fg-subtle size-3.5" />
-					</DropdownMenuTrigger>
-					<DropdownMenuContent className="w-56" align="start">
-						<DropdownMenuGroup>
-							<DropdownMenuLabel>Workspaces</DropdownMenuLabel>
-							<DropdownMenuItem>
-								<MimaMark />
-								{workspace.name}
-								<span className="text-micro text-fg-faint ml-auto">
-									{workspace.plan}
-								</span>
-							</DropdownMenuItem>
-						</DropdownMenuGroup>
-					</DropdownMenuContent>
-				</DropdownMenu>
+				<div className="text-body-sm text-fg flex items-center gap-2 px-2 font-medium">
+					<MimaMark />
+					{workspace.data?.workspaceName ?? "mima"}
+				</div>
 				<Tooltip>
 					<TooltipTrigger
-						render={<Button variant="ghost" size="icon" aria-label="Search" />}
+						render={
+							<Button
+								variant="ghost"
+								size="icon"
+								aria-label="Search"
+								onClick={onSearch}
+							/>
+						}
 					>
 						<MagnifyingGlassIcon />
 					</TooltipTrigger>
@@ -107,21 +131,30 @@ function TopBar() {
 					</TooltipContent>
 				</Tooltip>
 			</div>
-			<Link
-				to="/agents"
-				className="text-body-sm text-fg hover:bg-tint/4 flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors"
-			>
-				<ShieldCheckIcon className="text-brand size-4" />
-				{pending} waiting for approval
-			</Link>
+			{pending > 0 && (
+				<Link
+					to="/agents"
+					className="text-body-sm text-fg hover:bg-tint/4 flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors"
+				>
+					<ShieldCheckIcon className="text-brand size-4" />
+					{pending} waiting for approval
+				</Link>
+			)}
 		</header>
 	);
 }
 
 function Sidebar() {
+	const vaults = useVaults();
+	const requests = useRequests();
+	const sorted = [...(vaults.data ?? [])].sort(
+		(a, b) =>
+			Number(b.personal) - Number(a.personal) || a.name.localeCompare(b.name),
+	);
+
 	return (
 		<aside className="flex w-56 shrink-0 flex-col px-3 pb-3">
-			<nav className="mt-16 flex flex-col">
+			<nav className="mt-16 flex min-h-0 flex-col overflow-y-auto">
 				<NavGroup>
 					<NavLink to="/" icon={SquaresFourIcon} exact>
 						Overview
@@ -131,11 +164,11 @@ function Sidebar() {
 					</NavLink>
 				</NavGroup>
 				<NavGroup label="Vaults">
-					{vaults.map((vault) => (
+					{sorted.map((vault) => (
 						<NavLink
 							key={vault.id}
 							to="/items"
-							search={{ vault: vault.slug }}
+							search={{ vault: vault.id }}
 							dot={toneDot[vault.tone]}
 						>
 							{vault.name}
@@ -143,11 +176,7 @@ function Sidebar() {
 					))}
 				</NavGroup>
 				<NavGroup label="Agents">
-					<NavLink
-						to="/agents"
-						icon={RobotIcon}
-						count={approvalRequests.length}
-					>
+					<NavLink to="/agents" icon={RobotIcon} count={requests.data?.length}>
 						Agents
 					</NavLink>
 					<NavLink to="/activity" icon={PulseIcon}>
@@ -163,10 +192,8 @@ function Sidebar() {
 					</NavLink>
 				</NavGroup>
 			</nav>
-			<div className="mt-auto flex flex-col gap-0.5">
+			<div className="mt-auto flex flex-col gap-0.5 pt-4">
 				<LockBox />
-				<SidebarAction icon={QuestionIcon}>Help</SidebarAction>
-				<SidebarAction icon={CodeIcon}>Documentation</SidebarAction>
 				<UserMenu />
 			</div>
 		</aside>
@@ -212,7 +239,7 @@ function NavLink({
 		<Link
 			to={to}
 			search={search}
-			activeOptions={{ exact, includeSearch: true }}
+			activeOptions={{ exact, includeSearch: Boolean(search) }}
 			className={navItem}
 		>
 			{Icon && <Icon className="size-4" />}
@@ -231,42 +258,37 @@ function NavLink({
 	);
 }
 
-function SidebarAction({
-	icon: Icon,
-	children,
-}: {
-	icon: ComponentType<{ className?: string }>;
-	children: ReactNode;
-}) {
-	return (
-		<button type="button" className={navItem}>
-			<Icon className="size-4" />
-			{children}
-		</button>
-	);
-}
-
 function LockBox() {
-	const navigate = useNavigate();
+	const { locksAt, lock } = useKeyring();
+	const [now, setNow] = useState(() => Date.now());
+	useEffect(() => {
+		const timer = setInterval(() => setNow(Date.now()), 15_000);
+		return () => clearInterval(timer);
+	}, []);
+	const minutes = locksAt
+		? Math.max(1, Math.ceil((locksAt - now) / 60_000))
+		: 0;
+
 	return (
 		<div className="rounded-window border-line bg-surface-sunken text-caption mb-2 flex flex-col gap-1 border p-2.5">
-			<span className="text-fg-muted">Locks in 14 minutes</span>
+			<span className="text-fg-muted">
+				Locks in {minutes} {minutes === 1 ? "minute" : "minutes"} of quiet
+			</span>
 			<button
 				type="button"
-				onClick={() => navigate({ to: "/login" })}
+				onClick={lock}
 				className="text-link flex w-fit items-center gap-1 hover:underline"
 			>
+				<LockSimpleIcon className="size-3" />
 				Lock now
-				<ArrowUpRightIcon className="size-3" />
 			</button>
 		</div>
 	);
 }
 
 function UserMenu() {
-	const navigate = useNavigate();
+	const { me, lock, signOut } = useKeyring();
 	const { theme = "system", setTheme } = useTheme();
-	const me = findMember(currentMemberId);
 	if (!me) return null;
 
 	return (
@@ -287,7 +309,9 @@ function UserMenu() {
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className="w-56" side="top" align="start">
 				<DropdownMenuGroup>
-					<DropdownMenuLabel>{me.email}</DropdownMenuLabel>
+					<DropdownMenuLabel>
+						{me.email} · {me.role}
+					</DropdownMenuLabel>
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>
@@ -299,9 +323,13 @@ function UserMenu() {
 					</DropdownMenuRadioGroup>
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator />
-				<DropdownMenuItem onClick={() => navigate({ to: "/login" })}>
+				<DropdownMenuItem onClick={lock}>
 					<LockSimpleIcon />
-					Lock mima
+					Lock
+				</DropdownMenuItem>
+				<DropdownMenuItem onClick={() => signOut()}>
+					<SignOutIcon />
+					Sign out
 				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>

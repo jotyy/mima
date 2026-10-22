@@ -1,0 +1,141 @@
+import { Button } from "@mima/ui/components/button";
+import { Input } from "@mima/ui/components/input";
+import { WarningIcon } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
+import {
+	createFileRoute,
+	Link,
+	Navigate,
+	useNavigate,
+} from "@tanstack/react-router";
+import { useState } from "react";
+import { z } from "zod";
+
+import {
+	AuthLayout,
+	Field,
+	FormError,
+	PasswordInput,
+} from "@/components/auth-layout";
+import Loader from "@/components/loader";
+import { useKeyring } from "@/lib/keyring";
+import { passwordStrength } from "@/lib/secrets";
+import { errorMessage, useWorkspace } from "@/lib/vault-data";
+import { client } from "@/utils/orpc";
+
+export const Route = createFileRoute("/join")({
+	validateSearch: z.object({ token: z.string().default("") }),
+	component: Join,
+});
+
+function Join() {
+	const { token } = Route.useSearch();
+	const keyring = useKeyring();
+	const workspace = useWorkspace();
+	const navigate = useNavigate();
+	const invite = useQuery({
+		queryKey: ["invite", token],
+		queryFn: () => client.account.invite({ token }),
+		enabled: token.length > 10,
+		retry: false,
+	});
+	const [name, setName] = useState("");
+	const [password, setPassword] = useState("");
+	const [confirm, setConfirm] = useState("");
+	const [error, setError] = useState("");
+	const [busy, setBusy] = useState(false);
+
+	if (keyring.status === "loading" || (invite.isPending && token.length > 10))
+		return <Loader />;
+	if (keyring.status === "unlocked") return <Navigate to="/" />;
+
+	if (!invite.data) {
+		return (
+			<AuthLayout
+				title="This invite doesn't work"
+				description="It was used already or it expired. Ask for a new link."
+			>
+				<Button className="w-full" render={<Link to="/login" />}>
+					Go to sign in
+				</Button>
+			</AuthLayout>
+		);
+	}
+
+	const workspaceName = workspace.data?.workspaceName ?? "mima";
+	return (
+		<AuthLayout
+			title={`Join ${workspaceName}`}
+			description={`${invite.data.invitedBy} invited ${invite.data.email}.`}
+		>
+			<form
+				className="flex flex-col gap-3"
+				onSubmit={async (event) => {
+					event.preventDefault();
+					setError("");
+					if (password.length < 12) {
+						return setError(
+							"Use at least 12 characters for your master password.",
+						);
+					}
+					if (passwordStrength(password) === "weak") {
+						return setError(
+							"That master password is easy to guess. Add more words or characters.",
+						);
+					}
+					if (password !== confirm)
+						return setError("The two passwords don't match.");
+					setBusy(true);
+					try {
+						await keyring.register({
+							email: invite.data.email,
+							name: name.trim(),
+							password,
+							inviteToken: token,
+						});
+						await navigate({ to: "/" });
+					} catch (err) {
+						setError(errorMessage(err));
+					} finally {
+						setBusy(false);
+					}
+				}}
+			>
+				<Field label="Your name">
+					<Input
+						required
+						autoFocus
+						autoComplete="name"
+						value={name}
+						onChange={(event) => setName(event.target.value)}
+					/>
+				</Field>
+				<Field label="Master password">
+					<PasswordInput
+						required
+						showStrength
+						autoComplete="new-password"
+						value={password}
+						onChange={(event) => setPassword(event.target.value)}
+					/>
+				</Field>
+				<Field label="Repeat it">
+					<PasswordInput
+						required
+						autoComplete="new-password"
+						value={confirm}
+						onChange={(event) => setConfirm(event.target.value)}
+					/>
+				</Field>
+				<div className="border-warning-line bg-warning-soft text-caption text-warning flex gap-2 rounded-lg border px-3 py-2.5">
+					<WarningIcon className="mt-px size-4 shrink-0" />
+					Nobody can reset your master password. Store it somewhere safe.
+				</div>
+				<FormError>{error}</FormError>
+				<Button type="submit" size="lg" className="mt-1 w-full" disabled={busy}>
+					{busy ? "Creating your keys…" : `Join ${workspaceName}`}
+				</Button>
+			</form>
+		</AuthLayout>
+	);
+}

@@ -4,7 +4,8 @@
 	"workspaces": {
 		"packages": [
 			"apps/*",
-			"packages/*"
+			"packages/*",
+			"e2e"
 		],
 		"catalog": {
 			"zod": "^4.5.4",
@@ -34,7 +35,9 @@
 		"destroy": "turbo run destroy -F @mima/infra --",
 		"env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/",
 		"postinstall": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/",
-		"check": "biome check --write ."
+		"check": "biome check --write .",
+		"test": "bun test --cwd packages/crypto",
+		"test:e2e": "bun run --cwd e2e test"
 	},
 	"dependencies": {
 		"zod": "catalog:"

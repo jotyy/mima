@@ -1,5 +1,11 @@
 import { user } from "@mima/db/schema/auth";
-import { invite, member, vault, vaultAccess } from "@mima/db/schema/vault";
+import {
+	invite,
+	member,
+	setting,
+	vault,
+	vaultAccess,
+} from "@mima/db/schema/vault";
 import { ORPCError } from "@orpc/server";
 import { and, count, eq, gt, isNull } from "drizzle-orm";
 import { z } from "zod";
@@ -38,8 +44,17 @@ async function decoySalt(secret: string, email: string) {
 export const accountRouter = {
 	/** Whether the workspace has an owner yet; the first person to register becomes it. */
 	status: publicProcedure.handler(async ({ context }) => {
-		const [row] = await context.db.select({ n: count() }).from(member);
-		return { hasOwner: (row?.n ?? 0) > 0 };
+		const [[row], [name]] = await Promise.all([
+			context.db.select({ n: count() }).from(member),
+			context.db
+				.select({ value: setting.value })
+				.from(setting)
+				.where(eq(setting.key, "workspace_name")),
+		]);
+		return {
+			hasOwner: (row?.n ?? 0) > 0,
+			workspaceName: name?.value ?? "mima",
+		};
 	}),
 
 	prelogin: publicProcedure
@@ -96,6 +111,8 @@ export const accountRouter = {
 				authKey: z.string().regex(/^[0-9a-f]{64}$/),
 				keys: accountKeys,
 				inviteToken: z.string().max(200).optional(),
+				/** Only used by the first person, who creates the workspace. */
+				workspaceName: z.string().trim().min(1).max(40).optional(),
 				personalVault: z.object({
 					encryptedMeta: z.string().min(20).max(4_000),
 					wrappedKey: z.string().min(40).max(1_000),
@@ -161,6 +178,17 @@ export const accountRouter = {
 									.update(invite)
 									.set({ acceptedAt: new Date() })
 									.where(eq(invite.id, inviteId)),
+							]
+						: []),
+					...(bootstrap
+						? [
+								db
+									.insert(setting)
+									.values({
+										key: "workspace_name",
+										value: input.workspaceName ?? "mima",
+									})
+									.onConflictDoNothing(),
 							]
 						: []),
 					logEvent(db, {

@@ -1,68 +1,93 @@
 import { Button } from "@mima/ui/components/button";
 import { Input } from "@mima/ui/components/input";
-import { FingerprintIcon, LockSimpleIcon } from "@phosphor-icons/react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 
-import { MimaMark } from "@/components/mima-mark";
-import { currentMemberId, findMember, workspace } from "@/fixtures/vault";
+import {
+	AuthLayout,
+	Field,
+	FormError,
+	PasswordInput,
+} from "@/components/auth-layout";
+import Loader from "@/components/loader";
+import { useKeyring, WrongPasswordError } from "@/lib/keyring";
+import { errorMessage, useWorkspace } from "@/lib/vault-data";
 
 export const Route = createFileRoute("/login")({
-	component: Unlock,
+	component: SignIn,
 });
 
-function Unlock() {
+function SignIn() {
+	const keyring = useKeyring();
+	const workspace = useWorkspace();
 	const navigate = useNavigate();
-	const me = findMember(currentMemberId);
-	const unlock = () => navigate({ to: "/" });
+	const [email, setEmail] = useState("");
+	const [password, setPassword] = useState("");
+	const [error, setError] = useState("");
+	const [busy, setBusy] = useState(false);
+
+	if (keyring.status === "loading" || workspace.isPending) return <Loader />;
+	if (keyring.status !== "signed-out") return <Navigate to="/" />;
+	if (workspace.data && !workspace.data.hasOwner)
+		return <Navigate to="/setup" />;
 
 	return (
-		<div className="bg-frame flex min-h-svh flex-col items-center justify-center px-4">
-			<div className="rounded-window bg-surface shadow-card w-full max-w-sm p-6">
-				<div className="flex flex-col items-center gap-3 text-center">
-					<MimaMark className="text-h5 size-9 rounded-lg" />
-					<div className="flex flex-col gap-1">
-						<h1 className="text-fg text-h5">Unlock {workspace.name}</h1>
-						<p className="text-body-sm text-fg-muted">{me?.email}</p>
-					</div>
-				</div>
-				<Button size="lg" className="mt-6 w-full" onClick={unlock}>
-					<FingerprintIcon data-icon="inline-start" />
-					Unlock with passkey
-				</Button>
-				<div className="text-caption text-fg-subtle my-5 flex items-center gap-3">
-					<span className="bg-line-subtle h-px flex-1" />
-					or use your master password
-					<span className="bg-line-subtle h-px flex-1" />
-				</div>
-				<form
-					className="flex flex-col gap-2"
-					onSubmit={(event) => {
-						event.preventDefault();
-						unlock();
-					}}
-				>
+		<AuthLayout
+			title={`Sign in to ${workspace.data?.workspaceName ?? "mima"}`}
+			description="Use the email and master password you joined with."
+			footer={
+				<p className="text-caption text-fg-muted mt-4">
+					New here? Ask someone in your workspace for an invite link.
+				</p>
+			}
+		>
+			<form
+				className="flex flex-col gap-3"
+				onSubmit={async (event) => {
+					event.preventDefault();
+					setBusy(true);
+					setError("");
+					try {
+						await keyring.signIn(email.trim(), password);
+						await navigate({ to: "/" });
+					} catch (err) {
+						setError(
+							err instanceof WrongPasswordError
+								? "That email and master password don't match."
+								: errorMessage(err),
+						);
+					} finally {
+						setBusy(false);
+					}
+				}}
+			>
+				<Field label="Email">
 					<Input
-						type="password"
-						autoComplete="current-password"
-						placeholder="Master password"
-						aria-label="Master password"
-						className="font-mono"
+						type="email"
+						autoComplete="username"
+						required
+						autoFocus
+						value={email}
+						onChange={(event) => setEmail(event.target.value)}
 					/>
-					<Button type="submit" variant="outline" className="w-full">
-						Unlock
-					</Button>
-				</form>
-				<button
-					type="button"
-					className="text-caption text-fg-muted decoration-fg/25 hover:text-fg mx-auto mt-5 block underline-offset-4 hover:underline"
-				>
-					Lost access? Use your recovery kit
-				</button>
-			</div>
-			<p className="text-caption text-fg-subtle mt-4 flex items-center gap-1.5">
-				<LockSimpleIcon className="size-3.5" />
-				End-to-end encrypted. Your master password never leaves this device.
+				</Field>
+				<Field label="Master password">
+					<PasswordInput
+						autoComplete="current-password"
+						required
+						value={password}
+						onChange={(event) => setPassword(event.target.value)}
+					/>
+				</Field>
+				<FormError>{error}</FormError>
+				<Button type="submit" size="lg" className="mt-1 w-full" disabled={busy}>
+					{busy ? "Unlocking…" : "Sign in"}
+				</Button>
+			</form>
+			<p className="text-caption text-fg-subtle mt-4 text-center">
+				Forgot your master password? Nobody can reset it, not even an admin: it
+				is the only key to your items.
 			</p>
-		</div>
+		</AuthLayout>
 	);
 }

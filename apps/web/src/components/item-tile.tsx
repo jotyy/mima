@@ -7,7 +7,7 @@ import {
 	TerminalWindowIcon,
 } from "@phosphor-icons/react";
 
-import type { ItemKind } from "@/fixtures/vault";
+import type { ItemKind } from "@/lib/vault-data";
 
 const kindIcon = {
 	login: GlobeIcon,

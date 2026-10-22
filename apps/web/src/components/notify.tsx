@@ -1,6 +1,13 @@
 import { cn } from "@mima/ui/lib/utils";
 import { CheckIcon, InfoIcon, WarningIcon } from "@phosphor-icons/react";
-import { type ReactNode, useEffect, useState } from "react";
+import {
+	type CSSProperties,
+	type ReactNode,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from "react";
 import { toast } from "sonner";
 
 // Every notification in mima is one dark pill at the bottom center, close to the content
@@ -16,11 +23,28 @@ function Pill({
 	children: ReactNode;
 	className?: string;
 }) {
+	// Center on --toast-center (the content column, set by the app shell) or the window,
+	// measured against the toast slot so the pill lands exactly there.
+	const ref = useRef<HTMLDivElement>(null);
+	const [offset, setOffset] = useState(0);
+	useLayoutEffect(() => {
+		const slot = ref.current?.closest("[data-sonner-toast]");
+		if (!slot) return;
+		const root = document.documentElement;
+		const target =
+			Number.parseFloat(root.style.getPropertyValue("--toast-center")) ||
+			root.clientWidth / 2;
+		const box = slot.getBoundingClientRect();
+		setOffset(target - (box.left + box.width / 2));
+	}, []);
+
 	return (
 		<div
+			ref={ref}
+			data-slot="toast-pill"
+			style={{ "--pill-offset": `${offset}px` } as CSSProperties}
 			className={cn(
-				// --toast-shift centers the pill over the content column when a sidebar is open.
-				"bg-cta text-cta-fg shadow-float text-body-sm mx-auto flex h-10 w-fit max-w-full translate-x-(--toast-shift) items-center gap-2.5 rounded-full pr-4 pl-2",
+				"bg-cta text-cta-fg shadow-float text-body-sm mx-auto flex h-10 w-fit max-w-full translate-x-(--pill-offset) items-center gap-2.5 rounded-full pr-4 pl-2",
 				className,
 			)}
 		>

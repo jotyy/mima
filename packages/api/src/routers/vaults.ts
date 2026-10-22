@@ -55,13 +55,11 @@ export const vaultsRouter = {
 			const { db, userId } = context;
 			const id = newId("vlt");
 			await db.batch([
-				db
-					.insert(vault)
-					.values({
-						id,
-						encryptedMeta: input.encryptedMeta,
-						createdBy: userId,
-					}),
+				db.insert(vault).values({
+					id,
+					encryptedMeta: input.encryptedMeta,
+					createdBy: userId,
+				}),
 				db.insert(vaultAccess).values({
 					vaultId: id,
 					userId,

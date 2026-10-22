@@ -56,3 +56,7 @@ coverage
 .cache
 tmp
 temp
+
+# Playwright
+e2e/report
+e2e/results

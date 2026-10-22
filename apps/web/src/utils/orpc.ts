@@ -3,22 +3,19 @@ import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 import { QueryCache, QueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 
+import { notify } from "../components/notify";
 import { ENV } from "../env.public";
 
 export function createQueryClient() {
 	return new QueryClient({
+		defaultOptions: { queries: { retry: 1 } },
 		queryCache: new QueryCache({
 			onError: (error, query) => {
-				toast.error(`Error: ${error.message}`, {
-					action: {
-						label: "retry",
-						onClick: () => {
-							query.invalidate();
-						},
-					},
-				});
+				// Background refreshes fail quietly; only first loads tell the person.
+				if (query.state.data === undefined) {
+					notify.error("Couldn't load", error.message);
+				}
 			},
 		}),
 	});

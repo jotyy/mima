@@ -7,8 +7,10 @@ import {
 	Link,
 	Outlet,
 } from "@tanstack/react-router";
+import type { CSSProperties } from "react";
 
 import { ThemeProvider } from "@/components/theme-provider";
+import { KeyringProvider } from "@/lib/keyring";
 import type { orpc } from "@/utils/orpc";
 
 import "../index.css";
@@ -54,10 +56,17 @@ function RootComponent() {
 				disableTransitionOnChange
 				storageKey="mima-theme"
 			>
-				<TooltipProvider delay={300}>
-					<Outlet />
-				</TooltipProvider>
-				<Toaster position="bottom-center" offset={24} gap={8} />
+				<KeyringProvider>
+					<TooltipProvider delay={300}>
+						<Outlet />
+					</TooltipProvider>
+				</KeyringProvider>
+				<Toaster
+					position="bottom-center"
+					offset={24}
+					gap={8}
+					style={{ "--width": "36rem" } as CSSProperties}
+				/>
 			</ThemeProvider>
 		</>
 	);

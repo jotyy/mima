@@ -270,16 +270,24 @@ export async function createAccount(
 	return { authKey, keys, privateKey: pair.privateKey };
 }
 
+/** Opens the private key with an already derived wrap key. Fails on a wrong password. */
+export async function openPrivateKey(
+	wrap: CryptoKey,
+	encryptedPrivateKey: Sealed,
+): Promise<CryptoKey> {
+	return importPrivateKey(await open(wrap, encryptedPrivateKey));
+}
+
 export async function unlockAccount(password: string, keys: AccountKeys) {
 	const { authKey, wrapKey: wrap } = await deriveMasterKeys(
 		password,
 		keys.kdfSalt,
 		keys.kdfIterations,
 	);
-	const privateKey = await importPrivateKey(
-		await open(wrap, keys.encryptedPrivateKey),
-	);
-	return { authKey, privateKey };
+	return {
+		authKey,
+		privateKey: await openPrivateKey(wrap, keys.encryptedPrivateKey),
+	};
 }
 
 // --- Agent tokens ----------------------------------------------------------------
