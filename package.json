@@ -36,7 +36,7 @@
 		"env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/",
 		"postinstall": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/",
 		"check": "biome check --write .",
-		"test": "bun test --cwd packages/crypto",
+		"test": "bun test --cwd packages/crypto && bun test --cwd apps/cli && bun test --cwd apps/web",
 		"test:e2e": "bun run --cwd e2e test"
 	},
 	"dependencies": {

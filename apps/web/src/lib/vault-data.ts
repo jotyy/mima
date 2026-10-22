@@ -205,6 +205,34 @@ export function useActions() {
 				);
 			},
 
+			/** Encrypts every item on this device, then uploads them 100 at a time. */
+			async importItems(
+				vault: Vault,
+				items: ItemFields[],
+				onProgress?: (done: number) => void,
+			) {
+				for (let start = 0; start < items.length; start += 100) {
+					const chunk = items.slice(start, start + 100);
+					const sealed = await Promise.all(
+						chunk.map(async (fields) => {
+							const key = await newDataKey();
+							return {
+								wrappedKey: await wrapKey(vault.key, key),
+								data: await sealJson(key, fields),
+							};
+						}),
+					);
+					const last = start + 100 >= items.length;
+					await client.items.import({
+						vaultId: vault.id,
+						items: sealed,
+						...(last && { total: items.length }),
+					});
+					onProgress?.(start + chunk.length);
+				}
+				await refresh(queryClient);
+			},
+
 			async updateItem(item: Item, fields: ItemFields, target?: Vault) {
 				const moving = target && target.id !== item.vaultId;
 				return after(

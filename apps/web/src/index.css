@@ -1,48 +1,40 @@
 @import "@mima/ui/globals.css";
 
 /*
- * Empty vault: the three item tiles drop in one after another, settle into a small fan
- * and float. Hovering the card spreads the fan; the plus on its button turns a quarter.
- * Each tile sets --i (its position) inline.
+ * Empty vault: two rows of example items drift past in opposite directions, fading out
+ * at the edges. Each track holds its chips twice, so sliding it by half loops seamlessly.
+ * Hovering pauses them; the plus on the button turns a quarter.
  */
-@keyframes tile-in {
-	from {
-		opacity: 0;
-		transform: translateY(10px) scale(0.85);
+@keyframes marquee {
+	to {
+		translate: -50% 0;
 	}
 }
 
-@keyframes tile-float {
-	50% {
-		transform: translateY(-3px);
+[data-slot="marquee"] {
+	overflow: hidden;
+	padding-block: 2px;
+	mask-image: linear-gradient(
+		to right,
+		transparent,
+		black 18%,
+		black 82%,
+		transparent
+	);
+
+	& > [data-slot="marquee-track"] {
+		display: flex;
+		width: max-content;
+		animation: marquee var(--marquee-duration, 40s) linear infinite;
 	}
-}
 
-[data-slot="empty-tiles"] {
-	display: flex;
-	gap: 0.25rem;
-
-	& > * {
-		--fan-x: calc((1 - var(--i)) * 3px);
-		--fan-y: calc((1 - var(--i)) * (1 - var(--i)) * 3px);
-		--fan-r: calc((var(--i) - 1) * 8deg);
-		translate: var(--fan-x) var(--fan-y);
-		rotate: var(--fan-r);
-		z-index: calc(2 - (var(--i) - 1) * (var(--i) - 1));
-		animation:
-			tile-in 560ms var(--ease-emphasized) both,
-			tile-float 4.8s ease-in-out infinite;
-		animation-delay: calc(var(--i) * 70ms), calc(700ms + var(--i) * 450ms);
-		transition:
-			translate 420ms var(--ease-emphasized),
-			rotate 420ms var(--ease-emphasized);
+	& > [data-slot="marquee-track"][data-reverse] {
+		animation-direction: reverse;
 	}
-}
 
-[data-slot="empty-vault"]:hover [data-slot="empty-tiles"] > * {
-	--fan-x: calc((var(--i) - 1) * 6px);
-	--fan-y: calc((1 - var(--i)) * (1 - var(--i)) * 5px - 3px);
-	--fan-r: calc((var(--i) - 1) * 14deg);
+	&:hover > [data-slot="marquee-track"] {
+		animation-play-state: paused;
+	}
 }
 
 [data-slot="empty-vault"] [data-icon="inline-start"] {
@@ -54,8 +46,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-	[data-slot="empty-tiles"] > * {
+	[data-slot="marquee"] > [data-slot="marquee-track"] {
 		animation: none;
-		transition: none;
 	}
 }

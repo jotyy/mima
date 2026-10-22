@@ -58,6 +58,61 @@ export const itemsRouter = {
 			return { id };
 		}),
 
+	/**
+	 * Adds many items encrypted on the device, sent in chunks of up to 100. The last chunk
+	 * carries `total`, which logs one "imported" event for the whole file.
+	 */
+	import: memberProcedure
+		.input(
+			z.object({
+				vaultId: z.string(),
+				items: z
+					.array(z.object({ wrappedKey: wrapped, data }))
+					.min(1)
+					.max(100),
+				total: z.number().int().positive().optional(),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			const { db, userId } = context;
+			await requireVaultAccess(db, userId, input.vaultId);
+			const now = new Date();
+			const rows = input.items.map((entry) => ({
+				id: newId("itm"),
+				vaultId: input.vaultId,
+				wrappedKey: entry.wrappedKey,
+				data: entry.data,
+				createdBy: userId,
+				updatedBy: userId,
+				updatedAt: now,
+			}));
+			// D1 binds at most 100 values per statement: ten rows stay under it.
+			const chunks: (typeof rows)[] = [];
+			for (let start = 0; start < rows.length; start += 10) {
+				chunks.push(rows.slice(start, start + 10));
+			}
+			const [first, ...rest] = chunks.map((chunk) =>
+				db.insert(item).values(chunk),
+			);
+			if (!first) throw new ORPCError("BAD_REQUEST");
+			await db.batch([
+				first,
+				...rest,
+				...(input.total
+					? [
+							logEvent(db, {
+								actorType: "member",
+								actorId: userId,
+								action: "imported",
+								vaultId: input.vaultId,
+								detail: String(input.total),
+							}),
+						]
+					: []),
+			]);
+			return { ids: rows.map((row) => row.id) };
+		}),
+
 	/** Saves new ciphertext. Moving to another vault re-wraps the item key on the device. */
 	update: memberProcedure
 		.input(

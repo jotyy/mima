@@ -7,17 +7,22 @@ import {
 import { Skeleton } from "@mima/ui/components/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@mima/ui/components/tabs";
 import { cn } from "@mima/ui/lib/utils";
-import { MagnifyingGlassIcon, PlusIcon, StarIcon } from "@phosphor-icons/react";
+import {
+	MagnifyingGlassIcon,
+	PlusIcon,
+	StarIcon,
+	UploadSimpleIcon,
+} from "@phosphor-icons/react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
 import { z } from "zod";
-
+import { ImportDialog } from "@/components/import-dialog";
 import { ItemDetail } from "@/components/item-detail";
 import { ItemDialog } from "@/components/item-dialog";
 import { ItemTile } from "@/components/item-tile";
 import { Page } from "@/components/page";
 import { toneDot } from "@/lib/format";
-import { useItems, useVaults } from "@/lib/vault-data";
+import { type ItemKind, useItems, useVaults } from "@/lib/vault-data";
 
 const searchSchema = z.object({
 	vault: z.string().optional(),
@@ -25,6 +30,7 @@ const searchSchema = z.object({
 	q: z.string().optional(),
 	id: z.string().optional(),
 	new: z.boolean().optional(),
+	import: z.boolean().optional(),
 });
 
 export const Route = createFileRoute("/_app/items")({
@@ -64,6 +70,8 @@ function Items() {
 		visible.find((item) => item.id === search.id) ?? visible[0] ?? null;
 	const setNew = (open: boolean) =>
 		navigate({ search: (prev) => ({ ...prev, new: open || undefined }) });
+	const setImporting = (open: boolean) =>
+		navigate({ search: (prev) => ({ ...prev, import: open || undefined }) });
 
 	const description = vault
 		? vault.personal
@@ -119,6 +127,10 @@ function Items() {
 							}
 						/>
 					</InputGroup>
+					<Button variant="outline" onClick={() => setImporting(true)}>
+						<UploadSimpleIcon data-icon="inline-start" />
+						Import
+					</Button>
 					<Button onClick={() => setNew(true)}>
 						<PlusIcon data-icon="inline-start" />
 						New item
@@ -132,7 +144,11 @@ function Items() {
 					<Skeleton className="rounded-window col-span-3 h-72" />
 				</div>
 			) : inScope.length === 0 ? (
-				<EmptyVault onAdd={() => setNew(true)} vaultName={vault?.name} />
+				<EmptyVault
+					onAdd={() => setNew(true)}
+					onImport={() => setImporting(true)}
+					vaultName={vault?.name}
+				/>
 			) : (
 				<div className="grid grid-cols-5 items-start gap-3">
 					<section
@@ -203,15 +219,43 @@ function Items() {
 					navigate({ search: (prev) => ({ ...prev, id, new: undefined }) })
 				}
 			/>
+			<ImportDialog
+				open={Boolean(search.import)}
+				onOpenChange={setImporting}
+				defaultVaultId={vault?.id}
+				onImported={(vaultId) => navigate({ search: { vault: vaultId } })}
+			/>
 		</Page>
 	);
 }
 
+/** The kind of things a team keeps here, drifting past on an empty vault. */
+const examples: { kind: ItemKind; name: string }[][] = [
+	[
+		{ kind: "login", name: "GitHub" },
+		{ kind: "api-key", name: "Stripe live key" },
+		{ kind: "note", name: "Office Wi-Fi" },
+		{ kind: "ssh-key", name: "deploy@prod" },
+		{ kind: "login", name: "Figma" },
+		{ kind: "api-key", name: "OpenAI API key" },
+	],
+	[
+		{ kind: "login", name: "Google Workspace" },
+		{ kind: "api-key", name: "Postgres · staging" },
+		{ kind: "note", name: "Door codes" },
+		{ kind: "login", name: "AWS root" },
+		{ kind: "api-key", name: "Cloudflare token" },
+		{ kind: "ssh-key", name: "Backup server" },
+	],
+];
+
 function EmptyVault({
 	onAdd,
+	onImport,
 	vaultName,
 }: {
 	onAdd: () => void;
+	onImport: () => void;
 	vaultName?: string;
 }) {
 	return (
@@ -219,14 +263,35 @@ function EmptyVault({
 			data-slot="empty-vault"
 			className="rounded-window bg-surface shadow-card flex flex-col items-center gap-3 px-6 py-14 text-center"
 		>
-			<div data-slot="empty-tiles" className="mb-1">
-				{(["login", "api-key", "ssh-key"] as const).map((kind, index) => (
-					<ItemTile
-						key={kind}
-						kind={kind}
-						size="lg"
-						style={{ "--i": index } as CSSProperties}
-					/>
+			<div
+				aria-hidden
+				className="animate-in fade-in fill-mode-both mb-2 flex w-full max-w-md flex-col gap-2 duration-700"
+			>
+				{examples.map((row, index) => (
+					<div key={row[0]?.name} data-slot="marquee">
+						<div
+							data-slot="marquee-track"
+							data-reverse={index === 1 || undefined}
+							style={
+								{ "--marquee-duration": `${36 + index * 8}s` } as CSSProperties
+							}
+						>
+							{[...row, ...row].map((example, position) => (
+								<span
+									// biome-ignore lint/suspicious/noArrayIndexKey: each row repeats its chips once
+									key={position}
+									className="bg-surface shadow-pill text-caption text-fg-muted mr-2 inline-flex items-center gap-1.5 rounded-full py-1 pr-3 pl-1"
+								>
+									<ItemTile
+										kind={example.kind}
+										size="sm"
+										className="bg-surface-sunken shadow-none"
+									/>
+									{example.name}
+								</span>
+							))}
+						</div>
+					</div>
 				))}
 			</div>
 			<div className="animate-in fade-in slide-in-from-bottom-1 fill-mode-both flex flex-col gap-1 delay-200 duration-500">
@@ -239,10 +304,15 @@ function EmptyVault({
 				</p>
 			</div>
 			<div className="animate-in fade-in slide-in-from-bottom-1 fill-mode-both delay-300 duration-500">
-				<Button onClick={onAdd}>
-					<PlusIcon data-icon="inline-start" />
-					Add your first item
-				</Button>
+				<div className="flex items-center gap-2">
+					<Button onClick={onAdd}>
+						<PlusIcon data-icon="inline-start" />
+						Add your first item
+					</Button>
+					<Button variant="ghost" onClick={onImport}>
+						Import from a CSV
+					</Button>
+				</div>
 			</div>
 		</div>
 	);

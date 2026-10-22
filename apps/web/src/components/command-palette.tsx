@@ -7,6 +7,7 @@ import {
 	PulseIcon,
 	RobotIcon,
 	SquaresFourIcon,
+	UploadSimpleIcon,
 	UsersThreeIcon,
 	VaultIcon,
 } from "@phosphor-icons/react";
@@ -119,7 +120,17 @@ export function CommandPalette({
 							label: "New item",
 							to: "/items" as const,
 							icon: PlusIcon,
-							isNew: true,
+							search: { new: true },
+						},
+					]
+				: []),
+			...(match("import items", "csv")
+				? [
+						{
+							label: "Import items",
+							to: "/items" as const,
+							icon: UploadSimpleIcon,
+							search: { import: true },
 						},
 					]
 				: []),
@@ -134,8 +145,8 @@ export function CommandPalette({
 				</span>
 			),
 			run: () =>
-				"isNew" in page
-					? navigate({ to: "/items", search: { new: true } })
+				"search" in page
+					? navigate({ to: "/items", search: page.search })
 					: navigate({ to: page.to }),
 		}));
 

@@ -98,6 +98,14 @@ export function describeEvent(
 			);
 		case "invited":
 			return parts("invited", event.detail ?? "someone");
+		case "imported": {
+			const count = Number(event.detail ?? 0);
+			return parts(
+				"imported",
+				`${count} ${count === 1 ? "item" : "items"}`,
+				vault ? `into ${vault.name}` : undefined,
+			);
+		}
 		default:
 			return parts(event.action, itemName);
 	}

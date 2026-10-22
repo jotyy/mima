@@ -7,8 +7,6 @@ import {
 	TerminalWindowIcon,
 } from "@phosphor-icons/react";
 
-import type { CSSProperties } from "react";
-
 import type { ItemKind } from "@/lib/vault-data";
 
 const kindIcon = {
@@ -26,28 +24,31 @@ export const kindLabel: Record<ItemKind, string> = {
 	"ssh-key": "SSH key",
 };
 
+const sizes = {
+	sm: { tile: "size-6 rounded-full", icon: "size-3.5" },
+	default: { tile: "size-7 rounded-md", icon: "size-4" },
+	lg: { tile: "size-10 rounded-lg", icon: "size-5" },
+};
+
 export function ItemTile({
 	kind,
 	size = "default",
 	className,
-	style,
 }: {
 	kind: ItemKind | "agent";
-	size?: "default" | "lg";
+	size?: keyof typeof sizes;
 	className?: string;
-	style?: CSSProperties;
 }) {
 	const Icon = kindIcon[kind];
 	return (
 		<span
-			style={style}
 			className={cn(
 				"bg-surface text-fg-muted shadow-pill inline-flex shrink-0 items-center justify-center",
-				size === "lg" ? "size-10 rounded-lg" : "size-7 rounded-md",
+				sizes[size].tile,
 				className,
 			)}
 		>
-			<Icon className={size === "lg" ? "size-5" : "size-4"} />
+			<Icon className={sizes[size].icon} />
 		</span>
 	);
 }
