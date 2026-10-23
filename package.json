@@ -34,17 +34,20 @@
 	"scripts": {
 		"dev": "turbo run dev -F @vauly/infra",
 		"dev:extension": "turbo run dev -F extension",
-		"build": "turbo run build",
+		"build": "bun run --cwd apps/web build",
+		"build:all": "turbo run build",
 		"check-types": "turbo run check-types",
 		"dev:web": "turbo run dev:bare -F web --",
 		"db:generate": "turbo run db:generate -F @vauly/db --",
-		"deploy": "turbo run deploy -F @vauly/infra --",
-		"destroy": "turbo run destroy -F @vauly/infra --",
+		"deploy": "wrangler deploy",
+		"deploy:stack": "turbo run deploy -F @vauly/infra --",
+		"destroy:stack": "turbo run destroy -F @vauly/infra --",
 		"env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/",
 		"postinstall": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/",
 		"check": "biome check --write .",
-		"test": "bun test --cwd packages/crypto && bun test --cwd apps/cli && bun test --cwd apps/web",
+		"test": "bun test --cwd packages/crypto && bun test --cwd packages/db && bun test --cwd apps/cli && bun test --cwd apps/web",
 		"test:e2e": "bun run --cwd e2e test",
+		"test:e2e:one-worker": "bun run --cwd e2e test:one-worker",
 		"test:site": "bun run --cwd e2e test:site",
 		"brand": "bun brand/build.ts"
 	},
@@ -59,7 +62,15 @@
 		"@vauly/config": "workspace:*",
 		"turbo": "^2.11.7",
 		"typescript": "catalog:",
-		"varlock": "catalog:"
+		"varlock": "catalog:",
+		"wrangler": "4.149.0"
 	},
-	"packageManager": "bun@1.3.14"
+	"packageManager": "bun@1.3.14",
+	"cloudflare": {
+		"bindings": {
+			"SETUP_CODE": {
+				"description": "A code only you know, so nobody else can claim your vauly before you do. Once it's deployed, open `/setup?code=` followed by this code on your vauly's address to create the workspace. Leave it empty and whoever opens your vauly first becomes its owner."
+			}
+		}
+	}
 }

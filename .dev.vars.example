@@ -1,0 +1,7 @@
+# Secrets for vauly as one Worker. The Deploy to Cloudflare button asks for these; for
+# `wrangler dev`, copy this file to .dev.vars.
+
+# A code only you know. Until someone creates the workspace, it can only be created from
+# https://<your vauly>/setup?code=<this code>. Leave it empty and whoever opens your vauly
+# first becomes its owner.
+SETUP_CODE=

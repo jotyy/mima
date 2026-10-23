@@ -1,87 +1,67 @@
 # Self-hosting
 
-vauly runs on your own Cloudflare account. A deploy creates three things:
-- **server**, a Worker that runs the API
-- **web**, a Worker that serves the web app
-- **database**, a D1 database, with the migrations in `packages/db/src/migrations` applied
+vauly runs on your own Cloudflare account. A deploy creates two things:
+- **vauly**, a Worker that serves the web app and its API
+- **vauly**, a D1 database for your items, encrypted before they arrive
 
 <!-- diagram: Architecture -->
 
 ```
  your browser ──┐        ┌─ your Cloudflare account ──────────────────────┐
- the extension ─┼─ HTTPS ─▶  web     Worker   serves the app               │
- vauly run ──────┘        │  server  Worker   the API ──▶ database  D1      │
+ the extension ─┼─ HTTPS ─▶  vauly    Worker   the app and its API         │
+ vauly run ──────┘        │     └──▶ vauly    D1       items as ciphertext  │
                          └────────────────────────────────────────────────┘
  everything is encrypted on the left; the right only ever holds ciphertext
 ```
 
-The deploy is described in [`packages/infra/alchemy.run.ts`](../packages/infra/alchemy.run.ts) and run by [Alchemy](https://alchemy.run).
+A small team fits in Cloudflare's free plan.
 
-## Before you start
+## Deploy with one click
 
-- A Cloudflare account
-- [Bun](https://bun.sh) 1.3 or later
-- A clone of this repository, with `bun install` run once
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/jotyy/vauly)
+1. Click the button, sign in to Cloudflare, and connect GitHub or GitLab. Cloudflare copies vauly into a new repository of yours and builds it from there.
+2. When it asks for `SETUP_CODE`, choose a code only you know, for example from `openssl rand -hex 16`. It keeps a fresh vauly from being claimed by whoever finds it first.
+3. Deploy. When it's done, open your vauly's address followed by `/setup?code=` and your code, and create the workspace. You become its owner. Invite your team from **Members**; each invite link works once, for one email address.
 
-## 1. Connect Cloudflare
+That's all the setup there is. The Worker applies the database migrations on its first request, and makes the secret that signs sessions on first start, keeping it in the database. Without a `SETUP_CODE`, whoever opens your vauly first creates the workspace, so don't leave such a deploy unclaimed.
 
-```sh
-cd packages/infra
-bunx alchemy profile edit
-```
+### Updating
 
-Pick Cloudflare and sign in. The profile is saved in `~/.alchemy` and used by every deploy from this machine.
+In your copy of vauly on GitHub, open **Actions → Update vauly → Run workflow**. It replaces the files with the latest vauly and pushes, and Cloudflare deploys the update. The Worker applies any new migrations on its first request. Check [CHANGELOG.md](../CHANGELOG.md) before you update.
 
-## 2. Choose your settings
+The update keeps your `wrangler.jsonc`, which names your Worker and its database, and the files in `.github/workflows`, which GitHub's default token can't change. To let updates replace the workflows too, add a repository secret named `VAULY_UPDATE_TOKEN`: a fine-grained token for that repository with read and write access to Contents and Workflows.
 
-The deploy needs two values. Keep both somewhere safe; you'll use the same ones on every deploy.
+## Deploy from your machine
 
-| Setting              | What it is                                                                                                                       |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `BETTER_AUTH_SECRET` | Signs session cookies. Use at least 32 random characters, for example `openssl rand -base64 32`. Changing it signs everyone out. |
-| `CORS_ORIGIN`        | The exact address of your web app, such as `https://vauly.example.com`. The API only accepts requests from it.                   |
-
-One more is optional. `VITE_BRANDFETCH_CLIENT_ID` picks where website logos come from: by default the web app and the extension load them from Brandfetch with the vauly project's client ID. Set it to your own [Brandfetch client ID](https://developers.brandfetch.com), or to `off` to show plain icons and never contact Brandfetch.
-
-Pass them in the environment when you deploy, as below. Values in the environment take precedence over `apps/server/.env`, which only holds your local development settings.
-
-You won't know the web app's `workers.dev` address until the first deploy, so the first time, deploy with a placeholder and deploy again once you have it.
-
-## 3. Deploy
+You need [Bun](https://bun.sh) 1.3 or later.
 
 ```sh
-cd packages/infra
-export VAULY_SETUP_CODE=$(openssl rand -hex 16)
-BETTER_AUTH_SECRET='…' CORS_ORIGIN='https://vauly.example.com' \
-  bunx alchemy deploy --stage production
+git clone https://github.com/jotyy/vauly.git
+cd vauly
+bun install
+bunx wrangler login
+echo "SETUP_CODE=$(openssl rand -hex 16)" > .dev.vars
+bun run build
+bun run deploy -- --secrets-file .dev.vars
 ```
 
-`VAULY_SETUP_CODE` keeps a fresh instance from being claimed by whoever finds it first: creating the workspace takes the code, through the setup link below. Once the workspace has an owner it no longer matters.
+`.dev.vars` keeps your setup code; git ignores it. Wrangler prints your vauly's address, and you claim it the same way, at `/setup?code=` followed by the code.
 
-When it finishes, Alchemy prints the addresses of `web` and `server`. If `CORS_ORIGIN` doesn't match `web` yet, set it and run the same command again.
-
-Alchemy keeps track of what it created per stage, so `--stage production` always updates the same Workers and database. Without `--stage`, it deploys a personal stage named after you, which is handy for trying changes.
-
-## 4. Claim your workspace
-
-Open the setup link, the web address followed by `/setup?code=` and your `VAULY_SETUP_CODE`, and create the workspace. You become its owner. Then invite your team from **Members**; each invite link works once, for one email address.
-
-Without `VAULY_SETUP_CODE`, the first person to visit creates the workspace, so don't leave such a deploy unclaimed.
+To update, run `git pull`, `bun install`, `bun run build` and `bun run deploy`.
 
 ## Your own domain
 
-To serve vauly from your own domain, add it to the `web` and `server` Workers in `packages/infra/alchemy.run.ts` (see Alchemy's Cloudflare docs for the current option), set `CORS_ORIGIN` to the new address, and deploy again.
+In the Cloudflare dashboard, open the **vauly** Worker, then **Settings → Domains & Routes → Add → Custom domain**. The app and the API move together, so there's nothing else to change. The domain's DNS has to be on Cloudflare.
 
-## Upgrading
+## Settings
 
-```sh
-git pull
-bun install
-cd packages/infra
-BETTER_AUTH_SECRET='…' CORS_ORIGIN='…' bunx alchemy deploy --stage production
-```
+| Setting                     | What it does                                                                                                                                                                                                                                                                                                                                                                                |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SETUP_CODE`                | Secret. Creating the workspace takes this code until someone has. It no longer matters once the workspace has an owner.                                                                                                                                                                                                                                                                     |
+| `BETTER_AUTH_SECRET`        | Secret, optional. Signs sessions. Without it, vauly makes one and keeps it in the database. Changing it signs everyone out.                                                                                                                                                                                                                                                                 |
+| `VITE_BRANDFETCH_CLIENT_ID` | Build variable, optional: for a one-click deploy, under the Worker's **Settings → Build → Variables and secrets**. Where website logos come from: by default the web app and the extension load them from Brandfetch with the vauly project's client ID. Use your own [Brandfetch client ID](https://developers.brandfetch.com), or `off` to show plain icons and never contact Brandfetch. |
 
-New database migrations are applied during the deploy. Check [CHANGELOG.md](../CHANGELOG.md) before you upgrade.
+Add secrets in the dashboard under the Worker's **Settings → Variables and Secrets**, or with `bunx wrangler secret put`.
 
 ## Backups
 
@@ -90,12 +70,7 @@ New database migrations are applied during the deploy. Check [CHANGELOG.md](../C
 
 ## Removing an instance
 
-```sh
-cd packages/infra
-bunx alchemy destroy --stage production
-```
-
-This deletes the Workers **and the database with every item in it**. Download backups first.
+Delete the **vauly** Worker and the **vauly** D1 database in the Cloudflare dashboard, or run `bunx wrangler delete` and `bunx wrangler d1 delete vauly`. Deleting the database deletes **every item in it**, so download backups first.
 
 ## If the owner is locked out of two-step login
 
@@ -108,7 +83,11 @@ WHERE user_id = (SELECT id FROM user WHERE email = 'owner@example.com');
 
 Their master password alone signs them in again. It changes nothing about encryption: the master password is still the only key to their items.
 
+## Deploying with Alchemy
+
+The repository's development stack uses [Alchemy](https://alchemy.run) (`packages/infra/alchemy.run.ts`), which can also deploy, as two Workers: one for the web app and one for the API. `bun run deploy:stack -- --stage production` does that. It needs `BETTER_AUTH_SECRET`, and `CORS_ORIGIN` set to the web app's address; the one-Worker deploy above needs neither and is the simpler choice.
+
 ## Good to know
 
-- The `e2e` stage used by the test suite adds a route that wipes the database, guarded by `VAULY_E2E_RESET_TOKEN`. It only exists when that variable is set; never set it for a real deploy.
+- The test suite's stacks add a route that wipes the database, guarded by `E2E_RESET_TOKEN`. It only exists when that variable is set; never set it for a real deploy.
 - `bun run dev` keeps its state on disk and never touches your Cloudflare account.

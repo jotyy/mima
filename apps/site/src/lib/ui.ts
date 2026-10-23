@@ -29,3 +29,6 @@ export function button(
 }
 
 export const REPOSITORY = "https://github.com/jotyy/vauly";
+
+/** Cloudflare's Deploy button for this repository: vauly in the visitor's own account. */
+export const DEPLOY_URL = `https://deploy.workers.cloudflare.com/?url=${REPOSITORY}`;

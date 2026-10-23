@@ -1,9 +1,10 @@
 ---
+import BrandIcon from "@/components/BrandIcon.astro";
 import Icon from "@/components/Icon.astro";
 
 import CipherField from "@/components/landing/CipherField.astro";
 import EncryptDemo from "@/components/landing/EncryptDemo";
-import { button, REPOSITORY } from "@/lib/ui";
+import { button, DEPLOY_URL, REPOSITORY } from "@/lib/ui";
 ---
 
 <!--
@@ -42,7 +43,7 @@ import { button, REPOSITORY } from "@/lib/ui";
 			class="text-lead-sm sm:text-lead mx-auto mt-6 max-w-xl text-pretty text-white/75"
 		>
 			End-to-end encrypted passwords and keys for small teams and their agents.
-			Self-hosted on your own Cloudflare.
+			One click to deploy, on your own Cloudflare.
 		</p>
 
 		<div
@@ -50,8 +51,9 @@ import { button, REPOSITORY } from "@/lib/ui";
 			style="--reveal-delay: 180ms"
 			class="mt-9 flex flex-wrap items-center justify-center gap-3"
 		>
-			<a href="/docs/self-hosting/" class={button("light", "lg", "group")}>
-				Deploy vauly
+			<a href={DEPLOY_URL} class={button("light", "lg", "group")}>
+				<span aria-hidden="true"><BrandIcon brand="Cloudflare" /></span>
+				Deploy to Cloudflare
 				<Icon name="arrow-right" class="transition-transform group-hover:translate-x-0.5" />
 			</a>
 			<a href="/docs/" class={button("glass", "lg")}>Read the docs</a>

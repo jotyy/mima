@@ -15,6 +15,12 @@ local.db-*
 # Environment variables
 .env
 .env*.local
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+
+# Wrangler's local state (`wrangler dev`)
+.wrangler
 
 # IDEs and editors
 .vscode/*

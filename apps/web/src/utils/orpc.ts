@@ -5,7 +5,7 @@ import { QueryCache, QueryClient } from "@tanstack/react-query";
 import type { AppRouterClient } from "@vauly/api/routers/index";
 
 import { notify } from "../components/notify";
-import { ENV } from "../env.public";
+import { serverUrl } from "../env.public";
 
 export function createQueryClient() {
 	return new QueryClient({
@@ -27,7 +27,7 @@ export const queryClient = createQueryClient();
 export const SESSION_ENDED = "vauly:session-ended";
 
 export const link = new RPCLink({
-	url: `${ENV.VITE_SERVER_URL.replace(/\/$/, "")}/rpc`,
+	url: () => `${serverUrl()}/rpc`,
 	async fetch(url, options) {
 		const response = await fetch(url, {
 			...options,

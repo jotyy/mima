@@ -1,7 +1,8 @@
 ---
+import BrandIcon from "@/components/BrandIcon.astro";
 import Icon from "@/components/Icon.astro";
 
-import { button, REPOSITORY } from "@/lib/ui";
+import { button, DEPLOY_URL, REPOSITORY } from "@/lib/ui";
 import ItemChip from "./ItemChip.astro";
 
 // The sign-in page's lock, once more: items drift through it and come out as ciphertext.
@@ -33,12 +34,13 @@ const rows = [
 			<div data-reveal class="flex min-w-0 flex-col items-start gap-6">
 				<h2 class="text-title-sm sm:text-title text-balance text-white">
 					Own your secrets.
-					<span class="text-sky-glow block">Start in ten minutes.</span>
+					<span class="text-sky-glow block">Deploy in one click.</span>
 				</h2>
 				<p class="text-lead-sm max-w-md text-white/75">Free, open source, and running on your own Cloudflare.</p>
 				<div class="flex flex-wrap gap-3">
-					<a href="/docs/self-hosting/" class={button("light", "lg", "group")}>
-						Deploy vauly
+					<a href={DEPLOY_URL} class={button("light", "lg", "group")}>
+						<span aria-hidden="true"><BrandIcon brand="Cloudflare" /></span>
+						Deploy to Cloudflare
 						<Icon name="arrow-right" class="transition-transform group-hover:translate-x-0.5" />
 					</a>
 					<a href={REPOSITORY} class={button("glass", "lg")}>Star on GitHub</a>

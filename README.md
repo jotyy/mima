@@ -68,15 +68,11 @@ Open <http://localhost:3001>. The first person to visit creates the workspace an
 
 ## Self-hosting
 
-vauly deploys to your own Cloudflare account with [Alchemy](https://alchemy.run): one Worker for the API, one for the web app, and a D1 database. Migrations run as part of the deploy.
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/jotyy/vauly)
 
-```sh
-cd packages/infra
-bunx alchemy profile edit            # connect your Cloudflare account
-bunx alchemy deploy --stage production
-```
+vauly deploys to your own Cloudflare account as one Worker, for the web app and its API, and a D1 database. The button copies vauly into a repository of yours and deploys it; choose a `SETUP_CODE` when it asks, then open `/setup?code=` and your code to create the workspace. The Worker applies its own database migrations, and an **Update vauly** workflow in your copy brings it up to date.
 
-[Self-hosting](docs/self-hosting.md) covers the settings to put in place first, custom domains, upgrades and backups.
+[Self-hosting](docs/self-hosting.md) also covers deploying from your machine, custom domains and backups.
 
 ## Documentation
 

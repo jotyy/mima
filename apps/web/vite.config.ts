@@ -6,7 +6,8 @@ import { VitePWA } from "vite-plugin-pwa";
 
 /**
  * Serves /vauly.json with the API address, so the browser extension can connect from the
- * web app address people already know.
+ * web app address people already know. Without an API address the app and the API share
+ * one Worker, which answers /vauly.json itself.
  */
 function vaulyJson(): Plugin {
 	// The stack passes VITE_SERVER_URL through `define`; a plain build reads it from the env.
@@ -35,6 +36,7 @@ function vaulyJson(): Plugin {
 			});
 		},
 		generateBundle() {
+			if (!server()) return;
 			this.emitFile({ type: "asset", fileName: "vauly.json", source: body() });
 		},
 	};
@@ -58,7 +60,11 @@ export default defineConfig(() => {
 			vaulyJson(),
 			VitePWA({
 				registerType: "autoUpdate",
-				workbox: { globPatterns: ["**/*.{js,css,html,png,svg,ico}"] },
+				workbox: {
+					globPatterns: ["**/*.{js,css,html,png,svg,ico}"],
+					// When one Worker serves the app and the API, the API's pages aren't the app's.
+					navigateFallbackDenylist: [/^\/api/, /^\/rpc/, /^\/vauly\.json/],
+				},
 				manifest: {
 					name: "vauly",
 					short_name: "vauly",

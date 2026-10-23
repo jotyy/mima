@@ -8,7 +8,8 @@
 	"scripts": {
 		"build": "tsc -b",
 		"check-types": "tsc -b",
-		"db:generate": "drizzle-kit generate",
+		"db:generate": "drizzle-kit generate && bun scripts/bundle-migrations.ts",
+		"db:bundle": "bun scripts/bundle-migrations.ts",
 		"db:migrate:deploy": "drizzle-kit migrate"
 	},
 	"dependencies": {

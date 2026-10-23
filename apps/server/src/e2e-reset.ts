@@ -13,6 +13,7 @@ import {
 	vault,
 	vaultAccess,
 } from "@vauly/db/schema/vault";
+import { ne } from "drizzle-orm";
 
 /**
  * Empties every table so each e2e run starts from a fresh workspace. Mounted only when the
@@ -30,7 +31,8 @@ export async function resetDatabase(db: Database) {
 		db.delete(vault),
 		db.delete(invite),
 		db.delete(member),
-		db.delete(setting),
+		// Except the session secret a deploy without BETTER_AUTH_SECRET keeps here.
+		db.delete(setting).where(ne(setting.key, "auth_secret")),
 		db.delete(session),
 		db.delete(account),
 		db.delete(verification),

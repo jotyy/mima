@@ -1,0 +1,36 @@
+// vauly as one Worker: the web app's files and the API behind them, with one D1 database.
+// The Deploy to Cloudflare button reads this file, makes the database, and runs
+// `bun run build` and `bun run deploy`. The Worker applies database migrations itself on
+// its first request (packages/db/src/migrate.ts).
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "vauly",
+	"main": "apps/server/src/index.ts",
+	"compatibility_date": "2026-10-01",
+	"compatibility_flags": ["nodejs_compat"],
+	// Keep variables set in the dashboard when an update deploys. Secrets always stay.
+	"keep_vars": true,
+	"assets": {
+		// Built by `bun run build`.
+		"directory": "apps/web/dist",
+		"not_found_handling": "single-page-application",
+		// Everything else is the app's files; these paths go to the API.
+		"run_worker_first": [
+			"/rpc/*",
+			"/api/*",
+			"/api-reference",
+			"/api-reference/*",
+			"/vauly.json",
+			"/__e2e/*"
+		]
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "vauly"
+		}
+	],
+	"observability": {
+		"enabled": true
+	}
+}

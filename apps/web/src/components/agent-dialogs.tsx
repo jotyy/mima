@@ -12,7 +12,7 @@ import { Input } from "@vauly/ui/components/input";
 import { Tabs, TabsList, TabsTrigger } from "@vauly/ui/components/tabs";
 import { useEffect, useState } from "react";
 
-import { ENV } from "@/env.public";
+import { serverUrl } from "@/env.public";
 import { errorMessage, useActions } from "@/lib/vault-data";
 
 import { Field } from "./auth-layout";
@@ -30,8 +30,6 @@ const expiries = [
 	{ value: "30", label: "30 days" },
 	{ value: "never", label: "No expiry" },
 ];
-
-export const serverUrl = () => ENV.VITE_SERVER_URL.replace(/\/$/, "");
 
 export function NewAgentDialog({
 	open,

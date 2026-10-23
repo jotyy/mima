@@ -1,26 +1,35 @@
 ---
+import BrandIcon from "@/components/BrandIcon.astro";
 import Icon from "@/components/Icon.astro";
+import { button, DEPLOY_URL } from "@/lib/ui";
 
 import Heading from "./Heading.astro";
 import Section from "./Section.astro";
 
 const steps = [
 	{
-		title: "Get the code",
-		code: "git clone https://github.com/jotyy/vauly && bun install",
+		title: "Deploy to Cloudflare",
+		text: "Connect GitHub. Cloudflare copies vauly into a repository of yours and builds it.",
 	},
-	{ title: "Connect Cloudflare", code: "bunx alchemy profile edit" },
-	{ title: "Deploy", code: "bunx alchemy deploy --stage production" },
+	{
+		title: "Choose a setup code",
+		text: "Only you know it, so nobody claims your vauly before you do.",
+	},
 	{
 		title: "Claim it",
 		text: "Open the setup link, create your workspace, invite your team.",
 	},
+	{
+		title: "Stay current",
+		text: "Run Update vauly in your repository's Actions. Cloudflare deploys it.",
+	},
 ];
 
+// What the button leaves in the visitor's accounts.
 const created = [
-	{ name: "database", what: "D1" },
-	{ name: "server", what: "Worker" },
-	{ name: "web", what: "Worker" },
+	{ name: "Repository", what: "github.com/acme/vauly" },
+	{ name: "Database", what: "D1 · vauly" },
+	{ name: "Worker", what: "app and API · vauly" },
 ];
 ---
 
@@ -28,7 +37,7 @@ const created = [
 	<div class="grid items-center gap-16 lg:grid-cols-2">
 		<Heading
 			label="Self-hosting"
-			title="Yours in ten minutes."
+			title="One click."
 			quiet="On your Cloudflare."
 			lead="No vauly cloud, no account with us. A small team fits in Cloudflare's free plan."
 		>
@@ -39,23 +48,23 @@ const created = [
 							<span class="text-micro text-fg-muted ring-line flex size-6 shrink-0 items-center justify-center rounded-full font-medium tabular-nums ring-1">
 								{index + 1}
 							</span>
-							<div class="flex min-w-0 flex-1 flex-col gap-2">
+							<div class="flex min-w-0 flex-1 flex-col gap-1">
 								<span class="text-copy text-fg font-medium">{step.title}</span>
-								{step.code ? (
-									<code class="text-micro bg-surface text-fg-muted shadow-pill w-fit max-w-full truncate rounded-md px-2.5 py-1.5 font-mono">
-										{step.code}
-									</code>
-								) : (
-									<span class="text-label text-fg-subtle">{step.text}</span>
-								)}
+								<span class="text-label text-fg-subtle">{step.text}</span>
 							</div>
 						</li>
 					))
 				}
 			</ol>
-			<a href="/docs/self-hosting/" class="text-label text-link mt-2 w-fit pl-10 font-medium underline-offset-4 hover:underline">
-				The full guide →
-			</a>
+			<div class="mt-2 flex flex-wrap items-center gap-x-6 gap-y-3 pl-10">
+				<a href={DEPLOY_URL} class={button("outline", "md")}>
+					<span aria-hidden="true"><BrandIcon brand="Cloudflare" /></span>
+					Deploy to Cloudflare
+				</a>
+				<a href="/docs/self-hosting/" class="text-label text-link font-medium underline-offset-4 hover:underline">
+					The full guide →
+				</a>
+			</div>
 		</Heading>
 
 		<div data-reveal class="bg-terminal text-label text-terminal-fg shadow-float overflow-hidden rounded-2xl font-mono ring-1 ring-black/40">
@@ -63,21 +72,21 @@ const created = [
 				<span class="size-2.5 rounded-full bg-white/15"></span>
 				<span class="size-2.5 rounded-full bg-white/15"></span>
 				<span class="size-2.5 rounded-full bg-white/15"></span>
-				<span class="text-micro ml-2 text-white/60">~/vauly/packages/infra</span>
+				<span class="text-micro ml-2 text-white/60">Deploy to Cloudflare</span>
 			</div>
 			<div class="flex flex-col gap-2 p-6 leading-relaxed">
-				<span><span class="text-terminal-faint">$</span> bunx alchemy deploy --stage production</span>
+				<span class="text-terminal-dim">Deploying vauly to your Cloudflare account</span>
 				{
 					created.map((row) => (
 						<span class="flex gap-3">
 							<Icon name="check-circle" weight="fill" class="text-terminal-ok mt-1 size-3.5 shrink-0" />
-							<span class="w-20">{row.name}</span>
-							<span class="text-terminal-dim">{row.what} · vauly-{row.name}-production</span>
+							<span class="w-24 shrink-0">{row.name}</span>
+							<span class="text-terminal-dim min-w-0 truncate">{row.what}</span>
 						</span>
 					))
 				}
 				<span class="text-terminal-dim mt-3">Your vauly is ready:</span>
-				<span class="text-terminal-link">https://vauly.acme.example/setup?code=…</span>
+				<span class="text-terminal-link truncate">https://vauly.acme.example/setup?code=…</span>
 			</div>
 		</div>
 	</div>

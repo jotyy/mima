@@ -1,0 +1,54 @@
+name: Update vauly
+
+# For a copy of vauly made by the Deploy to Cloudflare button. Run it from the Actions tab
+# ("Update vauly", then "Run workflow"): it replaces this repository's files with the latest
+# vauly and pushes, and Cloudflare deploys the update. The Worker applies any new database
+# migrations on its first request.
+#
+# It keeps this copy's wrangler.jsonc, which names your Worker and its database. It also
+# keeps .github/workflows, because GitHub doesn't let the default token change workflows;
+# add a VAULY_UPDATE_TOKEN secret (a fine-grained token for this repository with Contents
+# and Workflows write access) and updates replace them too.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    name: Update to the latest vauly
+    if: github.repository != 'jotyy/vauly'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.VAULY_UPDATE_TOKEN || github.token }}
+      - name: Replace the files with the latest vauly
+        env:
+          WORKFLOWS_TOO: ${{ secrets.VAULY_UPDATE_TOKEN != '' }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags https://github.com/jotyy/vauly.git main
+          latest=$(git rev-parse FETCH_HEAD)
+
+          # This repository's history stays; its files become vauly's.
+          git read-tree --reset -u "$latest"
+          git checkout HEAD -- wrangler.jsonc
+          if [ "$WORKFLOWS_TOO" != "true" ]; then
+            git rm -rq --cached .github/workflows
+            rm -rf .github/workflows
+            git checkout HEAD -- .github/workflows
+          fi
+
+          if git diff --cached --quiet HEAD; then
+            echo "Already up to date with jotyy/vauly@${latest:0:7}."
+            exit 0
+          fi
+          git commit -qm "Update vauly to jotyy/vauly@${latest:0:7}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          echo "Updated to jotyy/vauly@${latest:0:7}. Cloudflare deploys it now."

@@ -7,7 +7,7 @@ vauly is a password manager for small teams, from two people to a handful, who w
 - **The web app** is where your team keeps and shares items. Everyone gets a private vault; shared vaults are opened to people one by one.
 - **The browser extension** fills logins on the sites you sign in to, and offers to save new ones.
 - **`vauly run`** hands an item's value to a command, so coding agents, scripts and CI jobs can use a secret without ever seeing it. A person approves each item once.
-- **Your Cloudflare account** runs the API and the web app as Workers, with your data in a D1 database. Nobody else hosts it.
+- **Your Cloudflare account** runs the web app and its API as one Worker, with your data in a D1 database. Nobody else hosts it.
 
 ## How your data is protected
 
