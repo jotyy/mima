@@ -23,6 +23,7 @@ mima is for small teams who want one place for their shared logins, API keys and
 - **End-to-end encrypted.** Your master password never leaves your device. The server stores ciphertext, wrapped keys and public keys, nothing it can read.
 - **Vaults for sharing.** Everyone gets a private vault. Shared vaults are opened to people one by one, and taking someone out takes the vault away from them.
 - **The items a team actually keeps.** Logins with one-time codes (TOTP), API keys, SSH keys and secure notes, with a password generator and a strength check.
+- **Password health.** The Overview points out weak passwords and logins that share one, found on your device because only it can read them.
 - **Hard to lose things.** Deleting an item moves it to Recently deleted for 30 days, with Undo right in the notification. A changed password stays under Earlier.
 - **An activity log.** Every reveal, copy, share, import and backup is recorded, so the team knows who used what.
 - **Move in, move out.** Import CSV exports from 1Password, Bitwarden, LastPass, Chrome, Firefox and Safari. Download a decrypted backup that mima and most password managers can import.

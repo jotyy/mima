@@ -14,6 +14,7 @@ import {
 	PlusIcon,
 	StarIcon,
 	UploadSimpleIcon,
+	WarningIcon,
 } from "@phosphor-icons/react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
@@ -38,6 +39,7 @@ const searchSchema = z.object({
 	id: z.string().optional(),
 	new: z.boolean().optional(),
 	import: z.boolean().optional(),
+	health: z.enum(["weak", "reused"]).optional(),
 });
 
 export const Route = createFileRoute("/_app/items")({
@@ -53,6 +55,16 @@ const kinds = [
 	{ value: "ssh-key", label: "SSH keys" },
 ];
 
+const healthLabel = {
+	weak: "Weak passwords",
+	reused: "Passwords used more than once",
+};
+
+const healthClear = {
+	weak: "No weak passwords left.",
+	reused: "Every login has its own password now.",
+};
+
 function Items() {
 	const search = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
@@ -67,12 +79,15 @@ function Items() {
 	const visible = inScope.filter(
 		(item) =>
 			(!search.kind || item.kind === search.kind) &&
+			(search.health !== "weak" || item.strength === "weak") &&
+			(search.health !== "reused" || Boolean(item.reusedWith?.length)) &&
 			(!query ||
 				item.name.toLowerCase().includes(query) ||
 				item.username?.toLowerCase().includes(query) ||
 				item.url?.toLowerCase().includes(query) ||
 				item.tags?.some((tag) => tag.toLowerCase().includes(query))),
 	);
+	const names = new Map(inScope.map((item) => [item.id, item.name]));
 	const selected =
 		visible.find((item) => item.id === search.id) ?? visible[0] ?? null;
 	const setNew = (open: boolean) =>
@@ -171,9 +186,30 @@ function Items() {
 							search.id && "max-md:hidden",
 						)}
 					>
+						{search.health && (
+							<div className="flex items-center justify-between gap-2 py-1 pr-1 pl-2">
+								<span className="text-caption text-fg-muted flex items-center gap-1.5">
+									<WarningIcon className="text-warning size-3.5" />
+									{healthLabel[search.health]}
+								</span>
+								<Link
+									to="/items"
+									search={(prev) => ({
+										...prev,
+										health: undefined,
+										id: undefined,
+									})}
+									className="text-caption text-fg-muted hover:text-fg"
+								>
+									Show all
+								</Link>
+							</div>
+						)}
 						{visible.length === 0 && (
 							<p className="text-caption text-fg-subtle px-3 py-10 text-center">
-								Nothing matches. Try another type or search.
+								{search.health
+									? healthClear[search.health]
+									: "Nothing matches. Try another type or search."}
 							</p>
 						)}
 						{visible.map((item) => {
@@ -202,7 +238,11 @@ function Items() {
 											)}
 										</span>
 										<span className="text-caption text-fg-subtle truncate">
-											{item.username ?? item.url ?? item.notes ?? " "}
+											{search.health === "reused" && item.reusedWith
+												? `Same password as ${item.reusedWith
+														.map((id) => names.get(id))
+														.join(", ")}`
+												: (item.username ?? item.url ?? item.notes ?? " ")}
 										</span>
 									</div>
 									{!vault && itemVault && (

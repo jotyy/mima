@@ -7,6 +7,7 @@ import {
 	ArrowUpRightIcon,
 	CheckCircleIcon,
 	ClockIcon,
+	CopySimpleIcon,
 	EnvelopeSimpleIcon,
 	MagnifyingGlassIcon,
 	ShieldCheckIcon,
@@ -82,8 +83,8 @@ function Overview() {
 				{needs.rows.length === 0 ? (
 					<div className="rounded-window border-line text-caption text-fg-subtle flex items-center justify-center gap-2 border border-dashed py-8">
 						<CheckCircleIcon className="text-success size-4" />
-						All clear. New teammates, weak passwords and access requests show up
-						here.
+						All clear. New teammates, weak or reused passwords and access
+						requests show up here.
 					</div>
 				) : (
 					<section
@@ -266,35 +267,88 @@ function useNeeds() {
 		},
 	);
 
-	const weak = (items.data ?? [])
-		.filter((item: Item) => item.strength === "weak")
-		.map(
-			(item): NeedRowProps => ({
-				id: `weak-${item.id}`,
-				icon: WarningIcon,
-				tone: "text-warning",
-				title: (
-					<>
-						<span className="font-medium">{item.name}</span> has a weak password
-					</>
-				),
-				meta: `${lookup.vaults.get(item.vaultId)?.name ?? ""} · changed ${ago(item.updatedAt)}`,
-				actions: (
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() =>
-							navigate({
-								to: "/items",
-								search: { id: item.id, vault: item.vaultId },
-							})
-						}
-					>
-						Change
-					</Button>
-				),
-			}),
-		);
+	const live = items.data ?? [];
+	const openItem = (item: Item) =>
+		navigate({ to: "/items", search: { id: item.id, vault: item.vaultId } });
+	const review = (health: "weak" | "reused") =>
+		navigate({ to: "/items", search: { health } });
+
+	const weakItems = live.filter((item) => item.strength === "weak");
+	const weak: NeedRowProps[] = weakItems.length
+		? [
+				{
+					id: "weak",
+					icon: WarningIcon,
+					tone: "text-warning",
+					title:
+						weakItems.length === 1 ? (
+							<>
+								<span className="font-medium">{weakItems[0]?.name}</span> has a
+								weak password
+							</>
+						) : (
+							<>
+								<span className="font-medium">{weakItems.length} logins</span>{" "}
+								have weak passwords
+							</>
+						),
+					meta:
+						weakItems.length === 1
+							? `${lookup.vaults.get(weakItems[0]?.vaultId ?? "")?.name ?? ""} · changed ${ago(weakItems[0]?.updatedAt ?? new Date())}`
+							: listNames(weakItems),
+					actions: (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() =>
+								weakItems.length === 1 && weakItems[0]
+									? openItem(weakItems[0])
+									: review("weak")
+							}
+						>
+							{weakItems.length === 1 ? "Change" : "Review"}
+						</Button>
+					),
+				},
+			]
+		: [];
+
+	const reusedItems = live.filter((item) => item.reusedWith?.length);
+	const reused: NeedRowProps[] = reusedItems.length
+		? [
+				{
+					id: "reused",
+					icon: CopySimpleIcon,
+					tone: "text-warning",
+					title:
+						reusedItems.length === 2 ? (
+							<>
+								<span className="font-medium">{reusedItems[0]?.name}</span> and{" "}
+								<span className="font-medium">{reusedItems[1]?.name}</span>{" "}
+								share a password
+							</>
+						) : (
+							<>
+								<span className="font-medium">{reusedItems.length} logins</span>{" "}
+								share passwords
+							</>
+						),
+					meta:
+						reusedItems.length === 2
+							? "If one leaks, both are open"
+							: listNames(reusedItems),
+					actions: (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => review("reused")}
+						>
+							Review
+						</Button>
+					),
+				},
+			]
+		: [];
 
 	const soon = Date.now() + 3 * 86_400_000;
 	const expiring = (agents.data ?? [])
@@ -420,7 +474,14 @@ function useNeeds() {
 		: [];
 
 	return {
-		rows: [...approvals, ...newcomers, ...weak, ...expiring, ...invites],
+		rows: [
+			...approvals,
+			...newcomers,
+			...weak,
+			...reused,
+			...expiring,
+			...invites,
+		],
 		dialogs: (
 			<>
 				<GiveAccessDialog
@@ -434,6 +495,15 @@ function useNeeds() {
 			</>
 		),
 	};
+}
+
+/** "GitHub, Figma and 3 more" */
+function listNames(items: Item[]) {
+	const names = items.slice(0, 2).map((item) => item.name);
+	const rest = items.length - names.length;
+	return rest > 0
+		? `${names.join(", ")} and ${rest} more`
+		: names.join(" and ");
 }
 
 function NeedRow({ icon: Icon, tone, title, meta, actions }: NeedRowProps) {

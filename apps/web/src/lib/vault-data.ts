@@ -58,6 +58,8 @@ export type Item = ItemFields &
 	Omit<ItemRow, "data" | "wrappedKey"> & {
 		key: CryptoKey;
 		strength?: Strength;
+		/** Other live logins with the same password. */
+		reusedWith?: string[];
 	};
 export type Member = Rows<typeof client.members.list>["members"][number];
 export type Invite = Rows<typeof client.members.list>["invites"][number];
@@ -141,12 +143,30 @@ function useItemQuery(select: (all: Item[]) => Item[]) {
 					};
 				}),
 			);
-			return items
-				.filter((item) => item !== null)
-				.sort((a, b) => a.name.localeCompare(b.name));
+			return markReused(
+				items
+					.filter((item) => item !== null)
+					.sort((a, b) => a.name.localeCompare(b.name)),
+			);
 		},
 		select,
 	});
+}
+
+/** Points each login at the others that share its password. Deleted items don't count. */
+function markReused(items: Item[]) {
+	const bySecret = new Map<string, string[]>();
+	for (const item of items) {
+		if (item.kind !== "login" || !item.secret || item.deletedAt) continue;
+		bySecret.set(item.secret, [...(bySecret.get(item.secret) ?? []), item.id]);
+	}
+	for (const item of items) {
+		const ids = item.secret ? bySecret.get(item.secret) : undefined;
+		if (ids && ids.length > 1 && !item.deletedAt) {
+			item.reusedWith = ids.filter((id) => id !== item.id);
+		}
+	}
+	return items;
 }
 
 const live = (ms: number) => ({

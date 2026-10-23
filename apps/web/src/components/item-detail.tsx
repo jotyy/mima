@@ -19,6 +19,7 @@ import { cn } from "@mima/ui/lib/utils";
 import {
 	ArrowSquareOutIcon,
 	CaretRightIcon,
+	CopySimpleIcon,
 	DotsThreeIcon,
 	PencilSimpleIcon,
 	PlusIcon,
@@ -26,10 +27,11 @@ import {
 	StarIcon,
 	TrashIcon,
 } from "@phosphor-icons/react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 
 import { ago, toneDot } from "@/lib/format";
+import { useLookup } from "@/lib/use-lookup";
 import {
 	errorMessage,
 	type Item,
@@ -66,6 +68,7 @@ export function ItemDetail({ item }: { item: Item }) {
 	const vaults = useVaults();
 	const agents = useAgents();
 	const members = useMembers();
+	const lookup = useLookup();
 	const [editing, setEditing] = useState(false);
 	const [granting, setGranting] = useState(false);
 
@@ -203,6 +206,41 @@ export function ItemDetail({ item }: { item: Item }) {
 					</DropdownMenu>
 				</div>
 			</header>
+
+			{item.reusedWith?.length ? (
+				<div className="border-warning-line bg-warning-soft text-caption text-warning mx-4 mt-3 flex items-center gap-2 rounded-lg border px-3 py-2">
+					<CopySimpleIcon className="size-4 shrink-0" />
+					<p className="min-w-0 flex-1">
+						Same password as{" "}
+						{item.reusedWith.map((id, index) => {
+							const other = lookup.items.get(id);
+							return (
+								<span key={id}>
+									{index > 0 && ", "}
+									{other ? (
+										<Link
+											to="/items"
+											search={{ id, health: "reused" }}
+											className="font-medium underline-offset-2 hover:underline"
+										>
+											{other.name}
+										</Link>
+									) : (
+										"another item"
+									)}
+								</span>
+							);
+						})}
+						.{" "}
+						{item.reusedWith.length === 1
+							? "If one leaks, the other is open too."
+							: "If one leaks, the others are open too."}
+					</p>
+					<Button variant="outline" size="xs" onClick={() => setEditing(true)}>
+						Change
+					</Button>
+				</div>
+			) : null}
 
 			<dl className="divide-line-subtle flex flex-col divide-y px-4">
 				{item.username && (
