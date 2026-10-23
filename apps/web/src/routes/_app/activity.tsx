@@ -1,25 +1,32 @@
 import { Skeleton } from "@mima/ui/components/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@mima/ui/components/tabs";
-import { createFileRoute } from "@tanstack/react-router";
+import { XIcon } from "@phosphor-icons/react";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { z } from "zod";
 
 import { ActivityRow } from "@/components/activity-row";
 import { Page } from "@/components/page";
 import { StatCard } from "@/components/stat-card";
 import { useLookup } from "@/lib/use-lookup";
-import { useEvents } from "@/lib/vault-data";
+import { useEvents, useItemEvents } from "@/lib/vault-data";
 
 export const Route = createFileRoute("/_app/activity")({
+	validateSearch: z.object({ item: z.string().optional() }),
 	component: Activity,
 });
 
 const DAY = 24 * 60 * 60 * 1000;
 
 function Activity() {
-	const events = useEvents();
+	const { item: itemId } = Route.useSearch();
+	const everything = useEvents();
+	const forItem = useItemEvents(itemId, 500);
+	const events = itemId ? forItem : everything;
 	const lookup = useLookup();
 	const [who, setWho] = useState("all");
 	const all = events.data ?? [];
+	const item = itemId ? lookup.items.get(itemId) : undefined;
 	const shown = all.filter((event) => who === "all" || event.actorType === who);
 	const since = (ms: number) =>
 		all.filter((e) => Date.now() - new Date(e.createdAt).getTime() < ms);
@@ -56,7 +63,20 @@ function Activity() {
 							<TabsTrigger value="agent">Agents</TabsTrigger>
 						</TabsList>
 					</Tabs>
-					<span className="text-caption text-fg-subtle mr-2">
+					<span className="text-caption text-fg-subtle mr-2 flex items-center gap-2">
+						{itemId && (
+							<span className="bg-surface-sunken text-fg-muted flex items-center gap-1 rounded-full py-0.5 pr-1 pl-2.5">
+								{item?.name ?? "A deleted item"}
+								<Link
+									to="/activity"
+									search={{}}
+									aria-label="Show everything"
+									className="hover:bg-tint/6 hover:text-fg flex size-4 items-center justify-center rounded-full"
+								>
+									<XIcon className="size-3" />
+								</Link>
+							</span>
+						)}
 						{shown.length} {shown.length === 1 ? "event" : "events"}
 					</span>
 				</div>

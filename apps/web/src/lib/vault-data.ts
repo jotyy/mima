@@ -322,6 +322,16 @@ export function useEvents() {
 	});
 }
 
+/** What happened to one item, newest first. */
+export function useItemEvents(itemId: string | undefined, limit = 6) {
+	const { status } = useKeyring();
+	return useQuery({
+		queryKey: ["vault", "events", itemId, limit],
+		enabled: status === "unlocked" && Boolean(itemId),
+		queryFn: () => client.events.list({ limit, itemId }),
+	});
+}
+
 export function useWorkspace() {
 	return useQuery({
 		queryKey: ["workspace"],

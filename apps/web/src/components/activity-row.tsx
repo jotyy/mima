@@ -13,12 +13,19 @@ export function ActivityRow({
 	event,
 	lookup,
 	compact,
+	inItem,
 }: {
 	event: VaultEvent;
 	lookup: ReturnType<typeof useLookup>;
 	compact?: boolean;
+	/** Shown on the item itself, so its name goes without saying. */
+	inItem?: boolean;
 }) {
 	const text = describeEvent(event, lookup);
+	// "revealed the password of" reads "revealed the password" on the item itself.
+	const verb = inItem
+		? text.verb.replace(/ (of|to|from)$/, "").replace(/ use$/, " use it")
+		: text.verb;
 
 	return (
 		<li
@@ -39,8 +46,10 @@ export function ActivityRow({
 				</Avatar>
 			)}
 			<p className="text-body-sm text-fg-muted min-w-0 flex-1 truncate">
-				<span className="text-fg">{text.actor}</span> {text.verb}
-				{text.object && <span className="text-fg"> {text.object}</span>}
+				<span className="text-fg">{text.actor}</span> {verb}
+				{text.object && !inItem && (
+					<span className="text-fg"> {text.object}</span>
+				)}
 				{text.detail && !compact && (
 					<span className="text-fg-subtle"> · {text.detail}</span>
 				)}

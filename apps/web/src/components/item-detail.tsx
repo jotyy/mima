@@ -18,6 +18,7 @@ import {
 import { cn } from "@mima/ui/lib/utils";
 import {
 	ArrowSquareOutIcon,
+	ArrowUpRightIcon,
 	CaretRightIcon,
 	CopySimpleIcon,
 	DotsThreeIcon,
@@ -40,11 +41,13 @@ import {
 	useActions,
 	useAgents,
 	useExposed,
+	useItemEvents,
 	useLinks,
 	useMembers,
 	useVaults,
 } from "@/lib/vault-data";
 
+import { ActivityRow } from "./activity-row";
 import { CopyButton } from "./copy-button";
 import { GrantDialog } from "./grant-dialog";
 import { ItemDialog } from "./item-dialog";
@@ -76,6 +79,7 @@ export function ItemDetail({ item }: { item: Item }) {
 	const members = useMembers();
 	const lookup = useLookup();
 	const links = useLinks(item.id);
+	const history = useItemEvents(item.id);
 	const exposure = useExposed().exposed.get(item.id);
 	const [editing, setEditing] = useState(false);
 	const [granting, setGranting] = useState(false);
@@ -461,6 +465,36 @@ export function ItemDetail({ item }: { item: Item }) {
 					</ul>
 				</div>
 			)}
+
+			{history.data?.length ? (
+				<section
+					aria-label="Recent activity"
+					className="border-line-subtle mt-2 flex flex-col gap-1 border-t px-2 pt-3 pb-2"
+				>
+					<div className="flex items-center justify-between px-2">
+						<h3 className="text-body-sm text-fg">Recent activity</h3>
+						<Link
+							to="/activity"
+							search={{ item: item.id }}
+							className="text-caption text-fg-muted hover:text-fg flex items-center gap-1"
+						>
+							All activity
+							<ArrowUpRightIcon className="size-3" />
+						</Link>
+					</div>
+					<ol className="flex flex-col">
+						{history.data.slice(0, 5).map((event) => (
+							<ActivityRow
+								key={event.id}
+								event={event}
+								lookup={lookup}
+								compact
+								inItem
+							/>
+						))}
+					</ol>
+				</section>
+			) : null}
 
 			<footer className="rounded-b-window border-line-subtle bg-surface-sunken text-caption text-fg-subtle border-t px-4 py-2.5">
 				Updated {ago(item.updatedAt)} by {editor?.name ?? "someone"}
