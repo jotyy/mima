@@ -35,6 +35,7 @@ import { appFor, type ImportApp, importApps } from "@/lib/import/apps";
 import { appMarks } from "@/lib/import/marks";
 import { logoDomain } from "@/lib/logos";
 import {
+	canEdit,
 	errorMessage,
 	type ItemFields,
 	type ItemKind,
@@ -75,10 +76,12 @@ export function ImportDialog({
 	const items = useItems();
 	const actions = useActions();
 	const [step, setStep] = useState<Step>({ name: "apps" });
+	// Items go only where this person can add them.
+	const writable = (vaults.data ?? []).filter(canEdit);
 	const fallbackVault =
-		defaultVaultId ??
-		vaults.data?.find((v) => v.personal)?.id ??
-		vaults.data?.[0]?.id ??
+		writable.find((v) => v.id === defaultVaultId)?.id ??
+		writable.find((v) => v.personal)?.id ??
+		writable[0]?.id ??
 		"";
 	const [vaultId, setVaultId] = useState(fallbackVault);
 
@@ -498,7 +501,7 @@ function Review({
 	onVaultChange: (id: string) => void;
 }) {
 	const vaults = useVaults();
-	const choices = (vaults.data ?? []).map((v) => ({
+	const choices = (vaults.data ?? []).filter(canEdit).map((v) => ({
 		value: v.id,
 		label: v.name,
 	}));

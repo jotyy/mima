@@ -11,7 +11,7 @@ The first public version.
 - End-to-end encryption: items, vault names and private keys are encrypted in the browser; the server stores ciphertext and wrapped keys only.
 - Workspaces with an owner, admins and members. The first visitor creates the workspace; everyone else joins with a one-time invite link.
 - Two-step login: a code from an authenticator app after the master password, with ten one-time recovery codes. It works the same in the web app and the browser extension, and admins can reset it for someone who lost their phone.
-- A private vault for everyone, and shared vaults opened to people one by one.
+- A private vault for everyone, and shared vaults opened to people one by one. Each person can view, edit or manage a shared vault: viewers open, copy and fill items; editors also change them and share them by link or with agents; managers also choose who can open the vault. Existing access becomes manage.
 - Logins with one-time codes, API keys, SSH keys and secure notes, with a password generator and strength check.
 - Share links: send one item to someone outside the workspace through a link that expires after an hour to 30 days, optionally after one view. The copy is encrypted with a key that lives only in the link, and every opening is logged.
 - Password health: the Overview lists weak passwords, logins that share a password, and items that someone who lost access could see and that haven't changed since. Each opens a filtered list to fix them.

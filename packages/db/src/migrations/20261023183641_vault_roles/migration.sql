@@ -1,0 +1,1 @@
+ALTER TABLE `vault_access` ADD `role` text DEFAULT 'manage' NOT NULL;

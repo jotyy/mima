@@ -36,6 +36,8 @@ export type Entry = {
 /** An entry with what it takes to change it: its key, revision and every field. */
 export type EditableEntry = Entry & {
 	vaultId: string;
+	/** False in a vault this person can only view. */
+	editable: boolean;
 	revision: number;
 	key: CryptoKey;
 	fields: Record<string, unknown> & { history?: PreviousSecret[] };
@@ -47,6 +49,8 @@ export type VaultInfo = {
 	id: string;
 	name: string;
 	personal: boolean;
+	/** Whether this person can add and change items in it, not only view them. */
+	editable: boolean;
 	key: CryptoKey;
 };
 
@@ -194,7 +198,13 @@ export async function loadVault(
 				vault.wrappedKey,
 			);
 			const meta = await openJson<{ name: string }>(key, vault.encryptedMeta);
-			return { id: vault.id, name: meta.name, personal: vault.personal, key };
+			return {
+				id: vault.id,
+				name: meta.name,
+				personal: vault.personal,
+				editable: vault.role !== "view",
+				key,
+			};
 		}),
 	);
 	const byId = new Map(vaults.map((vault) => [vault.id, vault]));
@@ -210,6 +220,7 @@ export async function loadVault(
 					id: row.id,
 					vault: vault.name,
 					vaultId: vault.id,
+					editable: vault.editable,
 					revision: row.revision,
 					favorite: row.favorite,
 					key,

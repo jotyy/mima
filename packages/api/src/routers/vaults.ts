@@ -1,4 +1,5 @@
 import { ORPCError } from "@orpc/server";
+import type { Database } from "@vauly/db";
 import { user } from "@vauly/db/schema/auth";
 import { item, member, vault, vaultAccess } from "@vauly/db/schema/vault";
 import { and, count, eq, inArray, isNull } from "drizzle-orm";
@@ -9,6 +10,22 @@ import { logEvent, myVaultIds, newId, requireVaultAccess } from "../lib";
 
 const sealed = z.string().min(20).max(4_000);
 const wrapped = z.string().min(40).max(1_000);
+const role = z.enum(["view", "edit", "manage"]);
+
+/** Refuses to leave a vault with people in it but nobody to manage it. */
+async function keepAManager(db: Database, vaultId: string, leaving: string) {
+	const managers = await db
+		.select({ userId: vaultAccess.userId })
+		.from(vaultAccess)
+		.where(
+			and(eq(vaultAccess.vaultId, vaultId), eq(vaultAccess.role, "manage")),
+		);
+	if (managers.every((manager) => manager.userId === leaving)) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: "Make someone else a manager of this vault first",
+		});
+	}
+}
 
 export const vaultsRouter = {
 	list: memberProcedure.handler(async ({ context }) => {
@@ -22,6 +39,7 @@ export const vaultsRouter = {
 					vaultId: vaultAccess.vaultId,
 					userId: vaultAccess.userId,
 					wrappedKey: vaultAccess.wrappedKey,
+					role: vaultAccess.role,
 					name: user.name,
 					email: user.email,
 				})
@@ -34,19 +52,28 @@ export const vaultsRouter = {
 				.where(and(inArray(item.vaultId, ids), isNull(item.deletedAt)))
 				.groupBy(item.vaultId),
 		]);
-		return vaults.map((v) => ({
-			id: v.id,
-			encryptedMeta: v.encryptedMeta,
-			personal: v.personalFor !== null,
-			createdAt: v.createdAt,
-			wrappedKey:
-				access.find((a) => a.vaultId === v.id && a.userId === userId)
-					?.wrappedKey ?? "",
-			members: access
-				.filter((a) => a.vaultId === v.id)
-				.map((a) => ({ userId: a.userId, name: a.name, email: a.email })),
-			itemCount: counts.find((c) => c.vaultId === v.id)?.n ?? 0,
-		}));
+		return vaults.map((v) => {
+			const mine = access.find(
+				(a) => a.vaultId === v.id && a.userId === userId,
+			);
+			return {
+				id: v.id,
+				encryptedMeta: v.encryptedMeta,
+				personal: v.personalFor !== null,
+				createdAt: v.createdAt,
+				wrappedKey: mine?.wrappedKey ?? "",
+				role: mine?.role ?? "view",
+				members: access
+					.filter((a) => a.vaultId === v.id)
+					.map((a) => ({
+						userId: a.userId,
+						name: a.name,
+						email: a.email,
+						role: a.role,
+					})),
+				itemCount: counts.find((c) => c.vaultId === v.id)?.n ?? 0,
+			};
+		});
 	}),
 
 	create: memberProcedure
@@ -79,7 +106,7 @@ export const vaultsRouter = {
 	update: memberProcedure
 		.input(z.object({ id: z.string(), encryptedMeta: sealed }))
 		.handler(async ({ context, input }) => {
-			await requireVaultAccess(context.db, context.userId, input.id);
+			await requireVaultAccess(context.db, context.userId, input.id, "manage");
 			await context.db
 				.update(vault)
 				.set({ encryptedMeta: input.encryptedMeta })
@@ -93,11 +120,12 @@ export const vaultsRouter = {
 				vaultId: z.string(),
 				userId: z.string(),
 				wrappedKey: wrapped,
+				role: role.default("edit"),
 			}),
 		)
 		.handler(async ({ context, input }) => {
 			const { db, userId } = context;
-			await requireVaultAccess(db, userId, input.vaultId);
+			await requireVaultAccess(db, userId, input.vaultId, "manage");
 			const [target] = await db
 				.select()
 				.from(vault)
@@ -121,6 +149,7 @@ export const vaultsRouter = {
 						vaultId: input.vaultId,
 						userId: input.userId,
 						wrappedKey: input.wrappedKey,
+						role: input.role,
 						grantedBy: userId,
 					})
 					.onConflictDoUpdate({
@@ -138,11 +167,49 @@ export const vaultsRouter = {
 			]);
 		}),
 
+	/** Changes what someone can do in a vault. Their key stays as it is. */
+	setRole: memberProcedure
+		.input(z.object({ vaultId: z.string(), userId: z.string(), role }))
+		.handler(async ({ context, input }) => {
+			const { db, userId } = context;
+			await requireVaultAccess(db, userId, input.vaultId, "manage");
+			const target = await requireVaultAccess(db, input.userId, input.vaultId);
+			if (target.role === input.role) return;
+			if (target.role === "manage") {
+				await keepAManager(db, input.vaultId, input.userId);
+			}
+			await db.batch([
+				db
+					.update(vaultAccess)
+					.set({ role: input.role })
+					.where(
+						and(
+							eq(vaultAccess.vaultId, input.vaultId),
+							eq(vaultAccess.userId, input.userId),
+						),
+					),
+				logEvent(db, {
+					actorType: "member",
+					actorId: userId,
+					action: "changed",
+					vaultId: input.vaultId,
+					subjectId: input.userId,
+					detail: input.role,
+				}),
+			]);
+		}),
+
 	unshare: memberProcedure
 		.input(z.object({ vaultId: z.string(), userId: z.string() }))
 		.handler(async ({ context, input }) => {
 			const { db, userId } = context;
-			await requireVaultAccess(db, userId, input.vaultId);
+			// Anyone can leave a vault; taking someone else out needs a manager.
+			await requireVaultAccess(
+				db,
+				userId,
+				input.vaultId,
+				input.userId === userId ? "view" : "manage",
+			);
 			const [target] = await db
 				.select()
 				.from(vault)
@@ -152,6 +219,7 @@ export const vaultsRouter = {
 					message: "You can't leave your private vault",
 				});
 			}
+			await keepAManager(db, input.vaultId, input.userId);
 			const [person] = await db
 				.select({ name: user.name })
 				.from(user)
@@ -179,7 +247,7 @@ export const vaultsRouter = {
 		.input(z.object({ id: z.string() }))
 		.handler(async ({ context, input }) => {
 			const { db, userId } = context;
-			await requireVaultAccess(db, userId, input.id);
+			await requireVaultAccess(db, userId, input.id, "manage");
 			const [target] = await db
 				.select()
 				.from(vault)

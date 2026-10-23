@@ -39,6 +39,7 @@ import { ago, plural, timeLeft, toneDot } from "@/lib/format";
 import { logoDomain } from "@/lib/logos";
 import { useLookup } from "@/lib/use-lookup";
 import {
+	canEdit,
 	errorMessage,
 	type Item,
 	useActions,
@@ -90,6 +91,8 @@ export function ItemDetail({ item }: { item: Item }) {
 	const [sharing, setSharing] = useState(false);
 
 	const vault = vaults.data?.find((v) => v.id === item.vaultId);
+	// Someone who can only view this vault opens and copies; nothing that changes it.
+	const editable = canEdit(vault);
 	const editor = members.data?.members.find((m) => m.userId === item.updatedBy);
 	const withAccess = (agents.data ?? []).filter((agent) =>
 		agent.grants.some((grant) => grant.itemId === item.id),
@@ -178,75 +181,85 @@ export function ItemDetail({ item }: { item: Item }) {
 							{item.favorite ? "Favorite" : "Add to favorites"}
 						</TooltipContent>
 					</Tooltip>
-					<Tooltip>
-						<TooltipTrigger
-							render={
-								<Button
-									variant="ghost"
-									size="icon-sm"
-									aria-label="Share a link"
-									onClick={() => setSharing(true)}
-								/>
-							}
-						>
-							<LinkSimpleIcon />
-						</TooltipTrigger>
-						<TooltipContent>Share a link</TooltipContent>
-					</Tooltip>
-					<Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-						<PencilSimpleIcon data-icon="inline-start" />
-						Edit
-					</Button>
-					<DropdownMenu>
-						<DropdownMenuTrigger
-							render={
-								<Button
-									variant="ghost"
-									size="icon-sm"
-									aria-label="More actions"
-								/>
-							}
-						>
-							<DotsThreeIcon />
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" className="w-52">
-							{item.secret && (
-								<>
-									<DropdownMenuItem onClick={() => setGranting(true)}>
-										<RobotIcon />
-										Use with an agent…
-									</DropdownMenuItem>
-									<DropdownMenuSeparator />
-								</>
-							)}
-							<DropdownMenuGroup>
-								<DropdownMenuLabel>Move to</DropdownMenuLabel>
-								{(vaults.data ?? [])
-									.filter((v) => v.id !== item.vaultId)
-									.map((target) => (
-										<DropdownMenuItem
-											key={target.id}
-											onClick={() =>
-												run(
-													actions.updateItem(item, fieldsOf(item), target),
-													`Moved to ${target.name}`,
-												)
-											}
-										>
-											<span
-												className={`size-2 rounded-full ${toneDot[target.tone]}`}
-											/>
-											{target.name}
+					{editable && (
+						<>
+							<Tooltip>
+								<TooltipTrigger
+									render={
+										<Button
+											variant="ghost"
+											size="icon-sm"
+											aria-label="Share a link"
+											onClick={() => setSharing(true)}
+										/>
+									}
+								>
+									<LinkSimpleIcon />
+								</TooltipTrigger>
+								<TooltipContent>Share a link</TooltipContent>
+							</Tooltip>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => setEditing(true)}
+							>
+								<PencilSimpleIcon data-icon="inline-start" />
+								Edit
+							</Button>
+						</>
+					)}
+					{editable && (
+						<DropdownMenu>
+							<DropdownMenuTrigger
+								render={
+									<Button
+										variant="ghost"
+										size="icon-sm"
+										aria-label="More actions"
+									/>
+								}
+							>
+								<DotsThreeIcon />
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="w-52">
+								{item.secret && (
+									<>
+										<DropdownMenuItem onClick={() => setGranting(true)}>
+											<RobotIcon />
+											Use with an agent…
 										</DropdownMenuItem>
-									))}
-							</DropdownMenuGroup>
-							<DropdownMenuSeparator />
-							<DropdownMenuItem variant="destructive" onClick={remove}>
-								<TrashIcon />
-								Delete item
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
+										<DropdownMenuSeparator />
+									</>
+								)}
+								<DropdownMenuGroup>
+									<DropdownMenuLabel>Move to</DropdownMenuLabel>
+									{(vaults.data ?? [])
+										.filter((v) => v.id !== item.vaultId && canEdit(v))
+										.map((target) => (
+											<DropdownMenuItem
+												key={target.id}
+												onClick={() =>
+													run(
+														actions.updateItem(item, fieldsOf(item), target),
+														`Moved to ${target.name}`,
+													)
+												}
+											>
+												<span
+													className={`size-2 rounded-full ${toneDot[target.tone]}`}
+												/>
+												{target.name}
+											</DropdownMenuItem>
+										))}
+								</DropdownMenuGroup>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem variant="destructive" onClick={remove}>
+									<TrashIcon />
+									Delete item
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					)}
 				</div>
 			</header>
 
@@ -257,9 +270,15 @@ export function ItemDetail({ item }: { item: Item }) {
 						This password turned up {timesSeen(breaches)} in data breaches.
 						Attackers try leaked passwords first, so change it.
 					</p>
-					<Button variant="outline" size="xs" onClick={() => setEditing(true)}>
-						Change
-					</Button>
+					{editable && (
+						<Button
+							variant="outline"
+							size="xs"
+							onClick={() => setEditing(true)}
+						>
+							Change
+						</Button>
+					)}
 				</div>
 			) : null}
 
@@ -292,9 +311,15 @@ export function ItemDetail({ item }: { item: Item }) {
 							? "If one leaks, the other is open too."
 							: "If one leaks, the others are open too."}
 					</p>
-					<Button variant="outline" size="xs" onClick={() => setEditing(true)}>
-						Change
-					</Button>
+					{editable && (
+						<Button
+							variant="outline"
+							size="xs"
+							onClick={() => setEditing(true)}
+						>
+							Change
+						</Button>
+					)}
 				</div>
 			) : null}
 
@@ -309,9 +334,15 @@ export function ItemDetail({ item }: { item: Item }) {
 						{ago(exposure.people[0]?.at ?? new Date())}. Change it so any copy
 						they kept stops working.
 					</p>
-					<Button variant="outline" size="xs" onClick={() => setEditing(true)}>
-						Change
-					</Button>
+					{editable && (
+						<Button
+							variant="outline"
+							size="xs"
+							onClick={() => setEditing(true)}
+						>
+							Change
+						</Button>
+					)}
 				</div>
 			) : null}
 
@@ -398,10 +429,16 @@ export function ItemDetail({ item }: { item: Item }) {
 				>
 					<div className="flex items-center justify-between">
 						<h3 className="text-body-sm text-fg">Shared links</h3>
-						<Button variant="ghost" size="xs" onClick={() => setSharing(true)}>
-							<PlusIcon data-icon="inline-start" />
-							New link
-						</Button>
+						{editable && (
+							<Button
+								variant="ghost"
+								size="xs"
+								onClick={() => setSharing(true)}
+							>
+								<PlusIcon data-icon="inline-start" />
+								New link
+							</Button>
+						)}
 					</div>
 					<ul className="flex flex-col gap-1">
 						{links.data.map((link) => (
@@ -426,15 +463,17 @@ export function ItemDetail({ item }: { item: Item }) {
 										by {link.createdByName ?? "someone who left"}
 									</span>
 								</div>
-								<Button
-									variant="ghost"
-									size="xs"
-									onClick={() =>
-										run(actions.revokeLink(link.id), "Turned the link off")
-									}
-								>
-									Turn off
-								</Button>
+								{editable && (
+									<Button
+										variant="ghost"
+										size="xs"
+										onClick={() =>
+											run(actions.revokeLink(link.id), "Turned the link off")
+										}
+									>
+										Turn off
+									</Button>
+								)}
 							</li>
 						))}
 					</ul>
@@ -445,10 +484,16 @@ export function ItemDetail({ item }: { item: Item }) {
 				<div className="border-line-subtle mt-2 flex flex-col gap-2 border-t p-4">
 					<div className="flex items-center justify-between">
 						<h3 className="text-body-sm text-fg">Agents that can use it</h3>
-						<Button variant="ghost" size="xs" onClick={() => setGranting(true)}>
-							<PlusIcon data-icon="inline-start" />
-							Add
-						</Button>
+						{editable && (
+							<Button
+								variant="ghost"
+								size="xs"
+								onClick={() => setGranting(true)}
+							>
+								<PlusIcon data-icon="inline-start" />
+								Add
+							</Button>
+						)}
 					</div>
 					<ul className="flex flex-col gap-1">
 						{withAccess.map((agent) => {
@@ -471,6 +516,7 @@ export function ItemDetail({ item }: { item: Item }) {
 									</div>
 									<Switch
 										defaultChecked
+										disabled={!editable}
 										aria-label={`Allow ${agent.name}`}
 										onCheckedChange={(checked) => {
 											if (!checked) {

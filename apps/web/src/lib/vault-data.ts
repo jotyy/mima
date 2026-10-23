@@ -55,6 +55,33 @@ type ItemRow = Rows<typeof client.items.list>[number];
 
 export type Vault = VaultMeta &
 	Omit<VaultRow, "encryptedMeta"> & { key: CryptoKey };
+/** What someone can do in a vault; the server enforces it. */
+export type VaultRole = VaultRow["role"];
+
+export const vaultRoles: { value: VaultRole; label: string; hint: string }[] = [
+	{ value: "view", label: "Can view", hint: "Open, copy and fill items" },
+	{
+		value: "edit",
+		label: "Can edit",
+		hint: "Also add, change and delete items, and share them by link or with agents",
+	},
+	{
+		value: "manage",
+		label: "Can manage",
+		hint: "Also choose who can open the vault, rename and delete it",
+	},
+];
+
+export const roleLabel = (role: string | null | undefined) =>
+	vaultRoles.find((choice) => choice.value === role)?.label ?? "Can view";
+
+/** Whether this person can add, change and delete items in the vault. */
+export const canEdit = (vault: { role: VaultRole } | undefined) =>
+	vault?.role === "edit" || vault?.role === "manage";
+
+/** Whether this person can share, rename and delete the vault. */
+export const canManage = (vault: { role: VaultRole } | undefined) =>
+	vault?.role === "manage";
 export type Item = ItemFields &
 	Omit<ItemRow, "data" | "wrappedKey"> & {
 		key: CryptoKey;
@@ -506,14 +533,19 @@ export function useActions() {
 			shareVault: async (
 				vault: Vault,
 				member: { userId: string; publicKey: string },
+				role: VaultRole,
 			) =>
 				after(
 					client.vaults.share({
 						vaultId: vault.id,
 						userId: member.userId,
 						wrappedKey: await wrapKeyFor(member.publicKey, vault.key),
+						role,
 					}),
 				),
+
+			setVaultRole: (vault: Vault, userId: string, role: VaultRole) =>
+				after(client.vaults.setRole({ vaultId: vault.id, userId, role })),
 
 			unshareVault: (vault: Vault, userId: string) =>
 				after(client.vaults.unshare({ vaultId: vault.id, userId })),

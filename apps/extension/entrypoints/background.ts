@@ -256,7 +256,9 @@ async function offerState(tab: Tab): Promise<OfferState> {
 	return {
 		status: "ready",
 		offer: viewOf(offer),
-		vaults: open.vaults.map(({ id, name }) => ({ id, name })),
+		vaults: open.vaults
+			.filter((vault) => vault.editable)
+			.map(({ id, name }) => ({ id, name })),
 	};
 }
 
@@ -266,7 +268,9 @@ async function save(
 ): Promise<Done> {
 	const capture = await getCapture(tab.id);
 	const open = await openVault();
-	const vault = open?.vaults.find((v) => v.id === request.vaultId);
+	const vault = open?.vaults.find(
+		(v) => v.id === request.vaultId && v.editable,
+	);
 	if (!capture || !open || !vault)
 		return { ok: false, error: "That login isn't waiting any more." };
 	try {

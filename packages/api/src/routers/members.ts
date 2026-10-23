@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { user } from "@vauly/db/schema/auth";
 import { invite, member, vault, vaultAccess } from "@vauly/db/schema/vault";
-import { and, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { adminProcedure, memberProcedure } from "../index";
@@ -183,7 +183,7 @@ export const membersRouter = {
 					.where(eq(user.id, input.userId))
 					.then((rows) => rows[0]),
 				db
-					.select({ vaultId: vaultAccess.vaultId })
+					.select({ vaultId: vaultAccess.vaultId, role: vaultAccess.role })
 					.from(vaultAccess)
 					.innerJoin(vault, eq(vault.id, vaultAccess.vaultId))
 					.where(
@@ -194,6 +194,25 @@ export const membersRouter = {
 					),
 			]);
 			const name = person?.name ?? "Someone";
+			// A vault whose only manager leaves isn't left without one: the people who could
+			// edit it take over, or everyone left when nobody could.
+			const successors: { vaultId: string; userId: string }[] = [];
+			for (const row of shared.filter((access) => access.role === "manage")) {
+				const others = await db
+					.select({ userId: vaultAccess.userId, role: vaultAccess.role })
+					.from(vaultAccess)
+					.where(
+						and(
+							eq(vaultAccess.vaultId, row.vaultId),
+							ne(vaultAccess.userId, input.userId),
+						),
+					);
+				if (others.some((other) => other.role === "manage")) continue;
+				const editors = others.filter((other) => other.role === "edit");
+				for (const next of editors.length ? editors : others) {
+					successors.push({ vaultId: row.vaultId, userId: next.userId });
+				}
+			}
 			await db.batch([
 				db.delete(vault).where(eq(vault.personalFor, input.userId)),
 				db.delete(user).where(eq(user.id, input.userId)),
@@ -214,6 +233,25 @@ export const membersRouter = {
 						detail: name,
 					}),
 				),
+				...successors.flatMap((next) => [
+					db
+						.update(vaultAccess)
+						.set({ role: "manage" })
+						.where(
+							and(
+								eq(vaultAccess.vaultId, next.vaultId),
+								eq(vaultAccess.userId, next.userId),
+							),
+						),
+					logEvent(db, {
+						actorType: "member",
+						actorId: userId,
+						action: "changed",
+						vaultId: next.vaultId,
+						subjectId: next.userId,
+						detail: "manage",
+					}),
+				]),
 			]);
 		}),
 };

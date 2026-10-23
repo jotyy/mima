@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 
 import { toneDot } from "@/lib/format";
 import {
+	canManage,
 	errorMessage,
 	type Member,
 	useActions,
@@ -74,7 +75,10 @@ export function GiveAccessDialog({
 }) {
 	const vaults = useVaults();
 	const actions = useActions();
-	const shared = (vaults.data ?? []).filter((vault) => !vault.personal);
+	// Only a vault's managers can open it to someone.
+	const shared = (vaults.data ?? []).filter(
+		(vault) => !vault.personal && canManage(vault),
+	);
 	const [chosen, setChosen] = useState<Set<string>>(new Set());
 	const [busy, setBusy] = useState(false);
 
@@ -97,13 +101,14 @@ export function GiveAccessDialog({
 				<DialogHeader>
 					<DialogTitle>Vaults {member?.name} can open</DialogTitle>
 					<DialogDescription>
-						Their key is wrapped on this device; the server never sees a vault
-						key.
+						They can add and change items in the vaults you pick. Their key is
+						wrapped on this device; the server never sees a vault key.
 					</DialogDescription>
 				</DialogHeader>
 				{shared.length === 0 ? (
 					<p className="border-line text-caption text-fg-muted rounded-lg border border-dashed px-3 py-4 text-center">
-						There are no shared vaults yet. Create one on the Vaults page.
+						There are no shared vaults you manage yet. Create one on the Vaults
+						page.
 					</p>
 				) : (
 					<ul className="flex flex-col gap-1">
@@ -155,7 +160,7 @@ export function GiveAccessDialog({
 							setBusy(true);
 							try {
 								for (const vault of targets)
-									await actions.shareVault(vault, member);
+									await actions.shareVault(vault, member, "edit");
 								if (targets.length) {
 									notify.success(
 										`${member.name} can open ${targets.length === 1 ? targets[0]?.name : `${targets.length} vaults`}`,

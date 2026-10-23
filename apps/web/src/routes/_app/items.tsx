@@ -28,6 +28,7 @@ import { timesSeen, useBreached } from "@/lib/breaches";
 import { plural, toneDot } from "@/lib/format";
 import { logoDomain } from "@/lib/logos";
 import {
+	canEdit,
 	type Item,
 	type ItemKind,
 	itemMatches,
@@ -83,6 +84,8 @@ function Items() {
 	const { exposed } = useExposed();
 	const breached = useBreached();
 	const vault = vaults.data?.find((v) => v.id === search.vault);
+	// In a vault this person can only view, there's nothing to add.
+	const adding = !vault || canEdit(vault);
 	const query = (search.q ?? "").toLowerCase();
 
 	const inScope = (items.data ?? []).filter(
@@ -123,7 +126,7 @@ function Items() {
 	const description = vault
 		? vault.personal
 			? "Only you can open this vault."
-			: `${vault.description ? `${vault.description} ` : ""}Shared with ${vault.members.length} ${vault.members.length === 1 ? "person" : "people"}.`
+			: `${vault.description ? `${vault.description} ` : ""}Shared with ${vault.members.length} ${vault.members.length === 1 ? "person" : "people"}.${canEdit(vault) ? "" : " You can view it, not change it."}`
 		: `${plural(items.data?.length ?? 0, "item")} across ${plural(vaults.data?.length ?? 0, "vault")}.`;
 
 	return (
@@ -175,18 +178,22 @@ function Items() {
 							}
 						/>
 					</InputGroup>
-					<Button
-						variant="outline"
-						aria-label="Import"
-						onClick={() => setImporting(true)}
-					>
-						<UploadSimpleIcon data-icon="inline-start" />
-						<span className="max-md:hidden">Import</span>
-					</Button>
-					<Button aria-label="New item" onClick={() => setNew(true)}>
-						<PlusIcon data-icon="inline-start" />
-						<span className="max-md:hidden">New item</span>
-					</Button>
+					{adding && (
+						<>
+							<Button
+								variant="outline"
+								aria-label="Import"
+								onClick={() => setImporting(true)}
+							>
+								<UploadSimpleIcon data-icon="inline-start" />
+								<span className="max-md:hidden">Import</span>
+							</Button>
+							<Button aria-label="New item" onClick={() => setNew(true)}>
+								<PlusIcon data-icon="inline-start" />
+								<span className="max-md:hidden">New item</span>
+							</Button>
+						</>
+					)}
 				</div>
 			</div>
 
@@ -397,19 +404,23 @@ function EmptyVault({
 						? "Keep your team's logins, API keys and notes in one place."
 						: vault.personal
 							? "Logins, keys and notes only you can open."
-							: `Everyone with access to ${vault.name} can use what you add here.`}
+							: canEdit(vault)
+								? `Everyone with access to ${vault.name} can use what you add here.`
+								: `You can view ${vault.name}. Items appear here once someone who can edit it adds them.`}
 				</p>
 			</div>
 			<div className="mt-2 flex flex-col items-center gap-4">
-				<div className="flex items-center gap-2">
-					<Button onClick={onAdd}>
-						<PlusIcon data-icon="inline-start" />
-						Add your first item
-					</Button>
-					<Button variant="ghost" onClick={onImport}>
-						Import from…
-					</Button>
-				</div>
+				{(!vault || canEdit(vault)) && (
+					<div className="flex items-center gap-2">
+						<Button onClick={onAdd}>
+							<PlusIcon data-icon="inline-start" />
+							Add your first item
+						</Button>
+						<Button variant="ghost" onClick={onImport}>
+							Import from…
+						</Button>
+					</div>
+				)}
 				<p className="text-caption text-fg-subtle flex items-center gap-1.5">
 					<LockSimpleIcon className="size-3.5" />
 					Encrypted on this device before anything is saved

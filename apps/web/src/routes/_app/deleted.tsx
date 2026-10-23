@@ -18,6 +18,7 @@ import { Page } from "@/components/page";
 import { ago, toneDot } from "@/lib/format";
 import { logoDomain } from "@/lib/logos";
 import {
+	canEdit,
 	errorMessage,
 	type Item,
 	useActions,
@@ -125,42 +126,49 @@ function DeletedRow({
 			<Badge variant={daysLeft <= 3 ? "warning" : "secondary"}>
 				{daysLeft} {daysLeft === 1 ? "day" : "days"} left
 			</Badge>
-			<Button
-				variant="outline"
-				size="sm"
-				disabled={busy}
-				onClick={async () => {
-					setBusy(true);
-					try {
-						await actions.restoreItem(item);
-						notify.success(`Restored ${item.name}`, vault?.name);
-					} catch (err) {
-						notify.error("Couldn't restore it", errorMessage(err));
-						setBusy(false);
-					}
-				}}
-			>
-				Restore
-			</Button>
-			<DropdownMenu>
-				<DropdownMenuTrigger
-					render={
-						<Button
-							variant="ghost"
-							size="icon-sm"
-							aria-label={`More for ${item.name}`}
-						/>
-					}
-				>
-					<DotsThreeIcon />
-				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end">
-					<DropdownMenuItem variant="destructive" onClick={() => onPurge(item)}>
-						<TrashIcon />
-						Delete for good
-					</DropdownMenuItem>
-				</DropdownMenuContent>
-			</DropdownMenu>
+			{canEdit(vault) && (
+				<>
+					<Button
+						variant="outline"
+						size="sm"
+						disabled={busy}
+						onClick={async () => {
+							setBusy(true);
+							try {
+								await actions.restoreItem(item);
+								notify.success(`Restored ${item.name}`, vault?.name);
+							} catch (err) {
+								notify.error("Couldn't restore it", errorMessage(err));
+								setBusy(false);
+							}
+						}}
+					>
+						Restore
+					</Button>
+					<DropdownMenu>
+						<DropdownMenuTrigger
+							render={
+								<Button
+									variant="ghost"
+									size="icon-sm"
+									aria-label={`More for ${item.name}`}
+								/>
+							}
+						>
+							<DotsThreeIcon />
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuItem
+								variant="destructive"
+								onClick={() => onPurge(item)}
+							>
+								<TrashIcon />
+								Delete for good
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				</>
+			)}
 		</div>
 	);
 }

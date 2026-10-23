@@ -32,6 +32,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { timesSeen, useDraftBreaches } from "@/lib/breaches";
 import { generatePassword, parseTotp, passwordStrength } from "@/lib/secrets";
 import {
+	canEdit,
 	errorMessage,
 	type Item,
 	type ItemFields,
@@ -98,10 +99,12 @@ export function ItemDialog({
 }) {
 	const vaults = useVaults();
 	const actions = useActions();
+	// Items go only where this person can add them.
+	const writable = (vaults.data ?? []).filter(canEdit);
 	const fallbackVault =
-		defaultVaultId ??
-		vaults.data?.find((v) => v.personal)?.id ??
-		vaults.data?.[0]?.id;
+		writable.find((v) => v.id === defaultVaultId)?.id ??
+		writable.find((v) => v.personal)?.id ??
+		writable[0]?.id;
 	const [form, setForm] = useState(() => fromItem(item, fallbackVault));
 	const [error, setError] = useState("");
 	const [busy, setBusy] = useState(false);
@@ -128,7 +131,7 @@ export function ItemDialog({
 	const set = <K extends keyof Form>(key: K, value: Form[K]) =>
 		setForm((current) => ({ ...current, [key]: value }));
 
-	const vaultItems = (vaults.data ?? []).map((v) => ({
+	const vaultItems = writable.map((v) => ({
 		value: v.id,
 		label: v.name,
 	}));

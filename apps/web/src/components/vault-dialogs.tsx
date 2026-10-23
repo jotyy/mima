@@ -23,11 +23,15 @@ import { useEffect, useState } from "react";
 import { initials, toneDot } from "@/lib/format";
 import { useKeyring } from "@/lib/keyring";
 import {
+	canManage,
 	errorMessage,
+	roleLabel,
 	type Tone,
 	useActions,
 	useMembers,
 	type Vault,
+	type VaultRole,
+	vaultRoles,
 } from "@/lib/vault-data";
 
 import { Field } from "./auth-layout";
@@ -178,7 +182,10 @@ export function VaultAccessDialog({
 	const members = useMembers();
 	const actions = useActions();
 	const [adding, setAdding] = useState("");
+	const [addingRole, setAddingRole] = useState<VaultRole>("edit");
 	const [busy, setBusy] = useState(false);
+	const managing = canManage(vault);
+	const managers = vault.members.filter((m) => m.role === "manage");
 	const inVault = new Set(vault.members.map((m) => m.userId));
 	const others = (members.data?.members ?? []).filter(
 		(m) => !inVault.has(m.userId),
@@ -191,6 +198,9 @@ export function VaultAccessDialog({
 	useEffect(() => {
 		if (open) setAdding(others[0]?.userId ?? "");
 	}, [open, others[0]?.userId]);
+	useEffect(() => {
+		if (open) setAddingRole("edit");
+	}, [open]);
 
 	const run = async (work: Promise<unknown>, message: string) => {
 		setBusy(true);
@@ -212,7 +222,9 @@ export function VaultAccessDialog({
 					<DialogDescription>
 						{vault.personal
 							? "This is your private vault. Nobody else can be added."
-							: "Adding someone wraps the vault key for them on this device. Removing them stops future access; change any secrets they've seen."}
+							: managing
+								? "Adding someone wraps the vault key for them on this device. Removing them stops future access; change any secrets they've seen."
+								: "Only the vault's managers can change who can open it."}
 					</DialogDescription>
 				</DialogHeader>
 				<ul className="flex flex-col gap-1">
@@ -235,7 +247,29 @@ export function VaultAccessDialog({
 									{person.email}
 								</span>
 							</div>
-							{!vault.personal && person.userId !== me?.id && (
+							{vault.personal ? null : managing &&
+								!(
+									person.role === "manage" &&
+									managers.length === 1 &&
+									person.userId === me?.id
+								) ? (
+								<RoleSelect
+									label={`What ${person.name} can do`}
+									value={person.role}
+									disabled={busy}
+									onChange={(role) =>
+										run(
+											actions.setVaultRole(vault, person.userId, role),
+											`${person.name}: ${roleLabel(role).toLowerCase()} in ${vault.name}`,
+										)
+									}
+								/>
+							) : (
+								<span className="text-caption text-fg-muted shrink-0">
+									{roleLabel(person.role)}
+								</span>
+							)}
+							{!vault.personal && managing && person.userId !== me?.id && (
 								<Button
 									variant="ghost"
 									size="xs"
@@ -254,6 +288,7 @@ export function VaultAccessDialog({
 					))}
 				</ul>
 				{!vault.personal &&
+					managing &&
 					(choices.length === 0 ? (
 						<p className="text-caption text-fg-subtle">
 							Everyone in the workspace can open this vault.
@@ -279,13 +314,20 @@ export function VaultAccessDialog({
 									))}
 								</SelectContent>
 							</Select>
+							<RoleSelect
+								label="What they can do"
+								size="default"
+								value={addingRole}
+								disabled={busy}
+								onChange={setAddingRole}
+							/>
 							<Button
 								disabled={!adding || busy}
 								onClick={() => {
 									const person = others.find((m) => m.userId === adding);
 									if (person) {
 										run(
-											actions.shareVault(vault, person),
+											actions.shareVault(vault, person, addingRole),
 											`${person.name} can open ${vault.name}`,
 										);
 									}
@@ -297,5 +339,42 @@ export function VaultAccessDialog({
 					))}
 			</DialogContent>
 		</Dialog>
+	);
+}
+
+function RoleSelect({
+	label,
+	value,
+	disabled,
+	size = "sm",
+	onChange,
+}: {
+	label: string;
+	value: VaultRole;
+	disabled?: boolean;
+	size?: "sm" | "default";
+	onChange: (role: VaultRole) => void;
+}) {
+	return (
+		<Select
+			items={vaultRoles}
+			value={value}
+			disabled={disabled}
+			onValueChange={(next) => next && onChange(next as VaultRole)}
+		>
+			<SelectTrigger size={size} className="w-32 shrink-0" aria-label={label}>
+				<SelectValue />
+			</SelectTrigger>
+			<SelectContent align="end" className="w-72">
+				{vaultRoles.map((role) => (
+					<SelectItem key={role.value} value={role.value}>
+						<span className="flex flex-col">
+							<span>{role.label}</span>
+							<span className="text-caption text-fg-subtle">{role.hint}</span>
+						</span>
+					</SelectItem>
+				))}
+			</SelectContent>
+		</Select>
 	);
 }

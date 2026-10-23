@@ -57,7 +57,9 @@ export function offerFor(
 			(entry.username ?? "").toLowerCase() === capture.username.toLowerCase(),
 	);
 	if (same?.secret === capture.password) return null;
-	if (same) return { kind: "update", capture, entry: same };
+	// A login in a vault this person can only view can't be updated, nor saved twice.
+	if (same)
+		return same.editable ? { kind: "update", capture, entry: same } : null;
 	return { kind: "save", capture };
 }
 

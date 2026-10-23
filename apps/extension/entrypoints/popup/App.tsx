@@ -415,7 +415,7 @@ function Items({
 			{offer && (
 				<SaveOffer
 					offer={viewOf(offer)}
-					vaults={vaults}
+					vaults={vaults.filter((vault) => vault.editable)}
 					className="shadow-card mx-3 mt-3"
 					onSave={async (vaultId, login) => {
 						const vault = vaults.find((v) => v.id === vaultId);

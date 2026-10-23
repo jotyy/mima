@@ -29,6 +29,7 @@ import { Page } from "@/components/page";
 import { VaultAccessDialog, VaultDialog } from "@/components/vault-dialogs";
 import { initials, plural, toneDot } from "@/lib/format";
 import {
+	canManage,
 	errorMessage,
 	useActions,
 	useAgents,
@@ -116,6 +117,7 @@ function VaultCard({ vault }: { vault: Vault }) {
 					{vault.name}
 				</h2>
 				{vault.personal && <Badge variant="secondary">Private</Badge>}
+				{vault.role === "view" && <Badge variant="secondary">View only</Badge>}
 				<DropdownMenu>
 					<DropdownMenuTrigger
 						render={
@@ -133,14 +135,16 @@ function VaultCard({ vault }: { vault: Vault }) {
 						{!vault.personal && (
 							<DropdownMenuItem onClick={() => setSharing(true)}>
 								<UsersThreeIcon />
-								Manage access
+								{canManage(vault) ? "Manage access" : "People"}
 							</DropdownMenuItem>
 						)}
-						<DropdownMenuItem onClick={() => setEditing(true)}>
-							<PencilSimpleIcon />
-							Rename
-						</DropdownMenuItem>
-						{!vault.personal && (
+						{canManage(vault) && (
+							<DropdownMenuItem onClick={() => setEditing(true)}>
+								<PencilSimpleIcon />
+								Rename
+							</DropdownMenuItem>
+						)}
+						{!vault.personal && canManage(vault) && (
 							<>
 								<DropdownMenuSeparator />
 								<DropdownMenuItem

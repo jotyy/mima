@@ -35,4 +35,9 @@ export const migrations: readonly {
 		hash: "ce93a98dc08a68b349ff9370593eb2b4eb914e3aeec3d1bfb8818f39f1f2b66d",
 		sql: "ALTER TABLE `member` ADD `totp_secret` text;--> statement-breakpoint\nALTER TABLE `member` ADD `totp_pending` text;--> statement-breakpoint\nALTER TABLE `member` ADD `totp_step` integer;--> statement-breakpoint\nALTER TABLE `member` ADD `recovery_codes` text;",
 	},
+	{
+		name: "20261023183641_vault_roles",
+		hash: "90bbb0db412eb416e8e0477ba3f217e8888ba4e2e2a2d2afc2409a5773cbb5c2",
+		sql: "ALTER TABLE `vault_access` ADD `role` text DEFAULT 'manage' NOT NULL;",
+	},
 ];

@@ -1,4 +1,11 @@
-import type { Agent, Item, Member, Vault, VaultEvent } from "./vault-data";
+import {
+	type Agent,
+	type Item,
+	type Member,
+	roleLabel,
+	type Vault,
+	type VaultEvent,
+} from "./vault-data";
 
 const durations: Record<string, string> = {
 	once: "for one run",
@@ -109,6 +116,12 @@ export function describeEvent(
 			return parts(
 				`gave ${subject ?? event.detail ?? "someone"} access to`,
 				vault?.name ?? "a vault",
+			);
+		case "changed":
+			return parts(
+				`changed what ${subject ?? "someone"} can do in`,
+				vault?.name ?? "a vault",
+				roleLabel(event.detail).toLowerCase(),
 			);
 		case "joined":
 			return parts(

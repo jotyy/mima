@@ -47,7 +47,7 @@ export const itemsRouter = {
 		.input(z.object({ vaultId: z.string(), wrappedKey: wrapped, data }))
 		.handler(async ({ context, input }) => {
 			const { db, userId } = context;
-			await requireVaultAccess(db, userId, input.vaultId);
+			await requireVaultAccess(db, userId, input.vaultId, "edit");
 			const id = newId("itm");
 			await db.batch([
 				db.insert(item).values({
@@ -87,7 +87,7 @@ export const itemsRouter = {
 		)
 		.handler(async ({ context, input }) => {
 			const { db, userId } = context;
-			await requireVaultAccess(db, userId, input.vaultId);
+			await requireVaultAccess(db, userId, input.vaultId, "edit");
 			const now = new Date();
 			const rows = input.items.map((entry) => ({
 				id: newId("itm"),
@@ -138,7 +138,9 @@ export const itemsRouter = {
 		)
 		.handler(async ({ context, input }) => {
 			const { db, userId } = context;
-			const current = await requireItemAccess(db, userId, input.id);
+			const current = await requireItemAccess(db, userId, input.id, {
+				role: "edit",
+			});
 			if (current.revision !== input.revision) {
 				throw new ORPCError("CONFLICT", {
 					message:
@@ -149,7 +151,7 @@ export const itemsRouter = {
 			if (moving) {
 				if (!input.wrappedKey)
 					throw new ORPCError("BAD_REQUEST", { message: "Missing key" });
-				await requireVaultAccess(db, userId, input.vaultId as string);
+				await requireVaultAccess(db, userId, input.vaultId as string, "edit");
 			}
 			await db.batch([
 				db
@@ -180,7 +182,9 @@ export const itemsRouter = {
 		.input(z.object({ id: z.string() }))
 		.handler(async ({ context, input }) => {
 			const { db, userId } = context;
-			const current = await requireItemAccess(db, userId, input.id);
+			const current = await requireItemAccess(db, userId, input.id, {
+				role: "edit",
+			});
 			await db.batch([
 				db
 					.update(item)
@@ -202,6 +206,7 @@ export const itemsRouter = {
 			const { db, userId } = context;
 			const current = await requireItemAccess(db, userId, input.id, {
 				deleted: true,
+				role: "edit",
 			});
 			if (!current.deletedAt) return;
 			await db.batch([
@@ -226,6 +231,7 @@ export const itemsRouter = {
 			const { db, userId } = context;
 			const current = await requireItemAccess(db, userId, input.id, {
 				deleted: true,
+				role: "edit",
 			});
 			if (!current.deletedAt) {
 				throw new ORPCError("BAD_REQUEST", {

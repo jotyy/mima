@@ -38,6 +38,7 @@ import { logoDomain } from "@/lib/logos";
 import { useLookup } from "@/lib/use-lookup";
 import {
 	type AccessRequest,
+	canEdit,
 	errorMessage,
 	type Item,
 	itemMatches,
@@ -353,7 +354,11 @@ function useNeeds() {
 		},
 	);
 
-	const live = items.data ?? [];
+	// Password problems ask for a change, so only items this person can change count.
+	const writable = new Set(
+		(vaults.data ?? []).filter(canEdit).map((vault) => vault.id),
+	);
+	const live = (items.data ?? []).filter((item) => writable.has(item.vaultId));
 	const openItem = (item: Item) =>
 		navigate({ to: "/items", search: { id: item.id, vault: item.vaultId } });
 	const review = (health: "breached" | "weak" | "reused" | "exposed") =>

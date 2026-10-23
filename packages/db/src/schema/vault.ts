@@ -69,6 +69,15 @@ export const vault = sqliteTable("vault", {
 	createdAt: createdAt(),
 });
 
+/**
+ * What someone can do in a vault they can open. The server enforces it; the key itself
+ * can't tell reading from writing.
+ * - view: open, reveal, copy and fill items
+ * - edit: also add, change, delete and restore items, and share them by link or with agents
+ * - manage: also choose who can open the vault and what they can do, rename and delete it
+ */
+export type VaultRole = "view" | "edit" | "manage";
+
 /** Who can open a vault: the vault key wrapped to that person's public key. */
 export const vaultAccess = sqliteTable(
 	"vault_access",
@@ -80,6 +89,9 @@ export const vaultAccess = sqliteTable(
 			.notNull()
 			.references(() => member.userId, { onDelete: "cascade" }),
 		wrappedKey: text("wrapped_key").notNull(),
+		// Whoever creates a vault manages it, as does everyone who could open one before
+		// roles existed. Sharing always says which role.
+		role: text("role").$type<VaultRole>().notNull().default("manage"),
 		grantedBy: text("granted_by").notNull(),
 		createdAt: createdAt(),
 	},
@@ -226,7 +238,9 @@ export type EventAction =
 	| "restored"
 	| "filled"
 	| "linked"
-	| "opened";
+	| "opened"
+	// Someone's role in a vault changed; `detail` holds the new role.
+	| "changed";
 
 /** Append-only audit log. `detail` is plaintext: never put a secret in it. */
 export const event = sqliteTable(

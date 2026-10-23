@@ -190,7 +190,9 @@ export const agentsRouter = {
 		)
 		.handler(async ({ context, input }) => {
 			const { db, userId } = context;
-			const target = await requireItemAccess(db, userId, input.itemId);
+			const target = await requireItemAccess(db, userId, input.itemId, {
+				role: "edit",
+			});
 			await requireAgent(db, input.agentId);
 			const terms = grantTerms(input.duration);
 			await db.batch([
@@ -224,7 +226,9 @@ export const agentsRouter = {
 		.input(z.object({ agentId: z.string(), itemId: z.string() }))
 		.handler(async ({ context, input }) => {
 			const { db, userId } = context;
-			const target = await requireItemAccess(db, userId, input.itemId);
+			const target = await requireItemAccess(db, userId, input.itemId, {
+				role: "edit",
+			});
 			await db.batch([
 				db
 					.delete(agentGrant)
@@ -248,7 +252,10 @@ export const agentsRouter = {
 
 export const requestsRouter = {
 	list: memberProcedure.handler(async ({ context }) => {
-		const itemIds = await accessibleItemIds(context.db, context.userId);
+		// Only people who can change an item answer for it.
+		const itemIds = await accessibleItemIds(context.db, context.userId, {
+			role: "edit",
+		});
 		if (itemIds.length === 0) return [];
 		return context.db
 			.select({
@@ -280,7 +287,9 @@ export const requestsRouter = {
 					message: "This request was already answered",
 				});
 			}
-			const target = await requireItemAccess(db, userId, request.itemId);
+			const target = await requireItemAccess(db, userId, request.itemId, {
+				role: "edit",
+			});
 			const terms = grantTerms(input.duration);
 			await db.batch([
 				db
@@ -326,7 +335,9 @@ export const requestsRouter = {
 					message: "This request was already answered",
 				});
 			}
-			const target = await requireItemAccess(db, userId, request.itemId);
+			const target = await requireItemAccess(db, userId, request.itemId, {
+				role: "edit",
+			});
 			await db.batch([
 				db
 					.update(accessRequest)

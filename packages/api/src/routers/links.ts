@@ -71,7 +71,9 @@ export const linksRouter = {
 		)
 		.handler(async ({ context, input }) => {
 			const { db, userId } = context;
-			const target = await requireItemAccess(db, userId, input.itemId);
+			const target = await requireItemAccess(db, userId, input.itemId, {
+				role: "edit",
+			});
 			const id = newId("lnk");
 			const expiresAt = new Date(Date.now() + linkDurations[input.expiresIn]);
 			await db.batch([
@@ -103,7 +105,9 @@ export const linksRouter = {
 			.from(shareLink)
 			.where(eq(shareLink.id, input.id));
 		if (!row) throw new ORPCError("NOT_FOUND", { message: "Link not found" });
-		const target = await requireItemAccess(db, userId, row.itemId);
+		const target = await requireItemAccess(db, userId, row.itemId, {
+			role: "edit",
+		});
 		await db.batch([
 			db.delete(shareLink).where(eq(shareLink.id, input.id)),
 			logEvent(db, {
