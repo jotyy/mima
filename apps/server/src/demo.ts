@@ -30,6 +30,10 @@ const closed: Record<string, string> = {
 	"account.deleteAccount":
 		"The demo account stays, so the next visitor can sign in.",
 	"members.transferOwnership": "The demo workspace keeps its owner.",
+	// It swaps the account's keys, and the server can't tell they still come from the
+	// same master password: a way around changePassword's turn here.
+	"account.upgradeKdf":
+		"The demo keeps its master password, so the next visitor can sign in.",
 };
 
 /** Turns away the procedures the demo keeps closed, before they run. */
