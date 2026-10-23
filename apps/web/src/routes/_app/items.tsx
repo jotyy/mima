@@ -395,7 +395,7 @@ function EmptyVault({
 						Add your first item
 					</Button>
 					<Button variant="ghost" onClick={onImport}>
-						Import from a CSV
+						Import from…
 					</Button>
 				</div>
 				<p className="text-caption text-fg-subtle flex items-center gap-1.5">

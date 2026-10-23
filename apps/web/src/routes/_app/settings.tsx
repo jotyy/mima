@@ -235,13 +235,13 @@ function Settings() {
 			<Card>
 				<Row
 					label="Import"
-					hint="Bring items in from 1Password, Bitwarden, a browser or any CSV."
+					hint="Bring items in from 1Password, Bitwarden, KeePass, a browser and a dozen other apps."
 				>
 					<Button
 						variant="outline"
 						onClick={() => navigate({ to: "/items", search: { import: true } })}
 					>
-						Import items
+						Import from…
 					</Button>
 				</Row>
 				<Row

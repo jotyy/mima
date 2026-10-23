@@ -1,0 +1,4 @@
+folder,favorite,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp
+Work,1,login,GitHub,,"recovery: example-code",0,"https://github.example.test,https://gist.example.test",alex@example.test,example-pass-1,JBSWY3DPEHPK3PXP
+,,note,Wi-Fi,guest network: example-only,,0,,,,
+,,card,Visa,,,0,,,,

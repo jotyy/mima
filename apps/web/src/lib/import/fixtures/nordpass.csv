@@ -1,0 +1,6 @@
+name,url,additional_urls,username,password,note,cardholdername,cardnumber,cvc,pin,expirydate,zipcode,folder,full_name,phone_number,email,address1,address2,city,country,state,type,custom_fields
+Work,,,,,,,,,,,,,,,,,,,,,folder,
+GitHub,https://github.example.test,"[""https://gist.example.test""]",alex@example.test,example-pass-1,work account,,,,,,,Work,,,,,,,,,password,"[{""label"":""API key"",""type"":""hidden"",""value"":""abc123""}]"
+Visa,,,,,,Alex Example,4111111111111111,123,0000,06/30,10115,,,,,,,,,,credit_card,
+Wi-Fi,,,,,guest network: example-only,,,,,,,,,,,,,,,,note,
+Alex,,,,,,,,,,,,,Alex Example,555-0100,alex@example.test,1 Example St,,Springfield,US,,identity,

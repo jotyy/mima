@@ -21,6 +21,7 @@ import { cn } from "@vauly/ui/lib/utils";
 import { type ComponentType, type ReactNode, useMemo, useState } from "react";
 
 import { toneDot } from "@/lib/format";
+import { importApps } from "@/lib/import/apps";
 import { logoDomain } from "@/lib/logos";
 import { itemMatches, useActions, useItems, useVaults } from "@/lib/vault-data";
 
@@ -144,7 +145,7 @@ export function CommandPalette({
 						},
 					]
 				: []),
-			...(match("import items", "csv")
+			...(match("import items", "csv", ...importApps.map((app) => app.name))
 				? [
 						{
 							label: "Import items",

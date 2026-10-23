@@ -1,0 +1,3 @@
+type,account_name,account_holder,cc_number,code,expiration_month,expiration_year,routing_number,account_number,country,issuing_bank
+payment_card,Visa,Alex Example,4111111111111111,123,6,2030,,,US,
+bank,Checking,Alex Example,,,,,000000000,0000000000,US,Example Bank

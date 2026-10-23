@@ -1,0 +1,4 @@
+type,name,url,email,username,password,note,totp,createTime,modifyTime,vault
+login,Shop,"https://shop.example.test, https://checkout.example.test",alex@example.test,alex,example-pass-1,Loyalty account,otpauth://totp/Shop:alex?secret=JBSWY3DPEHPK3PXP,1707735320,1707735349,Personal
+note,Door codes,,,,,Front: example-0000,,1707735320,1707735349,Personal
+creditCard,Company card,,,,,"{""number"":""4111111111111111""}",,1707735320,1707735349,Personal

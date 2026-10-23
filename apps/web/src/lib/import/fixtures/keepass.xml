@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<KeePassFile>
+	<Meta>
+		<Generator>KeePass</Generator>
+		<RecycleBinEnabled>True</RecycleBinEnabled>
+		<RecycleBinUUID>q8L6tGgWJ0yLqY4E0ZJ1aw==</RecycleBinUUID>
+		<EntryTemplatesGroup>AAAAAAAAAAAAAAAAAAAAAA==</EntryTemplatesGroup>
+	</Meta>
+	<Root>
+		<Group>
+			<UUID>KvS57lVwl13AfGFLwkvq4Q==</UUID>
+			<Name>Database</Name>
+			<Entry>
+				<UUID>aaaaaaaaaaaaaaaaaaaaaa==</UUID>
+				<String><Key>Title</Key><Value>Router</Value></String>
+				<String><Key>UserName</Key><Value>admin</Value></String>
+				<String><Key>Password</Key><Value ProtectInMemory="True">example-pass-0</Value></String>
+				<String><Key>URL</Key><Value>192.168.1.1</Value></String>
+			</Entry>
+			<Group>
+				<UUID>P0ParXgGMBW6caOL2YrhqQ==</UUID>
+				<Name>Work</Name>
+				<Entry>
+					<UUID>fAa543oYlgnJKkhKag5HLw==</UUID>
+					<Tags>email;work</Tags>
+					<Times><CreationTime>2024-05-01T10:00:00Z</CreationTime><LastModificationTime>2025-02-01T09:30:00Z</LastModificationTime></Times>
+					<String><Key>Title</Key><Value>Mail &amp; Calendar</Value></String>
+					<String><Key>UserName</Key><Value>alex</Value></String>
+					<String><Key>Password</Key><Value ProtectInMemory="True">p&lt;w"d-example</Value></String>
+					<String><Key>URL</Key><Value>https://mail.example.test</Value></String>
+					<String><Key>Notes</Key><Value>line 1
+line 2</Value></String>
+					<String><Key>Recovery code</Key><Value ProtectInMemory="True">example-recovery</Value></String>
+					<String><Key>TimeOtp-Secret-Base32</Key><Value ProtectInMemory="True">JBSWY3DPEHPK3PXP</Value></String>
+					<String><Key>TimeOtp-Period</Key><Value>60</Value></String>
+					<Binary><Key>codes.txt</Key><Value Ref="0" /></Binary>
+					<History>
+						<Entry>
+							<UUID>fAa543oYlgnJKkhKag5HLw==</UUID>
+							<Times><LastModificationTime>2024-05-01T10:00:00Z</LastModificationTime></Times>
+							<String><Key>Title</Key><Value>Mail</Value></String>
+							<String><Key>Password</Key><Value ProtectInMemory="True">example-old-1</Value></String>
+						</Entry>
+					</History>
+				</Entry>
+				<Group>
+					<UUID>Q0ParXgGMBW6caOL2YrhqQ==</UUID>
+					<Name>Servers</Name>
+					<Entry>
+						<UUID>gAa543oYlgnJKkhKag5HLw==</UUID>
+						<String><Key>Title</Key><Value>Build</Value></String>
+						<String><Key>UserName</Key><Value>ci</Value></String>
+						<String><Key>Password</Key><Value ProtectInMemory="True">example-pass-2</Value></String>
+						<String><Key>TimeOtp-Secret-Hex</Key><Value ProtectInMemory="True">48656c6c6f21deadbeef</Value></String>
+					</Entry>
+				</Group>
+			</Group>
+			<Group>
+				<UUID>q8L6tGgWJ0yLqY4E0ZJ1aw==</UUID>
+				<Name>Recycle Bin</Name>
+				<Entry>
+					<UUID>hAa543oYlgnJKkhKag5HLw==</UUID>
+					<String><Key>Title</Key><Value>Deleted</Value></String>
+					<String><Key>Password</Key><Value>example-gone</Value></String>
+				</Entry>
+			</Group>
+		</Group>
+		<DeletedObjects />
+	</Root>
+</KeePassFile>

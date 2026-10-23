@@ -51,7 +51,7 @@ export function GetStarted() {
 		{
 			id: "items",
 			title: "Add your first items",
-			hint: "Type them in, or import a CSV from your old password manager.",
+			hint: "Type them in, or bring them over from your old password manager or browser.",
 			done: items.data.length > 0,
 			action: (
 				<>
@@ -60,7 +60,7 @@ export function GetStarted() {
 						size="sm"
 						onClick={() => navigate({ to: "/items", search: { import: true } })}
 					>
-						Import a CSV
+						Import from…
 					</Button>
 					<Button
 						variant="outline"

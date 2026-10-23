@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<KeePassFile>
+	<Meta>
+		<Generator>KeePassXC</Generator>
+		<RecycleBinEnabled>True</RecycleBinEnabled>
+		<RecycleBinUUID>AAAAAAAAAAAAAAAAAAAAAA==</RecycleBinUUID>
+	</Meta>
+	<Root>
+		<Group>
+			<UUID>KvS57lVwl13AfGFLwkvq4Q==</UUID>
+			<Name>Passwörter</Name>
+			<Group>
+				<UUID>P0ParXgGMBW6caOL2YrhqQ==</UUID>
+				<Name>Internet</Name>
+				<Entry>
+					<UUID>fAa543oYlgnJKkhKag5HLw==</UUID>
+					<Tags>social,personal</Tags>
+					<Times><LastModificationTime>mOAv3w4AAAA=</LastModificationTime></Times>
+					<String><Key>Title</Key><Value>Forum</Value></String>
+					<String><Key>UserName</Key><Value>sam</Value></String>
+					<String><Key>Password</Key><Value ProtectInMemory="True">example-pass-1</Value></String>
+					<String><Key>URL</Key><Value>forum.example.test</Value></String>
+					<String><Key>otp</Key><Value ProtectInMemory="True">otpauth://totp/Forum:sam?secret=JBSWY3DPEHPK3PXP&amp;period=30&amp;digits=6&amp;issuer=Forum</Value></String>
+					<History>
+						<Entry>
+							<Times><LastModificationTime>oAnE3Q4AAAA=</LastModificationTime></Times>
+							<String><Key>Password</Key><Value ProtectInMemory="True">example-old-1</Value></String>
+						</Entry>
+					</History>
+				</Entry>
+			</Group>
+		</Group>
+		<DeletedObjects />
+	</Root>
+</KeePassFile>

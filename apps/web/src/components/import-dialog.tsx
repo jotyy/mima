@@ -1,4 +1,10 @@
-import { FileCsvIcon, WarningIcon } from "@phosphor-icons/react";
+import {
+	ArrowSquareOutIcon,
+	CaretLeftIcon,
+	CheckCircleIcon,
+	FileArrowUpIcon,
+	WarningIcon,
+} from "@phosphor-icons/react";
 import { Button } from "@vauly/ui/components/button";
 import {
 	Dialog,
@@ -20,14 +26,18 @@ import { type DragEvent, useEffect, useId, useState } from "react";
 import { plural } from "@/lib/format";
 import {
 	ImportError,
+	type Leftover,
 	type ParsedImport,
-	parseImport,
+	readImportFile,
 	sameItem,
 } from "@/lib/import";
+import { appFor, type ImportApp, importApps } from "@/lib/import/apps";
+import { appMarks } from "@/lib/import/marks";
 import { logoDomain } from "@/lib/logos";
 import {
 	errorMessage,
 	type ItemFields,
+	type ItemKind,
 	useActions,
 	useItems,
 	useVaults,
@@ -36,23 +46,19 @@ import {
 import { ItemTile } from "./item-tile";
 import { notify } from "./notify";
 
-const sources = [
-	"1Password",
-	"Bitwarden",
-	"LastPass",
-	"Chrome",
-	"Firefox",
-	"Safari",
-];
+const DOCS = "https://vauly.app/docs/import/";
 
 type Step =
-	| { name: "pick"; error?: string }
-	| { name: "review"; file: string; parsed: ParsedImport }
-	| { name: "saving"; done: number; total: number };
+	| { name: "apps"; error?: string }
+	| { name: "export"; app: ImportApp; error?: string }
+	| { name: "review"; app?: ImportApp; file: string; parsed: ParsedImport }
+	| { name: "saving"; done: number; total: number }
+	| { name: "done"; file: string; count: number; vaultId: string };
 
 /**
- * Brings in a CSV export from another password manager or a browser. The file is read
- * and encrypted on this device; only ciphertext reaches the server.
+ * Brings in an export from another password manager or a browser: pick the app, export
+ * from it, drop the file in, check what comes over. The file is read and encrypted on
+ * this device; only ciphertext reaches the server.
  */
 export function ImportDialog({
 	open,
@@ -68,7 +74,7 @@ export function ImportDialog({
 	const vaults = useVaults();
 	const items = useItems();
 	const actions = useActions();
-	const [step, setStep] = useState<Step>({ name: "pick" });
+	const [step, setStep] = useState<Step>({ name: "apps" });
 	const fallbackVault =
 		defaultVaultId ??
 		vaults.data?.find((v) => v.personal)?.id ??
@@ -78,30 +84,26 @@ export function ImportDialog({
 
 	useEffect(() => {
 		if (open) {
-			setStep({ name: "pick" });
+			setStep({ name: "apps" });
 			setVaultId(fallbackVault);
 		}
 	}, [open, fallbackVault]);
 
-	const read = async (file: File) => {
+	const read = async (file: File, app?: ImportApp) => {
+		const fail = (error: string) =>
+			setStep(app ? { name: "export", app, error } : { name: "apps", error });
 		try {
-			const parsed = parseImport(await file.text());
+			const parsed = await readImportFile(file);
 			if (parsed.items.length === 0) {
-				setStep({
-					name: "pick",
-					error: "That file has no logins or notes vauly can import.",
-				});
-				return;
+				return fail("That file has nothing vauly can import.");
 			}
-			setStep({ name: "review", file: file.name, parsed });
+			setStep({ name: "review", app, file: file.name, parsed });
 		} catch (err) {
-			setStep({
-				name: "pick",
-				error:
-					err instanceof ImportError
-						? err.message
-						: "That file couldn't be read. Export it again as CSV.",
-			});
+			fail(
+				err instanceof ImportError
+					? err.message
+					: "That file couldn't be read. Export it again and choose the new file.",
+			);
 		}
 	};
 
@@ -114,43 +116,83 @@ export function ImportDialog({
 				)
 			: [];
 
-	const save = async (toSave: ItemFields[]) => {
+	const save = async (file: string, toSave: ItemFields[]) => {
 		if (!vault) return;
 		setStep({ name: "saving", done: 0, total: toSave.length });
 		try {
 			await actions.importItems(vault, toSave, (done) =>
 				setStep({ name: "saving", done, total: toSave.length }),
 			);
-			notify.success(
-				`Imported ${toSave.length} ${toSave.length === 1 ? "item" : "items"} into ${vault.name}`,
-				"Now delete the CSV file: it holds your passwords in plain text.",
-			);
-			onOpenChange(false);
-			onImported?.(vault.id);
+			setStep({ name: "done", file, count: toSave.length, vaultId: vault.id });
 		} catch (err) {
 			notify.error("The import stopped", errorMessage(err));
 			onOpenChange(false);
 		}
 	};
 
+	const close = () => {
+		onOpenChange(false);
+		if (step.name === "done") onImported?.(step.vaultId);
+	};
+
+	const app =
+		step.name === "export"
+			? step.app
+			: step.name === "review"
+				? (step.app ?? appFor(step.parsed.source))
+				: undefined;
+
 	return (
 		<Dialog
 			open={open}
-			onOpenChange={(next) => step.name !== "saving" && onOpenChange(next)}
+			onOpenChange={(next) => {
+				if (step.name === "saving") return;
+				if (next) onOpenChange(true);
+				else close();
+			}}
 		>
 			<DialogContent
 				className="sm:max-w-lg"
 				showCloseButton={step.name !== "saving"}
 			>
 				<DialogHeader>
-					<DialogTitle>Import items</DialogTitle>
+					<DialogTitle>
+						{step.name === "done"
+							? "Import done"
+							: !app
+								? "Import from…"
+								: app.id === "another-app"
+									? "Import a CSV file"
+									: `Import from ${app.name}`}
+					</DialogTitle>
 					<DialogDescription>
-						Export a CSV from your old password manager or browser. vauly reads
-						it on this device and encrypts every item before it's saved.
+						{step.name === "apps"
+							? "Choose the app you're moving from. vauly reads its export on this device and encrypts every item before it's saved."
+							: step.name === "export"
+								? `Export your items from ${step.app.name}, then bring the file here. It never leaves this device unencrypted.`
+								: step.name === "review"
+									? "Check what comes over and where it goes."
+									: step.name === "saving"
+										? "Encrypting each item on this device."
+										: "Everything is encrypted and saved."}
 					</DialogDescription>
 				</DialogHeader>
 
-				{step.name === "pick" && <PickFile onFile={read} error={step.error} />}
+				{step.name === "apps" && (
+					<PickApp
+						error={step.error}
+						onApp={(chosen) => setStep({ name: "export", app: chosen })}
+						onFile={(file) => read(file)}
+					/>
+				)}
+
+				{step.name === "export" && (
+					<ExportSteps
+						app={step.app}
+						error={step.error}
+						onFile={(file) => read(file, step.app)}
+					/>
+				)}
 
 				{step.name === "review" && (
 					<Review
@@ -179,17 +221,49 @@ export function ImportDialog({
 					</div>
 				)}
 
+				{step.name === "done" && (
+					<Done
+						file={step.file}
+						count={step.count}
+						vault={vaults.data?.find((v) => v.id === step.vaultId)?.name}
+					/>
+				)}
+
+				{step.name === "export" && (
+					<DialogFooter>
+						<Button variant="ghost" onClick={() => setStep({ name: "apps" })}>
+							<CaretLeftIcon data-icon="inline-start" />
+							Other apps
+						</Button>
+					</DialogFooter>
+				)}
+
 				{step.name === "review" && (
 					<DialogFooter>
-						<Button variant="ghost" onClick={() => setStep({ name: "pick" })}>
+						<Button
+							variant="ghost"
+							onClick={() =>
+								setStep(
+									step.app
+										? { name: "export", app: step.app }
+										: { name: "apps" },
+								)
+							}
+						>
 							Choose another file
 						</Button>
 						<Button
 							disabled={fresh.length === 0 || !vault}
-							onClick={() => save(fresh)}
+							onClick={() => save(step.file, fresh)}
 						>
-							Import {fresh.length} {fresh.length === 1 ? "item" : "items"}
+							Import {plural(fresh.length, "item")}
 						</Button>
+					</DialogFooter>
+				)}
+
+				{step.name === "done" && (
+					<DialogFooter>
+						<Button onClick={close}>Show the items</Button>
 					</DialogFooter>
 				)}
 			</DialogContent>
@@ -197,10 +271,134 @@ export function ImportDialog({
 	);
 }
 
-function PickFile({
+export function AppMark({
+	app,
+	className,
+}: {
+	app: Pick<ImportApp, "id" | "name">;
+	className?: string;
+}) {
+	const path = appMarks[app.id];
+	return (
+		<span
+			aria-hidden
+			className={cn(
+				"bg-surface-sunken text-fg flex size-8 shrink-0 items-center justify-center rounded-lg",
+				className,
+			)}
+		>
+			{path ? (
+				<svg
+					aria-hidden
+					viewBox="0 0 24 24"
+					fill="currentColor"
+					className="size-4"
+				>
+					<path d={path} />
+				</svg>
+			) : (
+				<span className="text-caption font-medium">{app.name.slice(0, 1)}</span>
+			)}
+		</span>
+	);
+}
+
+function PickApp({
+	onApp,
 	onFile,
 	error,
 }: {
+	onApp: (app: ImportApp) => void;
+	onFile: (file: File) => void;
+	error?: string;
+}) {
+	return (
+		<div className="flex flex-col gap-4">
+			<ul
+				aria-label="Apps"
+				className="-mx-1 grid max-h-80 grid-cols-2 gap-1 overflow-y-auto px-1 sm:grid-cols-3"
+			>
+				{importApps.map((app) => (
+					<li key={app.id}>
+						<button
+							type="button"
+							onClick={() => onApp(app)}
+							className="text-body-sm text-fg hover:bg-tint/4 focus-visible:ring-ring flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors outline-none focus-visible:ring-2"
+						>
+							<AppMark app={app} />
+							<span className="min-w-0 leading-tight">{app.name}</span>
+						</button>
+					</li>
+				))}
+			</ul>
+			<DropZone
+				compact
+				label="Already have an export? Drop it here, or"
+				onFile={onFile}
+				error={error}
+			/>
+		</div>
+	);
+}
+
+function ExportSteps({
+	app,
+	onFile,
+	error,
+}: {
+	app: ImportApp;
+	onFile: (file: File) => void;
+	error?: string;
+}) {
+	return (
+		<div className="flex flex-col gap-4">
+			<ol
+				aria-label={`How to export from ${app.name}`}
+				className="flex flex-col gap-2.5"
+			>
+				{app.steps.map((text, index) => (
+					<li key={text} className="text-body-sm text-fg flex gap-3">
+						<span className="bg-surface-sunken text-caption text-fg-muted flex size-5 shrink-0 items-center justify-center rounded-full tabular-nums">
+							{index + 1}
+						</span>
+						<span className="min-w-0 text-pretty">{text}</span>
+					</li>
+				))}
+			</ol>
+			{app.note && (
+				<p className="text-caption text-fg-muted text-pretty">{app.note}</p>
+			)}
+			<DropZone
+				label={`Drop the ${app.file} file here, or`}
+				accept={app.accept}
+				onFile={onFile}
+				error={error}
+			/>
+			<a
+				href={`${DOCS}#${app.id}`}
+				target="_blank"
+				rel="noreferrer"
+				className="text-caption text-link inline-flex items-center gap-1 self-start"
+			>
+				{app.id === "another-app"
+					? "More about CSV files"
+					: `More about moving from ${app.name}`}
+				<ArrowSquareOutIcon className="size-3.5" />
+			</a>
+		</div>
+	);
+}
+
+function DropZone({
+	label,
+	accept,
+	compact,
+	onFile,
+	error,
+}: {
+	label: string;
+	accept?: string;
+	compact?: boolean;
 	onFile: (file: File) => void;
 	error?: string;
 }) {
@@ -224,24 +422,26 @@ function PickFile({
 				onDragLeave={() => setOver(false)}
 				onDrop={drop}
 				className={cn(
-					"border-line hover:border-line-strong hover:bg-tint/2 flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed px-4 py-8 text-center transition-colors",
+					"border-line hover:border-line-strong hover:bg-tint/2 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed text-center transition-colors",
+					compact ? "justify-center px-4 py-3" : "flex-col px-4 py-6",
 					over && "border-brand bg-brand-soft hover:border-brand",
 				)}
 			>
-				<span className="bg-brand-soft text-brand flex size-10 items-center justify-center rounded-full">
-					<FileCsvIcon className="size-5" />
-				</span>
-				<span className="text-body-sm text-fg">
-					Drop a CSV file here, or <span className="text-link">choose one</span>
-				</span>
-				<span className="text-caption text-fg-subtle">
-					{sources.join(" · ")} · any CSV with a password column
+				{!compact && (
+					<span className="bg-brand-soft text-brand flex size-10 items-center justify-center rounded-full">
+						<FileArrowUpIcon className="size-5" />
+					</span>
+				)}
+				<span
+					className={cn("text-fg", compact ? "text-caption" : "text-body-sm")}
+				>
+					{label} <span className="text-link">choose a file</span>
 				</span>
 				<input
 					id={id}
 					type="file"
-					accept=".csv,text/csv"
-					aria-label="CSV file"
+					accept={accept}
+					aria-label="Export file"
 					className="sr-only"
 					onChange={(event) => {
 						const file = event.target.files?.[0];
@@ -262,6 +462,28 @@ function PickFile({
 	);
 }
 
+const kindNouns: Record<ItemKind, string> = {
+	login: "login",
+	note: "note",
+	"api-key": "API key",
+	"ssh-key": "SSH key",
+};
+
+const leftoverText: Record<Leftover, (n: number) => string> = {
+	card: (n) => `${plural(n, "payment card")}: vauly doesn't store cards.`,
+	identity: (n) =>
+		`${n} ${n === 1 ? "identity" : "identities"}: vauly doesn't store personal details.`,
+	record: (n) =>
+		`${plural(n, "other record")}, like bank accounts and IDs: vauly doesn't store those.`,
+	alias: (n) =>
+		`${n} email ${n === 1 ? "alias" : "aliases"}: they stay in Proton Pass.`,
+	passkey: (n) => `${plural(n, "passkey")}: vauly doesn't store passkeys yet.`,
+	attachment: (n) =>
+		`${plural(n, "attached file")}: save ${n === 1 ? "it" : "them"} from the old app if you need ${n === 1 ? "it" : "them"}.`,
+	trashed: (n) => `${plural(n, "item")} in the trash.`,
+	empty: (n) => `${plural(n, "item")} with nothing to keep.`,
+};
+
 function Review({
 	file,
 	parsed,
@@ -281,19 +503,34 @@ function Review({
 		label: v.name,
 	}));
 	const duplicates = parsed.items.length - fresh.length;
-	const logins = fresh.filter((item) => item.kind === "login").length;
-	const notes = fresh.length - logins;
+	const counts = (Object.keys(kindNouns) as ItemKind[])
+		.map((kind) => ({
+			kind,
+			count: fresh.filter((item) => item.kind === kind).length,
+		}))
+		.filter(({ count }) => count > 0)
+		.map(({ kind, count }) => plural(count, kindNouns[kind]));
+	const left = (Object.keys(leftoverText) as Leftover[]).flatMap((reason) => {
+		const count = parsed.left[reason] ?? 0;
+		return count > 0 ? [leftoverText[reason](count)] : [];
+	});
+	const source = parsed.source === "CSV" ? undefined : appFor(parsed.source);
 
 	return (
 		<div className="flex flex-col gap-3">
 			<div className="border-line flex items-center gap-3 rounded-lg border px-3 py-2.5">
-				<FileCsvIcon className="text-fg-muted size-5 shrink-0" />
+				{source ? (
+					<AppMark app={source} />
+				) : (
+					<FileArrowUpIcon className="text-fg-muted size-5 shrink-0" />
+				)}
 				<div className="flex min-w-0 flex-1 flex-col">
 					<span className="text-body-sm text-fg truncate">{file}</span>
 					<span className="text-caption text-fg-muted">
-						{parsed.source === "CSV" ? "CSV" : `${parsed.source} export`} ·{" "}
-						{plural(logins, "login")}
-						{notes > 0 && `, ${plural(notes, "note")}`}
+						{parsed.source === "CSV"
+							? "CSV"
+							: `${parsed.source} ${parsed.format === "CSV" ? "CSV" : "export"}`}{" "}
+						· {counts.join(", ") || "nothing new"}
 					</span>
 				</div>
 				<Select
@@ -337,27 +574,65 @@ function Review({
 				</ul>
 			)}
 
-			{(duplicates > 0 || parsed.skipped > 0) && (
+			{(parsed.folders.length > 0 || duplicates > 0) && (
 				<ul className="text-caption text-fg-muted flex flex-col gap-1">
+					{parsed.folders.length > 0 && (
+						<li>
+							{plural(parsed.folders.length, "folder")}{" "}
+							{parsed.folders.length === 1 ? "becomes a tag" : "become tags"}.
+						</li>
+					)}
 					{duplicates > 0 && (
 						<li>
 							{plural(duplicates, "item")} already in this vault{" "}
 							{duplicates === 1 ? "is" : "are"} left out.
 						</li>
 					)}
-					{parsed.skipped > 0 && (
-						<li>
-							{plural(parsed.skipped, "row")} with no password or note, or a
-							card or identity, {parsed.skipped === 1 ? "is" : "are"} skipped.
-						</li>
-					)}
 				</ul>
 			)}
 
-			<p className="border-warning-line bg-warning-soft text-caption text-warning flex gap-2 rounded-lg border px-3 py-2.5">
+			{left.length > 0 && (
+				<section aria-label="Not imported" className="flex flex-col gap-1">
+					<h3 className="text-caption text-fg font-medium">Not imported</h3>
+					<ul className="text-caption text-fg-muted flex flex-col gap-1">
+						{left.map((text) => (
+							<li key={text}>{text}</li>
+						))}
+					</ul>
+				</section>
+			)}
+		</div>
+	);
+}
+
+function Done({
+	file,
+	count,
+	vault,
+}: {
+	file: string;
+	count: number;
+	vault?: string;
+}) {
+	return (
+		<div className="flex flex-col gap-3">
+			<p className="text-body-sm text-fg flex items-center gap-2">
+				<CheckCircleIcon
+					weight="fill"
+					className="text-success size-5 shrink-0"
+				/>
+				Imported {plural(count, "item")}
+				{vault && ` into ${vault}`}
+			</p>
+			<p
+				role="alert"
+				className="border-warning-line bg-warning-soft text-caption text-warning flex gap-2 rounded-lg border px-3 py-2.5"
+			>
 				<WarningIcon className="mt-px size-4 shrink-0" />
-				Delete the CSV file once the import is done. It holds your passwords in
-				plain text.
+				<span>
+					Now delete <span className="font-medium break-all">{file}</span> and
+					empty the trash. It holds your passwords in plain text.
+				</span>
 			</p>
 		</div>
 	);

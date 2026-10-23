@@ -1,0 +1,4 @@
+"url","username","password","httpRealm","formActionOrigin","guid","timeCreated","timeLastUsed","timePasswordChanged"
+"https://www.example.test","sam","example-pass-4",,"https://www.example.test","{0}","1700000000000","1700000000000","1700000000000"
+"https://intranet.example.test","alex","example-pass-5","Intranet",,"{1}","1700000000000","1700000000000","1700000000000"
+"chrome://FirefoxAccounts","example-uid","{""example"":""sync key""}","Firefox Accounts credentials",,"{2}","1700000000000","1700000000000","1700000000000"

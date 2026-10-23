@@ -1,0 +1,5 @@
+﻿Name,Url,MatchUrl,Login,Pwd,Note,Folder,RfFieldsV2
+GitHub,https://github.example.test/login,https://github.example.test/login,alex@example.test,'@example-pass-1,,/Work/Dev,"User ID$,,,txt,alex@example.test","Password$,,,pwd,@example-pass-1","TOTP KEY$,,,txt,JBSWY3DPEHPK3PXP","Team,,,txt,Ops, east"
+Docs,https://docs.example.test,,,,,/Work
+Wifi code,,,,,"SSID: home
+PSK: example-psk",/Personal

@@ -1,0 +1,22 @@
+url,username,password,totp,extra,name,grouping,fav
+https://github.example.test/login,alex@example.test,example-pass-1,JBSWY3DPEHPK3PXP,work account,GitHub,Work\Dev,1
+http://,sam,example-pass-2,,,Router,,0
+http://sn,,,,Door code is example-1234,Office,Shared-Ops,0
+http://sn,,,,"NoteType:SSH Key
+Language:en-US
+Bit Strength:256
+Format:OpenSSH
+Passphrase:
+Private Key:-----BEGIN OPENSSH PRIVATE KEY-----
+not-a-real-key
+-----END OPENSSH PRIVATE KEY-----
+Public Key:ssh-ed25519 AAAAexample
+Hostname:deploy.example.test
+Date:
+Notes:Rotate yearly.
+Ask ops first.",Deploy key,,0
+http://sn,,,,"NoteType:Credit Card
+Language:en-US
+Name on Card:Alex Example
+Number:4111111111111111
+Notes:",Visa,,0

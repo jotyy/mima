@@ -1,0 +1,4 @@
+"Group","Title","Username","Password","URL","Notes","TOTP","Icon","Last Modified","Created"
+"Root/Work","Forum","sam","example-pass-1","https://forum.example.test","","otpauth://totp/Forum:sam?secret=JBSWY3DPEHPK3PXP&period=30&digits=6&issuer=Forum","0","2024-05-01T10:00:00Z","2024-05-01T10:00:00Z"
+"Root","Router","admin","example-pass-2","192.168.1.1","ground ""floor""","","0","2024-05-01T10:00:00Z","2024-05-01T10:00:00Z"
+"Root/Recycle Bin","Deleted","","example-gone","","","","0","2024-05-01T10:00:00Z","2024-05-01T10:00:00Z"

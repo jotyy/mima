@@ -1,0 +1,3 @@
+name,url,username,password,note
+example.test,https://example.test/login,sam,example-pass-3,
+app.example.test,android://abc123@test.example.app/,sam,example-pass-4,"from the phone, saved"

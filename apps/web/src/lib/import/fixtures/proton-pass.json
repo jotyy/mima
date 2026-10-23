@@ -1,0 +1,172 @@
+{
+	"version": "1.31.0",
+	"userId": "u1",
+	"vaults": {
+		"s1": {
+			"name": "Personal",
+			"description": "",
+			"display": { "color": 1, "icon": 1 },
+			"folders": [
+				{ "folderId": "fo1", "parentFolderId": null, "name": "Work" },
+				{ "folderId": "fo2", "parentFolderId": "fo1", "name": "Shops" }
+			],
+			"items": [
+				{
+					"itemId": "i1",
+					"shareId": "s1",
+					"folderId": "fo2",
+					"state": 1,
+					"pinned": true,
+					"aliasEmail": null,
+					"createTime": 1707735320,
+					"modifyTime": 1707735349,
+					"data": {
+						"type": "login",
+						"metadata": {
+							"name": "Shop",
+							"note": "Loyalty account",
+							"itemUuid": "3baf"
+						},
+						"extraFields": [
+							{
+								"fieldName": "PIN",
+								"type": "hidden",
+								"data": { "content": "0420" }
+							}
+						],
+						"content": {
+							"itemEmail": "alex@example.test",
+							"itemUsername": "alex",
+							"password": "example-pass-1",
+							"urls": ["https://shop.example.test"],
+							"autofillUrls": [
+								{ "url": "https://shop.example.test", "mode": 0 },
+								{ "url": "https://checkout.example.test", "mode": 2 }
+							],
+							"totpUri": "otpauth://totp/Shop:alex?secret=JBSWY3DPEHPK3PXP&issuer=Shop",
+							"passkeys": [{ "keyId": "example" }]
+						}
+					}
+				},
+				{
+					"itemId": "i2",
+					"shareId": "s1",
+					"state": 2,
+					"pinned": false,
+					"createTime": 1706621831,
+					"modifyTime": 1707735222,
+					"data": {
+						"type": "note",
+						"metadata": { "name": "Old note", "note": "trashed" },
+						"extraFields": [],
+						"content": {}
+					}
+				},
+				{
+					"itemId": "i3",
+					"shareId": "s1",
+					"state": 1,
+					"pinned": false,
+					"createTime": 1706621831,
+					"modifyTime": 1707735222,
+					"data": {
+						"type": "wifi",
+						"metadata": { "name": "Office Wi-Fi", "note": "" },
+						"extraFields": [],
+						"content": {
+							"ssid": "AcmeGuest",
+							"password": "example-wifi",
+							"security": 2,
+							"sections": []
+						}
+					}
+				},
+				{
+					"itemId": "i4",
+					"shareId": "s1",
+					"state": 1,
+					"pinned": false,
+					"createTime": 1706621831,
+					"modifyTime": 1707735222,
+					"data": {
+						"type": "alias",
+						"metadata": { "name": "Newsletter alias", "note": "" },
+						"extraFields": [],
+						"content": {}
+					},
+					"aliasEmail": "news.example@passmail.test"
+				}
+			]
+		},
+		"s2": {
+			"name": "Team",
+			"description": "",
+			"items": [
+				{
+					"itemId": "i5",
+					"shareId": "s2",
+					"state": 1,
+					"pinned": false,
+					"createTime": 1706621831,
+					"modifyTime": 1707735222,
+					"data": {
+						"type": "custom",
+						"metadata": { "name": "Mail API", "note": "" },
+						"extraFields": [],
+						"content": {
+							"sections": [
+								{
+									"sectionName": "Details",
+									"sectionFields": [
+										{
+											"fieldName": "Host",
+											"type": "text",
+											"data": { "content": "smtp.example.test" }
+										},
+										{
+											"fieldName": "API key",
+											"type": "hidden",
+											"data": { "content": "key_example_1" }
+										}
+									]
+								}
+							]
+						}
+					}
+				},
+				{
+					"itemId": "i6",
+					"shareId": "s2",
+					"state": 1,
+					"pinned": false,
+					"createTime": 1706621831,
+					"modifyTime": 1707735222,
+					"data": {
+						"type": "sshKey",
+						"metadata": { "name": "Backup server", "note": "" },
+						"extraFields": [],
+						"content": {
+							"privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\nnot-a-real-key\n-----END OPENSSH PRIVATE KEY-----",
+							"publicKey": "ssh-ed25519 AAAAexample",
+							"sections": []
+						}
+					}
+				},
+				{
+					"itemId": "i7",
+					"shareId": "s2",
+					"state": 1,
+					"pinned": false,
+					"createTime": 1706621831,
+					"modifyTime": 1707735222,
+					"data": {
+						"type": "creditCard",
+						"metadata": { "name": "Company card", "note": "" },
+						"extraFields": [],
+						"content": { "number": "4111111111111111" }
+					}
+				}
+			]
+		}
+	}
+}
