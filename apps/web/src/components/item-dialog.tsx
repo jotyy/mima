@@ -39,6 +39,7 @@ import {
 	useVaults,
 } from "@/lib/vault-data";
 
+import { Morph } from "./morph";
 import { notify } from "./notify";
 
 const kinds: { value: ItemKind; label: string }[] = [
@@ -225,78 +226,80 @@ export function ItemDialog({
 						</Select>
 					</div>
 
-					<Row label="Name">
-						<Input
-							autoFocus
-							required
-							value={form.name}
-							placeholder={
-								form.kind === "login" ? "GitHub" : "Postgres · staging"
-							}
-							onChange={(event) => set("name", event.target.value)}
-						/>
-					</Row>
-					{form.kind !== "note" && (
-						<Row label="Username" optional={form.kind !== "login"}>
+					<Morph layoutKey={form.kind} className="flex flex-col gap-4">
+						<Row label="Name">
 							<Input
-								value={form.username}
-								autoComplete="off"
-								onChange={(event) => set("username", event.target.value)}
+								autoFocus
+								required
+								value={form.name}
+								placeholder={
+									form.kind === "login" ? "GitHub" : "Postgres · staging"
+								}
+								onChange={(event) => set("name", event.target.value)}
 							/>
 						</Row>
-					)}
-					{showSecret && (
-						<Row label={secretLabel[form.kind]}>
-							<SecretInput
-								label={secretLabel[form.kind]}
-								kind={form.kind}
-								value={form.secret}
-								onChange={(value) => set("secret", value)}
-							/>
-						</Row>
-					)}
-					{form.kind === "login" && (
-						<div className="grid gap-4 md:grid-cols-2">
-							<Row label="Website" optional>
+						{form.kind !== "note" && (
+							<Row label="Username" optional={form.kind !== "login"}>
 								<Input
-									value={form.url}
-									placeholder="github.com"
-									onChange={(event) => set("url", event.target.value)}
-								/>
-							</Row>
-							<Row label="One-time code" optional>
-								<Input
-									value={form.totp}
-									placeholder="Setup key or otpauth:// link"
-									className="font-mono placeholder:font-sans"
+									value={form.username}
 									autoComplete="off"
-									onChange={(event) => set("totp", event.target.value)}
+									onChange={(event) => set("username", event.target.value)}
 								/>
 							</Row>
-						</div>
-					)}
-					<Row label="Notes" optional={form.kind !== "note"}>
-						<Textarea
-							value={form.notes}
-							className={form.kind === "note" ? "min-h-32" : "min-h-16"}
-							onChange={(event) => set("notes", event.target.value)}
-						/>
-					</Row>
-					<Row label="Tags" optional>
-						<Input
-							value={form.tags}
-							placeholder="work, billing"
-							onChange={(event) => set("tags", event.target.value)}
-						/>
-					</Row>
-					{error && (
-						<p
-							role="alert"
-							className="border-danger-line bg-danger-soft text-caption text-danger-strong rounded-lg border px-3 py-2"
-						>
-							{error}
-						</p>
-					)}
+						)}
+						{showSecret && (
+							<Row label={secretLabel[form.kind]}>
+								<SecretInput
+									label={secretLabel[form.kind]}
+									kind={form.kind}
+									value={form.secret}
+									onChange={(value) => set("secret", value)}
+								/>
+							</Row>
+						)}
+						{form.kind === "login" && (
+							<div className="grid gap-4 md:grid-cols-2">
+								<Row label="Website" optional>
+									<Input
+										value={form.url}
+										placeholder="github.com"
+										onChange={(event) => set("url", event.target.value)}
+									/>
+								</Row>
+								<Row label="One-time code" optional>
+									<Input
+										value={form.totp}
+										placeholder="Setup key or otpauth:// link"
+										className="font-mono placeholder:font-sans"
+										autoComplete="off"
+										onChange={(event) => set("totp", event.target.value)}
+									/>
+								</Row>
+							</div>
+						)}
+						<Row label="Notes" optional={form.kind !== "note"}>
+							<Textarea
+								value={form.notes}
+								className={form.kind === "note" ? "min-h-32" : "min-h-16"}
+								onChange={(event) => set("notes", event.target.value)}
+							/>
+						</Row>
+						<Row label="Tags" optional>
+							<Input
+								value={form.tags}
+								placeholder="work, billing"
+								onChange={(event) => set("tags", event.target.value)}
+							/>
+						</Row>
+						{error && (
+							<p
+								role="alert"
+								className="border-danger-line bg-danger-soft text-caption text-danger-strong rounded-lg border px-3 py-2"
+							>
+								{error}
+							</p>
+						)}
+					</Morph>
 					<DialogFooter>
 						<Button
 							type="button"
