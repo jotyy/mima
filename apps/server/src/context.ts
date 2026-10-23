@@ -21,6 +21,7 @@ export async function createContext({
 		auth,
 		headers,
 		secret: ENV.BETTER_AUTH_SECRET,
+		setupCode: ENV.SETUP_CODE || undefined,
 	};
 }
 

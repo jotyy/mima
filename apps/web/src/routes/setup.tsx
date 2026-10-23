@@ -2,6 +2,7 @@ import { Input } from "@mima/ui/components/input";
 import { WarningIcon } from "@phosphor-icons/react";
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { z } from "zod";
 
 import {
 	AuthLayout,
@@ -16,10 +17,13 @@ import { newMasterPasswordProblem } from "@/lib/secrets";
 import { errorMessage, useWorkspace } from "@/lib/vault-data";
 
 export const Route = createFileRoute("/setup")({
+	// A deploy that set a setup code prints the link with it.
+	validateSearch: z.object({ code: z.string().optional() }),
 	component: Setup,
 });
 
 function Setup() {
+	const { code } = Route.useSearch();
 	const keyring = useKeyring();
 	const workspace = useWorkspace();
 	const navigate = useNavigate();
@@ -39,6 +43,18 @@ function Setup() {
 	if (keyring.status === "loading" || workspace.isPending) return <Loader />;
 	if (keyring.status !== "signed-out") return <Navigate to="/" />;
 	if (workspace.data?.hasOwner) return <Navigate to="/login" />;
+	if (workspace.data?.needsSetupCode && !code) {
+		return (
+			<AuthLayout
+				title="Use your setup link"
+				description="This mima is waiting for its owner. Open the setup link from the deploy, which carries a code, to create the workspace."
+			>
+				<p className="text-caption text-fg-muted text-center">
+					Lost it? Deploy again with a new MIMA_SETUP_CODE.
+				</p>
+			</AuthLayout>
+		);
+	}
 
 	return (
 		<AuthLayout
@@ -59,6 +75,7 @@ function Setup() {
 							name: form.name.trim(),
 							password: form.password,
 							workspaceName: form.workspace.trim(),
+							setupCode: code,
 						});
 						await workspace.refetch();
 						await navigate({ to: "/" });

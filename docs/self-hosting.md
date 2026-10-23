@@ -41,9 +41,12 @@ You won't know the web app's `workers.dev` address until the first deploy, so th
 
 ```sh
 cd packages/infra
+export MIMA_SETUP_CODE=$(openssl rand -hex 16)
 BETTER_AUTH_SECRET='…' CORS_ORIGIN='https://mima.example.com' \
   bunx alchemy deploy --stage production
 ```
+
+`MIMA_SETUP_CODE` keeps a fresh instance from being claimed by whoever finds it first: creating the workspace takes the code, through the setup link below. Once the workspace has an owner it no longer matters.
 
 When it finishes, Alchemy prints the addresses of `web` and `server`. If `CORS_ORIGIN` doesn't match `web` yet, set it and run the same command again.
 
@@ -51,7 +54,9 @@ Alchemy keeps track of what it created per stage, so `--stage production` always
 
 ## 4. Claim your workspace
 
-Open the web app straight away. **The first person to visit creates the workspace and becomes its owner**, so don't leave a fresh deploy unclaimed. Then invite your team from **Members**; each invite link works once, for one email address.
+Open the setup link, the web address followed by `/setup?code=` and your `MIMA_SETUP_CODE`, and create the workspace. You become its owner. Then invite your team from **Members**; each invite link works once, for one email address.
+
+Without `MIMA_SETUP_CODE`, the first person to visit creates the workspace, so don't leave such a deploy unclaimed.
 
 ## Your own domain
 

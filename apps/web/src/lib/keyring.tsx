@@ -69,6 +69,7 @@ type Keyring = {
 		password: string;
 		inviteToken?: string;
 		workspaceName?: string;
+		setupCode?: string;
 	}) => Promise<void>;
 	lock: () => void;
 	signOut: () => Promise<void>;
@@ -207,7 +208,14 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 	);
 
 	const register = useCallback<Keyring["register"]>(
-		async ({ email, name, password, inviteToken, workspaceName }) => {
+		async ({
+			email,
+			name,
+			password,
+			inviteToken,
+			workspaceName,
+			setupCode,
+		}) => {
 			const account = await createAccount(password);
 			const vaultKey = await newDataKey();
 			await client.account.register({
@@ -217,6 +225,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 				keys: account.keys,
 				inviteToken,
 				workspaceName,
+				setupCode,
 				personalVault: {
 					encryptedMeta: await sealJson(vaultKey, privateVaultMeta),
 					wrappedKey: await wrapKeyFor(account.keys.publicKey, vaultKey),

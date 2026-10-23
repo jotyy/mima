@@ -23,6 +23,8 @@ export const server = Cloudflare.Worker("server", {
 		BETTER_AUTH_URL: Cloudflare.Worker.URL,
 		// Only the e2e stack sets this; without it the reset route does not exist.
 		E2E_RESET_TOKEN: process.env.MIMA_E2E_RESET_TOKEN ?? "",
+		// When set, creating the workspace needs the setup link with this code.
+		SETUP_CODE: process.env.MIMA_SETUP_CODE ?? "",
 	},
 	dev: {
 		port: apiPort,

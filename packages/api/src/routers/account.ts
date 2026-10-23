@@ -59,6 +59,7 @@ export const accountRouter = {
 		return {
 			hasOwner: (row?.n ?? 0) > 0,
 			workspaceName: name?.value ?? "mima",
+			needsSetupCode: (row?.n ?? 0) === 0 && Boolean(context.setupCode),
 		};
 	}),
 
@@ -118,6 +119,7 @@ export const accountRouter = {
 				inviteToken: z.string().max(200).optional(),
 				/** Only used by the first person, who creates the workspace. */
 				workspaceName: z.string().trim().min(1).max(40).optional(),
+				setupCode: z.string().max(200).optional(),
 				personalVault: z.object({
 					encryptedMeta: z.string().min(20).max(4_000),
 					wrappedKey: z.string().min(40).max(1_000),
@@ -129,6 +131,16 @@ export const accountRouter = {
 			const email = input.email.toLowerCase();
 			const [owners] = await db.select({ n: count() }).from(member);
 			const bootstrap = (owners?.n ?? 0) === 0;
+			if (
+				bootstrap &&
+				context.setupCode &&
+				input.setupCode !== context.setupCode
+			) {
+				throw new ORPCError("FORBIDDEN", {
+					message:
+						"Open the setup link from the deploy to create the workspace",
+				});
+			}
 
 			let role: "owner" | "admin" | "member" = "owner";
 			let inviteId: string | null = null;
