@@ -64,7 +64,6 @@ A link is a copy: changing the item later doesn't change what the link shows, an
 ## Limits
 
 These are the things mima does not protect against. Please read them before you rely on it.
-
 - **The server delivers the app.** mima runs in the browser, and the browser loads its code from your instance. Someone who controls the web app's hosting could ship code that captures your master password the next time you sign in. This holds for every web-based end-to-end encrypted app. Host mima yourself, keep your Cloudflare account secure, and limit who can deploy to it.
 - **Removing someone doesn't take back what they've seen.** Taking a person out of a vault deletes their copy of its key, so they can't open it through mima again. But they may have copied passwords, or the vault key, while they had access. Change the passwords that matter after someone leaves.
 - **Nobody can reset a master password.** It is the only key to your private key. If you forget it, your items can't be recovered by you, an admin or the server. An admin can invite you again so you start over.
