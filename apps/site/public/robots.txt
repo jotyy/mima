@@ -1,0 +1,7 @@
+# Every crawler is welcome, AI search and assistants included: vauly is open source, and
+# its pages are meant to be read and quoted. For agents, /llms.txt lists the docs as Markdown.
+User-agent: *
+Content-Signal: search=yes, ai-input=yes, ai-train=yes
+Allow: /
+
+Sitemap: https://vauly.app/sitemap-index.xml

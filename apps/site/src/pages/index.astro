@@ -12,12 +12,63 @@ import Security from "@/components/landing/Security.astro";
 import SelfHost from "@/components/landing/SelfHost.astro";
 import Sharing from "@/components/landing/Sharing.astro";
 import Landing from "@/layouts/Landing.astro";
+import { questions } from "@/lib/faq";
+
+const description =
+	"End-to-end encrypted logins, API keys and SSH keys for small teams and their agents. Open source, self-hosted on your own Cloudflare in one click.";
+const home = new URL("/", Astro.site).href;
+
+// What search engines and AI answers read about vauly, beyond the words on the page.
+const data = {
+	"@context": "https://schema.org",
+	"@graph": [
+		{
+			"@type": "WebSite",
+			"@id": `${home}#website`,
+			url: home,
+			name: "vauly",
+			description,
+			inLanguage: "en",
+		},
+		{
+			"@type": "SoftwareApplication",
+			"@id": `${home}#software`,
+			name: "vauly",
+			url: home,
+			description,
+			applicationCategory: "SecurityApplication",
+			applicationSubCategory: "Password manager",
+			operatingSystem: "Web",
+			image: new URL("/social/home.jpg", Astro.site).href,
+			license: "https://www.gnu.org/licenses/agpl-3.0.html",
+			isAccessibleForFree: true,
+			offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+			softwareHelp: {
+				"@type": "CreativeWork",
+				url: new URL("/docs/", Astro.site).href,
+			},
+			sameAs: ["https://github.com/jotyy/vauly"],
+		},
+		{
+			"@type": "FAQPage",
+			"@id": `${home}#faq`,
+			mainEntity: questions.map(({ q, a }) => ({
+				"@type": "Question",
+				name: q,
+				acceptedAnswer: { "@type": "Answer", text: a },
+			})),
+		},
+	],
+};
 ---
 
-<Landing
-	title="vauly: the password manager your team owns"
-	description="End-to-end encrypted logins, API keys and SSH keys for small teams and their agents. Open source, and it runs on your own Cloudflare account."
->
+<Landing title="vauly: the open-source password manager your team owns" description={description}>
+	<script
+		is:inline
+		slot="head"
+		type="application/ld+json"
+		set:html={JSON.stringify(data).replaceAll("<", "\\u003c")}
+	/>
 	<div class="relative isolate">
 		<Nav />
 		<main>

@@ -44,6 +44,7 @@ const url = new URL(Astro.url.pathname, Astro.site).href;
 		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 		<meta name="theme-color" content="#f9f9fa" media="(prefers-color-scheme: light)" />
 		<meta name="theme-color" content="#0c0c0e" media="(prefers-color-scheme: dark)" />
+		<slot name="head" />
 		<script is:inline>
 			// The theme the docs remember (Starlight keeps it under this key), else the system's.
 			{

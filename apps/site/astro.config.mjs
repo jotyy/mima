@@ -15,7 +15,7 @@ export default defineConfig({
 		starlight({
 			title: "vauly",
 			description:
-				"A self-hosted, end-to-end encrypted password manager for small teams.",
+				"An open-source, self-hosted, end-to-end encrypted password manager for small teams.",
 			logo: {
 				light: "./src/assets/logo-light.svg",
 				dark: "./src/assets/logo-dark.svg",
@@ -35,6 +35,7 @@ export default defineConfig({
 					items: [
 						{ label: "Introduction", slug: "docs" },
 						{ label: "Self-hosting", slug: "docs/self-hosting" },
+						{ label: "Compared with others", slug: "docs/compare" },
 					],
 				},
 				{

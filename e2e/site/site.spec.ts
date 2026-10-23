@@ -6,6 +6,7 @@ const docs = [
 	"/docs/browser-extension/",
 	"/docs/agents/",
 	"/docs/security/",
+	"/docs/compare/",
 ];
 
 /** Fails on any page asset that doesn't load, such as a stylesheet with a stale name. */
@@ -89,6 +90,55 @@ test("the social cards' pages stay out of the built site", async ({ page }) => {
 	const sitemap = await (await page.request.get("/sitemap-0.xml")).text();
 	expect(sitemap).toContain("https://vauly.app/docs/");
 	expect(sitemap).not.toContain("/og/");
+});
+
+test("agents find the docs as Markdown, listed in llms.txt", async ({
+	page,
+}) => {
+	const index = await (await page.request.get("/llms.txt")).text();
+	expect(index).toMatch(/^# vauly\n\n> /);
+	const pages = [
+		...index.matchAll(/\]\(https:\/\/vauly\.app(\/docs\/.+?\.md)\)/g),
+	].map((match) => match[1] ?? "");
+	expect(pages).toHaveLength(docs.length);
+	const full = await (await page.request.get("/llms-full.txt")).text();
+	for (const path of pages) {
+		const response = await page.request.get(path);
+		expect(response.status(), path).toBe(200);
+		const text = await response.text();
+		expect(text, path).toMatch(/^# .+\n\nSource: https:\/\/vauly\.app\/docs\//);
+		// Diagrams stay the plain text GitHub shows, and links lead out of the page.
+		expect(text, path).not.toContain("<!-- diagram");
+		expect(text, path).not.toMatch(/\]\(\/(?!\/)/);
+		expect(full).toContain(text.trim());
+	}
+
+	// Each docs page names its Markdown.
+	await page.goto("/docs/self-hosting/");
+	await expect(
+		page.locator("link[rel='alternate'][type='text/markdown']"),
+	).toHaveAttribute("href", "/docs/self-hosting.md");
+});
+
+test("crawlers are welcome, and told where everything is", async ({ page }) => {
+	const robots = await (await page.request.get("/robots.txt")).text();
+	expect(robots).toContain("User-agent: *\n");
+	expect(robots).not.toMatch(/^Disallow: \/$/m);
+	expect(robots).toContain("Sitemap: https://vauly.app/sitemap-index.xml");
+
+	// The structured data repeats the questions the page shows.
+	await page.goto("/");
+	const data = JSON.parse(
+		(await page.locator("script[type='application/ld+json']").textContent()) ??
+			"",
+	);
+	const faq = data["@graph"].find(
+		(node: { "@type": string }) => node["@type"] === "FAQPage",
+	);
+	const shown = await page.locator("#faq summary").allTextContents();
+	expect(
+		faq.mainEntity.map((question: { name: string }) => question.name),
+	).toEqual(shown.map((text) => text.trim()));
 });
 
 test("the theme chosen on the landing page carries into the docs", async ({

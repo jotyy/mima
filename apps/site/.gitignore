@@ -3,4 +3,6 @@ dist/
 # Copied from the repository's docs/ by scripts/sync-docs.ts.
 src/content/docs/docs/
 public/docs/
+public/llms.txt
+public/llms-full.txt
 src/assets/screens/
