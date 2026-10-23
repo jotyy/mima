@@ -73,6 +73,16 @@ Add secrets in the dashboard under the Worker's **Settings → Variables and Sec
 
 Delete the **vauly** Worker and the **vauly** D1 database in the Cloudflare dashboard, or run `bunx wrangler delete` and `bunx wrangler d1 delete vauly`. Deleting the database deletes **every item in it**, so download backups first.
 
+## When someone deletes their account
+
+Anyone can delete their own account under **Settings → Delete my account**, with their master password; app stores require it, and it's fair. It works exactly like an admin removing them:
+- Their account and sessions, their private vault and its items, and their agents are deleted.
+- A shared vault they were the last manager of passes to the people who could edit it, or to everyone left in it when nobody could.
+- A shared vault nobody else could open is deleted, since nobody is left who could read it. The dialog lists what happens to each vault before they confirm.
+- The activity log keeps their name and that they left, and the Overview points at the items they could see.
+
+The owner can't delete their account while others remain: they make someone else the owner on the **Members** page first, and stay as an admin. When the owner is the last person in the workspace, deleting their account deletes the whole workspace, and the next visit to the instance starts a new one (behind the `SETUP_CODE`, if you set one). The Worker and its database stay; see above to remove those too.
+
 ## If the owner is locked out of two-step login
 
 An admin can reset two-step login for anyone except the owner. If the owner loses both their phone and their recovery codes, open the instance's D1 database in the Cloudflare dashboard and run this in its console, with the owner's email:

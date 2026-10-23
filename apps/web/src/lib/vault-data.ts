@@ -558,6 +558,8 @@ export function useActions() {
 				after(client.members.setRole({ userId, role })),
 			removeMember: (userId: string) =>
 				after(client.members.remove({ userId })),
+			transferOwnership: (userId: string) =>
+				after(client.members.transferOwnership({ userId })),
 			resetTwoStep: (userId: string) =>
 				after(client.members.resetTwoStep({ userId })),
 

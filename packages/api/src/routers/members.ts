@@ -1,17 +1,12 @@
 import { ORPCError } from "@orpc/server";
 import { user } from "@vauly/db/schema/auth";
-import {
-	agent,
-	invite,
-	member,
-	vault,
-	vaultAccess,
-} from "@vauly/db/schema/vault";
-import { and, eq, gt, inArray, isNull, notInArray, sql } from "drizzle-orm";
+import { invite, member, vault, vaultAccess } from "@vauly/db/schema/vault";
+import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { adminProcedure, memberProcedure } from "../index";
 import { hashToken, logEvent, newId } from "../lib";
+import { removeFromWorkspace } from "../workspace";
 
 const INVITE_DAYS = 7;
 
@@ -129,6 +124,64 @@ export const membersRouter = {
 				.where(eq(member.userId, input.userId));
 		}),
 
+	/**
+	 * The owner hands the workspace to someone else and becomes an admin, say before
+	 * deleting their own account. Both changes are one transaction, and the promotion only
+	 * happens while the caller still owns the workspace, so there's never a second owner.
+	 */
+	transferOwnership: memberProcedure
+		.input(z.object({ userId: z.string() }))
+		.handler(async ({ context, input }) => {
+			const { db, userId } = context;
+			if (context.member.role !== "owner") {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Only the owner can hand the workspace over",
+				});
+			}
+			if (input.userId === userId) return;
+			const [target] = await db
+				.select({ userId: member.userId })
+				.from(member)
+				.where(eq(member.userId, input.userId));
+			if (!target)
+				throw new ORPCError("NOT_FOUND", { message: "Member not found" });
+			const [promoted] = await db.batch([
+				db
+					.update(member)
+					.set({ role: "owner" })
+					.where(
+						and(
+							eq(member.userId, input.userId),
+							sql`exists (select 1 from member as current where current.user_id = ${userId} and current.role = 'owner')`,
+						),
+					)
+					.returning({ userId: member.userId }),
+				db
+					.update(member)
+					.set({ role: "admin" })
+					.where(
+						and(
+							eq(member.userId, userId),
+							eq(member.role, "owner"),
+							// Only once the new owner is in place, so there's always one.
+							sql`exists (select 1 from member as next where next.user_id = ${input.userId} and next.role = 'owner')`,
+						),
+					),
+			]);
+			if (promoted.length === 0) {
+				throw new ORPCError("CONFLICT", {
+					message: "You don't own this workspace anymore",
+				});
+			}
+			await logEvent(db, {
+				actorType: "member",
+				actorId: userId,
+				action: "changed",
+				subjectId: input.userId,
+				detail: "owner",
+			});
+		}),
+
 	/** For someone who lost their phone and their recovery codes. */
 	resetTwoStep: adminProcedure
 		.input(z.object({ userId: z.string() }))
@@ -180,135 +233,6 @@ export const membersRouter = {
 					message: "You can't remove the owner or yourself",
 				});
 			}
-			// The person's account goes, so their name is kept in the log. One event per
-			// shared vault tells the people left behind which passwords they could see.
-			const [person, shared, owned] = await Promise.all([
-				db
-					.select({ name: user.name })
-					.from(user)
-					.where(eq(user.id, input.userId))
-					.then((rows) => rows[0]),
-				db
-					.select({ vaultId: vaultAccess.vaultId, role: vaultAccess.role })
-					.from(vaultAccess)
-					.innerJoin(vault, eq(vault.id, vaultAccess.vaultId))
-					.where(
-						and(
-							eq(vaultAccess.userId, input.userId),
-							isNull(vault.personalFor),
-						),
-					),
-				db
-					.select({ name: agent.name })
-					.from(agent)
-					.where(eq(agent.ownerId, input.userId)),
-			]);
-			const name = person?.name ?? "Someone";
-			const sharedIds = shared.map((row) => row.vaultId);
-			// Vaults in this list that still have a manager. Not correlated with the row being
-			// changed, so SQLite works it out once per statement.
-			const managed = db
-				.select({ vaultId: vaultAccess.vaultId })
-				.from(vaultAccess)
-				.where(eq(vaultAccess.role, "manage"));
-			const [, , , promotedEditors, promotedEveryone, stranded] =
-				await db.batch([
-					db.delete(vault).where(eq(vault.personalFor, input.userId)),
-					// Their agents stop with them; grants and requests go with the agents.
-					db.delete(agent).where(eq(agent.ownerId, input.userId)),
-					db.delete(user).where(eq(user.id, input.userId)),
-					// A vault they were the last manager of is handed on: to the people who could
-					// edit it, or to everyone left when nobody could. In the same transaction as
-					// the removal, so two removals at once can't leave a vault without one.
-					db
-						.update(vaultAccess)
-						.set({ role: "manage" })
-						.where(
-							and(
-								inArray(vaultAccess.vaultId, sharedIds),
-								eq(vaultAccess.role, "edit"),
-								notInArray(vaultAccess.vaultId, managed),
-							),
-						)
-						.returning({
-							vaultId: vaultAccess.vaultId,
-							userId: vaultAccess.userId,
-						}),
-					db
-						.update(vaultAccess)
-						.set({ role: "manage" })
-						.where(
-							and(
-								inArray(vaultAccess.vaultId, sharedIds),
-								notInArray(vaultAccess.vaultId, managed),
-							),
-						)
-						.returning({
-							vaultId: vaultAccess.vaultId,
-							userId: vaultAccess.userId,
-						}),
-					// A shared vault nobody else could open goes, like their private vault: nobody
-					// is left who could read it.
-					db
-						.delete(vault)
-						.where(
-							and(
-								inArray(vault.id, sharedIds),
-								notInArray(
-									vault.id,
-									db.select({ vaultId: vaultAccess.vaultId }).from(vaultAccess),
-								),
-							),
-						)
-						.returning({ id: vault.id }),
-				]);
-			const gone = new Set(stranded.map((row) => row.id));
-			await db.batch([
-				logEvent(db, {
-					actorType: "member",
-					actorId: userId,
-					action: "revoked",
-					subjectId: input.userId,
-					detail: name,
-				}),
-				...shared
-					.filter((row) => !gone.has(row.vaultId))
-					.map((row) =>
-						logEvent(db, {
-							actorType: "member",
-							actorId: userId,
-							action: "revoked",
-							vaultId: row.vaultId,
-							subjectId: input.userId,
-							detail: name,
-						}),
-					),
-				...[...promotedEditors, ...promotedEveryone].map((next) =>
-					logEvent(db, {
-						actorType: "member",
-						actorId: userId,
-						action: "changed",
-						vaultId: next.vaultId,
-						subjectId: next.userId,
-						detail: "manage",
-					}),
-				),
-				...[...gone].map((vaultId) =>
-					logEvent(db, {
-						actorType: "member",
-						actorId: userId,
-						action: "deleted",
-						vaultId,
-					}),
-				),
-				...owned.map((row) =>
-					logEvent(db, {
-						actorType: "member",
-						actorId: userId,
-						action: "deleted",
-						detail: `agent ${row.name}`,
-					}),
-				),
-			]);
+			await removeFromWorkspace(db, { by: userId, userId: input.userId });
 		}),
 };

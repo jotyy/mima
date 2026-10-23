@@ -153,7 +153,8 @@ export const eventsRouter = {
 			.from(event)
 			.where(
 				and(
-					eq(event.action, "revoked"),
+					// Taken out by someone else, or gone with their own account.
+					inArray(event.action, ["revoked", "left"]),
 					inArray(event.vaultId, vaultIds),
 					// Item-level revokes are agents and share links, not people.
 					isNull(event.itemId),

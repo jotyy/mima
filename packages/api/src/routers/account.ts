@@ -15,8 +15,10 @@ import {
 } from "@vauly/db/schema/vault";
 import { and, count, eq, gt, isNull, ne } from "drizzle-orm";
 import { z } from "zod";
+import type { Context } from "../context";
 import { adminProcedure, memberProcedure, publicProcedure } from "../index";
 import { hashToken, logEvent, newId } from "../lib";
+import { deleteWorkspace, removeFromWorkspace } from "../workspace";
 
 const DEFAULT_ITERATIONS = 600_000;
 
@@ -48,6 +50,38 @@ async function decoySalt(secret: string, email: string) {
 
 /** How long a device unlocks with a passkey before it needs the master password again. */
 const DEVICE_UNLOCK_DAYS = 14;
+
+/**
+ * The person's password login, refused unless `authKey` (derived from their master
+ * password on the device) matches it. Guards the steps that can't be undone.
+ */
+async function checkAuthKey(
+	context: Pick<Context, "db" | "auth"> & { userId: string },
+	authKey: string,
+) {
+	const auth = await context.auth.$context;
+	const [credential] = await context.db
+		.select({ id: account.id, password: account.password })
+		.from(account)
+		.where(
+			and(
+				eq(account.userId, context.userId),
+				eq(account.providerId, "credential"),
+			),
+		);
+	const valid =
+		credential?.password &&
+		(await auth.password.verify({
+			hash: credential.password,
+			password: authKey,
+		}));
+	if (!credential || !valid) {
+		throw new ORPCError("FORBIDDEN", {
+			message: "The current master password is wrong",
+		});
+	}
+	return credential;
+}
 
 export const accountRouter = {
 	/** Whether the workspace has an owner yet; the first person to register becomes it. */
@@ -296,23 +330,7 @@ export const accountRouter = {
 		.handler(async ({ context, input }) => {
 			const { db, userId } = context;
 			const auth = await context.auth.$context;
-			const [credential] = await db
-				.select({ id: account.id, password: account.password })
-				.from(account)
-				.where(
-					and(eq(account.userId, userId), eq(account.providerId, "credential")),
-				);
-			const valid =
-				credential?.password &&
-				(await auth.password.verify({
-					hash: credential.password,
-					password: input.currentAuthKey,
-				}));
-			if (!credential || !valid) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "The current master password is wrong",
-				});
-			}
+			const credential = await checkAuthKey(context, input.currentAuthKey);
 			await db.batch([
 				db
 					.update(account)
@@ -345,6 +363,34 @@ export const accountRouter = {
 				}),
 			]);
 			return { ok: true };
+		}),
+
+	/**
+	 * Deletes the person's own account, the way an admin removing them would. The owner
+	 * hands the workspace over first, unless they're the last one in it: then the whole
+	 * workspace goes, and the next visit starts a new one.
+	 */
+	deleteAccount: memberProcedure
+		.input(z.object({ authKey: z.string().length(64) }))
+		.handler(async ({ context, input }) => {
+			const { db, userId } = context;
+			await checkAuthKey(context, input.authKey);
+			if (context.member.role !== "owner") {
+				await removeFromWorkspace(db, { by: userId, userId });
+				return { workspaceDeleted: false };
+			}
+			const [others] = await db
+				.select({ n: count() })
+				.from(member)
+				.where(ne(member.userId, userId));
+			if ((others?.n ?? 0) > 0) {
+				throw new ORPCError("BAD_REQUEST", {
+					message:
+						"You own this workspace. Make someone else the owner on the Members page first.",
+				});
+			}
+			await deleteWorkspace(db);
+			return { workspaceDeleted: true };
 		}),
 
 	renameWorkspace: adminProcedure

@@ -1,4 +1,5 @@
 import {
+	CrownIcon,
 	DotsThreeIcon,
 	LinkIcon,
 	ShieldCheckIcon,
@@ -58,7 +59,8 @@ const roles = [
 ];
 
 function Members() {
-	const { me } = useKeyring();
+	const { me, reloadMe } = useKeyring();
+	const isOwner = me?.role === "owner";
 	const members = useMembers();
 	const workspace = useWorkspace();
 	const actions = useActions();
@@ -70,6 +72,7 @@ function Members() {
 	);
 	const [giving, setGiving] = useState<Member | null>(null);
 	const [removing, setRemoving] = useState<Member | null>(null);
+	const [handing, setHanding] = useState<Member | null>(null);
 	const [resetting, setResetting] = useState<Member | null>(null);
 	const people = members.data?.members ?? [];
 	const invites = members.data?.invites ?? [];
@@ -229,6 +232,12 @@ function Members() {
 											))}
 										</DropdownMenuGroup>
 										<DropdownMenuSeparator />
+										{isOwner && (
+											<DropdownMenuItem onClick={() => setHanding(person)}>
+												<CrownIcon />
+												Make owner
+											</DropdownMenuItem>
+										)}
 										{person.twoStep && (
 											<DropdownMenuItem onClick={() => setResetting(person)}>
 												<ShieldSlashIcon />
@@ -319,6 +328,22 @@ function Members() {
 							actions.resetTwoStep(resetting.userId),
 							`${resetting.name} can sign in with their master password alone`,
 						);
+					}
+				}}
+			/>
+			<ConfirmDialog
+				open={Boolean(handing)}
+				onOpenChange={(open) => !open && setHanding(null)}
+				title={`Make ${handing?.name} the owner?`}
+				description="They can do everything you can, including handing the workspace on. You stay in it as an admin. There's one owner at a time."
+				confirm="Make owner"
+				onConfirm={async () => {
+					if (handing) {
+						await run(
+							actions.transferOwnership(handing.userId),
+							`${handing.name} owns the workspace now`,
+						);
+						await reloadMe();
 					}
 				}}
 			/>

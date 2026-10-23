@@ -118,11 +118,20 @@ export function describeEvent(
 				vault?.name ?? "a vault",
 			);
 		case "changed":
+			if (!event.vaultId && event.detail === "owner")
+				return parts(`made ${subject ?? "someone"} the owner`);
 			return parts(
 				`changed what ${subject ?? "someone"} can do in`,
 				vault?.name ?? "a vault",
 				roleLabel(event.detail).toLowerCase(),
 			);
+		case "left": {
+			// Their account is gone with them; the event kept their name.
+			const left = event.vaultId
+				? parts("left", vault?.name ?? "a vault")
+				: parts("deleted their account and left the workspace");
+			return { ...left, actor: event.detail ?? left.actor };
+		}
 		case "joined":
 			return parts(
 				"joined the workspace",

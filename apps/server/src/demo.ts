@@ -27,6 +27,9 @@ const closed: Record<string, string> = {
 	"account.renameWorkspace": "The demo workspace keeps its name.",
 	"links.create":
 		"Share links are off in the demo, since anyone could open them.",
+	"account.deleteAccount":
+		"The demo account stays, so the next visitor can sign in.",
+	"members.transferOwnership": "The demo workspace keeps its owner.",
 };
 
 /** Turns away the procedures the demo keeps closed, before they run. */

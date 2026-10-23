@@ -99,6 +99,11 @@ type Keyring = {
 	/** Checks the master password without changing anything, before a sensitive step. */
 	verifyPassword: (password: string) => Promise<boolean>;
 	changePassword: (current: string, next: string) => Promise<void>;
+	/**
+	 * Deletes this person's account after checking their master password, and forgets
+	 * everything about it on this device. True when the whole workspace went with it.
+	 */
+	deleteAccount: (password: string) => Promise<{ workspaceDeleted: boolean }>;
 	rename: (name: string) => Promise<void>;
 	/** Loads the profile again, after something about the account changed. */
 	reloadMe: () => Promise<void>;
@@ -431,6 +436,29 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 		[me, loadMe, forgetDevice],
 	);
 
+	const deleteAccount = useCallback(
+		async (password: string) => {
+			if (!me) throw new Error("Sign in first");
+			const { authKey } = await deriveMasterKeys(
+				password,
+				me.keys.kdfSalt,
+				me.keys.kdfIterations,
+			);
+			const result = await client.account.deleteAccount({ authKey });
+			// The account and its sessions are gone on the server; this device forgets it too.
+			lock();
+			sessionId.current = null;
+			await Promise.all([
+				forgetDevice().catch(() => {}),
+				authClient.signOut().catch(() => {}),
+			]);
+			setMe(null);
+			setStatus("signed-out");
+			return result;
+		},
+		[me, lock, forgetDevice],
+	);
+
 	const startDeviceUnlock = useCallback(
 		async (password: string): Promise<Enrolment> => {
 			if (!me) throw new Error("Sign in first");
@@ -569,6 +597,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			vaultKey,
 			verifyPassword,
 			changePassword,
+			deleteAccount,
 			rename,
 			reloadMe,
 			autoLockMinutes,
@@ -579,6 +608,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			autoLockMinutes,
 			verifyPassword,
 			changePassword,
+			deleteAccount,
 			rename,
 			reloadMe,
 			setAutoLockMinutes,

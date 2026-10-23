@@ -21,6 +21,7 @@ import { notify } from "@/components/notify";
 import { Page, SectionTitle } from "@/components/page";
 import {
 	ChangePasswordDialog,
+	DeleteAccountDialog,
 	DeviceUnlockDialog,
 	ExportDialog,
 } from "@/components/settings-dialogs";
@@ -68,6 +69,7 @@ function Settings() {
 	const queryClient = useQueryClient();
 	const { theme = "system", setTheme } = useTheme();
 	const [changing, setChanging] = useState(false);
+	const [deleting, setDeleting] = useState(false);
 	const [exporting, setExporting] = useState(false);
 	const [twoStep, setTwoStep] = useState<"on" | "off" | null>(null);
 	const [passkey, setPasskey] = useState(false);
@@ -303,7 +305,20 @@ function Settings() {
 				</Row>
 			</Card>
 
+			<SectionTitle>Leaving</SectionTitle>
+			<Card>
+				<Row
+					label="Delete my account"
+					hint="Your account, your private vault and your agents go. Shared vaults stay with the team."
+				>
+					<Button variant="outline" onClick={() => setDeleting(true)}>
+						Delete my account…
+					</Button>
+				</Row>
+			</Card>
+
 			<ChangePasswordDialog open={changing} onOpenChange={setChanging} />
+			<DeleteAccountDialog open={deleting} onOpenChange={setDeleting} />
 			<ExportDialog open={exporting} onOpenChange={setExporting} />
 			<DeviceUnlockDialog open={passkey} onOpenChange={setPasskey} />
 			<TurnOnTwoStepDialog

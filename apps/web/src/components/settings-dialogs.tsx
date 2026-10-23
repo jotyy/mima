@@ -1,4 +1,5 @@
 import { FingerprintIcon, WarningIcon } from "@phosphor-icons/react";
+import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@vauly/ui/components/button";
 import {
 	Dialog,
@@ -8,6 +9,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@vauly/ui/components/dialog";
+import { Input } from "@vauly/ui/components/input";
 import {
 	type FormEvent,
 	type ReactNode,
@@ -22,9 +24,18 @@ import {
 	type Enrolment,
 	isCancel,
 } from "@/lib/device-unlock";
+import { plural } from "@/lib/format";
 import { useKeyring, WrongPasswordError } from "@/lib/keyring";
 import { newMasterPasswordProblem } from "@/lib/secrets";
-import { errorMessage, useItems, useVaults } from "@/lib/vault-data";
+import {
+	errorMessage,
+	useAgents,
+	useItems,
+	useMembers,
+	useVaults,
+	useWorkspace,
+	type Vault,
+} from "@/lib/vault-data";
 import { client } from "@/utils/orpc";
 
 import { Field, FormError, PasswordInput } from "./auth-layout";
@@ -437,4 +448,228 @@ function download(name: string, contents: string) {
 	link.download = name;
 	link.click();
 	setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** "Mei Chen", "Mei Chen and Sam Ortiz", "Mei Chen, Sam Ortiz and 2 others" */
+function names(people: { name: string }[]) {
+	const shown = people.slice(0, 2).map((person) => person.name);
+	const rest = people.length - shown.length;
+	if (rest > 0) return `${shown.join(", ")} and ${plural(rest, "other")}`;
+	return shown.join(" and ");
+}
+
+/** What becomes of a shared vault when this person goes; the server follows the same rules. */
+function afterLeaving(vault: Vault, me: string) {
+	const rest = vault.members.filter((person) => person.userId !== me);
+	if (rest.length === 0) {
+		return `is deleted with its ${plural(vault.itemCount, "item")}, since nobody else can open it`;
+	}
+	if (
+		vault.role === "manage" &&
+		!rest.some((person) => person.role === "manage")
+	) {
+		const editors = rest.filter((person) => person.role === "edit");
+		return `stays, and ${names(editors.length ? editors : rest)} will manage it`;
+	}
+	return "stays with the others";
+}
+
+/**
+ * Deletes the person's own account, behind their master password and a typed
+ * confirmation. It says beforehand what happens to each vault. The owner hands the
+ * workspace over first, unless they're the last one in it, when the workspace goes too.
+ */
+export function DeleteAccountDialog({
+	open,
+	onOpenChange,
+}: {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+}) {
+	const keyring = useKeyring();
+	const navigate = useNavigate();
+	const vaults = useVaults();
+	const items = useItems();
+	const agents = useAgents();
+	const members = useMembers();
+	const workspace = useWorkspace();
+	const [password, setPassword] = useState("");
+	const [typed, setTyped] = useState("");
+	const [error, setError] = useState("");
+	const [busy, setBusy] = useState(false);
+
+	useEffect(() => {
+		if (open) {
+			setPassword("");
+			setTyped("");
+			setError("");
+		}
+	}, [open]);
+
+	const me = keyring.me;
+	if (!me) return null;
+	const workspaceName = workspace.data?.workspaceName ?? "vauly";
+	const others = (members.data?.members ?? []).filter(
+		(person) => person.userId !== me.id,
+	);
+	const owner = me.role === "owner";
+	const everything = owner && others.length === 0;
+	const phrase = everything ? workspaceName : me.email;
+	const personal = (vaults.data ?? []).find((vault) => vault.personal);
+	const privateItems = (items.data ?? []).filter(
+		(item) => item.vaultId === personal?.id,
+	).length;
+	const shared = (vaults.data ?? []).filter((vault) => !vault.personal);
+	const myAgents = (agents.data ?? []).filter(
+		(agent) => agent.ownerId === me.id,
+	);
+
+	if (owner && others.length > 0) {
+		return (
+			<Dialog open={open} onOpenChange={onOpenChange}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Hand over {workspaceName} first</DialogTitle>
+						<DialogDescription>
+							You own this workspace, and{" "}
+							{others.length === 1
+								? "1 other person is"
+								: `${others.length} other people are`}{" "}
+							still in it. Make one of them the owner on the Members page, then
+							come back to delete your account.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button variant="ghost" onClick={() => onOpenChange(false)}>
+							Cancel
+						</Button>
+						<Button
+							onClick={() => {
+								onOpenChange(false);
+								navigate({ to: "/members" });
+							}}
+						>
+							Go to Members
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+		);
+	}
+
+	const submit = async (event: FormEvent) => {
+		event.preventDefault();
+		setError("");
+		setBusy(true);
+		try {
+			const { workspaceDeleted } = await keyring.deleteAccount(password);
+			onOpenChange(false);
+			if (workspaceDeleted) {
+				// Nothing is left: the next visit starts a new workspace.
+				window.location.assign("/");
+				return;
+			}
+			notify.success(
+				"Your account was deleted",
+				"To come back, ask someone in the workspace for a new invite.",
+			);
+			navigate({ to: "/login" });
+		} catch (err) {
+			setError(errorMessage(err));
+			setBusy(false);
+		}
+	};
+
+	return (
+		<FormDialog
+			open={open}
+			onOpenChange={(next) => !busy && onOpenChange(next)}
+			title={
+				everything
+					? `Delete your account and ${workspaceName}?`
+					: "Delete your account?"
+			}
+			description={
+				everything
+					? "You're the only one left, so the whole workspace goes with your account. Nobody can undo this."
+					: "You're signed out everywhere and can't sign in again. Nobody can undo this."
+			}
+			onSubmit={submit}
+			footer={
+				<>
+					<Button
+						type="button"
+						variant="ghost"
+						onClick={() => onOpenChange(false)}
+					>
+						Cancel
+					</Button>
+					<Button
+						type="submit"
+						variant="destructive"
+						disabled={busy || !password || typed.trim() !== phrase}
+					>
+						{busy
+							? "Deleting…"
+							: everything
+								? "Delete everything"
+								: "Delete my account"}
+					</Button>
+				</>
+			}
+		>
+			<ul
+				aria-label="What happens"
+				className="text-body-sm text-fg-muted flex list-disc flex-col gap-1 pl-5"
+			>
+				{everything ? (
+					<li>
+						Every vault and item, every agent and the activity log are deleted.
+						The next visit to this address starts a new workspace.
+					</li>
+				) : (
+					<>
+						<li>
+							Your private vault is deleted, with its{" "}
+							{plural(privateItems, "item")}.
+						</li>
+						{shared.map((vault) => (
+							<li key={vault.id}>
+								<span className="text-fg">{vault.name}</span>{" "}
+								{afterLeaving(vault, me.id)}.
+							</li>
+						))}
+						{myAgents.length > 0 && (
+							<li>
+								{myAgents.length === 1
+									? "Your agent stops working and is deleted."
+									: `Your ${myAgents.length} agents stop working and are deleted.`}
+							</li>
+						)}
+						<li>
+							The activity log keeps what you did, under your name, and that you
+							left.
+						</li>
+					</>
+				)}
+			</ul>
+			<Field label="Master password">
+				<PasswordInput
+					required
+					autoComplete="current-password"
+					value={password}
+					onChange={(event) => setPassword(event.target.value)}
+				/>
+			</Field>
+			<Field label={`Type ${phrase} to confirm`}>
+				<Input
+					value={typed}
+					autoComplete="off"
+					spellCheck={false}
+					onChange={(event) => setTyped(event.target.value)}
+				/>
+			</Field>
+			<FormError>{error}</FormError>
+		</FormDialog>
+	);
 }

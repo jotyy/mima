@@ -239,8 +239,11 @@ export type EventAction =
 	| "filled"
 	| "linked"
 	| "opened"
-	// Someone's role in a vault changed; `detail` holds the new role.
-	| "changed";
+	// Someone's role in a vault changed; `detail` holds the new role ("owner" for the
+	// workspace's owner, without a vault).
+	| "changed"
+	// Someone deleted their own account; `detail` keeps their name.
+	| "left";
 
 /** Append-only audit log. `detail` is plaintext: never put a secret in it. */
 export const event = sqliteTable(
