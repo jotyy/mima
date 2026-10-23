@@ -6,12 +6,13 @@ import { type ComponentProps, type ReactNode, useState } from "react";
 
 import { passwordStrength } from "@/lib/secrets";
 
+import { CipherField } from "./cipher-field";
 import { VaulyLogo } from "./vauly-mark";
 
 /**
- * The page around sign-in, setup, join and unlock: the website's sky in vauly blue, the
- * logo up top, and a frosted card in the middle. The card is as tall as its form; the
- * page scrolls when the form is taller than the screen.
+ * The page around sign-in, setup, join and unlock: the website's sky in vauly blue with
+ * its ciphertext, the logo up top, and a frosted card in the middle. The card is as tall
+ * as its form; the page scrolls when the form is taller than the screen.
  */
 export function AuthLayout({
 	title,
@@ -34,6 +35,7 @@ export function AuthLayout({
 			data-slot="auth-sky"
 			className="relative isolate flex min-h-svh flex-col"
 		>
+			<CipherField />
 			<header className="px-5 pt-5 sm:px-8 sm:pt-7">
 				<VaulyLogo tone="white" className="h-7" />
 			</header>
