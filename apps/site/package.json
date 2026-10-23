@@ -13,22 +13,20 @@
 		"og": "bun scripts/og.ts"
 	},
 	"dependencies": {
-		"@astrojs/react": "7.1.1",
+		"@astrojs/preact": "6.1.1",
 		"@astrojs/starlight": "0.42.6",
 		"@mima/crypto": "workspace:*",
 		"@mima/ui": "workspace:*",
-		"@phosphor-icons/react": "^2.1.10",
+		"@phosphor-icons/core": "2.1.1",
 		"@tailwindcss/vite": "^4.3.3",
 		"astro": "7.4.2",
-		"react": "^19.3.0",
-		"react-dom": "^19.3.0",
+		"preact": "11.0.1",
 		"simple-icons": "16.35.0",
 		"tailwindcss": "catalog:"
 	},
 	"devDependencies": {
 		"@astrojs/check": "0.9.12",
-		"@types/react": "^19.3.0",
-		"@types/react-dom": "^19.3.0",
+		"@playwright/test": "1.64.1",
 		"typescript": "catalog:"
 	}
 }

@@ -1,17 +1,22 @@
-import { cn } from "@mima/ui/lib/utils";
+import type { ComponentChildren } from "preact";
+import { useEffect, useRef, useState } from "preact/hooks";
+import { cx } from "@/lib/cx";
 import {
 	ArrowCounterClockwiseIcon,
 	CheckCircleIcon,
 	RobotIcon,
 	ShieldCheckIcon,
-} from "@phosphor-icons/react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+} from "@/lib/icons";
 
 // A coding agent runs the tests through `mima run`: mima asks a person, the person
 // approves in mima, and the command gets the value without the agent ever seeing it.
 // Plays once when it comes into view, then waits to be replayed.
 
-type Step = { at: number; line?: ReactNode; approval?: "asking" | "approved" };
+type Step = {
+	at: number;
+	line?: ComponentChildren;
+	approval?: "asking" | "approved";
+};
 
 const steps: Step[] = [
 	{
@@ -172,7 +177,7 @@ export default function AgentsDemo() {
 
 			{/* The request, as a person sees it in mima */}
 			<div
-				className={cn(
+				className={cx(
 					"bg-surface shadow-popover ring-line-subtle ease-emphasized absolute right-3 bottom-0 left-10 rounded-2xl p-4 ring-1 transition-all duration-500 sm:left-auto sm:w-88 lg:-right-8",
 					approval
 						? "translate-y-0 opacity-100"
@@ -195,7 +200,7 @@ export default function AgentsDemo() {
 				<div className="mt-4 flex items-center justify-end gap-2">
 					{approval === "approved" ? (
 						<span className="text-label text-success flex items-center gap-1.5">
-							<CheckCircleIcon weight="fill" className="size-4" />
+							<CheckCircleIcon className="size-4" />
 							Allowed by you
 						</span>
 					) : (

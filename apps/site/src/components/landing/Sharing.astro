@@ -1,12 +1,6 @@
 ---
-import {
-	ArrowsClockwiseIcon,
-	CheckIcon,
-	PlusIcon,
-	UserMinusIcon,
-} from "@phosphor-icons/react";
-
 import BrandIcon from "@/components/BrandIcon.astro";
+import Icon from "@/components/Icon.astro";
 
 import Heading from "./Heading.astro";
 import Section from "./Section.astro";
@@ -46,7 +40,7 @@ const points = [
 				{
 					points.map((point) => (
 						<li class="text-copy text-fg-muted flex gap-3">
-							<CheckIcon weight="bold" className="text-brand mt-1 size-4 shrink-0" />
+							<Icon name="check" weight="bold" class="text-brand mt-1 size-4 shrink-0" />
 							{point}
 						</li>
 					))
@@ -66,7 +60,7 @@ const points = [
 						<span class="text-label text-fg-subtle">18 items · 3 people</span>
 					</div>
 					<span class="text-label bg-surface text-fg shadow-pill flex items-center gap-1.5 rounded-full px-3 py-1.5">
-						<PlusIcon className="size-3.5" />
+						<Icon name="plus" class="size-3.5" />
 						Give access
 					</span>
 				</div>
@@ -92,7 +86,7 @@ const points = [
 			<div class="bg-surface shadow-popover ring-line-subtle absolute right-0 bottom-0 left-6 rounded-2xl ring-1 sm:left-16 lg:-right-4">
 				<div class="flex items-center gap-2.5 px-4 pt-4 pb-2">
 					<span class="bg-warning-soft text-warning flex size-7 items-center justify-center rounded-full">
-						<UserMinusIcon className="size-3.5" />
+						<Icon name="user-minus" class="size-3.5" />
 					</span>
 					<span class="text-label text-fg flex-1">
 						<span class="font-medium">Sam Lee left</span>
@@ -111,7 +105,7 @@ const points = [
 									<span class="text-micro text-fg-subtle truncate">{item.changed}</span>
 								</div>
 								<span class="text-micro text-link flex items-center gap-1 font-medium">
-									<ArrowsClockwiseIcon className="size-3" />
+									<Icon name="arrows-clockwise" class="size-3" />
 									Change
 								</span>
 							</li>

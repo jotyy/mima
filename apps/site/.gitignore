@@ -1,6 +1,6 @@
 dist/
 .astro/
 # Copied from the repository's docs/ by scripts/sync-docs.ts.
-src/content/docs/
+src/content/docs/docs/
 public/docs/
 src/assets/screens/

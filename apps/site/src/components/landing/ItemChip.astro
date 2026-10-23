@@ -1,7 +1,6 @@
 ---
-import { LockSimpleIcon } from "@phosphor-icons/react";
-
 import BrandIcon from "@/components/BrandIcon.astro";
+import Icon from "@/components/Icon.astro";
 
 // An item as a small pill: plain, as it is on your device, or sealed, as the server
 // keeps it.
@@ -19,7 +18,7 @@ const { brand, name, detail, cipher } = Astro.props;
 	cipher ? (
 		<span class="text-caption bg-brand-soft text-link inline-flex w-full shrink-0 items-center gap-2 rounded-full py-1 pr-3 pl-1 font-mono">
 			<span class="bg-surface text-link flex size-7 shrink-0 items-center justify-center rounded-full">
-				<LockSimpleIcon className="size-3.5" />
+				<Icon name="lock-simple" class="size-3.5" />
 			</span>
 			<span class="truncate">{cipher}</span>
 		</span>

@@ -1,15 +1,15 @@
 import { newDataKey, sealJson, wrapKey } from "@mima/crypto";
-import { cn } from "@mima/ui/lib/utils";
+import { useEffect, useRef, useState } from "preact/hooks";
+import { cx } from "@/lib/cx";
 import {
 	CloudIcon,
 	GlobeIcon,
-	type Icon,
+	type IconComponent,
 	KeyIcon,
 	LaptopIcon,
 	LockSimpleIcon,
 	NoteIcon,
-} from "@phosphor-icons/react";
-import { useEffect, useRef, useState } from "react";
+} from "@/lib/icons";
 
 // The hero's demo: an item on the left, as you'd type it into mima, and on the right
 // what the server receives for it. It runs mima's real encryption in this page, so every
@@ -25,7 +25,7 @@ type Field = {
 	multiline?: boolean;
 };
 
-const kinds: { value: Kind; label: string; icon: Icon }[] = [
+const kinds: { value: Kind; label: string; icon: IconComponent }[] = [
 	{ value: "login", label: "Login", icon: GlobeIcon },
 	{ value: "api-key", label: "API key", icon: KeyIcon },
 	{ value: "note", label: "Note", icon: NoteIcon },
@@ -198,7 +198,7 @@ export default function EncryptDemo() {
 								touched.current = true;
 								setKind(k.value);
 							}}
-							className={cn(
+							className={cx(
 								"text-label focus-visible:ring-brand flex items-center gap-1.5 rounded-full px-3 py-1 transition-colors outline-none focus-visible:ring-2",
 								kind === k.value
 									? "bg-surface text-fg shadow-pill"
@@ -223,7 +223,7 @@ export default function EncryptDemo() {
 					<input
 						aria-label="Name"
 						value={draft.name}
-						onChange={(event) => edit({ name: event.target.value })}
+						onInput={(event) => edit({ name: event.currentTarget.value })}
 						className="text-h4 text-fg focus-visible:ring-brand/40 -mx-1 rounded-md px-1 font-medium outline-none focus-visible:ring-2"
 					/>
 					<div className="border-line-subtle divide-line-subtle flex flex-col divide-y rounded-lg border">
@@ -238,8 +238,11 @@ export default function EncryptDemo() {
 									<textarea
 										rows={2}
 										value={draft.values[field.key] ?? ""}
-										onChange={(event) =>
-											edit({ field: field.key, value: event.target.value })
+										onInput={(event) =>
+											edit({
+												field: field.key,
+												value: event.currentTarget.value,
+											})
 										}
 										className="text-copy text-fg resize-none bg-transparent outline-none"
 									/>
@@ -247,11 +250,14 @@ export default function EncryptDemo() {
 									<span className="flex items-center">
 										<input
 											value={draft.values[field.key] ?? ""}
-											onChange={(event) =>
-												edit({ field: field.key, value: event.target.value })
+											onInput={(event) =>
+												edit({
+													field: field.key,
+													value: event.currentTarget.value,
+												})
 											}
-											spellCheck={false}
-											className={cn(
+											spellcheck={false}
+											className={cx(
 												"text-copy text-fg min-w-0 flex-1 bg-transparent outline-none",
 												field.mono && "font-mono tracking-tight",
 											)}
@@ -270,13 +276,13 @@ export default function EncryptDemo() {
 				>
 					<div className="border-brand-line h-full border-l border-dashed" />
 					<span className="bg-brand text-brand-fg shadow-float ring-surface absolute top-1/2 left-0 flex size-9 -translate-1/2 items-center justify-center rounded-full ring-4">
-						<LockSimpleIcon weight="bold" className="size-4" />
+						<LockSimpleIcon className="size-4" />
 					</span>
 				</div>
 				<div aria-hidden className="flex items-center gap-3 px-5 md:hidden">
 					<span className="border-brand-line flex-1 border-t border-dashed" />
 					<span className="bg-brand text-brand-fg flex size-8 items-center justify-center rounded-full">
-						<LockSimpleIcon weight="bold" className="size-4" />
+						<LockSimpleIcon className="size-4" />
 					</span>
 					<span className="border-brand-line flex-1 border-t border-dashed" />
 				</div>
@@ -304,10 +310,16 @@ export default function EncryptDemo() {
 	);
 }
 
-function PaneLabel({ icon: Icon, children }: { icon: Icon; children: string }) {
+function PaneLabel({
+	icon: Glyph,
+	children,
+}: {
+	icon: IconComponent;
+	children: string;
+}) {
 	return (
 		<span className="text-label text-fg-subtle flex items-center gap-1.5">
-			<Icon className="size-3.5" />
+			<Glyph className="size-3.5" />
 			{children}
 		</span>
 	);

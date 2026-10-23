@@ -1,0 +1,33 @@
+---
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+
+// A Phosphor icon, inlined as SVG when the page is built: no script, and it takes the
+// text color. Names are Phosphor's own, in kebab case, such as "github-logo".
+
+interface Props {
+	name: string;
+	weight?: "regular" | "bold" | "fill";
+	class?: string;
+}
+
+const { name, weight = "regular", class: className } = Astro.props;
+const require = createRequire(import.meta.url);
+const file = require.resolve(
+	`@phosphor-icons/core/${weight}/${weight === "regular" ? name : `${name}-${weight}`}.svg`,
+);
+const body = readFileSync(file, "utf8")
+	.replace(/^[\s\S]*?<svg[^>]*>/, "")
+	.replace(/<\/svg>\s*$/, "");
+---
+
+<svg
+	xmlns="http://www.w3.org/2000/svg"
+	viewBox="0 0 256 256"
+	width="1em"
+	height="1em"
+	fill="currentColor"
+	aria-hidden="true"
+	class={className}
+	set:html={body}
+/>

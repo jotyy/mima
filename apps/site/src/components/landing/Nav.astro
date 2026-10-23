@@ -1,5 +1,5 @@
 ---
-import { GithubLogoIcon, ListIcon } from "@phosphor-icons/react";
+import Icon from "@/components/Icon.astro";
 
 import Logo from "@/components/Logo.astro";
 import { button, REPOSITORY } from "@/lib/ui";
@@ -30,7 +30,8 @@ const links = [
 				links.map((link) => (
 					<a
 						href={link.href}
-						class="text-label group-data-scrolled/nav:text-fg-muted group-data-scrolled/nav:hover:text-fg rounded-full px-3 py-1.5 text-white/75 transition-colors outline-none hover:text-white focus-visible:ring-2 focus-visible:ring-brand"
+						data-spy={link.href.startsWith("/#") ? link.href.slice(2) : undefined}
+						class="text-label data-current:bg-tint/5 group-data-scrolled/nav:data-current:text-fg group-data-scrolled/nav:text-fg-muted group-data-scrolled/nav:hover:text-fg rounded-full px-3 py-1.5 text-white/75 transition-colors outline-none hover:text-white focus-visible:ring-2 focus-visible:ring-brand"
 					>
 						{link.label}
 					</a>
@@ -44,7 +45,7 @@ const links = [
 				class={button("ghost", "md", "group-data-scrolled/nav:text-fg-muted group-data-scrolled/nav:hover:text-fg hidden px-3 text-white/80 hover:bg-white/10 hover:text-white sm:inline-flex")}
 				aria-label="mima on GitHub"
 			>
-				<GithubLogoIcon weight="fill" />
+				<Icon name="github-logo" weight="fill" />
 				<span class="hidden lg:inline">GitHub</span>
 			</a>
 			<a href="/docs/self-hosting/" class={button("light", "md", "group-data-scrolled/nav:bg-brand group-data-scrolled/nav:text-brand-fg group-data-scrolled/nav:shadow-sheen shadow-none")}>
@@ -55,7 +56,7 @@ const links = [
 					class={button("ghost", "md", "group-data-scrolled/nav:text-fg size-9 cursor-pointer list-none px-0 text-white [&::-webkit-details-marker]:hidden")}
 					aria-label="Menu"
 				>
-					<ListIcon />
+					<Icon name="list" />
 				</summary>
 				<nav
 					aria-label="Main"
@@ -82,6 +83,39 @@ const links = [
 	const update = () => header?.toggleAttribute("data-scrolled", window.scrollY > 12);
 	update();
 	window.addEventListener("scroll", update, { passive: true });
+	// The link for the section being read is marked current, once the page is past the hero.
+	const links = new Map(
+		[...document.querySelectorAll<HTMLAnchorElement>("[data-spy]")].map((link) => [link.dataset.spy, link]),
+	);
+	const spy = new IntersectionObserver(
+		(entries) => {
+			for (const entry of entries) {
+				if (!entry.isIntersecting) continue;
+				for (const [id, link] of links) {
+					const current = id === entry.target.id;
+					link.toggleAttribute("data-current", current);
+					if (current) link.setAttribute("aria-current", "true");
+					else link.removeAttribute("aria-current");
+				}
+			}
+		},
+		{ rootMargin: "-45% 0px -50% 0px" },
+	);
+	for (const id of links.keys()) {
+		const section = id && document.getElementById(id);
+		if (section) spy.observe(section);
+	}
+	window.addEventListener(
+		"scroll",
+		() => {
+			if (window.scrollY >= 200) return;
+			for (const link of links.values()) {
+				link.removeAttribute("aria-current");
+				link.removeAttribute("data-current");
+			}
+		},
+		{ passive: true },
+	);
 	// Choosing a link closes the phone menu.
 	for (const link of document.querySelectorAll("[data-menu] a")) {
 		link.addEventListener("click", () => link.closest("details")?.removeAttribute("open"));

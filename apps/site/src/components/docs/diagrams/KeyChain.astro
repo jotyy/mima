@@ -1,16 +1,5 @@
 ---
-import {
-	CloudIcon,
-	FileTextIcon,
-	KeyIcon,
-	LaptopIcon,
-	LockKeyIcon,
-	LockSimpleIcon,
-	PasswordIcon,
-	ShieldCheckIcon,
-	UserCircleIcon,
-	VaultIcon,
-} from "@phosphor-icons/react";
+import Icon from "@/components/Icon.astro";
 
 // From the master password to one item: on the left, the keys as they exist on your
 // device, each opening the next; across the lock line on the right, what the server keeps
@@ -18,21 +7,21 @@ import {
 
 const rows = [
 	{
-		icon: PasswordIcon,
+		icon: "password",
 		name: "Master password",
 		spec: "Only in your head",
 		next: "PBKDF2-SHA256 · 600,000 rounds",
 		server: null,
 	},
 	{
-		icon: KeyIcon,
+		icon: "key",
 		name: "Master key",
 		spec: "Split in two by HKDF",
 		next: "HKDF",
 		server: null,
 	},
 	{
-		icon: ShieldCheckIcon,
+		icon: "shield-check",
 		name: "Auth key",
 		spec: "Signs you in",
 		via: "hashed with scrypt",
@@ -41,7 +30,7 @@ const rows = [
 		branch: true,
 	},
 	{
-		icon: LockKeyIcon,
+		icon: "lock-key",
 		name: "Wrap key",
 		spec: "Opens your private key",
 		next: "opens",
@@ -49,7 +38,7 @@ const rows = [
 		branch: true,
 	},
 	{
-		icon: UserCircleIcon,
+		icon: "user-circle",
 		name: "Your private key",
 		spec: "ECDH P-256",
 		via: "sealed with the wrap key",
@@ -57,7 +46,7 @@ const rows = [
 		next: "opens",
 	},
 	{
-		icon: VaultIcon,
+		icon: "vault",
 		name: "Vault key",
 		spec: "AES-256-GCM, one per vault",
 		via: "wrapped to each member",
@@ -65,7 +54,7 @@ const rows = [
 		next: "opens",
 	},
 	{
-		icon: KeyIcon,
+		icon: "key",
 		name: "Item key",
 		spec: "AES-256-GCM, one per item",
 		via: "wrapped with the vault key",
@@ -73,7 +62,7 @@ const rows = [
 		next: "encrypts",
 	},
 	{
-		icon: FileTextIcon,
+		icon: "file-text",
 		name: "Your item",
 		spec: "Name, username, password, notes",
 		via: "AES-256-GCM, fresh IV",
@@ -85,22 +74,22 @@ const rows = [
 
 <figure class="key-chain not-content" aria-label="How a master password becomes the key to one item">
 	<div class="lanes" aria-hidden="true">
-		<span><LaptopIcon /> On your device</span>
-		<span><CloudIcon /> On your server</span>
+		<span><Icon name="laptop" /> On your device</span>
+		<span><Icon name="cloud" /> On your server</span>
 	</div>
 	<ol>
 		{
 			rows.map((row) => (
 				<li class:list={[row.branch && "branch"]}>
 					<div class="key">
-						<span class="tile"><row.icon /></span>
+						<span class="tile"><Icon name={row.icon} /></span>
 						<span class="text">
 							<strong>{row.name}</strong>
 							<span>{row.spec}</span>
 						</span>
 					</div>
 					<div class:list={["cross", !row.server && "none"]}>
-						<span class="seal"><LockSimpleIcon weight="bold" /></span>
+						<span class="seal"><Icon name="lock-simple" weight="bold" /></span>
 					</div>
 					<div class:list={["stored", !row.server && "none"]}>
 						{row.server ? (

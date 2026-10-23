@@ -1,17 +1,6 @@
 ---
-import {
-	ArrowCounterClockwiseIcon,
-	CopySimpleIcon,
-	EyeIcon,
-	LinkSimpleIcon,
-	LockSimpleIcon,
-	RobotIcon,
-	ShieldCheckIcon,
-	TrashIcon,
-	UserMinusIcon,
-} from "@phosphor-icons/react";
-
 import BrandIcon from "@/components/BrandIcon.astro";
+import Icon from "@/components/Icon.astro";
 import Heading from "./Heading.astro";
 import Section from "./Section.astro";
 
@@ -29,35 +18,35 @@ const health = [
 
 const activity = [
 	{
-		icon: CopySimpleIcon,
+		icon: "copy-simple",
 		who: "Alex",
 		what: "copied the password for",
 		item: "GitHub",
 		when: "2m",
 	},
 	{
-		icon: RobotIcon,
+		icon: "robot",
 		who: "Claude Code",
 		what: "used",
 		item: "Postgres · staging",
 		when: "8m",
 	},
 	{
-		icon: EyeIcon,
+		icon: "eye",
 		who: "Riley",
 		what: "revealed",
 		item: "Office Wi-Fi",
 		when: "1h",
 	},
 	{
-		icon: LinkSimpleIcon,
+		icon: "link-simple",
 		who: "Jordan",
 		what: "shared",
 		item: "Figma",
 		when: "3h",
 	},
 	{
-		icon: UserMinusIcon,
+		icon: "user-minus",
 		who: "Alex",
 		what: "removed Sam from",
 		item: "Engineering",
@@ -137,13 +126,13 @@ const sources = [
 		<div data-reveal class={card}>
 			<div class="flex flex-col gap-2.5 py-1">
 				<div class="text-micro bg-surface-sunken flex items-center gap-2 overflow-hidden rounded-lg px-3 py-2.5 font-mono whitespace-nowrap">
-					<LinkSimpleIcon className="text-fg-subtle size-3.5 shrink-0" />
+					<Icon name="link-simple" class="text-fg-subtle size-3.5 shrink-0" />
 					<span class="text-fg-muted">acme.example/s/7Gk2</span><span class="bg-brand-soft text-link -ml-1 rounded px-1">#Q2xqZ8vN…</span>
 				</div>
 				<!-- What the person at the other end sees -->
 				<div class="ring-line-subtle bg-surface flex flex-col items-center gap-2.5 rounded-xl px-4 pt-4 pb-3.5 text-center ring-1">
 					<span class="bg-brand-soft text-link flex size-8 items-center justify-center rounded-full">
-						<LockSimpleIcon className="size-4" />
+						<Icon name="lock-simple" class="size-4" />
 					</span>
 					<span class="text-label text-fg">Alex shared an item with you</span>
 					<span class="text-label bg-brand text-brand-fg shadow-sheen rounded-full px-3.5 py-1.5 font-medium">
@@ -165,7 +154,7 @@ const sources = [
 					activity.map((row) => (
 						<li class="border-line-subtle flex items-center gap-3 border-b py-2.5 last:border-0">
 							<span class="bg-surface-sunken text-fg-muted flex size-7 items-center justify-center rounded-full">
-								<row.icon className="size-3.5" />
+								<Icon name={row.icon} class="size-3.5" />
 							</span>
 							<span class="text-label text-fg-subtle flex-1 truncate">
 								<span class="text-fg">{row.who}</span> {row.what} <span class="text-fg">{row.item}</span>
@@ -185,10 +174,10 @@ const sources = [
 		<div data-reveal class={card}>
 			<div class="flex justify-center py-4">
 				<div class="bg-cta text-cta-fg shadow-float text-label flex items-center gap-3 rounded-full py-2 pr-2 pl-4 whitespace-nowrap">
-					<TrashIcon className="size-3.5 opacity-60" />
+					<Icon name="trash" class="size-3.5 opacity-60" />
 					Moved to Recently deleted
 					<span class="flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 font-medium dark:bg-black/10">
-						<ArrowCounterClockwiseIcon className="size-3" />
+						<Icon name="arrow-counter-clockwise" class="size-3" />
 						Undo
 					</span>
 				</div>
@@ -222,7 +211,7 @@ const sources = [
 	</div>
 
 	<p data-reveal class="text-label text-fg-subtle mt-10 flex items-center justify-center gap-2">
-		<ShieldCheckIcon className="text-brand size-4" />
+		<Icon name="shield-check" class="text-brand size-4" />
 		Light and dark, ⌘K everywhere, and it installs on your phone.
 	</p>
 </Section>

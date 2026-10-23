@@ -1,28 +1,19 @@
 ---
-import {
-	BrowserIcon,
-	CloudIcon,
-	DatabaseIcon,
-	GlobeIcon,
-	LockSimpleIcon,
-	PuzzlePieceIcon,
-	TerminalWindowIcon,
-	TreeStructureIcon,
-} from "@phosphor-icons/react";
+import Icon from "@/components/Icon.astro";
 
 // What a deploy makes, and who talks to it: the web app, the extension and mima run on
 // the left, everything encrypted there; your Cloudflare account on the right, holding
 // only ciphertext. The drawn version of the diagram in docs/self-hosting.md.
 
 const clients = [
-	{ icon: BrowserIcon, name: "The web app", note: "in your browser" },
+	{ icon: "browser", name: "The web app", note: "in your browser" },
 	{
-		icon: PuzzlePieceIcon,
+		icon: "puzzle-piece",
 		name: "The extension",
 		note: "fills and saves logins",
 	},
 	{
-		icon: TerminalWindowIcon,
+		icon: "terminal-window",
 		name: "mima run",
 		note: "for agents and scripts",
 	},
@@ -35,7 +26,7 @@ const clients = [
 		{
 			clients.map((client) => (
 				<div class="node">
-					<span class="tile"><client.icon /></span>
+					<span class="tile"><Icon name={client.icon} /></span>
 					<span class="text"><strong>{client.name}</strong><span>{client.note}</span></span>
 				</div>
 			))
@@ -44,23 +35,23 @@ const clients = [
 
 	<div class="link" aria-hidden="true">
 		<span class="line"></span>
-		<span class="seal"><LockSimpleIcon weight="bold" /></span>
+		<span class="seal"><Icon name="lock-simple" weight="bold" /></span>
 		<span class="label">HTTPS, ciphertext only</span>
 	</div>
 
 	<div class="account">
-		<span class="lane"><CloudIcon /> Your Cloudflare account</span>
+		<span class="lane"><Icon name="cloud" /> Your Cloudflare account</span>
 		<div class="node">
-			<span class="tile"><GlobeIcon /></span>
+			<span class="tile"><Icon name="globe" /></span>
 			<span class="text"><strong>web</strong><span>Worker · serves the app</span></span>
 		</div>
 		<div class="node">
-			<span class="tile"><TreeStructureIcon /></span>
+			<span class="tile"><Icon name="tree-structure" /></span>
 			<span class="text"><strong>server</strong><span>Worker · the API</span></span>
 		</div>
 		<div class="down" aria-hidden="true"></div>
 		<div class="node">
-			<span class="tile"><DatabaseIcon /></span>
+			<span class="tile"><Icon name="database" /></span>
 			<span class="text"><strong>database</strong><span>D1 · items as ciphertext</span></span>
 		</div>
 	</div>

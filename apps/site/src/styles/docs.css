@@ -266,3 +266,12 @@ h1#_top {
 .pagination-links a:hover {
 	border-color: var(--line-strong);
 }
+
+/* The phone menu's footer: our links and the theme switch, on one centred row. */
+.mobile-preferences {
+	align-items: center;
+}
+
+.mobile-preferences [data-theme-switch] {
+	align-self: center;
+}

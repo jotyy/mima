@@ -1,35 +1,30 @@
 ---
-import {
-	CheckCircleIcon,
-	CloudIcon,
-	EyeSlashIcon,
-	RobotIcon,
-} from "@phosphor-icons/react";
+import Icon from "@/components/Icon.astro";
 
 // How a command gets a secret through mima run, in four steps. The drawn version of the
 // diagram in docs/agents.md.
 
 const steps = [
 	{
-		icon: RobotIcon,
+		icon: "robot",
 		title: "The agent runs",
 		code: "mima run -- npm test",
 		note: "Its .env holds mima:// references.",
 	},
 	{
-		icon: CloudIcon,
+		icon: "cloud",
 		title: "mima asks",
 		code: null,
 		note: "your server for the item, as ciphertext.",
 	},
 	{
-		icon: CheckCircleIcon,
+		icon: "check-circle",
 		title: "A person allows it",
 		code: null,
 		note: "in mima: once, or for an hour.",
 	},
 	{
-		icon: EyeSlashIcon,
+		icon: "eye-slash",
 		title: "The command runs",
 		code: "DATABASE_URL=<hidden>",
 		note: "With the value, decrypted on that machine and masked in the output.",
@@ -43,7 +38,7 @@ const steps = [
 			steps.map((step, index) => (
 				<li>
 					<span class="number">{index + 1}</span>
-					<span class="tile"><step.icon /></span>
+					<span class="tile"><Icon name={step.icon} /></span>
 					<strong>{step.title}</strong>
 					{step.code && <code>{step.code}</code>}
 					<span class="note">{step.note}</span>

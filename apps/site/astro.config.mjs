@@ -1,4 +1,4 @@
-import react from "@astrojs/react";
+import preact from "@astrojs/preact";
 import starlight from "@astrojs/starlight";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
@@ -67,7 +67,8 @@ export default defineConfig({
 				},
 			],
 		}),
-		react(),
+		// The two interactive islands are Preact: a few kilobytes, not React's hundred.
+		preact(),
 	],
 	vite: {
 		plugins: [tailwindcss()],

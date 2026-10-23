@@ -1,7 +1,6 @@
 ---
-import { CheckIcon, GlobeIcon } from "@phosphor-icons/react";
-
 import BrandIcon from "@/components/BrandIcon.astro";
+import Icon from "@/components/Icon.astro";
 import Heading from "./Heading.astro";
 import Section from "./Section.astro";
 
@@ -23,7 +22,7 @@ const points = [
 				{
 					points.map((point) => (
 						<li class="text-copy text-fg-muted flex gap-3">
-							<CheckIcon weight="bold" className="text-brand mt-1 size-4 shrink-0" />
+							<Icon name="check" weight="bold" class="text-brand mt-1 size-4 shrink-0" />
 							{point}
 						</li>
 					))
@@ -72,7 +71,7 @@ const points = [
 							}
 						</ul>
 						<div class="border-line-subtle text-micro text-fg-subtle flex items-center gap-1.5 border-t px-3 py-2">
-							<GlobeIcon className="size-3" />
+							<Icon name="globe" class="size-3" />
 							Logins for linear.app
 						</div>
 					</div>

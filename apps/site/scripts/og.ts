@@ -1,7 +1,7 @@
 // Saves the social preview (src/pages/og.astro) as public/og.png. Run it with the dev
-// server up: `bun run og`. Uses the Playwright that the e2e package installs.
+// server up: `bun run og`.
 import path from "node:path";
-import { chromium } from "../../../e2e/node_modules/@playwright/test";
+import { chromium } from "@playwright/test";
 
 const out = path.resolve(import.meta.dirname, "../public/og.png");
 const browser = await chromium.launch();

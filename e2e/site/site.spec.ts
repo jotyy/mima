@@ -115,6 +115,30 @@ test("the questions open one answer at a time", async ({ page }) => {
 	await expect(first).not.toHaveAttribute("open", "");
 });
 
+test("a page that isn't there says so, and leads back", async ({ page }) => {
+	const response = await page.goto("/docs/not-a-page/");
+	expect(response?.status()).toBe(404);
+	await expect(
+		page.getByRole("heading", { name: "Nothing here" }),
+	).toBeVisible();
+	await page.getByRole("link", { name: "Back to mima" }).click();
+	await expect(page).toHaveURL(/\/$/);
+});
+
+test("the nav marks the section being read", async ({ page }) => {
+	await page.goto("/");
+	const nav = page.getByRole("navigation", { name: "Main" });
+	await page.evaluate(() =>
+		document.getElementById("security")?.scrollIntoView(),
+	);
+	await expect(nav.getByRole("link", { name: "Security" })).toHaveAttribute(
+		"aria-current",
+		"true",
+	);
+	await page.evaluate(() => window.scrollTo(0, 0));
+	await expect(nav.locator("[aria-current]")).toHaveCount(0);
+});
+
 test.describe("on a phone", () => {
 	test.use({ viewport: { width: 390, height: 844 } });
 

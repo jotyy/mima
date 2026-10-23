@@ -1,5 +1,5 @@
 ---
-import { PlusIcon } from "@phosphor-icons/react";
+import Icon from "@/components/Icon.astro";
 
 import Heading from "./Heading.astro";
 import Section from "./Section.astro";
@@ -47,7 +47,7 @@ const questions = [
 					<details name="faq" class="group bg-surface shadow-card rounded-xl">
 						<summary class="text-copy text-fg flex cursor-pointer list-none items-center justify-between gap-4 rounded-xl px-5 py-4 outline-none focus-visible:ring-2 focus-visible:ring-brand [&::-webkit-details-marker]:hidden">
 							{item.q}
-							<PlusIcon className="text-fg-subtle size-4 shrink-0 transition-transform duration-300 group-open:rotate-45" />
+							<Icon name="plus" class="text-fg-subtle size-4 shrink-0 transition-transform duration-300 group-open:rotate-45" />
 						</summary>
 						<p class="text-label text-fg-muted px-5 pb-5 text-pretty">{item.a}</p>
 					</details>

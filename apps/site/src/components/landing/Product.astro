@@ -1,25 +1,24 @@
 ---
 import { Picture } from "astro:assets";
-import { CommandIcon, StackIcon, UsersThreeIcon } from "@phosphor-icons/react";
-
 import items from "@/assets/screens/items.png";
 import itemsDark from "@/assets/screens/items-dark.png";
+import Icon from "@/components/Icon.astro";
 import Heading from "./Heading.astro";
 import Section from "./Section.astro";
 
 const points = [
 	{
-		icon: UsersThreeIcon,
+		icon: "users-three",
 		title: "Vaults for every team",
 		text: "A private vault for each person. Shared vaults for everything else.",
 	},
 	{
-		icon: CommandIcon,
+		icon: "command",
 		title: "⌘K to anything",
 		text: "Copy a password without opening it. The clipboard clears in 90 seconds.",
 	},
 	{
-		icon: StackIcon,
+		icon: "stack",
 		title: "Every kind of secret",
 		text: "Logins with one-time codes, API keys, SSH keys and notes.",
 	},
@@ -61,7 +60,7 @@ const points = [
 		{
 			points.map((point, index) => (
 				<div data-reveal style={`--reveal-delay: ${index * 80}ms`} class="flex flex-col gap-2">
-					<point.icon className="text-fg size-5" />
+					<Icon name={point.icon} class="text-fg size-5" />
 					<h3 class="text-copy text-fg mt-2 font-medium">{point.title}</h3>
 					<p class="text-label text-fg-subtle text-pretty">{point.text}</p>
 				</div>

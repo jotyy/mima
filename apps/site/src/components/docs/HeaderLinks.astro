@@ -1,5 +1,5 @@
 ---
-import { GithubLogoIcon } from "@phosphor-icons/react";
+import Icon from "@/components/Icon.astro";
 
 import { REPOSITORY } from "@/lib/ui";
 
@@ -9,7 +9,7 @@ import { REPOSITORY } from "@/lib/ui";
 
 <nav aria-label="Site" class="mima-header-links">
 	<a href="/">Home</a>
-	<a href={REPOSITORY} aria-label="mima on GitHub" class="icon"><GithubLogoIcon weight="fill" /></a>
+	<a href={REPOSITORY} aria-label="mima on GitHub" class="icon"><Icon name="github-logo" weight="fill" /></a>
 	<a href="/docs/self-hosting/" class="cta">Get started</a>
 </nav>
 

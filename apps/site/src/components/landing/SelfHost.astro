@@ -1,5 +1,5 @@
 ---
-import { CheckCircleIcon } from "@phosphor-icons/react";
+import Icon from "@/components/Icon.astro";
 
 import Heading from "./Heading.astro";
 import Section from "./Section.astro";
@@ -70,7 +70,7 @@ const created = [
 				{
 					created.map((row) => (
 						<span class="flex gap-3">
-							<CheckCircleIcon weight="fill" className="text-terminal-ok mt-1 size-3.5 shrink-0" />
+							<Icon name="check-circle" weight="fill" class="text-terminal-ok mt-1 size-3.5 shrink-0" />
 							<span class="w-20">{row.name}</span>
 							<span class="text-terminal-dim">{row.what} · mima-{row.name}-production</span>
 						</span>

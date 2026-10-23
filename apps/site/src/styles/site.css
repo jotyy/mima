@@ -324,6 +324,31 @@ body {
 	}
 }
 
+/* Answers ease open and shut, where the browser can animate to an automatic height. */
+@supports (interpolate-size: allow-keywords) {
+	:root {
+		interpolate-size: allow-keywords;
+	}
+
+	details::details-content {
+		block-size: 0;
+		overflow: hidden;
+		transition:
+			block-size 320ms var(--ease-emphasized),
+			content-visibility 320ms allow-discrete;
+	}
+
+	details[open]::details-content {
+		block-size: auto;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		details::details-content {
+			transition: none;
+		}
+	}
+}
+
 /* ── Reveal on scroll: sections ease in once, the first time they're seen ──────────── */
 
 [data-reveal] {

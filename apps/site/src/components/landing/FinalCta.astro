@@ -1,5 +1,5 @@
 ---
-import { ArrowRightIcon, LockSimpleIcon } from "@phosphor-icons/react";
+import Icon from "@/components/Icon.astro";
 
 import { button, REPOSITORY } from "@/lib/ui";
 import ItemChip from "./ItemChip.astro";
@@ -39,7 +39,7 @@ const rows = [
 				<div class="flex flex-wrap gap-3">
 					<a href="/docs/self-hosting/" class={button("light", "lg", "group")}>
 						Deploy mima
-						<ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
+						<Icon name="arrow-right" class="transition-transform group-hover:translate-x-0.5" />
 					</a>
 					<a href={REPOSITORY} class={button("glass", "lg")}>Star on GitHub</a>
 				</div>
@@ -70,7 +70,7 @@ const rows = [
 					}
 					<span class="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-white/30"></span>
 					<span class="bg-surface text-brand shadow-float absolute top-1/2 left-1/2 flex size-10 -translate-1/2 items-center justify-center rounded-full ring-4 ring-white/20">
-						<LockSimpleIcon weight="bold" className="size-4.5" />
+						<Icon name="lock-simple" weight="bold" class="size-4.5" />
 					</span>
 				</div>
 				<div class="text-micro grid grid-cols-2 text-center text-white/60">

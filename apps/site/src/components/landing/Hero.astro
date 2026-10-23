@@ -1,5 +1,5 @@
 ---
-import { ArrowRightIcon, GithubLogoIcon } from "@phosphor-icons/react";
+import Icon from "@/components/Icon.astro";
 
 import CipherField from "@/components/landing/CipherField.astro";
 import EncryptDemo from "@/components/landing/EncryptDemo";
@@ -20,11 +20,11 @@ import { button, REPOSITORY } from "@/lib/ui";
 			class="text-label group inline-flex items-center gap-2 rounded-full bg-white/10 py-1 pr-3 pl-1 text-white/80 ring-1 ring-white/15 backdrop-blur-md transition hover:bg-white/15 hover:text-white"
 		>
 			<span class="flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 font-medium text-white">
-				<GithubLogoIcon weight="fill" className="size-3.5" />
+				<Icon name="github-logo" weight="fill" class="size-3.5" />
 				Open source
 			</span>
 			AGPL-3.0
-			<ArrowRightIcon className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+			<Icon name="arrow-right" class="size-3.5 transition-transform group-hover:translate-x-0.5" />
 		</a>
 
 		<h1
@@ -52,7 +52,7 @@ import { button, REPOSITORY } from "@/lib/ui";
 		>
 			<a href="/docs/self-hosting/" class={button("light", "lg", "group")}>
 				Deploy mima
-				<ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
+				<Icon name="arrow-right" class="transition-transform group-hover:translate-x-0.5" />
 			</a>
 			<a href="/docs/" class={button("glass", "lg")}>Read the docs</a>
 		</div>

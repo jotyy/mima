@@ -1,12 +1,12 @@
 ---
-import { DesktopIcon, MoonIcon, SunIcon } from "@phosphor-icons/react";
+import Icon from "@/components/Icon.astro";
 
 // Light, the system's, or dark: the same setting on the landing page and in the docs,
 // kept where Starlight keeps it.
 const themes = [
-	{ value: "light", label: "Light", icon: SunIcon },
-	{ value: "auto", label: "System", icon: DesktopIcon },
-	{ value: "dark", label: "Dark", icon: MoonIcon },
+	{ value: "light", label: "Light", icon: "sun" },
+	{ value: "auto", label: "System", icon: "desktop" },
+	{ value: "dark", label: "Dark", icon: "moon" },
 ];
 ---
 
@@ -14,7 +14,7 @@ const themes = [
 	{
 		themes.map((theme) => (
 			<button type="button" role="radio" aria-checked="false" aria-label={theme.label} title={theme.label} data-value={theme.value}>
-				<theme.icon />
+				<Icon name={theme.icon} />
 			</button>
 		))
 	}
