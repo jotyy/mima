@@ -1,3 +1,4 @@
+import { Badge } from "@mima/ui/components/badge";
 import { Button } from "@mima/ui/components/button";
 import { Input } from "@mima/ui/components/input";
 import {
@@ -7,8 +8,10 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@mima/ui/components/select";
+import { Skeleton } from "@mima/ui/components/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@mima/ui/components/tabs";
-import { useQueryClient } from "@tanstack/react-query";
+import { DesktopIcon, DeviceMobileIcon } from "@phosphor-icons/react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useTheme } from "next-themes";
 import { type ReactNode, useState } from "react";
@@ -19,6 +22,9 @@ import {
 	ChangePasswordDialog,
 	ExportDialog,
 } from "@/components/settings-dialogs";
+import { authClient } from "@/lib/auth-client";
+import { describeDevice } from "@/lib/device";
+import { ago } from "@/lib/format";
 import {
 	AUTO_LOCK_CHOICES,
 	type AutoLockMinutes,
@@ -129,6 +135,9 @@ function Settings() {
 				</Row>
 			</Card>
 
+			<SectionTitle>Where you're signed in</SectionTitle>
+			<Sessions />
+
 			{isAdmin && (
 				<>
 					<SectionTitle>Workspace</SectionTitle>
@@ -177,6 +186,115 @@ function Settings() {
 			<ChangePasswordDialog open={changing} onOpenChange={setChanging} />
 			<ExportDialog open={exporting} onOpenChange={setExporting} />
 		</Page>
+	);
+}
+
+/** Browsers signed in to this account. The browser extension counts as one of them. */
+function Sessions() {
+	const queryClient = useQueryClient();
+	const [busy, setBusy] = useState<string | null>(null);
+	const sessions = useQuery({
+		queryKey: ["sessions"],
+		queryFn: async () => {
+			const [list, current] = await Promise.all([
+				authClient.listSessions(),
+				authClient.getSession(),
+			]);
+			if (list.error) throw new Error(list.error.message);
+			const currentId = current.data?.session.id;
+			return (list.data ?? [])
+				.map((session) => ({
+					...session,
+					current: session.id === currentId,
+					device: describeDevice(session.userAgent),
+				}))
+				.sort(
+					(a, b) =>
+						Number(b.current) - Number(a.current) ||
+						new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+				);
+		},
+	});
+	const others = (sessions.data ?? []).filter((session) => !session.current);
+
+	const end = async (id: string, work: () => Promise<{ error: unknown }>) => {
+		setBusy(id);
+		try {
+			const { error } = await work();
+			if (error) throw error;
+			await queryClient.invalidateQueries({ queryKey: ["sessions"] });
+			notify.success(
+				id === "others" ? "Signed out everywhere else" : "Signed out",
+			);
+		} catch (err) {
+			notify.error("Couldn't sign that out", errorMessage(err));
+		} finally {
+			setBusy(null);
+		}
+	};
+
+	return (
+		<Card>
+			{sessions.isPending && (
+				<div className="px-4 py-3.5">
+					<Skeleton className="h-9" />
+				</div>
+			)}
+			{sessions.data?.map((session) => {
+				const Icon = session.device.phone ? DeviceMobileIcon : DesktopIcon;
+				return (
+					<div
+						key={session.id}
+						data-testid="session"
+						className="flex items-center gap-3 px-4 py-3"
+					>
+						<span className="bg-surface-sunken text-fg-muted flex size-8 shrink-0 items-center justify-center rounded-lg">
+							<Icon className="size-4" />
+						</span>
+						<div className="flex min-w-0 flex-1 flex-col gap-0.5">
+							<span className="text-body-sm text-fg flex items-center gap-2">
+								{session.device.label}
+								{session.current && <Badge variant="brand">This browser</Badge>}
+							</span>
+							<span className="text-caption text-fg-muted">
+								Signed in {ago(session.createdAt)}
+							</span>
+						</div>
+						{!session.current && (
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={busy !== null}
+								aria-label={`Sign out ${session.device.label}`}
+								onClick={() =>
+									end(session.id, () =>
+										authClient.revokeSession({ token: session.token }),
+									)
+								}
+							>
+								Sign out
+							</Button>
+						)}
+					</div>
+				);
+			})}
+			{others.length > 0 && (
+				<Row
+					label="Lost a device?"
+					hint="Ends every other session. They'll need the master password to get back in."
+				>
+					<Button
+						variant="outline"
+						disabled={busy !== null}
+						onClick={() =>
+							end("others", () => authClient.revokeOtherSessions())
+						}
+					>
+						Sign out everywhere else
+					</Button>
+				</Row>
+			)}
+		</Card>
 	);
 }
 

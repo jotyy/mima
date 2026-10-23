@@ -23,13 +23,18 @@ export function createQueryClient() {
 
 export const queryClient = createQueryClient();
 
+/** Fired when the server no longer knows this session: signed out elsewhere, or removed. */
+export const SESSION_ENDED = "mima:session-ended";
+
 export const link = new RPCLink({
 	url: `${ENV.VITE_SERVER_URL.replace(/\/$/, "")}/rpc`,
-	fetch(url, options) {
-		return fetch(url, {
+	async fetch(url, options) {
+		const response = await fetch(url, {
 			...options,
 			credentials: "include",
 		});
+		if (response.status === 401) window.dispatchEvent(new Event(SESSION_ENDED));
+		return response;
 	},
 });
 

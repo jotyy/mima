@@ -21,8 +21,9 @@ import {
 	useState,
 } from "react";
 
+import { notify } from "@/components/notify";
 import { authClient } from "@/lib/auth-client";
-import { client } from "@/utils/orpc";
+import { client, SESSION_ENDED } from "@/utils/orpc";
 
 // The keyring holds the unlocked private key and the vault keys in memory only. A reload,
 // "Lock" or a few idle minutes forget them; the session cookie alone opens nothing.
@@ -212,6 +213,22 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 		},
 		[loadMe, open],
 	);
+
+	// Another device signed this one out, or an admin removed the person: start over.
+	const statusRef = useRef(status);
+	statusRef.current = status;
+	useEffect(() => {
+		const ended = () => {
+			if (statusRef.current !== "locked" && statusRef.current !== "unlocked")
+				return;
+			lock();
+			setMe(null);
+			setStatus("signed-out");
+			notify.error("You were signed out", "Sign in again to keep going.");
+		};
+		window.addEventListener(SESSION_ENDED, ended);
+		return () => window.removeEventListener(SESSION_ENDED, ended);
+	}, [lock]);
 
 	const signOut = useCallback(async () => {
 		lock();
