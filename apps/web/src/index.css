@@ -1,4 +1,5 @@
 @import "@mima/ui/globals.css";
+@import "./themes.css";
 
 /*
  * Empty vault: two rows of example items drift past in opposite directions, fading out

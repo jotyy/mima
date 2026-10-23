@@ -50,7 +50,7 @@ import {
 	useRef,
 	useState,
 } from "react";
-
+import { useApplyAppStyle } from "@/lib/app-style";
 import { initials, toneDot } from "@/lib/format";
 import { useKeyring } from "@/lib/keyring";
 import {
@@ -62,9 +62,11 @@ import {
 
 import { CommandPalette } from "./command-palette";
 import { MimaMark } from "./mima-mark";
+import { StylePicker } from "./style-picker";
 
 export function AppShell() {
 	const [searching, setSearching] = useState(false);
+	useApplyAppStyle();
 	const main = useRef<HTMLElement>(null);
 
 	// Notifications sit centered over the content column (minus its scrollbar), not over
@@ -103,15 +105,20 @@ export function AppShell() {
 	}, []);
 
 	return (
-		<div className="bg-frame flex h-svh flex-col">
+		<div data-slot="app-shell" className="bg-frame flex h-svh flex-col">
 			<TopBar onSearch={() => setSearching(true)} />
 			<div className="flex min-h-0 flex-1">
 				<Sidebar className="max-md:hidden" />
-				<main ref={main} className="min-w-0 flex-1 overflow-y-auto">
+				<main
+					ref={main}
+					data-slot="app-main"
+					className="min-w-0 flex-1 overflow-y-auto"
+				>
 					<Outlet />
 				</main>
 			</div>
 			<CommandPalette open={searching} onOpenChange={setSearching} />
+			{import.meta.env.DEV && <StylePicker />}
 		</div>
 	);
 }
@@ -122,7 +129,10 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
 	const pending = requests.data?.length ?? 0;
 
 	return (
-		<header className="flex h-14 shrink-0 items-center justify-between px-2 md:px-4">
+		<header
+			data-slot="topbar"
+			className="flex h-14 shrink-0 items-center justify-between px-2 md:px-4"
+		>
 			<div className="flex items-center gap-1">
 				<MobileNav />
 				<div className="text-body-sm text-fg flex items-center gap-2 px-2 font-medium">
@@ -211,7 +221,10 @@ function Sidebar({
 	);
 
 	return (
-		<aside className={cn("flex w-56 shrink-0 flex-col px-3 pb-3", className)}>
+		<aside
+			data-slot="sidebar"
+			className={cn("flex w-56 shrink-0 flex-col px-3 pb-3", className)}
+		>
 			<nav
 				aria-label={mobile ? "Menu" : undefined}
 				className={cn(
@@ -281,7 +294,11 @@ function NavGroup({
 }) {
 	return (
 		<div className="mb-4 flex flex-col gap-0.5">
-			{label && <Badge className="mb-1.5 ml-1">{label}</Badge>}
+			{label && (
+				<Badge data-slot="nav-label" className="mb-1.5 ml-1">
+					{label}
+				</Badge>
+			)}
 			{children}
 		</div>
 	);
@@ -328,6 +345,7 @@ function NavLink({
 				includeSearch: Boolean(search),
 				explicitUndefined: true,
 			}}
+			data-slot="nav-link"
 			className={navItem}
 		>
 			{Icon && <Icon className="size-4" />}
@@ -364,7 +382,10 @@ function LockBox() {
 		: 0;
 
 	return (
-		<div className="rounded-window border-line bg-surface-sunken text-caption mb-2 flex flex-col gap-1 border p-2.5">
+		<div
+			data-slot="lock-box"
+			className="rounded-window border-line bg-surface-sunken text-caption mb-2 flex flex-col gap-1 border p-2.5"
+		>
 			<span className="text-fg-muted">
 				Locks in {minutes} {minutes === 1 ? "minute" : "minutes"} of quiet
 			</span>

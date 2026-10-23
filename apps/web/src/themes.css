@@ -1,0 +1,410 @@
+/*
+ * Styles to choose from. Each keeps mima blue and the logo, and applies only inside the
+ * app: the app shell sets data-style on <html> while it's open, so sign-in keeps its own
+ * look. Without data-style, mima looks as it always has ("classic").
+ */
+
+/* ── Blueprint: the sign-in page's guide lines carried into the app. A faint blue grid,
+   crisp hairlines, small radii and mono labels: precise, technical, calm. ───────────── */
+
+html[data-style="blueprint"] {
+	--frame: #f3f6fb;
+	--canvas: #f6f8fc;
+	--surface: #ffffff;
+	--surface-sunken: #f5f7fb;
+	--fg: #0b1530;
+	--fg-emphasis: #233150;
+	--fg-muted: #44516d;
+	--fg-subtle: #63708b;
+	--fg-faint: #97a1b5;
+	--line: #dce2ee;
+	--line-subtle: #e8ecf4;
+	--line-strong: #c2cbdb;
+	--hairline: rgb(11 21 48 / 7%);
+	--tint: #0b1530;
+	--skeleton: #e7ebf3;
+	--cta: #0b1530;
+	--cta-hover: #1c2949;
+	--elevation-card: 0 0 0 1px #dce2ee, 0 1px 2px rgb(11 21 48 / 4%);
+	--elevation-pill: 0 0 0 1px #dce2ee, 0 1px 1px rgb(11 21 48 / 4%);
+	--radius: 0.375rem;
+	--round-window: 6px;
+	--round-shell: 8px;
+	--round-panel: 10px;
+}
+
+html.dark[data-style="blueprint"] {
+	--frame: #0a0f1d;
+	--canvas: #0c1222;
+	--surface: #111829;
+	--surface-sunken: #0e1424;
+	--fg: #eef2fb;
+	--fg-emphasis: #cfd7e8;
+	--fg-muted: #a9b4cb;
+	--fg-subtle: #7d89a3;
+	--fg-faint: #59647d;
+	--line: #222c44;
+	--line-subtle: #1a2338;
+	--line-strong: #2f3b57;
+	--tint: #ffffff;
+	--cta: #eef2fb;
+	--cta-hover: #cfd7e8;
+	--elevation-card: 0 0 0 1px #222c44;
+	--elevation-pill: 0 0 0 1px #222c44;
+}
+
+html[data-style="blueprint"] [data-slot="app-main"] {
+	background-image:
+		linear-gradient(rgb(31 91 249 / 0.055) 1px, transparent 1px),
+		linear-gradient(90deg, rgb(31 91 249 / 0.055) 1px, transparent 1px);
+	background-size: 24px 24px;
+	background-position: -1px -1px;
+	border-top: 1px solid var(--line);
+	border-left: 1px solid var(--line);
+	border-top-left-radius: var(--round-panel);
+}
+
+html[data-style="blueprint"] [data-slot="page-header"] {
+	align-items: flex-start;
+	text-align: left;
+	padding-bottom: 1.25rem;
+	border-bottom: 1px dashed var(--line-strong);
+}
+
+html[data-style="blueprint"] [data-slot="page-header"] h1 {
+	font-weight: 600;
+	letter-spacing: -0.01em;
+}
+
+html[data-style="blueprint"]
+	:is([data-slot="section-title"] h2, [data-slot="nav-label"]) {
+	font-family: var(--font-mono);
+	font-size: 10.5px;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--fg-subtle);
+}
+
+html[data-style="blueprint"] [data-slot="section-title"] h2 {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	gap: 0.75rem;
+	font-weight: 400;
+
+	&::after {
+		content: "";
+		flex: 1;
+		height: 1px;
+		background: var(--line);
+	}
+}
+
+html[data-style="blueprint"] [data-slot="nav-label"] {
+	border: 0;
+	background: none;
+	padding-left: 0.5rem;
+}
+
+html[data-style="blueprint"] [data-slot="nav-link"][data-status="active"] {
+	background: var(--surface);
+	box-shadow: var(--elevation-pill);
+	color: var(--fg);
+
+	&::before {
+		content: "";
+		position: absolute;
+		inset-block: 0.5rem;
+		left: 0;
+		width: 2px;
+		border-radius: 2px;
+		background: var(--brand);
+	}
+}
+
+/* ── Navy: confident and on-brand. The frame is deep mima navy, and the work sits on a
+   light sheet set into it, with soft depth and blue primary actions. ───────────────── */
+
+html[data-style="navy"] {
+	--frame: #0b1736;
+	--canvas: #f4f6fa;
+	--surface: #ffffff;
+	--surface-sunken: #f5f7fa;
+	--fg: #0e1726;
+	--fg-emphasis: #29344a;
+	--fg-muted: #48546a;
+	--fg-subtle: #697489;
+	--fg-faint: #9aa3b2;
+	--line: #e3e7ee;
+	--line-subtle: #eef1f5;
+	--line-strong: #cdd4df;
+	--tint: #0e1726;
+	--cta: var(--brand);
+	--cta-hover: var(--brand-hover);
+	--elevation-card:
+		0 0 0 1px rgb(14 23 38 / 6%), 0 1px 2px rgb(14 23 38 / 5%),
+		0 8px 20px -8px rgb(14 23 38 / 12%);
+	--radius: 0.55rem;
+	--round-window: 12px;
+	--round-shell: 14px;
+	--round-panel: 18px;
+}
+
+html.dark[data-style="navy"] {
+	--frame: #060c1e;
+	--canvas: #0d1424;
+	--surface: #121a2c;
+	--surface-sunken: #0f1627;
+	--fg: #eef2fb;
+	--fg-emphasis: #d0d8ea;
+	--fg-muted: #aab4c9;
+	--fg-subtle: #7f8aa2;
+	--fg-faint: #5a657d;
+	--line: #222b40;
+	--line-subtle: #1a2234;
+	--line-strong: #2e3851;
+	--tint: #ffffff;
+	--elevation-card: 0 0 0 1px #222b40;
+}
+
+/* The navy frame around the sheet: white ink, blue for where you are. */
+html[data-style="navy"]
+	:is(
+		[data-slot="sidebar"],
+		[data-slot="topbar"],
+		[data-slot="sheet-content"]
+	) {
+	--fg: #ffffff;
+	--fg-emphasis: #e8edf9;
+	--fg-muted: #b3bfd9;
+	--fg-subtle: #8a98ba;
+	--fg-faint: #63739a;
+	--tint: #ffffff;
+	--line: rgb(255 255 255 / 12%);
+	--surface: rgb(255 255 255 / 6%);
+	--surface-sunken: rgb(255 255 255 / 6%);
+	--link: #8eb0ff;
+	color: var(--fg);
+}
+
+html[data-style="navy"] [data-slot="sheet-content"] {
+	background: var(--frame);
+}
+
+html[data-style="navy"] [data-slot="app-main"] {
+	background: var(--canvas);
+	border-top-left-radius: var(--round-panel);
+	box-shadow: 0 0 0 1px rgb(0 0 0 / 20%);
+}
+
+html[data-style="navy"] [data-slot="page-header"] {
+	align-items: flex-start;
+	text-align: left;
+}
+
+html[data-style="navy"] [data-slot="page-header"] h1 {
+	font-size: 26px;
+	font-weight: 600;
+	letter-spacing: -0.015em;
+}
+
+html[data-style="navy"] [data-slot="nav-label"] {
+	border-color: rgb(255 255 255 / 14%);
+	color: var(--fg-subtle);
+}
+
+html[data-style="navy"] [data-slot="nav-link"][data-status="active"] {
+	background: var(--brand);
+	color: #ffffff;
+}
+
+/* ── Frost: light and airy. A soft blue morning light behind everything, a glass sidebar,
+   generous radii and cool, lifted cards. ─────────────────────────────────────────────── */
+
+html[data-style="frost"] {
+	--frame: #f5f7fc;
+	--canvas: #f7f8fc;
+	--surface: #ffffff;
+	--surface-sunken: #f3f5fb;
+	--fg: #0e1224;
+	--fg-emphasis: #2a3049;
+	--fg-muted: #4a5170;
+	--fg-subtle: #6a7190;
+	--fg-faint: #9aa0b8;
+	--line: #e4e7f1;
+	--line-subtle: #eef0f7;
+	--line-strong: #d0d5e5;
+	--tint: #1b2550;
+	--elevation-card:
+		0 0 0 1px rgb(31 60 150 / 6%), 0 1px 2px rgb(31 60 150 / 5%),
+		0 14px 32px -14px rgb(31 60 150 / 20%);
+	--elevation-pill:
+		0 1px 3px rgb(31 60 150 / 10%), 0 0 0 1px rgb(31 60 150 / 5%);
+	--radius: 0.75rem;
+	--round-window: 16px;
+	--round-shell: 18px;
+	--round-panel: 22px;
+}
+
+html.dark[data-style="frost"] {
+	--frame: #0a0d1a;
+	--canvas: #0c1020;
+	--surface: rgb(22 27 48 / 82%);
+	--surface-sunken: #121730;
+	--fg: #eef1fb;
+	--fg-emphasis: #d2d7ea;
+	--fg-muted: #aab0c9;
+	--fg-subtle: #7f86a2;
+	--fg-faint: #5b617b;
+	--line: #262c48;
+	--line-subtle: #1c2139;
+	--line-strong: #333a5a;
+	--tint: #ffffff;
+	--elevation-card:
+		0 0 0 1px rgb(255 255 255 / 7%), 0 14px 32px -14px rgb(0 0 0 / 60%);
+}
+
+html[data-style="frost"] [data-slot="app-shell"] {
+	background-image:
+		radial-gradient(70% 45% at 12% -8%, rgb(31 91 249 / 0.16), transparent 70%),
+		radial-gradient(55% 40% at 96% 0%, rgb(54 177 254 / 0.14), transparent 70%),
+		radial-gradient(
+			60% 50% at 60% 110%,
+			rgb(128 141 254 / 0.1),
+			transparent 70%
+		);
+}
+
+html[data-style="frost"] [data-slot="sidebar"] {
+	margin: 0 0 0.75rem 0.75rem;
+	padding-top: 0.5rem;
+	border-radius: var(--round-shell);
+	background: rgb(255 255 255 / 55%);
+	box-shadow:
+		inset 0 0 0 1px rgb(255 255 255 / 70%),
+		0 10px 30px -14px rgb(31 60 150 / 22%);
+	backdrop-filter: blur(18px) saturate(1.4);
+}
+
+html.dark[data-style="frost"] [data-slot="sidebar"] {
+	background: rgb(22 27 48 / 55%);
+	box-shadow:
+		inset 0 0 0 1px rgb(255 255 255 / 6%),
+		0 10px 30px -14px rgb(0 0 0 / 60%);
+}
+
+html[data-style="frost"] [data-slot="sidebar"] > nav {
+	margin-top: 1rem;
+}
+
+html[data-style="frost"] [data-slot="nav-link"][data-status="active"] {
+	background: var(--brand-soft);
+	color: var(--brand);
+}
+
+html[data-style="frost"] [data-slot="nav-label"] {
+	border: 0;
+	background: none;
+	color: var(--fg-subtle);
+}
+
+html[data-style="frost"] [data-slot="page-header"] h1 {
+	font-size: 26px;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+}
+
+/* ── Ink: editorial and exact. Pure white, true black, hairlines and big bold titles;
+   blue appears only where it means something. ──────────────────────────────────────── */
+
+html[data-style="ink"] {
+	--frame: #ffffff;
+	--canvas: #ffffff;
+	--surface: #ffffff;
+	--surface-sunken: #f6f6f6;
+	--fg: #0a0a0a;
+	--fg-emphasis: #262626;
+	--fg-muted: #525252;
+	--fg-subtle: #737373;
+	--fg-faint: #a3a3a3;
+	--line: #e5e5e5;
+	--line-subtle: #f0f0f0;
+	--line-strong: #cfcfcf;
+	--tint: #0a0a0a;
+	--elevation-card: 0 0 0 1px #e5e5e5;
+	--elevation-pill: 0 0 0 1px #e5e5e5;
+	--radius: 0.25rem;
+	--round-window: 4px;
+	--round-shell: 6px;
+	--round-panel: 8px;
+}
+
+html.dark[data-style="ink"] {
+	--frame: #000000;
+	--canvas: #000000;
+	--surface: #0a0a0a;
+	--surface-sunken: #111111;
+	--fg: #fafafa;
+	--fg-emphasis: #e5e5e5;
+	--fg-muted: #a3a3a3;
+	--fg-subtle: #8a8a8a;
+	--fg-faint: #5c5c5c;
+	--line: #262626;
+	--line-subtle: #1a1a1a;
+	--line-strong: #3a3a3a;
+	--tint: #ffffff;
+	--elevation-card: 0 0 0 1px #262626;
+	--elevation-pill: 0 0 0 1px #262626;
+}
+
+html[data-style="ink"] [data-slot="topbar"] {
+	border-bottom: 1px solid var(--line);
+}
+
+html[data-style="ink"] [data-slot="sidebar"] {
+	border-right: 1px solid var(--line);
+	padding-top: 0.5rem;
+}
+
+html[data-style="ink"] [data-slot="sidebar"] > nav {
+	margin-top: 1rem;
+}
+
+html[data-style="ink"] [data-slot="page-header"] {
+	align-items: flex-start;
+	text-align: left;
+	gap: 0.5rem;
+	padding-top: 1rem;
+}
+
+html[data-style="ink"] [data-slot="page-header"] h1 {
+	font-size: 34px;
+	line-height: 1.1;
+	font-weight: 700;
+	letter-spacing: -0.03em;
+}
+
+html[data-style="ink"] [data-slot="section-title"] {
+	padding-top: 0.625rem;
+	border-top: 2px solid var(--fg);
+}
+
+html[data-style="ink"]
+	:is([data-slot="section-title"] h2, [data-slot="nav-label"]) {
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--fg);
+}
+
+html[data-style="ink"] [data-slot="nav-label"] {
+	border: 0;
+	background: none;
+	padding-left: 0.5rem;
+}
+
+html[data-style="ink"] [data-slot="nav-link"][data-status="active"] {
+	background: var(--fg);
+	color: var(--canvas);
+}

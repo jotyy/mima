@@ -76,6 +76,9 @@
 	--elevation-inset: inset 0 0 0 1px rgb(0 0 0 / 4%);
 
 	--radius: 0.5rem;
+	--round-window: 10px;
+	--round-shell: 12px;
+	--round-panel: 16px;
 }
 
 .dark {
@@ -281,9 +284,9 @@
 	--radius-lg: var(--radius);
 	--radius-xl: 0.75rem;
 	--radius-2xl: 1rem;
-	--radius-window: 10px;
-	--radius-shell: 12px;
-	--radius-panel: 16px;
+	--radius-window: var(--round-window);
+	--radius-shell: var(--round-shell);
+	--radius-panel: var(--round-panel);
 
 	--shadow-card: var(--elevation-card);
 	--shadow-pill: var(--elevation-pill);
