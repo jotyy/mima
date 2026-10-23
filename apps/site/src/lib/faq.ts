@@ -22,7 +22,7 @@ export const questions = [
 	},
 	{
 		q: "Can we move from 1Password or Bitwarden?",
-		a: "Yes. Import their CSV exports, or Chrome's, Firefox's and Safari's. You can download a full backup any time, too.",
+		a: "Yes, and from a dozen others, browsers included. Choose Import from…, pick the app and drop in its export. One-time codes, notes and folders come along, and the file is read on your device. You can download a full backup any time, too.",
 	},
 	{
 		q: "Has it been audited?",

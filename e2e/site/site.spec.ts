@@ -7,6 +7,7 @@ const docs = [
 	"/docs/agents/",
 	"/docs/security/",
 	"/docs/compare/",
+	"/docs/import/",
 ];
 
 /** Fails on any page asset that doesn't load, such as a stylesheet with a stale name. */
