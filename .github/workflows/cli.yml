@@ -1,7 +1,7 @@
 name: CLI
 
 # Builds the vauly CLI for every platform, on that platform where it can, and checks that
-# each binary runs and that install.sh installs it.
+# each binary runs on its platform and that install.sh installs it.
 #
 # - A change to the CLI only builds and checks.
 # - A pushed version tag (v0.1.0) also attaches the binaries and SHA256SUMS to a DRAFT
@@ -52,7 +52,9 @@ jobs:
           # Built on a Mac, which signs them; Apple silicon won't run an unsigned binary.
           - { platform: darwin-arm64, runner: macos-15, install: true }
           - { platform: darwin-x64, runner: macos-15, rosetta: true }
-          - { platform: windows-x64, runner: windows-2025 }
+          # Bun on Windows can't unpack another target's runtime, so this one is built on
+          # Linux and checked on Windows by the job below.
+          - { platform: windows-x64, runner: ubuntu-24.04, elsewhere: true }
     defaults:
       run:
         shell: bash
@@ -86,9 +88,9 @@ jobs:
         run: softwareupdate --install-rosetta --agree-to-license
 
       - name: Check that it runs
+        if: ${{ !matrix.elsewhere }}
         run: |
           binary="dist/vauly-${{ matrix.platform }}"
-          [[ "${{ matrix.platform }}" == windows-* ]] && binary="$binary.exe"
           run() { if [[ -n "${{ matrix.rosetta }}" ]]; then arch -x86_64 "$@"; else "$@"; fi; }
           run "$binary" --version | tee version.txt
           grep -q "vauly $VERSION (${GITHUB_SHA::7})" version.txt
@@ -109,16 +111,38 @@ jobs:
           rm dist/SHA256SUMS
 
       - uses: actions/upload-artifact@v7
-        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' || matrix.elsewhere
         with:
           name: vauly-${{ matrix.platform }}
           path: apps/cli/dist/vauly-*
           retention-days: 7
 
+  windows:
+    name: Check (windows-x64)
+    needs: build
+    runs-on: windows-2025
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: vauly-windows-x64
+          path: dist
+      - name: Check that it runs
+        run: |
+          binary=dist/vauly-windows-x64.exe
+          "$binary" --version | tee version.txt
+          grep -q "(${GITHUB_SHA::7})" version.txt
+          "$binary" help | grep -q "vauly run"
+          echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}' \
+            | "$binary" mcp | grep -q '"serverInfo":{"name":"vauly"'
+
   # Run by hand: the binaries and their checksums in one artifact, and nothing published.
   artifact:
     name: Binaries
-    needs: build
+    needs: [build, windows]
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     steps:
@@ -136,7 +160,7 @@ jobs:
 
   release:
     name: Draft release
-    needs: build
+    needs: [build, windows]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     permissions:
