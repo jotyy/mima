@@ -153,6 +153,16 @@ test.describe("on a phone", () => {
 			expect(overflow, path).toBeLessThanOrEqual(0);
 		}
 	});
+
+	test("the closing panel's words fit the screen", async ({ page }) => {
+		await page.goto("/");
+		const words = page.getByText(
+			"Free, open source, and running on your own Cloudflare.",
+		);
+		await words.scrollIntoViewIfNeeded();
+		const box = await words.boundingBox();
+		expect(box && box.x + box.width).toBeLessThanOrEqual(390);
+	});
 });
 
 test.describe("accessibility", () => {

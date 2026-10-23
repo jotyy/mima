@@ -30,7 +30,7 @@ const rows = [
 <section class="px-2 pb-2 sm:px-4 sm:pb-4">
 	<div data-slot="brand-panel" class="rounded-3xl">
 		<div class="mx-auto grid max-w-6xl items-center gap-14 px-6 py-24 sm:px-16 sm:py-28 lg:grid-cols-2">
-			<div data-reveal class="flex flex-col items-start gap-6">
+			<div data-reveal class="flex min-w-0 flex-col items-start gap-6">
 				<h2 class="text-title-sm sm:text-title text-balance text-white">
 					Own your secrets.
 					<span class="text-sky-glow block">Start in ten minutes.</span>
@@ -45,7 +45,7 @@ const rows = [
 				</div>
 			</div>
 
-			<div aria-hidden="true" data-reveal style="--reveal-delay: 120ms" class="flex flex-col gap-3">
+			<div aria-hidden="true" data-reveal style="--reveal-delay: 120ms" class="flex min-w-0 flex-col gap-3">
 				<div data-slot="seal">
 					{
 						[false, true].map((sealed) => (
