@@ -4,8 +4,8 @@ name: CLI
 # each binary runs on its platform and that install.sh installs it.
 #
 # - A change to the CLI only builds and checks.
-# - A pushed version tag (v0.1.0) also attaches the binaries and SHA256SUMS to a DRAFT
-#   GitHub release. A maintainer reads it over and publishes it by hand; until then
+# - A pushed version tag (v0.1.0) also attaches the binaries and SHA256SUMS, and the web
+#   app's build manifest (vauly-build.json), to a DRAFT GitHub release. A maintainer reads it over and publishes it by hand; until then
 #   install.sh doesn't see it.
 # - Run by hand (Actions → CLI → Run workflow), it uploads the binaries as an artifact,
 #   and makes no release.
@@ -158,9 +158,28 @@ jobs:
           path: dist
           retention-days: 7
 
+  # The web app's build manifest for this version, for `vauly verify --against`.
+  web:
+    name: Web build manifest
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - run: VAULY_VERSION="${GITHUB_REF_NAME#v}" bun run build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: vauly-build
+          path: apps/web/dist/.well-known/vauly-build.json
+          retention-days: 7
+
   release:
     name: Draft release
-    needs: [build, windows]
+    needs: [build, windows, web]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     permissions:
@@ -179,6 +198,6 @@ jobs:
             --draft \
             --verify-tag \
             --title "vauly $GITHUB_REF_NAME" \
-            --notes "The vauly CLI for macOS, Linux and Windows, with SHA256SUMS. Add the notes for this version from CHANGELOG.md, check the binaries, then publish."
+            --notes "The vauly CLI for macOS, Linux and Windows, with SHA256SUMS, and vauly-build.json: what the web app at this version builds, for vauly verify --against. Add the notes for this version from CHANGELOG.md, check the binaries, then publish."
         env:
           GH_TOKEN: ${{ github.token }}

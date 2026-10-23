@@ -13,6 +13,7 @@
 	"assets": {
 		// Built by `bun run build`.
 		"directory": "apps/web/dist",
+		"binding": "ASSETS",
 		"not_found_handling": "single-page-application",
 		// Everything else is the app's files; these paths go to the API.
 		"run_worker_first": [

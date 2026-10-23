@@ -1,8 +1,8 @@
 import { createAuthClient } from "better-auth/react";
 
-import { ENV } from "../env.public";
+import { instance } from "../config";
 
-// Without VITE_SERVER_URL the API is on the app's own address, Better Auth's default.
+// Without an API address of its own the API is on the app's, Better Auth's default.
 export const authClient = createAuthClient({
-	baseURL: ENV.VITE_SERVER_URL || undefined,
+	baseURL: instance().server || undefined,
 });

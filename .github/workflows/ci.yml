@@ -72,6 +72,36 @@ jobs:
       - run: bunx biome ci .
       - run: bun run test
 
+  # Two builds of one commit, in different directories, must give byte-identical files:
+  # that's what lets anyone check an instance with `vauly verify` (docs/security.md).
+  reproducible:
+    name: Reproducible web build
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: first
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: first/package.json
+      - name: Build twice
+        run: |
+          cp -R first "$RUNNER_TEMP/second-copy"
+          for dir in "$GITHUB_WORKSPACE/first" "$RUNNER_TEMP/second-copy"; do
+            (cd "$dir" && bun install --frozen-lockfile && bun run build)
+          done
+      - name: Compare
+        run: |
+          diff -r first/apps/web/dist "$RUNNER_TEMP/second-copy/apps/web/dist"
+          echo "Both builds are byte-identical."
+      - uses: actions/upload-artifact@v7
+        with:
+          name: vauly-build
+          path: first/apps/web/dist/.well-known/vauly-build.json
+
   site:
     name: Website
     needs: changes

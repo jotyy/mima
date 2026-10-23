@@ -38,9 +38,22 @@ app.on(["POST", "GET"], "/api/auth/*", async (c) =>
 	(await createAuth(new URL(c.req.url).origin)).handler(c.req.raw),
 );
 
-// Where the browser extension finds the API. With one Worker for the app and the API,
-// it's this same address; a separate web app serves its own copy, naming the API.
-app.get("/vauly.json", (c) => c.json({ server: new URL(c.req.url).origin }));
+// How the app is set up, and where the browser extension finds the API. With one Worker
+// for the app and the API, the build's settings come from its own vauly.json and the
+// API is this same address; a separate web app serves its own copy, naming the API.
+app.get("/vauly.json", async (c) => {
+	const assets = (ENV as unknown as { ASSETS?: Fetcher }).ASSETS;
+	const built: Record<string, unknown> = assets
+		? await assets
+				.fetch(new URL("/vauly.json", c.req.url))
+				.then((response) => (response.ok ? response.json() : {}))
+				.catch(() => ({}))
+		: {};
+	return c.json({
+		...built,
+		server: built.server || new URL(c.req.url).origin,
+	});
+});
 
 if (ENV.E2E_RESET_TOKEN) {
 	app.post("/__e2e/reset", async (c) => {

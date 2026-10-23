@@ -98,6 +98,12 @@ Their master password alone signs them in again. It changes nothing about encryp
 
 The repository's development stack uses [Alchemy](https://alchemy.run) (`packages/infra/alchemy.run.ts`), which can also deploy, as two Workers: one for the web app and one for the API. `bun run deploy:stack -- --stage production` does that. It needs `BETTER_AUTH_SECRET`, and `CORS_ORIGIN` set to the web app's address; the one-Worker deploy above needs neither and is the simpler choice.
 
+## Checking what your instance serves
+
+With the [CLI](agents.md) installed, `vauly verify https://vault.example.test` checks that your vauly serves exactly the web app its commit builds. It rebuilds that commit, so it needs `git` and `bun`; with `--against vauly-build.json` it compares with a release's manifest instead. [Security](security.md#checking-what-an-instance-serves) explains what that proves.
+- **`index.html` alone differs:** a Cloudflare feature that rewrites pages on your domain is the usual cause. Examples are Email Address Obfuscation, Rocket Loader, or Web Analytics added automatically. Turn it off for the domain.
+- **The build settings above are public.** They end up in `/vauly.json` and in the headers, not in the app's code, which is what keeps the code the same for every instance.
+
 ## Good to know
 
 - The test suite's stacks add a route that wipes the database, guarded by `E2E_RESET_TOKEN`. It only exists when that variable is set; never set it for a real deploy.

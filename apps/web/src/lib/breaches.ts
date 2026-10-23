@@ -5,16 +5,16 @@ import {
 } from "@tanstack/react-query";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
+import { instance } from "../config";
 import { fetchRange, pwnedCount } from "./pwned-passwords";
 import { type Item, useItems } from "./vault-data";
 
 // Passwords that turned up in known data breaches, checked with Have I Been Pwned (see
 // pwned-passwords.ts). It's on unless someone turned it off on this device in Settings,
-// or the instance turned it off for everyone with VITE_BREACH_CHECK=off.
+// or the instance turned it off for everyone with VITE_BREACH_CHECK=off (in /vauly.json).
 
 /** False when the instance turned the check off altogether. */
-export const breachCheckAvailable =
-	(import.meta.env.VITE_BREACH_CHECK as string | undefined) !== "off";
+export const breachCheckAvailable = instance().breachCheck;
 
 const KEY = "vauly.breachCheck";
 const listeners = new Set<() => void>();

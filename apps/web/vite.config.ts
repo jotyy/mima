@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import { securityTxt } from "@vauly/ui/lib/security-txt";
@@ -5,6 +7,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin, type ResolvedConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
+import { buildDate, buildManifest, MANIFEST_PATH } from "./build-manifest";
 import { headersFile } from "./security-headers";
 
 /** A VITE_ setting: the stack passes them through `define`, a plain build reads the env. */
@@ -21,14 +24,30 @@ function setting(config: ResolvedConfig | undefined, name: string) {
 }
 
 /**
- * Serves /vauly.json with the API address, so the browser extension can connect from the
- * web app address people already know. Without an API address the app and the API share
- * one Worker, which answers /vauly.json itself.
+ * The instance's settings, which the app reads at runtime from /vauly.json instead of
+ * having them compiled in: that keeps the app's files the same for every instance, so
+ * anyone can check them against a build of their own. The browser extension reads the
+ * API's address there too.
+ */
+function instanceConfig(config: ResolvedConfig | undefined) {
+	const email = setting(config, "VITE_DEMO_EMAIL");
+	return {
+		server: setting(config, "VITE_SERVER_URL"),
+		brandfetch: setting(config, "VITE_BRANDFETCH_CLIENT_ID"),
+		breachCheck: setting(config, "VITE_BREACH_CHECK") !== "off",
+		...(email && {
+			demo: { email, password: setting(config, "VITE_DEMO_PASSWORD") },
+		}),
+	};
+}
+
+/**
+ * Writes /vauly.json from the build's settings. When one Worker serves the app and the
+ * API, it answers /vauly.json itself, from this file, with its own address as the API's.
  */
 function vaulyJson(): Plugin {
 	let config: ResolvedConfig | undefined;
-	const server = () => setting(config, "VITE_SERVER_URL");
-	const body = () => JSON.stringify({ server: server() });
+	const body = () => JSON.stringify(instanceConfig(config));
 	return {
 		name: "vauly-json",
 		configResolved(resolved) {
@@ -41,7 +60,6 @@ function vaulyJson(): Plugin {
 			});
 		},
 		generateBundle() {
-			if (!server()) return;
 			this.emitFile({ type: "asset", fileName: "vauly.json", source: body() });
 		},
 	};
@@ -81,8 +99,37 @@ function securityTxtFile(): Plugin {
 			this.emitFile({
 				type: "asset",
 				fileName: ".well-known/security.txt",
-				source: securityTxt(),
+				// Dated from the commit, not the clock, so two builds of it agree.
+				source: securityTxt({ now: buildDate() }),
 			});
+		},
+	};
+}
+
+/**
+ * Writes /.well-known/vauly-build.json once every other file is written, the service
+ * worker included: each file's SHA-256 and the commit (build-manifest.ts).
+ */
+function buildManifestFile(): Plugin {
+	let config: ResolvedConfig | undefined;
+	return {
+		name: "vauly-build-manifest",
+		apply: "build",
+		enforce: "post",
+		configResolved(resolved) {
+			config = resolved;
+		},
+		closeBundle: {
+			order: "post",
+			sequential: true,
+			handler() {
+				if (!config) return;
+				const outDir = path.resolve(config.root, config.build.outDir);
+				const manifest = buildManifest(outDir, instanceConfig(config));
+				const file = path.join(outDir, MANIFEST_PATH);
+				mkdirSync(path.dirname(file), { recursive: true });
+				writeFileSync(file, `${JSON.stringify(manifest, null, "\t")}\n`);
+			},
 		},
 	};
 }
@@ -133,6 +180,7 @@ export default defineConfig(() => {
 				},
 				devOptions: { enabled: true },
 			}),
+			buildManifestFile(),
 		],
 	};
 });

@@ -12,6 +12,7 @@ import {
 } from "./agent";
 import { serve } from "./mcp";
 import { createMasker, findReferences, parseEnvFile } from "./references";
+import { exitCode, formatReport, VerifyError, verify } from "./verify";
 import { versionLine } from "./version";
 
 // vauly run -- <command>: resolves vauly:// references in the environment, waits for a
@@ -24,6 +25,8 @@ Usage:
   vauly run [--env-file <path>] -- <command> [args...]
   vauly mcp        an MCP server for coding agents, on stdin and stdout
   vauly whoami
+  vauly verify <url> [--against <manifest>] [--source <checkout>]
+                   check that a vauly serves the web app its commit builds
   vauly --version
   vauly help
 
@@ -33,7 +36,12 @@ Environment:
   VAULY_APPROVAL_TIMEOUT   seconds to wait for approval (default 300)
 
 Values like vauly://itm_7k2m9qx4hc3r (or …/username) in the environment or the
-env file are replaced by the item's value inside <command> only.`;
+env file are replaced by the item's value inside <command> only.
+
+vauly verify rebuilds the commit the instance names, which needs git and bun, and
+compares every file and security header. --against compares with a manifest you
+trust instead, such as a release's. It exits 0 on a match, 1 on a difference and 2
+when there was nothing trusted to compare with.`;
 
 async function run(args: string[]) {
 	let envFile: string | undefined;
@@ -96,6 +104,35 @@ async function run(args: string[]) {
 	child.on("close", (code) => process.exit(code ?? 1));
 }
 
+async function verifyCommand(args: string[]) {
+	let url: string | undefined;
+	const options: { against?: string; source?: string } = {};
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i];
+		if (arg === "--against") options.against = args[++i];
+		else if (arg === "--source") options.source = args[++i];
+		else if (arg && !arg.startsWith("--")) url = arg;
+		else throw new CliError(`Unknown option "${arg}". Run vauly help.`);
+	}
+	if (!url) throw new CliError("Usage: vauly verify <url>");
+	try {
+		if (!options.against) {
+			process.stderr.write(
+				"vauly: rebuilding the instance's commit to compare with; this takes a minute…\n",
+			);
+		}
+		const report = await verify(url, options);
+		console.log(formatReport(report));
+		process.exit(exitCode(report));
+	} catch (error) {
+		if (error instanceof VerifyError) {
+			process.stderr.write(`vauly: ${error.message}\n`);
+			process.exit(2);
+		}
+		throw error;
+	}
+}
+
 async function main() {
 	const [command, ...args] = process.argv.slice(2);
 	if (
@@ -118,6 +155,7 @@ async function main() {
 		return;
 	}
 	if (command === "run") return run(args);
+	if (command === "verify") return verifyCommand(args);
 	if (command === "mcp") return serve();
 	throw new CliError(`Unknown command "${command}". Run vauly help.`);
 }

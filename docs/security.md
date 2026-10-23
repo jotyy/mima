@@ -48,6 +48,8 @@ Another implementation, such as a native app, must produce exactly these bytes. 
 - **Device copies.** The key is HKDF-SHA256 of the passkey's 32-byte PRF output, with the server's 32-byte pepper as salt and the info `vauly/device`. It seals the PKCS#8 private key with the additional data `vauly/device`, the account ID, the passkey's ID (base64url) and the public key, each on a line of its own. The pepper is HMAC-SHA256 of `device:<session ID>:<issued at, in milliseconds>`, keyed with the server's secret.
 - **Offline copies.** A JSON object of the vaults list, the items list (both as the API returns them) and the profile, sealed like any other value with a new 32-byte key. That key is wrapped to the account's own public key the way a vault key is wrapped to a member's. Stored beside it, in the clear: the account ID, the session ID, when it was synced, and the account's KDF salt, iteration count, public key and sealed private key.
 
+- **Build manifests.** `/.well-known/vauly-build.json` lists every file the web app's build serves, each with its SHA-256 in hex, and the commit it was built from. It also gives the headers the build sets on every page, and the instance's settings that the app reads from `/vauly.json`. Those two files and `_headers` hold settings, not code, so they aren't hashed.
+
 ## What the server stores
 
 | Encrypted (the server can't read it)                                                                                            | In plain text (the server can read it)                                                  |
@@ -111,10 +113,27 @@ To find passwords that turned up in data breaches, the browser asks Have I Been 
 
 The web app's pages come with a Content-Security-Policy that runs only the app's own script files: no inline scripts, nothing evaluated from a string, nothing from another site. The pages can connect only to your vauly API and, while the breach check is on, Have I Been Pwned, and load images only from the app itself and, while logos are on, Brandfetch's CDN. If a bug ever let someone slip markup into a page, the browser would neither run their script nor send what it read anywhere else. The app also refuses to be shown in a frame (`frame-ancestors 'none'`, and `X-Frame-Options: DENY` for older browsers), so another site can't hide it under a page of its own and trick you into clicking **Reveal** or **Share**. The build writes these headers to a `_headers` file, which Cloudflare applies in both ways of deploying; see [`apps/web/security-headers.ts`](../apps/web/security-headers.ts).
 
+## Checking what an instance serves
+
+Your browser runs whatever JavaScript your vauly's address sends it, so the code that keeps your master password is only as trustworthy as the hosting it comes from. `vauly verify` lets anyone check that an instance serves exactly the web app its version builds, nothing changed and nothing added:
+
+```sh
+vauly verify https://vault.example.test
+```
+
+- **Every instance of a version serves the same files.** The app reads its address, logo and breach-check settings from `/vauly.json` at runtime, so the code can't differ between instances. Two builds of one commit are byte-identical; CI builds it twice, in different directories, and compares.
+- **Each build lists what it serves** in `/.well-known/vauly-build.json`: every file with its SHA-256, the headers it sets (the Content-Security-Policy among them), and the commit.
+- **`vauly verify` downloads all of it.** It checks every file and header against that list, and it checks that the page and the service worker load nothing the list leaves out. Then it builds the same commit with the same settings itself and compares. That needs `git` and `bun`. `--against` instead compares with a manifest you trust, such as the one each release carries.
+
+What it can't prove:
+- **It shows what was served to you, just now.** A host can serve other files to other people, or to you at another time. A service worker your browser installed earlier keeps running what it was given until it updates.
+- **It covers the web app, not the server.** The API Worker can't read your items, but it decides who gets what and could serve another app later. Verify again when it matters.
+- **A matching build means the files come from that commit and its locked dependencies.** It doesn't mean the source, or the dependencies, are free of mistakes.
+
 ## Limits
 
 These are the things vauly does not protect against. Please read them before you rely on it.
-- **The server delivers the app.** vauly runs in the browser, and the browser loads its code from your instance. Someone who controls the web app's hosting could ship code that captures your master password the next time you sign in. This holds for every web-based end-to-end encrypted app, and the Content-Security-Policy can't help, since the same hosting serves the policy. Host vauly yourself, keep your Cloudflare account secure, and limit who can deploy to it.
+- **The server delivers the app.** vauly runs in the browser, and the browser loads its code from your instance. Someone who controls the web app's hosting could ship code that captures your master password the next time you sign in. This holds for every web-based end-to-end encrypted app, and the Content-Security-Policy can't help, since the same hosting serves the policy. Host vauly yourself, keep your Cloudflare account secure, limit who can deploy to it, and use `vauly verify` (above) to check what it serves.
 - **A device that stays offline keeps its offline copy.** Signing a session out, removing someone or changing the master password reaches a device only when it next connects. Until then, someone with that device and the master password (an old one too, since the key pair doesn't change) can read the items it held at its last sync. Turn the offline copy off on devices you might lose.
 - **Deleting an account deletes what only it could open.** Someone who deletes their account takes their private vault and agents with them, and any shared vault nobody else could open; those are gone for everyone, as nobody holds their keys anymore. Shared vaults others can open stay, and the activity log keeps their name. See [Self-hosting](self-hosting.md#when-someone-deletes-their-account).
 - **Removing someone doesn't take back what they've seen.** Taking a person out of a vault deletes their copy of its key, so they can't open it through vauly again. But they may have copied passwords, or the vault key, while they had access. Change the passwords that matter after someone leaves: the Overview lists the items they could see that haven't changed since.
