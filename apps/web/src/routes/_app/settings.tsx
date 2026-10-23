@@ -9,6 +9,7 @@ import {
 	SelectValue,
 } from "@mima/ui/components/select";
 import { Skeleton } from "@mima/ui/components/skeleton";
+import { Switch } from "@mima/ui/components/switch";
 import { Tabs, TabsList, TabsTrigger } from "@mima/ui/components/tabs";
 import { DesktopIcon, DeviceMobileIcon } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -35,6 +36,7 @@ import {
 	type AutoLockMinutes,
 	useKeyring,
 } from "@/lib/keyring";
+import { logosAvailable, setLogosShown, useLogosShown } from "@/lib/logos";
 import { errorMessage, useWorkspace } from "@/lib/vault-data";
 import { client } from "@/utils/orpc";
 
@@ -59,6 +61,7 @@ function Settings() {
 	const [changing, setChanging] = useState(false);
 	const [exporting, setExporting] = useState(false);
 	const [twoStep, setTwoStep] = useState<"on" | "off" | null>(null);
+	const logosShown = useLogosShown();
 	const me = keyring.me;
 	if (!me) return null;
 	const isAdmin = me.role !== "member";
@@ -165,6 +168,18 @@ function Settings() {
 						</SelectContent>
 					</Select>
 				</Row>
+				{logosAvailable && (
+					<Row
+						label="Website logos"
+						hint="Show brand logos for logins and well-known services. Brandfetch serves them, so it sees which sites' logos this device asks for."
+					>
+						<Switch
+							aria-label="Website logos"
+							checked={logosShown}
+							onCheckedChange={setLogosShown}
+						/>
+					</Row>
+				)}
 				<Row label="Theme">
 					<Tabs
 						value={theme}

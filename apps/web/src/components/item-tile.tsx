@@ -7,6 +7,9 @@ import {
 	TerminalWindowIcon,
 } from "@phosphor-icons/react";
 
+import { useState } from "react";
+
+import { logoUrl, useLogosShown } from "@/lib/logos";
 import type { ItemKind } from "@/lib/vault-data";
 
 const kindIcon = {
@@ -25,30 +28,47 @@ export const kindLabel: Record<ItemKind, string> = {
 };
 
 const sizes = {
-	sm: { tile: "size-6 rounded-full", icon: "size-3.5" },
-	default: { tile: "size-7 rounded-md", icon: "size-4" },
-	lg: { tile: "size-10 rounded-lg", icon: "size-5" },
+	sm: { tile: "size-6 rounded-full", icon: "size-3.5", px: 24 },
+	default: { tile: "size-7 rounded-md", icon: "size-4", px: 28 },
+	lg: { tile: "size-10 rounded-lg", icon: "size-5", px: 40 },
 };
 
 export function ItemTile({
 	kind,
 	size = "default",
+	logo,
 	className,
 }: {
 	kind: ItemKind | "agent";
 	size?: keyof typeof sizes;
+	/** A domain whose brand logo replaces the icon, when there is one. */
+	logo?: string | null;
 	className?: string;
 }) {
 	const Icon = kindIcon[kind];
+	const shown = useLogosShown();
+	const [missing, setMissing] = useState<string | null>(null);
+	const withLogo = Boolean(logo) && shown && missing !== logo;
 	return (
 		<span
 			className={cn(
-				"bg-surface text-fg-muted shadow-pill inline-flex shrink-0 items-center justify-center",
+				"bg-surface text-fg-muted shadow-pill inline-flex shrink-0 items-center justify-center overflow-hidden",
 				sizes[size].tile,
 				className,
 			)}
 		>
-			<Icon className={sizes[size].icon} />
+			{withLogo && logo ? (
+				<img
+					src={logoUrl(logo, sizes[size].px)}
+					alt=""
+					loading="lazy"
+					draggable={false}
+					className="size-full object-cover"
+					onError={() => setMissing(logo)}
+				/>
+			) : (
+				<Icon className={sizes[size].icon} />
+			)}
 		</span>
 	);
 }

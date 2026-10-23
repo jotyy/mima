@@ -30,6 +30,7 @@ mima is for small teams who want one place for their shared logins, API keys and
 - **An activity log.** Every reveal, copy, share, import and backup is recorded, so the team knows who used what.
 - **Move in, move out.** Import CSV exports from 1Password, Bitwarden, LastPass, Chrome, Firefox and Safari. Download a decrypted backup that mima and most password managers can import.
 - **A browser extension.** It lists the items saved for the site you're on, fills the login form in one click, and offers to save new logins and changed passwords. See [Browser extension](docs/browser-extension.md).
+- **Looks like your tools.** Logins show their site's logo, and so do API keys for well-known services, so the list reads at a glance. Logos come from Brandfetch and can be turned off.
 - **Quick to use.** A command palette (<kbd>⌘</kbd> <kbd>K</kbd>) that copies a password without opening the item, a clipboard that clears itself after 90 seconds, light and dark themes, and a layout that works on phones. It installs as an app (PWA).
 - **Secrets for scripts and agents, when you need them.** `mima run` hands an item's value to a command without showing it to the agent or script that started it. The first run waits until a person approves it. See [Agents and scripts](docs/agents.md).
 

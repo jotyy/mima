@@ -25,6 +25,7 @@ import { ItemDialog } from "@/components/item-dialog";
 import { ItemTile } from "@/components/item-tile";
 import { Page } from "@/components/page";
 import { plural, toneDot } from "@/lib/format";
+import { logoDomain } from "@/lib/logos";
 import {
 	type ItemKind,
 	useExposed,
@@ -231,7 +232,7 @@ function Items() {
 										active ? "bg-tint/6" : "hover:bg-tint/3",
 									)}
 								>
-									<ItemTile kind={item.kind} />
+									<ItemTile kind={item.kind} logo={logoDomain(item)} />
 									<div className="flex min-w-0 flex-1 flex-col">
 										<span className="text-body-sm text-fg flex items-center gap-1 truncate">
 											{item.name}
@@ -367,6 +368,7 @@ function EmptyVault({
 									<ItemTile
 										kind={example.kind}
 										size="sm"
+										logo={logoDomain(example)}
 										className="bg-surface-sunken shadow-none"
 									/>
 									{example.name}

@@ -26,5 +26,6 @@ The first public version.
 - Earlier passwords: a changed password or value stays on the item, encrypted, with when it was replaced and by whom.
 - Agents and `mima run`, which hands an item's value to a command without showing it to the caller, with approvals in the web app.
 - A browser extension for Chromium browsers that lists the items for the current site, fills login forms and copies usernames, passwords and one-time codes. After you sign in on a site, it offers to save the new login or update a changed password.
+- Brand logos for logins and well-known services, in the web app and the extension, from Brandfetch. Only a brand's own domain is looked up, never a subdomain or a private address, and logos can be turned off per device or per instance.
 - Layouts for phones, light and dark themes, and installing mima as an app (PWA).
 - Self-hosting on Cloudflare Workers and D1 with Alchemy.

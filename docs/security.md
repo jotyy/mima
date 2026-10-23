@@ -63,6 +63,10 @@ The recipient's page asks the server for the ciphertext only after they choose *
 
 A link is a copy: changing the item later doesn't change what the link shows, and anyone holding the full link can open it until it stops working. Send it the way you'd send the password itself.
 
+## Website logos
+
+To show a brand's logo next to an item, the browser loads an image from Brandfetch's CDN for that brand's domain. Only the registrable domain is used (`hubspot.com` for `app.hubspot.com`), never a subdomain, and never an IP address or a private network name such as `.local`, `.internal` or `.corp`. Items without a website get a logo only when their name matches a short list of well-known services. Brandfetch requires a `Referer`, so it also sees the address of your mima, along with your IP address, like any image request. It learns nothing else about the item. Turn logos off per device in **Settings → Website logos**, or for a whole instance by deploying with `VITE_BRANDFETCH_CLIENT_ID=off`.
+
 ## Limits
 
 These are the things mima does not protect against. Please read them before you rely on it.

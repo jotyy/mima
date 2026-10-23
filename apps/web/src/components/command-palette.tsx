@@ -17,6 +17,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { type ComponentType, type ReactNode, useMemo, useState } from "react";
 
 import { toneDot } from "@/lib/format";
+import { logoDomain } from "@/lib/logos";
 import { useActions, useItems, useVaults } from "@/lib/vault-data";
 
 import { ItemTile } from "./item-tile";
@@ -91,7 +92,13 @@ export function CommandPalette({
 				hint: [item.username, vaultName.get(item.vaultId)]
 					.filter(Boolean)
 					.join(" · "),
-				icon: <ItemTile kind={item.kind} className="size-6" />,
+				icon: (
+					<ItemTile
+						kind={item.kind}
+						logo={logoDomain(item)}
+						className="size-6"
+					/>
+				),
 				run: () =>
 					navigate({
 						to: "/items",

@@ -16,6 +16,7 @@ import { ItemTile } from "@/components/item-tile";
 import { notify } from "@/components/notify";
 import { Page } from "@/components/page";
 import { ago, toneDot } from "@/lib/format";
+import { logoDomain } from "@/lib/logos";
 import {
 	errorMessage,
 	type Item,
@@ -101,7 +102,7 @@ function DeletedRow({
 
 	return (
 		<div className="flex items-center gap-3 px-4 py-3">
-			<ItemTile kind={item.kind} />
+			<ItemTile kind={item.kind} logo={logoDomain(item)} />
 			<div className="flex min-w-0 flex-1 flex-col">
 				<span className="text-body-sm text-fg truncate">{item.name}</span>
 				<span className="text-caption text-fg-subtle flex items-center gap-1.5 truncate">

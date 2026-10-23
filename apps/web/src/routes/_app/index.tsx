@@ -30,6 +30,7 @@ import { notify } from "@/components/notify";
 import { Page, SectionTitle } from "@/components/page";
 import { ago, plural } from "@/lib/format";
 import { useKeyring } from "@/lib/keyring";
+import { logoDomain } from "@/lib/logos";
 import { useLookup } from "@/lib/use-lookup";
 import {
 	type AccessRequest,
@@ -629,7 +630,7 @@ function RecentItems() {
 							key={item.id}
 							className="group/row hover:bg-tint/3 flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors"
 						>
-							<ItemTile kind={item.kind} />
+							<ItemTile kind={item.kind} logo={logoDomain(item)} />
 							<Link
 								to="/items"
 								search={{ id: item.id, vault: item.vaultId }}

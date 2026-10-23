@@ -17,6 +17,7 @@ import { MimaLogo } from "@/components/mima-mark";
 import { OneTimeCode } from "@/components/one-time-code";
 import { SecretValue } from "@/components/secret-value";
 import { timeLeft } from "@/lib/format";
+import { logoDomain } from "@/lib/logos";
 import type { SharedItem } from "@/lib/vault-data";
 import { client } from "@/utils/orpc";
 
@@ -153,7 +154,7 @@ function Opened({ item }: { item: SharedItem }) {
 			className="rounded-window bg-surface shadow-card flex flex-col"
 		>
 			<header className="border-line-subtle flex items-center gap-3 border-b p-4">
-				<ItemTile kind={item.kind} size="lg" />
+				<ItemTile kind={item.kind} size="lg" logo={logoDomain(item)} />
 				<h1 className="text-h5 text-fg min-w-0 truncate">{item.name}</h1>
 			</header>
 			<dl className="divide-line-subtle flex flex-col divide-y px-4">

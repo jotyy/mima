@@ -1,6 +1,7 @@
 import { parseTotp, totpCode, totpSecondsLeft } from "@mima/crypto";
 import { Button } from "@mima/ui/components/button";
 import { Input } from "@mima/ui/components/input";
+import { logoDomain, logoUrl } from "@mima/ui/lib/logos";
 import { cn } from "@mima/ui/lib/utils";
 import {
 	ArrowSquareOutIcon,
@@ -708,10 +709,22 @@ function Row({
 	onCopy: (entry: Entry, field: Field) => void;
 }) {
 	const Icon = kindIcon[entry.kind];
+	const logo = logoDomain(entry);
+	const [missing, setMissing] = useState(false);
 	return (
 		<li className="hover:bg-tint/4 flex items-center gap-2.5 rounded-lg px-2 py-1.5">
-			<span className="bg-surface text-fg-muted shadow-pill flex size-7 shrink-0 items-center justify-center rounded-md">
-				<Icon className="size-4" />
+			<span className="bg-surface text-fg-muted shadow-pill flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md">
+				{logo && !missing ? (
+					<img
+						src={logoUrl(logo, 28)}
+						alt=""
+						draggable={false}
+						className="size-full object-cover"
+						onError={() => setMissing(true)}
+					/>
+				) : (
+					<Icon className="size-4" />
+				)}
 			</span>
 			<div className="flex min-w-0 flex-1 flex-col">
 				<span className="text-body-sm text-fg truncate">{entry.name}</span>

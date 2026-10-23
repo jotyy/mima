@@ -34,6 +34,7 @@ import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 
 import { ago, plural, timeLeft, toneDot } from "@/lib/format";
+import { logoDomain } from "@/lib/logos";
 import { useLookup } from "@/lib/use-lookup";
 import {
 	errorMessage,
@@ -125,7 +126,7 @@ export function ItemDetail({ item }: { item: Item }) {
 	return (
 		<section className="rounded-window bg-surface shadow-card flex flex-col">
 			<header className="border-line-subtle flex items-start gap-3 border-b p-4">
-				<ItemTile kind={item.kind} size="lg" />
+				<ItemTile kind={item.kind} size="lg" logo={logoDomain(item)} />
 				<div className="flex min-w-0 flex-1 flex-col gap-1.5">
 					<h2 className="text-fg text-h5 truncate">{item.name}</h2>
 					<div className="flex flex-wrap items-center gap-1.5">

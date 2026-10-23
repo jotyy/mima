@@ -24,6 +24,7 @@ import {
 	parseImport,
 	sameItem,
 } from "@/lib/import";
+import { logoDomain } from "@/lib/logos";
 import {
 	errorMessage,
 	type ItemFields,
@@ -324,7 +325,7 @@ function Review({
 							key={index}
 							className="flex items-center gap-2.5 px-3 py-2"
 						>
-							<ItemTile kind={item.kind} />
+							<ItemTile kind={item.kind} logo={logoDomain(item)} />
 							<span className="text-body-sm text-fg min-w-0 flex-1 truncate">
 								{item.name}
 							</span>

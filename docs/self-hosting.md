@@ -31,6 +31,8 @@ The deploy needs two values. Keep both somewhere safe; you'll use the same ones 
 | `BETTER_AUTH_SECRET` | Signs session cookies. Use at least 32 random characters, for example `openssl rand -base64 32`. Changing it signs everyone out. |
 | `CORS_ORIGIN`        | The exact address of your web app, such as `https://mima.example.com`. The API only accepts requests from it.                    |
 
+One more is optional. `VITE_BRANDFETCH_CLIENT_ID` picks where website logos come from: by default the web app and the extension load them from Brandfetch with the mima project's client ID. Set it to your own [Brandfetch client ID](https://developers.brandfetch.com), or to `off` to show plain icons and never contact Brandfetch.
+
 Pass them in the environment when you deploy, as below. Values in the environment take precedence over `apps/server/.env`, which only holds your local development settings.
 
 You won't know the web app's `workers.dev` address until the first deploy, so the first time, deploy with a placeholder and deploy again once you have it.
