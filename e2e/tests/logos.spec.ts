@@ -66,8 +66,10 @@ test("logins and well-known services show their brand's logo", async ({
 	await signIn(page, owner);
 	await openAllItems(page);
 	await expect(logos(page)).toHaveCount(2);
-	expect(asked).toContain("github.com");
-	expect(asked).toContain("stripe.com");
+	// The logos load lazily, so their requests can follow a moment after the images.
+	await expect
+		.poll(() => asked)
+		.toEqual(expect.arrayContaining(["github.com", "stripe.com"]));
 	// A private network name never leaves the device.
 	expect(asked.some((domain) => domain.includes("acme"))).toBe(false);
 });
