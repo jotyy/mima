@@ -4,14 +4,17 @@
 // Both layers are the same rows, character for character; only the keyhole shows the
 // plain one. With no pointer, the keyhole wanders by itself. Given `still`, the keyhole
 // stays at that point instead, for pictures such as the social cards.
-import { cipherRows, keyhole } from "@vauly/ui/lib/ciphertext";
+//
+// The keyhole is a lens that moves while the plain rows inside it move the other way, so
+// they stay lined up with the ciphertext. Both moves are transforms, which the compositor
+// handles without painting the glowing text again.
+import { keyhole } from "@vauly/ui/lib/ciphertext";
 
 interface Props {
 	still?: { x: number; y: number };
 }
 
 const { still } = Astro.props;
-const { plain, cipher } = cipherRows(46);
 ---
 
 <div
@@ -20,22 +23,43 @@ const { plain, cipher } = cipherRows(46);
 	data-still={still ? "" : undefined}
 	style={still ? `--x: ${still.x}px; --y: ${still.y}px` : undefined}
 >
-	<pre data-layer="cipher">{cipher.join("\n")}</pre>
-	<pre data-layer="plain">{plain.join("\n")}</pre>
-	<svg data-slot="keyhole" viewBox="0 0 200 280">
-		<path d={keyhole}></path>
-	</svg>
+	<pre data-layer="cipher"></pre>
+	<div data-slot="lens">
+		<div data-slot="lens-view">
+			<pre data-layer="plain"></pre>
+		</div>
+		<svg data-slot="keyhole" viewBox="0 0 200 280">
+			<path d={keyhole}></path>
+		</svg>
+	</div>
 </div>
 
 <script>
+	import { cipherRows } from "@vauly/ui/lib/ciphertext";
+
+	// The rows are written here rather than sent with the page: ciphertext hardly
+	// compresses, and they'd be a quarter of it.
+	const { plain, cipher } = cipherRows(46);
+	for (const field of document.querySelectorAll<HTMLElement>("[data-slot='cipher-field']")) {
+		const layer = (name: string) => field.querySelector(`[data-layer='${name}']`);
+		const cipherLayer = layer("cipher");
+		const plainLayer = layer("plain");
+		if (cipherLayer) cipherLayer.textContent = cipher.join("\n");
+		if (plainLayer) plainLayer.textContent = plain.join("\n");
+		field.setAttribute("data-ready", "");
+	}
+
 	// Follows the pointer over the hero; wanders on its own when there isn't one.
 	for (const field of document.querySelectorAll<HTMLElement>("[data-slot='cipher-field']:not([data-still])")) {
 		const hero = field.parentElement;
-		if (!hero) continue;
+		const lens = field.querySelector<HTMLElement>("[data-slot='lens']");
+		if (!hero || !lens) continue;
 		const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 		let target: { x: number; y: number } | null = null;
 		let lastMove = 0;
-		const at = { x: 0, y: 0 };
+		let request = 0;
+		let { width, height } = field.getBoundingClientRect();
+		const at = { x: width * 0.82, y: height * 0.26 };
 
 		hero.addEventListener("pointermove", (event) => {
 			if (event.pointerType !== "mouse") return;
@@ -52,13 +76,7 @@ const { plain, cipher } = cipherRows(46);
 			field.style.setProperty("--y", `${y}px`);
 		};
 
-		let visible = true;
-		new IntersectionObserver(([entry]) => {
-			visible = Boolean(entry?.isIntersecting);
-		}).observe(field);
-
 		const frame = (now: number) => {
-			const { width, height } = field.getBoundingClientRect();
 			const following = target && now - lastMove < 2500;
 			const goal = following && target
 				? target
@@ -69,13 +87,21 @@ const { plain, cipher } = cipherRows(46);
 			at.x += (goal.x - at.x) * (following ? 0.22 : 0.04);
 			at.y += (goal.y - at.y) * (following ? 0.22 : 0.04);
 			place(at.x, at.y);
-			if (!calm && visible) requestAnimationFrame(frame);
-			else if (!calm) setTimeout(() => requestAnimationFrame(frame), 400);
+			request = requestAnimationFrame(frame);
 		};
-		const { width, height } = field.getBoundingClientRect();
-		at.x = width * 0.82;
-		at.y = height * 0.26;
+
 		place(at.x, at.y);
-		if (!calm) requestAnimationFrame(frame);
+		new ResizeObserver(([entry]) => {
+			if (!entry) return;
+			({ width, height } = entry.contentRect);
+			if (calm) place(width * 0.82, height * 0.26);
+		}).observe(field);
+
+		// It only moves while the lens can be seen: the lens is hidden on phones, and it's
+		// off the screen once the page has scrolled past the hero.
+		new IntersectionObserver(([entry]) => {
+			cancelAnimationFrame(request);
+			if (entry?.isIntersecting && !calm) request = requestAnimationFrame(frame);
+		}).observe(lens);
 	}
 </script>

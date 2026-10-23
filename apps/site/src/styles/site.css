@@ -2,6 +2,12 @@
 @import "@vauly/ui/pure.css";
 
 @source "../**/*.{astro,ts,tsx}";
+/* The UI package scans every app for the classes it needs; this page needs only its own. */
+@source not "../../../web";
+@source not "../../../extension";
+@source not "../../../server";
+@source not "../../../../packages/ui/src/components";
+@source not "../../../../packages/ui/src/hooks";
 
 /*
  * The landing page wears Pure, like the app, and borrows the sign-in page's language:
@@ -144,14 +150,23 @@ body {
 }
 
 /* Ciphertext across the sky, with a keyhole that reads it. */
+@keyframes lens-in {
+	from {
+		opacity: 0;
+	}
+}
+
 [data-slot="cipher-field"] {
-	--x: 80%;
-	--y: 26%;
+	--x: 80cqw;
+	--y: 26cqh;
 	position: absolute;
 	inset: 0;
 	z-index: -1;
 	overflow: hidden;
 	pointer-events: none;
+	container-type: size;
+	/* The rows are written in by a script, so they ease in once they're there. */
+	transition: opacity 700ms ease-out;
 	/* Clear behind the heading, gone before the demo. */
 	mask-image:
 		linear-gradient(
@@ -169,46 +184,76 @@ body {
 		);
 	mask-composite: intersect;
 
-	& > pre {
+	& pre {
 		position: absolute;
-		inset: 0;
+		top: 0;
+		left: 0;
 		margin: 0;
 		font: 500 11px / 22px var(--font-code);
 		letter-spacing: 0.08em;
 		white-space: pre;
 	}
 
-	& > [data-layer="cipher"] {
+	& [data-layer="cipher"] {
 		color: rgb(255 255 255 / 0.09);
 	}
 
-	& > [data-layer="plain"] {
-		color: #fff;
-		text-shadow: 0 0 10px rgb(150 185 255 / 0.9);
-		mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 280'%3E%3Cfilter id='b' x='-20%' y='-20%' width='140%' height='140%'%3E%3CfeGaussianBlur stdDeviation='4'/%3E%3C/filter%3E%3Cpath filter='url(%23b)' d='M100 30a60 60 0 0 1 30.6 111.6L143 257H57l12.4-115.4A60 60 0 0 1 100 30z'/%3E%3C/svg%3E");
-		mask-repeat: no-repeat;
-		mask-size: 200px 280px;
-		mask-position: calc(var(--x) - 100px) calc(var(--y) - 90px);
-	}
-
-	/* On phones the heading fills the width, so the keyhole would only cover it. */
-	@media (width < 48rem) {
-		& > [data-layer="plain"],
-		& > [data-slot="keyhole"] {
-			display: none;
-		}
-	}
-
-	& > [data-slot="keyhole"] {
+	/* The keyhole, 200 × 280 with its circle's centre 90px down, centred on --x and --y.
+	   It comes in once the heading has settled. */
+	& [data-slot="lens"] {
 		position: absolute;
-		top: calc(var(--y) - 90px);
-		left: calc(var(--x) - 100px);
+		top: 0;
+		left: 0;
 		width: 200px;
 		height: 280px;
+		translate: calc(var(--x) - 100px) calc(var(--y) - 90px);
+		will-change: translate;
+		animation: lens-in 1.2s ease-out 1.4s both;
+	}
+
+	&:not([data-ready]) {
+		opacity: 0;
+	}
+
+	&[data-still],
+	&[data-still] [data-slot="lens"] {
+		transition: none;
+		animation: none;
+	}
+
+	& [data-slot="lens-view"] {
+		position: absolute;
+		inset: 0;
+		overflow: clip;
+		mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 280'%3E%3Cfilter id='b' x='-20%' y='-20%' width='140%' height='140%'%3E%3CfeGaussianBlur stdDeviation='4'/%3E%3C/filter%3E%3Cpath filter='url(%23b)' d='M100 30a60 60 0 0 1 30.6 111.6L143 257H57l12.4-115.4A60 60 0 0 1 100 30z'/%3E%3C/svg%3E");
+		mask-repeat: no-repeat;
+		mask-size: 100% 100%;
+	}
+
+	/* Moved back by as much as the lens moves, so it lines up with the ciphertext. */
+	& [data-layer="plain"] {
+		translate: calc(100px - var(--x)) calc(90px - var(--y));
+		will-change: translate;
+		color: #fff;
+		text-shadow: 0 0 10px rgb(150 185 255 / 0.9);
+	}
+
+	& [data-slot="keyhole"] {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
 		fill: rgb(255 255 255 / 0.04);
 		stroke: rgb(255 255 255 / 0.4);
 		stroke-width: 1.25;
 		filter: drop-shadow(0 0 18px rgb(120 165 255 / 0.55));
+	}
+
+	/* On phones the heading fills the width, so the keyhole would only cover it. */
+	@media (width < 48rem) {
+		& [data-slot="lens"] {
+			display: none;
+		}
 	}
 }
 
@@ -321,13 +366,11 @@ body {
 	}
 }
 
-/* A one-time code's 30 seconds, running out and starting again. */
+/* A one-time code's 30 seconds, running out and starting again. The bar slides out of
+   its track rather than shrinking, so the compositor can run it. */
 @keyframes totp {
-	from {
-		width: 100%;
-	}
 	to {
-		width: 0;
+		translate: -100% 0;
 	}
 }
 
@@ -337,7 +380,7 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
 	[data-slot="totp-bar"] {
-		width: 60%;
+		translate: -40% 0;
 		animation: none;
 	}
 }

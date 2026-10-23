@@ -1,4 +1,7 @@
 ---
+// The text font, preloaded so the heading doesn't wait for the stylesheet to ask for it.
+import textFont from "@fontsource-variable/spline-sans/files/spline-sans-latin-wght-normal.woff2?url";
+
 import "@/styles/site.css";
 
 interface Props {
@@ -19,6 +22,7 @@ const url = new URL(Astro.url.pathname, Astro.site).href;
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>{title}</title>
+		<link rel="preload" href={textFont} as="font" type="font/woff2" crossorigin />
 		<meta name="description" content={description} />
 		<meta property="og:title" content={title} />
 		<meta property="og:description" content={description} />

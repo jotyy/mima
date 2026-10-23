@@ -52,6 +52,45 @@ test("the demo encrypts what you type, in the page", async ({ page }) => {
 	await expect(server).not.toContainText("GitHub");
 });
 
+test("the hero's keyhole comes in late, lined up with the ciphertext", async ({
+	page,
+}) => {
+	await page.goto("/");
+	const field = page.locator("[data-slot='cipher-field']");
+	const lens = field.locator("[data-slot='lens']");
+	// It waits for the heading to settle before it shows.
+	const delay = await lens.evaluate(
+		(element) => element.getAnimations()[0]?.effect?.getTiming().delay,
+	);
+	expect(delay).toBeGreaterThanOrEqual(1000);
+	await expect
+		.poll(() => lens.evaluate((element) => getComputedStyle(element).opacity))
+		.toBe("1");
+
+	// The plain rows have their spaces where the ciphertext has them, and however far
+	// the lens has wandered, they sit exactly over it.
+	const [cipher, plain] = await field.locator("pre").allTextContents();
+	const shape = (text = "") => text.replace(/\S/g, "x");
+	expect(cipher?.length).toBeGreaterThan(1000);
+	expect(shape(plain)).toBe(shape(cipher));
+	const offset = await field.evaluate((element) => {
+		const [cipher, plain] = [...element.querySelectorAll("pre")].map((pre) =>
+			pre.getBoundingClientRect(),
+		);
+		return cipher && plain
+			? Math.hypot(plain.x - cipher.x, plain.y - cipher.y)
+			: Number.NaN;
+	});
+	expect(offset).toBeLessThan(0.5);
+});
+
+test("the social cards' pages stay out of the built site", async ({ page }) => {
+	expect((await page.goto("/og/"))?.status()).toBe(404);
+	const sitemap = await (await page.request.get("/sitemap-0.xml")).text();
+	expect(sitemap).toContain("https://vauly.app/docs/");
+	expect(sitemap).not.toContain("/og/");
+});
+
 test("the theme chosen on the landing page carries into the docs", async ({
 	page,
 }) => {

@@ -1,7 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // The website: built once, then served as static files, as a host would serve it.
-export const SITE_PORT = 4322;
+// VAULY_SITE_PORT moves it off 4322 when something else has that port.
+export const SITE_PORT = Number(process.env.VAULY_SITE_PORT ?? 4322);
 
 export default defineConfig({
 	testDir: "./site",

@@ -8,7 +8,8 @@ import "@/styles/site.css";
 // The pictures shown when someone shares a link to vauly: the hero's sky, with the keyhole
 // reading the ciphertext beside the words. One for the landing page and one for each docs
 // page. The card fills the window, which `bun run og` (scripts/og.ts) sets to 1200 × 630
-// before saving each card under public/social/. Not linked anywhere.
+// before saving each card under public/social/. Only the dev server has these pages; the
+// built site leaves them out.
 
 interface Props {
 	title?: string;
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export async function getStaticPaths() {
+	if (import.meta.env.PROD) return [];
 	const docs = await getCollection("docs", (entry) =>
 		entry.id.startsWith("docs"),
 	);
