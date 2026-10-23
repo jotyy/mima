@@ -31,6 +31,7 @@ The first public version.
 - A browser extension for Chromium browsers that lists the items for the current site, fills login forms and copies usernames, passwords and one-time codes. After you sign in on a site, it offers to save the new login or update a changed password.
 - Brand logos for logins and well-known services, in the web app and the extension, from Brandfetch. Only a brand's own domain is looked up, never a subdomain or a private address, and logos can be turned off per device or per instance.
 - Layouts for phones, light and dark themes, and installing vauly as an app (PWA).
+- Offline: the installed app keeps an encrypted copy of your vaults and items and opens them without a connection, read-only, for up to 30 days after the last sync. The copy is sealed whole with a key only your private key opens, belongs to the session it was made in, and can be turned off per device.
 - Unlock with a passkey: Face ID, Touch ID, Windows Hello or the device's PIN instead of the master password, turned on per device in Settings, for 14 days at a time. A copy of the private key is sealed with a key made from the passkey's PRF output and a pepper the server gives only inside the session the copy was made in, and it's kept on that device only.
 - Test vectors for the cryptography (`packages/crypto/test-vectors.json`), so another implementation, such as a native app, can prove it reads and writes the same bytes. docs/security.md describes the formats.
 - Self-hosting on Cloudflare Workers and D1 with Alchemy.

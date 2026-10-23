@@ -21,6 +21,7 @@ import { useMemo } from "react";
 import { client } from "@/utils/orpc";
 
 import { useKeyring } from "./keyring";
+import { itemRows, vaultRows } from "./offline";
 import { passwordStrength, type Strength } from "./secrets";
 
 // Queries decrypt on this device; actions encrypt before anything leaves it.
@@ -117,8 +118,10 @@ function useVaultQueryOptions() {
 		() => ({
 			queryKey: ["vault", "vaults", keyring.epoch] as const,
 			enabled: keyring.status === "unlocked",
+			// Offline, the rows come from this device's copy, so don't wait for a network.
+			networkMode: "always" as const,
 			queryFn: async (): Promise<Vault[]> => {
-				const rows = await client.vaults.list();
+				const rows = await vaultRows();
 				return Promise.all(
 					rows.map(async ({ encryptedMeta, ...row }) => {
 						const key = await keyring.vaultKey(row.id, row.wrappedKey);
@@ -161,10 +164,11 @@ function useItemQuery(select: (all: Item[]) => Item[]) {
 	return useQuery({
 		queryKey: ["vault", "items", keyring.epoch],
 		enabled: keyring.status === "unlocked",
+		networkMode: "always",
 		queryFn: async (): Promise<Item[]> => {
 			const [vaults, rows] = await Promise.all([
 				queryClient.fetchQuery(vaultOptions),
-				client.items.list(),
+				itemRows(),
 			]);
 			const keys = new Map(vaults.map((vault) => [vault.id, vault.key]));
 			const items = await Promise.all(

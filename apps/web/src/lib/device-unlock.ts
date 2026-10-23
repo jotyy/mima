@@ -10,6 +10,8 @@ import {
 
 import { client } from "@/utils/orpc";
 
+import { objectStore } from "./idb";
+
 // Unlocking with a passkey on this device: Face ID, Touch ID, Windows Hello or the
 // device's PIN instead of the master password. Turning it on creates a passkey with the
 // WebAuthn PRF extension. Its PRF output and a pepper the server derives for this session
@@ -267,33 +269,4 @@ const fromBase64Url = (text: string) => {
 	return fromBase64(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="));
 };
 
-// --- IndexedDB -------------------------------------------------------------------------
-
-const DATABASE = "vauly";
-const STORE = "deviceUnlock";
-
-function request<T>(
-	mode: IDBTransactionMode,
-	work: (store: IDBObjectStore) => IDBRequest<T>,
-): Promise<T> {
-	return new Promise((resolve, reject) => {
-		const opening = indexedDB.open(DATABASE, 1);
-		opening.onupgradeneeded = () => {
-			opening.result.createObjectStore(STORE, { keyPath: "accountId" });
-		};
-		opening.onerror = () => reject(opening.error);
-		opening.onsuccess = () => {
-			const database = opening.result;
-			const transaction = database.transaction(STORE, mode);
-			const result = work(transaction.objectStore(STORE));
-			transaction.oncomplete = () => {
-				database.close();
-				resolve(result.result);
-			};
-			transaction.onerror = () => {
-				database.close();
-				reject(transaction.error);
-			};
-		};
-	});
-}
+const request = objectStore("vauly", "deviceUnlock");

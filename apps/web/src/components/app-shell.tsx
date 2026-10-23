@@ -14,6 +14,7 @@ import {
 	TrashIcon,
 	UsersThreeIcon,
 	VaultIcon,
+	WifiSlashIcon,
 } from "@phosphor-icons/react";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { Avatar, AvatarFallback } from "@vauly/ui/components/avatar";
@@ -49,8 +50,10 @@ import {
 } from "react";
 import { demoAccount } from "@/env.public";
 import { useApplyAppStyle } from "@/lib/app-style";
-import { initials, toneDot } from "@/lib/format";
+import { useOnline } from "@/lib/connection";
+import { ago, initials, toneDot } from "@/lib/format";
 import { useKeyring } from "@/lib/keyring";
+import { useOfflineCopy } from "@/lib/offline";
 import {
 	useDeletedItems,
 	useRequests,
@@ -63,6 +66,7 @@ import { VaulyMark } from "./vauly-mark";
 
 export function AppShell() {
 	const [searching, setSearching] = useState(false);
+	const online = useOnline();
 	useApplyAppStyle();
 	const main = useRef<HTMLElement>(null);
 
@@ -104,6 +108,7 @@ export function AppShell() {
 	return (
 		<div data-slot="app-shell" className="bg-frame flex h-svh flex-col">
 			{demoAccount && <DemoBanner />}
+			{!online && <OfflineBanner />}
 			<TopBar onSearch={() => setSearching(true)} />
 			<div className="flex min-h-0 flex-1">
 				<Sidebar className="max-md:hidden" />
@@ -117,6 +122,23 @@ export function AppShell() {
 			</div>
 			<CommandPalette open={searching} onOpenChange={setSearching} />
 		</div>
+	);
+}
+
+/** Without a connection: what's showing, and what waits until it's back. */
+function OfflineBanner() {
+	const { syncedAt } = useOfflineCopy();
+	return (
+		<p
+			role="status"
+			className="bg-warning-soft text-warning border-warning-line text-caption flex shrink-0 flex-wrap items-center justify-center gap-x-2 border-b px-4 py-1.5 text-center"
+		>
+			<WifiSlashIcon className="size-3.5 shrink-0" />
+			{syncedAt
+				? `You're offline. Showing the copy this device saved ${ago(new Date(syncedAt))}.`
+				: "You're offline."}{" "}
+			Changes, sharing and the activity log wait for a connection.
+		</p>
 	);
 }
 

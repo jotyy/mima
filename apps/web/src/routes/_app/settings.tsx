@@ -46,6 +46,11 @@ import {
 	useKeyring,
 } from "@/lib/keyring";
 import { logosAvailable, setLogosShown, useLogosShown } from "@/lib/logos";
+import {
+	OFFLINE_DAYS,
+	setOfflineCopyEnabled,
+	useOfflineCopy,
+} from "@/lib/offline";
 import { errorMessage, useWorkspace } from "@/lib/vault-data";
 import { client } from "@/utils/orpc";
 
@@ -75,6 +80,7 @@ function Settings() {
 	const [passkey, setPasskey] = useState(false);
 	const [passkeySupported, setPasskeySupported] = useState(false);
 	const logosShown = useLogosShown();
+	const offlineCopy = useOfflineCopy();
 	const breachCheck = useBreachCheck();
 
 	useEffect(() => {
@@ -208,6 +214,23 @@ function Settings() {
 							))}
 						</SelectContent>
 					</Select>
+				</Row>
+				<Row
+					label="Offline copy"
+					hint={`Keep an encrypted copy of your items on this device, so the installed app opens them without a connection, for up to ${OFFLINE_DAYS} days. Your master password unlocks it.`}
+				>
+					<Switch
+						aria-label="Offline copy"
+						checked={offlineCopy.enabled}
+						onCheckedChange={async (on) => {
+							await setOfflineCopyEnabled(on);
+							notify.success(
+								on
+									? "This device keeps an offline copy"
+									: "The offline copy is deleted",
+							);
+						}}
+					/>
 				</Row>
 				{logosAvailable && (
 					<Row

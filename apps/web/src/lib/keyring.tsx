@@ -34,6 +34,13 @@ import {
 	startEnrolment,
 	unlockWithDevice,
 } from "@/lib/device-unlock";
+import {
+	closeOfflineCopy,
+	forgetSnapshots,
+	latestSnapshot,
+	openOfflineCopy,
+	setOfflineAccount,
+} from "@/lib/offline";
 import { client, SESSION_ENDED } from "@/utils/orpc";
 
 // The keyring holds the unlocked private key and the vault keys in memory only. A reload,
@@ -170,16 +177,30 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 	 * can't be checked (no network), nothing is dropped.
 	 */
 	const adoptSession = useCallback(async () => {
-		const session = await authClient.getSession();
+		// Without a network, the lookup can throw rather than return an error.
+		const session = await authClient
+			.getSession()
+			.catch((error: unknown) => ({ data: null, error }));
 		if (session.error) {
 			sessionId.current = undefined;
 			return session;
 		}
 		const current = session.data?.session.id ?? null;
 		sessionId.current = current;
-		await forgetDeviceUnlocks((record) => record.sessionId !== current);
+		await Promise.all([
+			forgetDeviceUnlocks((record) => record.sessionId !== current),
+			forgetSnapshots((snapshot) => snapshot.sessionId !== current),
+		]);
 		return session;
 	}, []);
+
+	// New offline copies are made for this account and this session, once both are known.
+	useEffect(() => {
+		const session = sessionId.current;
+		if (!me || !session || !me.email) return setOfflineAccount(null);
+		const { keys, ...profile } = me;
+		setOfflineAccount({ id: me.id, sessionId: session, keys, profile });
+	}, [me]);
 
 	// This account's passkey copy on this device, if it belongs to this session, to this
 	// key pair, and hasn't run out.
@@ -231,6 +252,22 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 		(async () => {
 			const session = await adoptSession();
 			if (cancelled) return;
+			// Offline: unlock from this device's copy, if there's one.
+			if (session.error) {
+				const snapshot = await latestSnapshot();
+				if (cancelled) return;
+				if (!snapshot) return setStatus("signed-out");
+				setMe({
+					id: snapshot.accountId,
+					name: "",
+					email: "",
+					role: "member",
+					twoStep: false,
+					recoveryCodesLeft: 0,
+					keys: snapshot.keys,
+				});
+				return setStatus("locked");
+			}
 			if (!session.data) return setStatus("signed-out");
 			try {
 				await loadMe();
@@ -244,9 +281,22 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 		};
 	}, [loadMe, adoptSession]);
 
-	const open = useCallback((key: CryptoKey) => {
+	/**
+	 * Holds the unlocked private key, and opens this device's offline copy with it right
+	 * away, so the first queries can fall back on it. After an offline start, the copy
+	 * also brings back the name and email it holds.
+	 */
+	const open = useCallback((key: CryptoKey, accountId: string) => {
 		privateKey.current = key;
 		vaultKeys.current.clear();
+		openOfflineCopy(accountId, key).then((contents) => {
+			if (!contents) return;
+			setMe((current) =>
+				current?.id === accountId && !current.email
+					? { ...contents.profile, keys: current.keys }
+					: current,
+			);
+		});
 		setLastActive(Date.now());
 		setStatus("unlocked");
 	}, []);
@@ -254,6 +304,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 	const lock = useCallback(() => {
 		privateKey.current = null;
 		vaultKeys.current.clear();
+		closeOfflineCopy();
 		queryClient.removeQueries({ queryKey: ["vault"] });
 		setEpoch((n) => n + 1);
 		setStatus((current) => (current === "unlocked" ? "locked" : current));
@@ -280,7 +331,10 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			if (result.error) throw new WrongPasswordError();
 			await adoptSession();
 			const profile = await loadMe();
-			open(await openPrivateKey(wrapKey, profile.keys.encryptedPrivateKey));
+			open(
+				await openPrivateKey(wrapKey, profile.keys.encryptedPrivateKey),
+				profile.id,
+			);
 		},
 		[loadMe, open, adoptSession],
 	);
@@ -294,7 +348,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 				me.keys.kdfIterations,
 			);
 			try {
-				open(await openPrivateKey(wrapKey, me.keys.encryptedPrivateKey));
+				open(await openPrivateKey(wrapKey, me.keys.encryptedPrivateKey), me.id);
 			} catch {
 				throw new WrongPasswordError();
 			}
@@ -327,7 +381,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			await forgetDevice(me.id);
 			throw new PasskeyUnlockError("broken");
 		}
-		open(key);
+		open(key, me.id);
 	}, [me, deviceRecord, open, forgetDevice]);
 
 	const register = useCallback<Keyring["register"]>(
@@ -361,8 +415,8 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			if (result.error)
 				throw new Error(result.error.message ?? "Couldn't sign in");
 			await adoptSession();
-			await loadMe();
-			open(account.privateKey);
+			const profile = await loadMe();
+			open(account.privateKey, profile.id);
 		},
 		[loadMe, open, adoptSession],
 	);
@@ -375,7 +429,9 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			if (statusRef.current !== "locked" && statusRef.current !== "unlocked")
 				return;
 			sessionId.current = null;
+			setOfflineAccount(null);
 			forgetDevice();
+			forgetSnapshots();
 			lock();
 			setMe(null);
 			setStatus("signed-out");
@@ -388,7 +444,12 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 	const signOut = useCallback(async () => {
 		lock();
 		sessionId.current = null;
-		await Promise.all([forgetDevice(), authClient.signOut()]);
+		setOfflineAccount(null);
+		await Promise.all([
+			forgetDevice(),
+			forgetSnapshots(),
+			authClient.signOut(),
+		]);
 		setMe(null);
 		setStatus("signed-out");
 	}, [lock, forgetDevice]);
@@ -430,7 +491,10 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 				},
 			});
 			// The key pair stays the same, so a passkey copy would outlive the old password.
-			await forgetDevice();
+			await Promise.all([
+				forgetDevice(),
+				forgetSnapshots((snapshot) => snapshot.accountId === me.id),
+			]);
 			await loadMe();
 		},
 		[me, loadMe, forgetDevice],
@@ -448,8 +512,10 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			// The account and its sessions are gone on the server; this device forgets it too.
 			lock();
 			sessionId.current = null;
+			setOfflineAccount(null);
 			await Promise.all([
 				forgetDevice().catch(() => {}),
+				forgetSnapshots().catch(() => {}),
 				authClient.signOut().catch(() => {}),
 			]);
 			setMe(null);

@@ -55,18 +55,21 @@ export function UnlockScreen() {
 		<AuthLayout
 			title={`Unlock ${workspace.data?.workspaceName ?? "vauly"}`}
 			description={
-				keyring.me && (
+				// After an offline start, the name and email are still sealed in the copy.
+				keyring.me && !keyring.me.email ? (
+					"You're offline. Your master password opens the copy kept on this device."
+				) : keyring.me ? (
 					<span className="bg-surface shadow-pill text-fg-emphasis mt-1 inline-flex max-w-full items-center gap-2 rounded-full py-1 pr-3 pl-1">
 						<Avatar size="sm">
 							<AvatarFallback>{initials(keyring.me.name)}</AvatarFallback>
 						</Avatar>
 						<span className="truncate">{keyring.me.email}</span>
 					</span>
-				)
+				) : null
 			}
 			footer={
 				<p>
-					Not {keyring.me?.name}?{" "}
+					Not {keyring.me?.name || "you"}?{" "}
 					<button
 						type="button"
 						onClick={() => keyring.signOut()}

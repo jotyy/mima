@@ -6,13 +6,21 @@ import type { AppRouterClient } from "@vauly/api/routers/index";
 
 import { notify } from "../components/notify";
 import { serverUrl } from "../env.public";
+import {
+	isOfflineError,
+	isOnline,
+	OfflineError,
+	setOnline,
+} from "../lib/connection";
 
 export function createQueryClient() {
 	return new QueryClient({
 		defaultOptions: { queries: { retry: 1 } },
 		queryCache: new QueryCache({
 			onError: (error, query) => {
-				// Background refreshes fail quietly; only first loads tell the person.
+				// Background refreshes fail quietly; only first loads tell the person, and
+				// not while offline, which the banner says once.
+				if (isOfflineError(error) || !isOnline()) return;
 				if (query.state.data === undefined) {
 					notify.error("Couldn't load", error.message);
 				}
@@ -29,10 +37,16 @@ export const SESSION_ENDED = "vauly:session-ended";
 export const link = new RPCLink({
 	url: () => `${serverUrl()}/rpc`,
 	async fetch(url, options) {
-		const response = await fetch(url, {
-			...options,
-			credentials: "include",
-		});
+		let response: Response;
+		try {
+			response = await fetch(url, { ...options, credentials: "include" });
+		} catch (err) {
+			// A cancelled request isn't a missing network.
+			if (err instanceof DOMException && err.name === "AbortError") throw err;
+			setOnline(false);
+			throw new OfflineError();
+		}
+		setOnline(true);
 		if (response.status === 401) window.dispatchEvent(new Event(SESSION_ENDED));
 		return response;
 	},
