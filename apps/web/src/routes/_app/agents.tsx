@@ -37,6 +37,7 @@ import {
 
 export const Route = createFileRoute("/_app/agents")({
 	component: Agents,
+	head: () => ({ meta: [{ title: "Agents · mima" }] }),
 });
 
 const kindLabel = { mcp: "Coding agent", cli: "Script", ci: "CI" } as const;
@@ -54,60 +55,65 @@ function Agents() {
 			title="Agents"
 			description="Agents run commands with your secrets without ever seeing them."
 		>
-			<SectionTitle>
-				Waiting for you
-				{pending.length > 0 && (
-					<Badge variant="brand" className="ml-2">
-						{pending.length}
-					</Badge>
-				)}
-			</SectionTitle>
-			{pending.length === 0 ? (
-				<div className="rounded-window border-line text-caption text-fg-subtle mb-8 flex items-center justify-center gap-2 border border-dashed py-8">
-					<ShieldCheckIcon className="size-4" />
-					Nothing to approve. When an agent asks for a new item, it shows up
-					here.
-				</div>
+			{agents.isPending ? null : list.length === 0 && pending.length === 0 ? (
+				<ConnectAgentCard first onNewAgent={() => setCreating(true)} />
 			) : (
-				<div className="mb-8 flex flex-col gap-3">
-					{pending.map((request) => (
-						<ApprovalCard key={request.id} request={request} lookup={lookup} />
-					))}
-				</div>
-			)}
+				<>
+					<SectionTitle>
+						Waiting for you
+						{pending.length > 0 && (
+							<Badge variant="brand" className="ml-2">
+								{pending.length}
+							</Badge>
+						)}
+					</SectionTitle>
+					{pending.length === 0 ? (
+						<div className="rounded-window border-line text-caption text-fg-subtle mb-8 flex items-center justify-center gap-2 border border-dashed py-8">
+							<ShieldCheckIcon className="size-4" />
+							Nothing to approve. When an agent asks for a new item, it shows up
+							here.
+						</div>
+					) : (
+						<div className="mb-8 flex flex-col gap-3">
+							{pending.map((request) => (
+								<ApprovalCard
+									key={request.id}
+									request={request}
+									lookup={lookup}
+								/>
+							))}
+						</div>
+					)}
 
-			<SectionTitle
-				action={
-					list.length > 0 && (
-						<Button variant="ghost" size="xs" onClick={() => setCreating(true)}>
-							<PlusIcon data-icon="inline-start" />
-							New agent
-						</Button>
-					)
-				}
-			>
-				Agents
-			</SectionTitle>
-			{list.length === 0 ? (
-				<p className="text-caption text-fg-subtle mb-3">
-					No agents yet. Create one below to let a coding agent, script or CI
-					job use secrets.
-				</p>
-			) : (
-				<section
-					aria-label="Agents"
-					className="rounded-window bg-surface shadow-card divide-line-subtle mb-8 flex flex-col divide-y"
-				>
-					{list.map((agent) => (
-						<AgentRow key={agent.id} agent={agent} />
-					))}
-				</section>
-			)}
+					<SectionTitle
+						action={
+							<Button
+								variant="ghost"
+								size="xs"
+								onClick={() => setCreating(true)}
+							>
+								<PlusIcon data-icon="inline-start" />
+								New agent
+							</Button>
+						}
+					>
+						Agents
+					</SectionTitle>
+					{list.length > 0 && (
+						<section
+							aria-label="Agents"
+							className="rounded-window bg-surface shadow-card divide-line-subtle mb-8 flex flex-col divide-y"
+						>
+							{list.map((agent) => (
+								<AgentRow key={agent.id} agent={agent} />
+							))}
+						</section>
+					)}
 
-			<SectionTitle>
-				{list.length > 0 ? "Connect another agent" : "Connect an agent"}
-			</SectionTitle>
-			<ConnectAgentCard />
+					<SectionTitle>Connect another agent</SectionTitle>
+					<ConnectAgentCard onNewAgent={() => setCreating(true)} />
+				</>
+			)}
 			<NewAgentDialog open={creating} onOpenChange={setCreating} />
 		</Page>
 	);

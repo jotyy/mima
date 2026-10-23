@@ -48,6 +48,7 @@ const searchSchema = z.object({
 export const Route = createFileRoute("/_app/items")({
 	validateSearch: searchSchema,
 	component: Items,
+	head: () => ({ meta: [{ title: "All items · mima" }] }),
 });
 
 const kinds = [

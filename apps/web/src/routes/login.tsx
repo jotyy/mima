@@ -15,6 +15,7 @@ import { errorMessage, useWorkspace } from "@/lib/vault-data";
 
 export const Route = createFileRoute("/login")({
 	component: SignIn,
+	head: () => ({ meta: [{ title: "Sign in · mima" }] }),
 });
 
 function SignIn() {

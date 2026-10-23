@@ -20,6 +20,7 @@ export const Route = createFileRoute("/setup")({
 	// A deploy that set a setup code prints the link with it.
 	validateSearch: z.object({ code: z.string().optional() }),
 	component: Setup,
+	head: () => ({ meta: [{ title: "Create your workspace · mima" }] }),
 });
 
 function Setup() {

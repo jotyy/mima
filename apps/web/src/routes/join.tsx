@@ -27,6 +27,7 @@ import { client } from "@/utils/orpc";
 export const Route = createFileRoute("/join")({
 	validateSearch: z.object({ token: z.string().default("") }),
 	component: Join,
+	head: () => ({ meta: [{ title: "Join your team · mima" }] }),
 });
 
 function Join() {

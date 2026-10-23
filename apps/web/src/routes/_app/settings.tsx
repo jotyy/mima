@@ -43,6 +43,7 @@ import { client } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_app/settings")({
 	component: Settings,
+	head: () => ({ meta: [{ title: "Settings · mima" }] }),
 });
 
 const lockLabels: Record<AutoLockMinutes, string> = {

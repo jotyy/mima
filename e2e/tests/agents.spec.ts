@@ -52,6 +52,7 @@ test.beforeAll(async ({ browser, request }) => {
 test("creating an agent shows its token once", async ({ page }) => {
 	await signIn(page, owner);
 	await sidebarLink(page, "Agents").click();
+	await expect(page).toHaveTitle("Agents · mima");
 	await expect(page.getByText("No agents yet")).toBeVisible();
 	await page.getByRole("button", { name: "New agent" }).click();
 	const dialog = page.getByRole("dialog");

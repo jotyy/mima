@@ -28,6 +28,7 @@ import {
 
 export const Route = createFileRoute("/_app/deleted")({
 	component: RecentlyDeleted,
+	head: () => ({ meta: [{ title: "Recently deleted · mima" }] }),
 });
 
 const KEEP_DAYS = 30;

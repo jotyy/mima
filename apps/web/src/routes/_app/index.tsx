@@ -52,6 +52,7 @@ import {
 
 export const Route = createFileRoute("/_app/")({
 	component: Overview,
+	head: () => ({ meta: [{ title: "Overview · mima" }] }),
 });
 
 function Overview() {

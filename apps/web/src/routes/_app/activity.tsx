@@ -14,6 +14,7 @@ import { useEvents, useItemEvents } from "@/lib/vault-data";
 export const Route = createFileRoute("/_app/activity")({
 	validateSearch: z.object({ item: z.string().optional() }),
 	component: Activity,
+	head: () => ({ meta: [{ title: "Activity · mima" }] }),
 });
 
 const DAY = 24 * 60 * 60 * 1000;

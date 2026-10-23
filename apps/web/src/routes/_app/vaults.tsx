@@ -39,6 +39,7 @@ import {
 
 export const Route = createFileRoute("/_app/vaults")({
 	component: Vaults,
+	head: () => ({ meta: [{ title: "Vaults · mima" }] }),
 });
 
 function Vaults() {

@@ -49,6 +49,7 @@ import {
 
 export const Route = createFileRoute("/_app/members")({
 	component: Members,
+	head: () => ({ meta: [{ title: "Members · mima" }] }),
 });
 
 const roles = [
