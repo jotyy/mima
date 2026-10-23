@@ -104,12 +104,24 @@ export function ItemDialog({
 	const [error, setError] = useState("");
 	const [busy, setBusy] = useState(false);
 
+	// Fill the form when the dialog opens, or opens on another item. A background
+	// refresh hands over a new `item` object, and mustn't wipe out what's being typed.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: only on open, see above
 	useEffect(() => {
 		if (open) {
 			setForm(fromItem(item, fallbackVault));
 			setError("");
 		}
-	}, [open, item, fallbackVault]);
+	}, [open, item?.id]);
+
+	// The vaults may load after the dialog opened: pick the default one then.
+	useEffect(() => {
+		if (open && fallbackVault) {
+			setForm((current) =>
+				current.vaultId ? current : { ...current, vaultId: fallbackVault },
+			);
+		}
+	}, [open, fallbackVault]);
 
 	const set = <K extends keyof Form>(key: K, value: Form[K]) =>
 		setForm((current) => ({ ...current, [key]: value }));

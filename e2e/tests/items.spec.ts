@@ -142,6 +142,27 @@ test("edit an item and mark it as a favorite", async ({ page }) => {
 	).toBeVisible();
 });
 
+test("a background refresh doesn't undo what's being typed", async ({
+	page,
+}) => {
+	await signIn(page, owner);
+	await openAllItems(page);
+	const card = await detail(page);
+	await card.getByRole("button", { name: "Edit" }).click();
+	const dialog = page.getByRole("dialog");
+	await dialog.getByLabel("Notes").fill("Typed while the list refreshed.");
+	// Coming back to the tab refreshes everything, the item included.
+	const refreshed = page.waitForResponse(/\/rpc\/items\/list/);
+	await page.evaluate(() =>
+		document.dispatchEvent(new Event("visibilitychange", { bubbles: true })),
+	);
+	await refreshed;
+	await expect(dialog.getByLabel("Notes")).toHaveValue(
+		"Typed while the list refreshed.",
+	);
+	await dialog.getByRole("button", { name: "Cancel" }).click();
+});
+
 test("search finds items by name, username and tag", async ({ page }) => {
 	await signIn(page, owner);
 	await openAllItems(page);
