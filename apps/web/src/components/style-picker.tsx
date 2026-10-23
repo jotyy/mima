@@ -42,15 +42,6 @@ const previews: Record<
 		sidebar: "#f9f9fa",
 		card: "#ffffff",
 		depth: "0 0 0 1px #e9e9ec",
-		font: '"Geist Variable", sans-serif',
-		fontName: "Geist",
-	},
-	azure: {
-		page: "#f2f5fc",
-		sidebar: "#e3ebfd",
-		card: "#ffffff",
-		depth:
-			"0 0 0 1px rgb(31 91 249 / 8%), 0 4px 12px -4px rgb(16 40 120 / 16%)",
 		font: '"Spline Sans Variable", sans-serif',
 		fontName: "Spline Sans",
 	},

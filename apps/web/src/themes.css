@@ -1,5 +1,3 @@
-@import "@fontsource-variable/geist";
-@import "@fontsource-variable/geist-mono";
 @import "@fontsource-variable/spline-sans";
 @import "@fontsource-variable/spline-sans-mono";
 
@@ -107,11 +105,11 @@ html[data-style="frost"] [data-slot="page-header"] h1 {
 }
 
 /* ── Pure: after Mercury and Attio. Near-white paper, cards drawn with a single hairline,
-   no drop shadows, quiet type; color only where it means something. ──────────────── */
+   no drop shadows, and Spline Sans; color only where it means something. ──────────── */
 
 html[data-style="pure"] {
-	--font-text: "Geist Variable", system-ui, sans-serif;
-	--font-code: "Geist Mono Variable", ui-monospace, monospace;
+	--font-text: "Spline Sans Variable", system-ui, sans-serif;
+	--font-code: "Spline Sans Mono Variable", ui-monospace, monospace;
 	--frame: #f9f9fa;
 	--canvas: #fbfbfc;
 	--surface: #ffffff;
@@ -180,86 +178,6 @@ html[data-style="pure"] [data-slot="nav-link"][data-status="active"] {
 	color: var(--fg);
 }
 
-/* ── Azure: mima blue all the way through. Neutrals with a faint blue cast, soft blue
-   shadows, blue labels and a blue selection; calm, friendly and unmistakably ours. ── */
-
-html[data-style="azure"] {
-	--font-text: "Spline Sans Variable", system-ui, sans-serif;
-	--font-code: "Spline Sans Mono Variable", ui-monospace, monospace;
-	--frame: #f2f5fc;
-	--canvas: #f5f7fd;
-	--surface: #ffffff;
-	--surface-sunken: #f3f6fd;
-	--fg: #0c1530;
-	--fg-emphasis: #26324f;
-	--fg-muted: #46526e;
-	--fg-subtle: #64708c;
-	--fg-faint: #9aa4bc;
-	--line: #e0e6f3;
-	--line-subtle: #ebeff8;
-	--line-strong: #cbd4e7;
-	--hairline: rgb(16 40 120 / 7%);
-	--tint: #1d3a8f;
-	--skeleton: #e8edf8;
-	--elevation-card:
-		0 0 0 1px rgb(31 91 249 / 8%), 0 1px 2px rgb(16 40 120 / 5%),
-		0 6px 18px -6px rgb(16 40 120 / 12%);
-	--elevation-pill:
-		0 1px 3px rgb(16 40 120 / 10%), 0 0 0 1px rgb(31 91 249 / 7%);
-	--elevation-popover:
-		0 0 0 1px rgb(31 91 249 / 9%), 0 0.75rem 2rem -0.75rem rgb(16 40 120 / 26%);
-	--radius: 0.55rem;
-	--round-window: 12px;
-	--round-shell: 14px;
-	--round-panel: 18px;
-}
-
-html.dark[data-style="azure"] {
-	--frame: #080d1c;
-	--canvas: #0b1122;
-	--surface: #111a30;
-	--surface-sunken: #0e162a;
-	--fg: #eef2fc;
-	--fg-emphasis: #cfd8ec;
-	--fg-muted: #a7b3cd;
-	--fg-subtle: #7c89a6;
-	--fg-faint: #56627e;
-	--line: #1f2b47;
-	--line-subtle: #172138;
-	--line-strong: #2b3a5e;
-	--tint: #c9d8ff;
-	--skeleton: #17213a;
-	--elevation-card: 0 0 0 1px #1f2b47, 0 6px 18px -8px rgb(0 0 0 / 60%);
-	--elevation-pill: 0 0 0 1px #2b3a5e;
-}
-
-html[data-style="azure"] [data-slot="nav-label"] {
-	border: 0;
-	background: none;
-	font-weight: 600;
-	color: var(--brand);
-}
-
-html[data-style="azure"] [data-slot="nav-link"][data-status="active"] {
-	background: var(--brand-soft);
-	color: var(--brand);
-	font-weight: 500;
-}
-
-html[data-style="azure"] [data-slot="page-header"] h1 {
-	font-weight: 600;
-	letter-spacing: -0.015em;
-}
-
-html[data-style="azure"] [data-slot="section-title"] h2 {
-	color: var(--brand-ink);
-	font-weight: 600;
-}
-
-html.dark[data-style="azure"] [data-slot="section-title"] h2 {
-	color: var(--fg);
-}
-
 /* Page titles use the style's display face (the text face unless a style sets one). */
 [data-slot="page-header"] h1 {
 	font-family: var(--font-display);
@@ -286,21 +204,4 @@ html[data-style="pure"]
 	background: var(--surface-sunken);
 	box-shadow: none;
 	font-weight: 500;
-}
-
-/* Azure: the sidebar sits on the tinted page; the page you're on is a white chip. */
-html[data-style="azure"]
-	[data-slot="app-shell"]
-	[data-slot="nav-link"][data-status="active"] {
-	background: var(--surface);
-	box-shadow:
-		0 0 0 1px rgb(31 91 249 / 8%),
-		0 1px 3px rgb(16 40 120 / 10%);
-}
-
-html.dark[data-style="azure"]
-	[data-slot="app-shell"]
-	[data-slot="nav-link"][data-status="active"] {
-	background: rgb(255 255 255 / 7%);
-	box-shadow: none;
 }
