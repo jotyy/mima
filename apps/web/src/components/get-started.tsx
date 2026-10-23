@@ -80,7 +80,8 @@ export function GetStarted() {
 						hint: "Each person joins with a one-time link and gets a private vault of their own.",
 						done:
 							members.data.members.length > 1 ||
-							members.data.invites.length > 0,
+							members.data.invites.length > 0 ||
+							events.data.some((event) => event.action === "invited"),
 						action: (
 							<Button
 								variant="outline"

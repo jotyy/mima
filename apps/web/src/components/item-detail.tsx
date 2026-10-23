@@ -27,8 +27,9 @@ import {
 	RobotIcon,
 	StarIcon,
 	TrashIcon,
+	UserMinusIcon,
 } from "@phosphor-icons/react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 
 import { ago, plural, timeLeft, toneDot } from "@/lib/format";
@@ -38,6 +39,7 @@ import {
 	type Item,
 	useActions,
 	useAgents,
+	useExposed,
 	useLinks,
 	useMembers,
 	useVaults,
@@ -67,12 +69,14 @@ const strengthBadge = {
 
 export function ItemDetail({ item }: { item: Item }) {
 	const navigate = useNavigate();
+	const router = useRouter();
 	const actions = useActions();
 	const vaults = useVaults();
 	const agents = useAgents();
 	const members = useMembers();
 	const lookup = useLookup();
 	const links = useLinks(item.id);
+	const exposure = useExposed().exposed.get(item.id);
 	const [editing, setEditing] = useState(false);
 	const [granting, setGranting] = useState(false);
 	const [sharing, setSharing] = useState(false);
@@ -102,7 +106,13 @@ export function ItemDetail({ item }: { item: Item }) {
 		} catch (err) {
 			return notify.error("Couldn't delete it", errorMessage(err));
 		}
-		navigate({ to: "/items", search: (prev) => ({ ...prev, id: undefined }) });
+		// Only if the person is still looking at the list; they may have moved on.
+		if (router.state.location.pathname === "/items") {
+			navigate({
+				to: "/items",
+				search: (prev) => ({ ...prev, id: undefined }),
+			});
+		}
 		notify.undo(`Moved ${item.name} to Recently deleted`, () =>
 			run(actions.restoreItem(item), `Restored ${item.name}`),
 		);
@@ -255,6 +265,23 @@ export function ItemDetail({ item }: { item: Item }) {
 						{item.reusedWith.length === 1
 							? "If one leaks, the other is open too."
 							: "If one leaks, the others are open too."}
+					</p>
+					<Button variant="outline" size="xs" onClick={() => setEditing(true)}>
+						Change
+					</Button>
+				</div>
+			) : null}
+
+			{exposure ? (
+				<div className="border-warning-line bg-warning-soft text-caption text-warning mx-4 mt-3 flex items-center gap-2 rounded-lg border px-3 py-2">
+					<UserMinusIcon className="size-4 shrink-0" />
+					<p className="min-w-0 flex-1">
+						<span className="font-medium">
+							{exposure.people.map((person) => person.name).join(", ")}
+						</span>{" "}
+						could see this before losing access{" "}
+						{ago(exposure.people[0]?.at ?? new Date())}. Change it so any copy
+						they kept stops working.
 					</p>
 					<Button variant="outline" size="xs" onClick={() => setEditing(true)}>
 						Change

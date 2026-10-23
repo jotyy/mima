@@ -191,6 +191,97 @@ export function useMembers() {
 	});
 }
 
+/** Someone who could see an item's secret, then lost access, before it changed. */
+export type Exposure = {
+	people: { name: string; removalId: string; at: Date }[];
+};
+
+const DISMISSED_KEY = "mima.dismissedRemovals";
+
+function dismissedRemovals() {
+	try {
+		return new Set<string>(
+			JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? "[]"),
+		);
+	} catch {
+		return new Set<string>();
+	}
+}
+
+/**
+ * Items with a secret that someone could see before they were taken out of its vault, or
+ * left the workspace, and that hasn't changed since. Keyed by item ID.
+ */
+export function useExposed() {
+	const { status } = useKeyring();
+	const items = useItems();
+	const vaults = useVaults();
+	const queryClient = useQueryClient();
+	const removals = useQuery({
+		queryKey: ["vault", "removals"],
+		enabled: status === "unlocked",
+		queryFn: () => client.events.removals(),
+	});
+	const dismissed = useQuery({
+		queryKey: ["dismissed-removals"],
+		queryFn: dismissedRemovals,
+		staleTime: Number.POSITIVE_INFINITY,
+	});
+
+	const exposed = useMemo(() => {
+		const result = new Map<string, Exposure>();
+		const vaultsById = new Map((vaults.data ?? []).map((v) => [v.id, v]));
+		for (const removal of removals.data ?? []) {
+			if (dismissed.data?.has(removal.id)) continue;
+			const vault = removal.vaultId ? vaultsById.get(removal.vaultId) : null;
+			if (!vault || vault.personal) continue;
+			// Back in the vault since: nothing is hidden from them.
+			if (vault.members.some((m) => m.userId === removal.subjectId)) continue;
+			const at = new Date(removal.createdAt);
+			for (const item of items.data ?? []) {
+				if (item.vaultId !== vault.id || !item.secret) continue;
+				if (new Date(item.createdAt) > at) continue;
+				const changed = item.history?.[0]?.until;
+				if (changed && new Date(changed) > at) continue;
+				const entry = result.get(item.id) ?? { people: [] };
+				const name = removal.name ?? "Someone";
+				// Removals come newest first; the earliest one for a person is what counts.
+				entry.people = [
+					...entry.people.filter((person) => person.name !== name),
+					{ name, removalId: removal.id, at },
+				];
+				result.set(item.id, entry);
+			}
+		}
+		return result;
+	}, [removals.data, items.data, vaults.data, dismissed.data]);
+
+	/** Stops pointing at these removals on this device. */
+	const dismiss = (removalIds: string[]) => {
+		const next = dismissedRemovals();
+		for (const id of removalIds) next.add(id);
+		try {
+			localStorage.setItem(DISMISSED_KEY, JSON.stringify([...next]));
+		} catch {
+			// Then it comes back on the next visit.
+		}
+		queryClient.setQueryData(["dismissed-removals"], next);
+	};
+
+	/** People who were taken out of a vault: not newcomers waiting for access. */
+	const removed = useMemo(
+		() =>
+			new Set(
+				(removals.data ?? [])
+					.map((removal) => removal.subjectId)
+					.filter((id): id is string => Boolean(id)),
+			),
+		[removals.data],
+	);
+
+	return { exposed, dismiss, removed };
+}
+
 /** Share links to one item that still work. */
 export function useLinks(itemId: string) {
 	const { status } = useKeyring();

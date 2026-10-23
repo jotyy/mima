@@ -93,13 +93,15 @@ export function describeEvent(
 				return parts(`revoked ${subject ?? "an agent"} from`, itemName);
 			if (event.vaultId)
 				return parts(
-					`removed ${subject ?? "someone"} from`,
+					`removed ${subject ?? removedName(event.detail)} from`,
 					vault?.name ?? "a vault",
 				);
-			return parts(`removed ${subject ?? "someone"} from the workspace`);
+			return parts(
+				`removed ${subject ?? removedName(event.detail)} from the workspace`,
+			);
 		case "shared":
 			return parts(
-				`gave ${subject ?? "someone"} access to`,
+				`gave ${subject ?? event.detail ?? "someone"} access to`,
 				vault?.name ?? "a vault",
 			);
 		case "joined":
@@ -130,6 +132,11 @@ export function describeEvent(
 		default:
 			return parts(event.action, itemName);
 	}
+}
+
+/** Shares and removals keep the person's name, since their account may be gone. */
+function removedName(detail: string | null | undefined) {
+	return detail && detail !== "removed from workspace" ? detail : "someone";
 }
 
 const linkDurations: Record<string, string> = {

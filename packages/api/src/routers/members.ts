@@ -134,6 +134,26 @@ export const membersRouter = {
 					message: "You can't remove the owner or yourself",
 				});
 			}
+			// The person's account goes, so their name is kept in the log. One event per
+			// shared vault tells the people left behind which passwords they could see.
+			const [person, shared] = await Promise.all([
+				db
+					.select({ name: user.name })
+					.from(user)
+					.where(eq(user.id, input.userId))
+					.then((rows) => rows[0]),
+				db
+					.select({ vaultId: vaultAccess.vaultId })
+					.from(vaultAccess)
+					.innerJoin(vault, eq(vault.id, vaultAccess.vaultId))
+					.where(
+						and(
+							eq(vaultAccess.userId, input.userId),
+							isNull(vault.personalFor),
+						),
+					),
+			]);
+			const name = person?.name ?? "Someone";
 			await db.batch([
 				db.delete(vault).where(eq(vault.personalFor, input.userId)),
 				db.delete(user).where(eq(user.id, input.userId)),
@@ -142,8 +162,18 @@ export const membersRouter = {
 					actorId: userId,
 					action: "revoked",
 					subjectId: input.userId,
-					detail: "removed from workspace",
+					detail: name,
 				}),
+				...shared.map((row) =>
+					logEvent(db, {
+						actorType: "member",
+						actorId: userId,
+						action: "revoked",
+						vaultId: row.vaultId,
+						subjectId: input.userId,
+						detail: name,
+					}),
+				),
 			]);
 		}),
 };

@@ -13,7 +13,7 @@ The first public version.
 - A private vault for everyone, and shared vaults opened to people one by one.
 - Logins with one-time codes, API keys, SSH keys and secure notes, with a password generator and strength check.
 - Share links: send one item to someone outside the workspace through a link that expires after an hour to 30 days, optionally after one view. The copy is encrypted with a key that lives only in the link, and every opening is logged.
-- Password health: the Overview lists weak passwords and logins that share a password, and each opens a filtered list to fix them.
+- Password health: the Overview lists weak passwords, logins that share a password, and items that someone who lost access could see and that haven't changed since. Each opens a filtered list to fix them.
 - Search and a command palette (⌘K) that copies a password without opening the item. Copied secrets clear from the clipboard after 90 seconds.
 - An activity log of reveals, copies, shares, imports and backups.
 - Import from 1Password, Bitwarden, LastPass, Chrome, Firefox, Safari or any CSV with a password column.

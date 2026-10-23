@@ -1,6 +1,6 @@
 import { user } from "@mima/db/schema/auth";
 import { agent, event } from "@mima/db/schema/vault";
-import { desc, inArray, isNull, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 
 import { memberProcedure } from "../index";
@@ -66,4 +66,33 @@ export const eventsRouter = {
 						: (names.get(row.actorId) ?? "Someone who left"),
 			}));
 		}),
+
+	/**
+	 * Everyone who lost access to one of your shared vaults, and when. The passwords they
+	 * could see are worth changing.
+	 */
+	removals: memberProcedure.handler(async ({ context }) => {
+		const { db, userId } = context;
+		const vaultIds = await myVaultIds(db, userId);
+		if (vaultIds.length === 0) return [];
+		return db
+			.select({
+				id: event.id,
+				vaultId: event.vaultId,
+				subjectId: event.subjectId,
+				name: event.detail,
+				createdAt: event.createdAt,
+			})
+			.from(event)
+			.where(
+				and(
+					eq(event.action, "revoked"),
+					inArray(event.vaultId, vaultIds),
+					// Item-level revokes are agents and share links, not people.
+					isNull(event.itemId),
+				),
+			)
+			.orderBy(desc(event.createdAt))
+			.limit(500);
+	}),
 };

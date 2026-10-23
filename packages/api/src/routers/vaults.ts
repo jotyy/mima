@@ -108,8 +108,9 @@ export const vaultsRouter = {
 				});
 			}
 			const [recipient] = await db
-				.select()
+				.select({ name: user.name })
 				.from(member)
+				.innerJoin(user, eq(user.id, member.userId))
 				.where(eq(member.userId, input.userId));
 			if (!recipient)
 				throw new ORPCError("NOT_FOUND", { message: "Member not found" });
@@ -132,6 +133,7 @@ export const vaultsRouter = {
 					action: "shared",
 					vaultId: input.vaultId,
 					subjectId: input.userId,
+					detail: recipient.name,
 				}),
 			]);
 		}),
@@ -150,6 +152,10 @@ export const vaultsRouter = {
 					message: "You can't leave your private vault",
 				});
 			}
+			const [person] = await db
+				.select({ name: user.name })
+				.from(user)
+				.where(eq(user.id, input.userId));
 			await db
 				.delete(vaultAccess)
 				.where(
@@ -164,6 +170,8 @@ export const vaultsRouter = {
 				action: "revoked",
 				vaultId: input.vaultId,
 				subjectId: input.userId,
+				// Kept by name: the person may later leave the workspace altogether.
+				detail: person?.name ?? null,
 			});
 		}),
 

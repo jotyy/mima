@@ -11,6 +11,7 @@ import {
 	EnvelopeSimpleIcon,
 	MagnifyingGlassIcon,
 	ShieldCheckIcon,
+	UserMinusIcon,
 	UserPlusIcon,
 	WarningIcon,
 } from "@phosphor-icons/react";
@@ -38,6 +39,7 @@ import {
 	useActions,
 	useAgents,
 	useEvents,
+	useExposed,
 	useItems,
 	useMembers,
 	useRequests,
@@ -85,8 +87,8 @@ function Overview() {
 				{needs.rows.length === 0 ? (
 					<div className="rounded-window border-line text-caption text-fg-subtle flex items-center justify-center gap-2 border border-dashed py-8">
 						<CheckCircleIcon className="text-success size-4" />
-						All clear. New teammates, weak or reused passwords and access
-						requests show up here.
+						All clear. Access requests, new teammates and passwords to change
+						show up here.
 					</div>
 				) : (
 					<section
@@ -193,6 +195,7 @@ function useNeeds() {
 	const actions = useActions();
 	const navigate = useNavigate();
 	const lookup = useLookup();
+	const exposure = useExposed();
 	const [busy, setBusy] = useState<string | null>(null);
 	const [giving, setGiving] = useState<Member | null>(null);
 	const [link, setLink] = useState<{ email: string; token: string } | null>(
@@ -272,7 +275,7 @@ function useNeeds() {
 	const live = items.data ?? [];
 	const openItem = (item: Item) =>
 		navigate({ to: "/items", search: { id: item.id, vault: item.vaultId } });
-	const review = (health: "weak" | "reused") =>
+	const review = (health: "weak" | "reused" | "exposed") =>
 		navigate({ to: "/items", search: { health } });
 
 	const weakItems = live.filter((item) => item.strength === "weak");
@@ -314,6 +317,54 @@ function useNeeds() {
 				},
 			]
 		: [];
+
+	// One row per person who lost access while items they could see stayed the same.
+	const leavers = new Map<
+		string,
+		{ items: Item[]; removalIds: Set<string>; at: Date }
+	>();
+	for (const item of live) {
+		for (const person of exposure.exposed.get(item.id)?.people ?? []) {
+			const group = leavers.get(person.name) ?? {
+				items: [],
+				removalIds: new Set<string>(),
+				at: person.at,
+			};
+			group.items.push(item);
+			group.removalIds.add(person.removalId);
+			if (person.at > group.at) group.at = person.at;
+			leavers.set(person.name, group);
+		}
+	}
+	const exposed = [...leavers].map(
+		([name, group]): NeedRowProps => ({
+			id: `exposed-${name}`,
+			icon: UserMinusIcon,
+			tone: "text-warning",
+			title: (
+				<>
+					<span className="font-medium">{name}</span> could see{" "}
+					{plural(group.items.length, "item")} that{" "}
+					{group.items.length === 1 ? "hasn't" : "haven't"} changed since
+				</>
+			),
+			meta: `Lost access ${ago(group.at)} · ${listNames(group.items)}`,
+			actions: (
+				<>
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={() => exposure.dismiss([...group.removalIds])}
+					>
+						Dismiss
+					</Button>
+					<Button variant="outline" size="sm" onClick={() => review("exposed")}>
+						Review
+					</Button>
+				</>
+			),
+		}),
+	);
 
 	const reusedItems = live.filter((item) => item.reusedWith?.length);
 	const reused: NeedRowProps[] = reusedItems.length
@@ -407,7 +458,8 @@ function useNeeds() {
 						(m) =>
 							m.role !== "owner" &&
 							m.userId !== me?.id &&
-							m.sharedVaultIds.length === 0,
+							m.sharedVaultIds.length === 0 &&
+							!exposure.removed.has(m.userId),
 					)
 					.map(
 						(member): NeedRowProps => ({
@@ -481,6 +533,7 @@ function useNeeds() {
 			...newcomers,
 			...weak,
 			...reused,
+			...exposed,
 			...expiring,
 			...invites,
 		],

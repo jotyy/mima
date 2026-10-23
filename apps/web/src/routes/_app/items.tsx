@@ -27,6 +27,7 @@ import { Page } from "@/components/page";
 import { plural, toneDot } from "@/lib/format";
 import {
 	type ItemKind,
+	useExposed,
 	useItems,
 	useVaults,
 	type Vault,
@@ -39,7 +40,7 @@ const searchSchema = z.object({
 	id: z.string().optional(),
 	new: z.boolean().optional(),
 	import: z.boolean().optional(),
-	health: z.enum(["weak", "reused"]).optional(),
+	health: z.enum(["weak", "reused", "exposed"]).optional(),
 });
 
 export const Route = createFileRoute("/_app/items")({
@@ -58,11 +59,13 @@ const kinds = [
 const healthLabel = {
 	weak: "Weak passwords",
 	reused: "Passwords used more than once",
+	exposed: "Seen by people who lost access",
 };
 
 const healthClear = {
 	weak: "No weak passwords left.",
 	reused: "Every login has its own password now.",
+	exposed: "Everything they could see has changed since.",
 };
 
 function Items() {
@@ -70,6 +73,7 @@ function Items() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const items = useItems();
 	const vaults = useVaults();
+	const { exposed } = useExposed();
 	const vault = vaults.data?.find((v) => v.id === search.vault);
 	const query = (search.q ?? "").toLowerCase();
 
@@ -81,6 +85,7 @@ function Items() {
 			(!search.kind || item.kind === search.kind) &&
 			(search.health !== "weak" || item.strength === "weak") &&
 			(search.health !== "reused" || Boolean(item.reusedWith?.length)) &&
+			(search.health !== "exposed" || exposed.has(item.id)) &&
 			(!query ||
 				item.name.toLowerCase().includes(query) ||
 				item.username?.toLowerCase().includes(query) ||
@@ -242,7 +247,12 @@ function Items() {
 												? `Same password as ${item.reusedWith
 														.map((id) => names.get(id))
 														.join(", ")}`
-												: (item.username ?? item.url ?? item.notes ?? " ")}
+												: search.health === "exposed" && exposed.has(item.id)
+													? `${exposed
+															.get(item.id)
+															?.people.map((person) => person.name)
+															.join(", ")} could see it`
+													: (item.username ?? item.url ?? item.notes ?? " ")}
 										</span>
 									</div>
 									{!vault && itemVault && (
