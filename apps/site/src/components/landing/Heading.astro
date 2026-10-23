@@ -19,7 +19,14 @@ const { label, title, quiet, lead, center = false } = Astro.props;
 	]}
 >
 	<span class="text-label text-link flex items-center gap-2 font-medium">
-		<span class="bg-brand size-1.5 rounded-full"></span>
+		<!-- A round escutcheon with the keyhole cut through it. -->
+		<svg aria-hidden="true" viewBox="0 0 16 16" class="text-brand size-3.5 shrink-0">
+			<path
+				fill="currentColor"
+				fill-rule="evenodd"
+				d="M8 0a8 8 0 1 0 0 16A8 8 0 1 0 8 0zm0 4.25a2.25 2.25 0 0 1 1.05 4.24L9.6 12H6.4l.55-3.51A2.25 2.25 0 0 1 8 4.25z"
+			></path>
+		</svg>
 		{label}
 	</span>
 	<h2 class="text-title-sm sm:text-title text-fg text-balance">
