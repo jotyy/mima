@@ -117,8 +117,32 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bunx playwright install chromium
         working-directory: e2e
+      # Now and then `alchemy dev` hangs on a fresh runner without a word. So the stack
+      # starts here, gets four minutes, and gets one more try; the suite then reuses it.
+      - name: Start the test stack
+        working-directory: packages/infra
+        env:
+          VAULY_API_PORT: 3100
+          VAULY_WEB_PORT: 3101
+          VAULY_E2E_RESET_TOKEN: vauly-e2e-local
+        run: |
+          for attempt in 1 2; do
+            nohup bun run dev --stage e2e > "../../e2e/stack-$attempt.log" 2>&1 &
+            for second in $(seq 240); do
+              curl -sf -o /dev/null http://localhost:3101/ && exit 0
+              sleep 1
+            done
+            echo "::warning::The test stack didn't start in four minutes (try $attempt)"
+            tail -n 40 "../../e2e/stack-$attempt.log"
+            pkill -f "alchemy dev" || true
+            pkill -f workerd || true
+            sleep 3
+          done
+          exit 1
       - run: bun run test --shard=${{ matrix.shard }}/3
         working-directory: e2e
+        env:
+          VAULY_E2E_STACK: started
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
@@ -126,6 +150,7 @@ jobs:
           path: |
             e2e/report
             e2e/results
+            e2e/stack-*.log
           retention-days: 7
 
   one-worker:

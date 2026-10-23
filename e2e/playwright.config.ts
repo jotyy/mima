@@ -62,7 +62,9 @@ export default defineConfig({
 					VAULY_WEB_PORT: String(WEB_PORT),
 					VAULY_E2E_RESET_TOKEN: RESET_TOKEN,
 				},
-				reuseExistingServer: !process.env.CI,
+				// CI starts the stack itself, with a retry, and says so with VAULY_E2E_STACK.
+				reuseExistingServer:
+					!process.env.CI || Boolean(process.env.VAULY_E2E_STACK),
 				timeout: 360_000,
 				stdout: "ignore",
 				stderr: "pipe",
