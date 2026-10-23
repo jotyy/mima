@@ -3,6 +3,7 @@ import {
 	markBox,
 	markFacets,
 	markGradients,
+	whiteFacetOpacity,
 	wordmark,
 } from "@vauly/ui/lib/brand";
 import { cn } from "@vauly/ui/lib/utils";
@@ -15,9 +16,10 @@ import { useId } from "react";
 const viewBox = (b: typeof markBox | typeof logoBox) =>
 	`${b.x} ${b.y} ${b.width} ${b.height}`;
 
+const facets = Object.keys(markFacets) as (keyof typeof markFacets)[];
+
 function MarkShapes() {
 	const id = useId().replace(/:/g, "");
-	const facets = Object.keys(markFacets) as (keyof typeof markFacets)[];
 	return (
 		<>
 			<defs>
@@ -61,17 +63,41 @@ export function VaulyMark({ className }: { className?: string }) {
 	);
 }
 
-/** Mark and wordmark. The wordmark uses the text color, so it follows the theme. */
-export function VaulyLogo({ className }: { className?: string }) {
+/**
+ * Mark and wordmark. The wordmark uses the text color, so it follows the theme. The white
+ * tone is for deep blue backgrounds, where the mark's deep facets would vanish.
+ */
+export function VaulyLogo({
+	className,
+	tone = "color",
+}: {
+	className?: string;
+	tone?: "color" | "white";
+}) {
 	return (
 		<svg
 			viewBox={viewBox(logoBox)}
 			fill="none"
 			role="img"
 			aria-label="vauly"
-			className={cn("text-fg h-6 w-auto shrink-0", className)}
+			className={cn(
+				"h-6 w-auto shrink-0",
+				tone === "white" ? "text-white" : "text-fg",
+				className,
+			)}
 		>
-			<MarkShapes />
+			{tone === "white" ? (
+				facets.map((facet) => (
+					<path
+						key={facet}
+						d={markFacets[facet]}
+						fill="#fff"
+						fillOpacity={whiteFacetOpacity[facet]}
+					/>
+				))
+			) : (
+				<MarkShapes />
+			)}
 			<g fill="currentColor">
 				{wordmark.map((d) => (
 					<path key={d} d={d} />

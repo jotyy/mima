@@ -39,52 +39,26 @@
 }
 
 /*
- * Sign-in: the brand panel in one blue, shaped by light alone. A soft spotlight at the top
- * where the shackle sits, deeper blue toward the edges and the bottom, and a fine grain
- * that keeps the gradients from banding. Kept the same in both themes, like the logo.
+ * Sign-in, setup, join and unlock: the website's sky. Night blue at the top, vauly blue
+ * by the card with a soft glow behind it, and the same fine grain that keeps the
+ * gradients from banding. Kept the same in both themes, like the logo.
  */
-[data-slot="auth-panel"] {
-	background-color: #1c4fe8;
+[data-slot="auth-sky"] {
+	background-color: #0a1d66;
 	background-image:
-		radial-gradient(55% 40% at 50% 14%, rgb(110 150 255 / 0.75), transparent),
-		radial-gradient(90% 70% at 50% 40%, rgb(52 102 255 / 0.5), transparent),
-		radial-gradient(130% 80% at 50% 115%, rgb(14 40 150 / 0.9), transparent);
-	box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14);
+		radial-gradient(60% 42% at 50% 58%, rgb(52 102 255 / 0.55), transparent 70%),
+		radial-gradient(60% 36% at 50% 0%, rgb(46 96 245 / 0.4), transparent 70%),
+		linear-gradient(to bottom, #040a20, #081a5a 30%, #1443e0 74%, #1240d2);
 
 	&::before {
 		content: "";
 		position: absolute;
 		inset: 0;
+		z-index: -1;
 		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
 		mix-blend-mode: soft-light;
 		opacity: 0.4;
 		pointer-events: none;
-	}
-}
-
-/*
- * Sign-in: the same rows of items twice, in step, one layer clipped to each side of the
- * lock with a hairline gap between them. Hovering anywhere pauses both layers together
- * so the halves stay lined up.
- */
-[data-slot="seal"] {
-	position: relative;
-
-	& > [data-slot="seal-layer"] {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-		clip-path: inset(-4px calc(50% + 1.5px) -4px 0);
-	}
-
-	& > [data-slot="seal-layer"]:not([data-plain]) {
-		position: absolute;
-		inset: 0;
-		clip-path: inset(-4px 0 -4px calc(50% + 1.5px));
-	}
-
-	&:hover [data-slot="marquee-track"] {
-		animation-play-state: paused;
 	}
 }
 
