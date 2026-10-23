@@ -41,12 +41,16 @@ export function parseKeePassXml(text: string): ParsedImport {
 		}
 		if (templates && uuid === templates) return;
 		for (const entry of children(group, "Entry")) {
-			const strings = readStrings(entry);
+			const { strings, protectedKeys } = readStrings(entry);
 			const value = (key: string) => strings.get(key) ?? "";
 			const fields: Field[] = [];
 			for (const [key, text] of strings) {
 				if (!standard.includes(key) && !isOtpKey(key) && text.trim()) {
-					fields.push({ label: key, value: text });
+					fields.push({
+						label: key,
+						value: text,
+						hidden: protectedKeys.has(key),
+					});
 				}
 			}
 			leave("attachment", children(entry, "Binary").length);
@@ -72,13 +76,20 @@ export function parseKeePassXml(text: string): ParsedImport {
 	return result;
 }
 
+/** An entry's strings, and which of them KeePass protects, as it does its password. */
 function readStrings(entry: XmlNode) {
 	const strings = new Map<string, string>();
+	const protectedKeys = new Set<string>();
 	for (const string of children(entry, "String")) {
 		const key = child(string, "Key")?.text;
-		if (key) strings.set(key, child(string, "Value")?.text ?? "");
+		const value = child(string, "Value");
+		if (!key) continue;
+		strings.set(key, value?.text ?? "");
+		if (value?.attrs.ProtectInMemory?.toLowerCase() === "true") {
+			protectedKeys.add(key);
+		}
 	}
-	return strings;
+	return { strings, protectedKeys };
 }
 
 const isOtpKey = (key: string) =>
@@ -177,7 +188,7 @@ function historyOf(entry: XmlNode, current: string): PreviousSecret[] {
 	// Oldest first, then the entry as it is now.
 	const versions = [
 		...children(child(entry, "History"), "Entry").map((version) => ({
-			secret: readStrings(version).get("Password") ?? "",
+			secret: readStrings(version).strings.get("Password") ?? "",
 			changed: changed(version),
 		})),
 		{ secret: current, changed: changed(entry) },

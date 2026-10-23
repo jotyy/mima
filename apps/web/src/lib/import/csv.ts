@@ -81,11 +81,17 @@ const formats: CsvFormat[] = [
 			const draft = bitwardenRow(row);
 			if (typeof draft === "string") return draft;
 			const kind = row.get("vauly_kind");
+			const fields = jsonList<Field>(row.get("vauly_fields")).filter(
+				(field) =>
+					typeof field?.label === "string" && typeof field.value === "string",
+			);
 			return {
 				...draft,
 				folder: undefined,
 				kind: isKind(kind) ? kind : draft.kind,
 				tags: splitTags(row.get("vauly_tags"), /;/),
+				// The exact fields, hidden ones marked; older backups have only Bitwarden's.
+				...(fields.length > 0 && { fields }),
 			};
 		},
 	},

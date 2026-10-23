@@ -246,6 +246,32 @@ test("search finds items, and other sites get nothing to fill", async () => {
 	await page.close();
 });
 
+test("a login with another website fills there too", async () => {
+	const app = await context.newPage();
+	await app.goto("/items");
+	await app.getByLabel("Master password").fill(owner.password);
+	await app.getByRole("button", { name: "Unlock", exact: true }).click();
+	await app.getByRole("button", { name: "Edit", exact: true }).click();
+	const form = app.getByRole("dialog");
+	await form.getByRole("button", { name: "Add another website" }).click();
+	await form
+		.getByLabel("Website 2", { exact: true })
+		.fill("https://sso.example.test");
+	await form.getByRole("button", { name: "Save" }).click();
+	await expect(form).toBeHidden();
+	await app.close();
+
+	const page = await context.newPage();
+	await page.goto("https://sso.example.test/");
+	const popup = await openPopup(await tabIdOf("https://sso.example.test"));
+	const here = popup.getByRole("list", { name: "On sso.example.test" });
+	await here.getByRole("button", { name: `Fill ${login.name}` }).click();
+	await expect(page.getByLabel("Email")).toHaveValue(login.username);
+	await expect(page.getByLabel("Password")).toHaveValue(login.password);
+	await popup.close();
+	await page.close();
+});
+
 test("Lock forgets the key until the master password is entered again", async () => {
 	const popup = await openPopup();
 	await popup.getByRole("button", { name: "Lock" }).click();

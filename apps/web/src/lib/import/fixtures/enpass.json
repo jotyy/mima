@@ -85,6 +85,15 @@
 					"order": 6
 				},
 				{
+					"uid": 104,
+					"label": "Security answer",
+					"type": "text",
+					"value": "example-answer",
+					"sensitive": 1,
+					"deleted": 0,
+					"order": 7
+				},
+				{
 					"uid": 103,
 					"label": "Old field",
 					"type": "text",

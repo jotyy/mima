@@ -106,6 +106,8 @@ function parseBitwarden(root: Json) {
 					.map((field) => ({
 						label: text(field.name) || "Field",
 						value: text(field.value),
+						// Type 1 is Bitwarden's hidden field.
+						hidden: field.type === 1,
 					})),
 			],
 			history: newestFirst(
@@ -221,7 +223,7 @@ function readOnePasswordField(
 	if (kind === "file" || kind === "reference") return;
 	if (kind === "totp") {
 		if (!draft.totp) draft.totp = text(raw);
-		else draft.fields.push({ label, value: text(raw) });
+		else draft.fields.push({ label, value: text(raw), hidden: true });
 		return;
 	}
 	if (kind === "sshKey") {
@@ -250,7 +252,7 @@ function readOnePasswordField(
 			return;
 		}
 	}
-	draft.fields.push({ label, value });
+	draft.fields.push({ label, value, hidden: kind === "concealed" });
 }
 
 function onePasswordValue(kind: string, value: unknown) {
@@ -322,11 +324,15 @@ function parseProtonPass(root: Json) {
 				const value = obj(field.data);
 				if (field.type === "totp") {
 					if (!totp) totp = text(value.totpUri);
-					else fields.push({ label, value: text(value.totpUri) });
+					else fields.push({ label, value: text(value.totpUri), hidden: true });
 				} else if (field.type === "timestamp") {
 					fields.push({ label, value: protonDate(value.timestamp) });
 				} else {
-					fields.push({ label, value: text(value.content) });
+					fields.push({
+						label,
+						value: text(value.content),
+						hidden: field.type === "hidden",
+					});
 				}
 			}
 			const path = [
@@ -462,7 +468,11 @@ function parseEnpass(root: Json) {
 					? value
 					: value.replace(/\s/g, "").toUpperCase();
 			} else {
-				draft.fields.push({ label: text(field.label) || type, value });
+				draft.fields.push({
+					label: text(field.label) || type,
+					value,
+					hidden: field.sensitive === 1 || type === "password",
+				});
 			}
 		}
 		const [folder, ...tags] = list(item.folders)

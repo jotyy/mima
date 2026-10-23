@@ -38,12 +38,21 @@ describe("CSV exports", () => {
 				username: "alex@example.test",
 				secret: "example-pass-1",
 				url: "https://github.example.test",
+				moreUrls: ["https://gist.example.test"],
 				totp: "JBSWY3DPEHPK3PXP",
-				notes:
-					"Other website: https://gist.example.test\nrecovery: example-code",
 				tags: ["Work"],
+				fields: [
+					{
+						label: "recovery",
+						value: "example-code",
+					},
+				],
 			},
-			{ kind: "note", name: "Wi-Fi", notes: "guest network: example-only" },
+			{
+				kind: "note",
+				name: "Wi-Fi",
+				notes: "guest network: example-only",
+			},
 		]);
 	});
 
@@ -84,8 +93,11 @@ describe("CSV exports", () => {
 			secret:
 				"-----BEGIN OPENSSH PRIVATE KEY-----\nnot-a-real-key\n-----END OPENSSH PRIVATE KEY-----",
 		});
-		expect(deploy?.notes).toStartWith("Rotate yearly.\nAsk ops first.\n\n");
-		expect(deploy?.notes).toContain("Hostname: deploy.example.test");
+		expect(deploy?.notes).toBe("Rotate yearly.\nAsk ops first.");
+		expect(deploy?.fields).toContainEqual({
+			label: "Hostname",
+			value: "deploy.example.test",
+		});
 	});
 
 	test("LastPass, saved from the web page that shows the CSV", () => {
@@ -102,7 +114,7 @@ describe("CSV exports", () => {
 		expect(result.source).toBe("Dashlane");
 		expect(result.items[1]).toMatchObject({
 			username: "sam",
-			notes: "Other username: sam.alt",
+			fields: [{ label: "Other username", value: "sam.alt" }],
 		});
 	});
 
@@ -115,7 +127,10 @@ describe("CSV exports", () => {
 			totp: "otpauth://totp/GitHub:alex?secret=JBSWY3DPEHPK3PXP",
 			tags: ["Work/Dev"],
 		});
-		expect(result.items[1]?.notes).toBe("Account ID: 12345\nPIN: 0000");
+		expect(result.items[1]?.fields).toEqual([
+			{ label: "Account ID", value: "12345" },
+			{ label: "PIN", value: "0000" },
+		]);
 	});
 
 	test("NordPass: folder rows, extra addresses and custom fields", () => {
@@ -129,11 +144,21 @@ describe("CSV exports", () => {
 				username: "alex@example.test",
 				secret: "example-pass-1",
 				url: "https://github.example.test",
-				notes:
-					"work account\n\nOther website: https://gist.example.test\nAPI key: abc123",
+				moreUrls: ["https://gist.example.test"],
+				notes: "work account",
 				tags: ["Work"],
+				fields: [
+					{
+						label: "API key",
+						value: "abc123",
+					},
+				],
 			},
-			{ kind: "note", name: "Wi-Fi", notes: "guest network: example-only" },
+			{
+				kind: "note",
+				name: "Wi-Fi",
+				notes: "guest network: example-only",
+			},
 		]);
 	});
 
@@ -148,8 +173,13 @@ describe("CSV exports", () => {
 				secret: "@example-pass-1",
 				url: "https://github.example.test/login",
 				totp: "JBSWY3DPEHPK3PXP",
-				notes: "Team: Ops, east",
 				tags: ["Work/Dev"],
+				fields: [
+					{
+						label: "Team",
+						value: "Ops, east",
+					},
+				],
 			},
 			{
 				kind: "note",
@@ -168,8 +198,9 @@ describe("CSV exports", () => {
 		expect(result.items[0]).toMatchObject({
 			username: "alex",
 			url: "https://shop.example.test",
-			notes:
-				"Loyalty account\n\nOther website: https://checkout.example.test\nEmail: alex@example.test",
+			moreUrls: ["https://checkout.example.test"],
+			notes: "Loyalty account",
+			fields: [{ label: "Email", value: "alex@example.test" }],
 			tags: ["Personal"],
 		});
 	});
@@ -273,8 +304,14 @@ test("a vauly backup imports back to the same items", () => {
 			username: "alex@example.test",
 			secret: 'example "quoted" pass',
 			url: "https://github.com",
+			moreUrls: ["https://gist.github.com"],
 			totp: "JBSWY3DPEHPK3PXP",
 			tags: ["work", "code"],
+			fields: [
+				{ label: "Account ID", value: "12345" },
+				{ label: "Recovery PIN", value: "4711", hidden: true },
+				{ label: "Address", value: "1 Example Street\nSpringfield" },
+			],
 		},
 		{
 			vault: "Engineering",

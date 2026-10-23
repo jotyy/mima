@@ -76,6 +76,29 @@ export function GrantDialog({
 					</code>
 					<CopyButton value={reference} label="reference" secret={false} />
 				</div>
+				{item.fields?.length ? (
+					<div className="flex flex-col gap-1">
+						<p className="text-caption text-fg-muted">Or one of its fields:</p>
+						{item.fields.map((field) => {
+							const fieldReference = `${reference}/fields/${encodeURIComponent(field.label)}`;
+							return (
+								<div
+									key={field.label}
+									className="border-line bg-surface-sunken flex items-center gap-2 rounded-lg border py-1 pr-1 pl-3"
+								>
+									<code className="text-caption text-fg min-w-0 flex-1 truncate font-mono">
+										{fieldReference}
+									</code>
+									<CopyButton
+										value={fieldReference}
+										label={`reference to ${field.label}`}
+										secret={false}
+									/>
+								</div>
+							);
+						})}
+					</div>
+				) : null}
 				<div className="mt-2 flex flex-col gap-0.5">
 					<h3 className="text-body-sm text-fg">Skip the approval</h3>
 					<p className="text-caption text-fg-muted">

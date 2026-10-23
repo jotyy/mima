@@ -28,7 +28,10 @@ export type Entry = {
 	name: string;
 	username?: string;
 	secret?: string;
+	/** The first website; the logo comes from it. */
 	url?: string;
+	/** Every website, the first one first: the entry fills on any of them. */
+	urls: string[];
 	totp?: string;
 	favorite: boolean;
 };
@@ -230,6 +233,12 @@ export async function loadVault(
 					username: fields.username as string | undefined,
 					secret: fields.secret as string | undefined,
 					url: fields.url as string | undefined,
+					urls: [
+						fields.url,
+						...(Array.isArray(fields.moreUrls) ? fields.moreUrls : []),
+					].filter(
+						(url): url is string => typeof url === "string" && url !== "",
+					),
 					totp: fields.totp as string | undefined,
 				};
 			}),
@@ -289,12 +298,17 @@ export async function updatePassword(
 	});
 }
 
-/** True when the item belongs to the page: same host, or the page is on a subdomain of it. */
+/**
+ * True when the item belongs to the page: one of its websites has the page's host, or the
+ * page is on a subdomain of it.
+ */
 export function matchesPage(entry: Entry, pageUrl: string | undefined) {
 	const page = hostOf(pageUrl);
-	const item = hostOf(entry.url);
-	if (!page || !item) return false;
-	return page === item || page.endsWith(`.${item}`);
+	if (!page) return false;
+	return (entry.urls.length ? entry.urls : [entry.url]).some((url) => {
+		const item = hostOf(url);
+		return Boolean(item) && (page === item || page.endsWith(`.${item}`));
+	});
 }
 
 export function hostOf(url: string | undefined) {

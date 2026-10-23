@@ -29,10 +29,20 @@ describe("KeePass XML", () => {
 				secret: 'p<w"d-example',
 				url: "https://mail.example.test",
 				totp: "otpauth://totp/?secret=JBSWY3DPEHPK3PXP&period=60",
-				notes: "line 1\nline 2\n\nRecovery code: example-recovery",
+				notes: "line 1\nline 2",
 				tags: ["Work", "email", "work"],
+				fields: [
+					{
+						label: "Recovery code",
+						value: "example-recovery",
+						hidden: true,
+					},
+				],
 				history: [
-					{ secret: "example-old-1", until: "2025-02-01T09:30:00.000Z" },
+					{
+						secret: "example-old-1",
+						until: "2025-02-01T09:30:00.000Z",
+					},
 				],
 			},
 			{

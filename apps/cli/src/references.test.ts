@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	createMasker,
 	findReferences,
+	formatReference,
 	parseEnvFile,
 	parseReference,
 } from "./references";
@@ -23,6 +24,35 @@ describe("references", () => {
 		});
 		expect(parseReference("postgres://localhost")).toBeNull();
 		expect(parseReference("vauly://not-an-item")).toBeNull();
+	});
+
+	test("names a custom field by its URL-encoded label", () => {
+		expect(parseReference("vauly://itm_abc123/fields/PIN")).toEqual({
+			itemId: "itm_abc123",
+			field: "custom",
+			label: "PIN",
+		});
+		expect(
+			parseReference("vauly://itm_abc123/fields/Security%20answer"),
+		).toEqual({
+			itemId: "itm_abc123",
+			field: "custom",
+			label: "Security answer",
+		});
+		expect(parseReference("vauly://itm_abc123/fields/%E0")).toBeNull();
+		expect(parseReference("vauly://itm_abc123/fields/%20")).toBeNull();
+		expect(parseReference("vauly://itm_abc123/fields/")).toBeNull();
+	});
+
+	test("writes references back the way they're read", () => {
+		for (const text of [
+			"vauly://itm_abc123",
+			"vauly://itm_abc123/username",
+			"vauly://itm_abc123/fields/Security%20answer",
+		]) {
+			const ref = parseReference(text);
+			expect(ref && formatReference(ref)).toBe(text);
+		}
 	});
 
 	test("finds references among environment values", () => {

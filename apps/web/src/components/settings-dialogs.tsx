@@ -345,9 +345,11 @@ export function ExportDialog({
 					username: item.username,
 					secret: item.secret,
 					url: item.url,
+					moreUrls: item.moreUrls,
 					totp: item.totp,
 					notes: item.notes,
 					tags: item.tags,
+					fields: item.fields,
 				})),
 			);
 			const file = backupFileName();

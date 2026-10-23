@@ -56,7 +56,7 @@ Open the item in vauly, choose **…** then **Use with an agent…**, and copy i
 vauly://itm_7k2m9qx4hc3r
 ```
 
-A reference stands for the item's password or value. Add a field to pick something else: `/username`, `/url` or `/notes` (`/password`, `/value` and `/secret` all mean the value).
+A reference stands for the item's password or value. Add a field to pick something else: `/username`, `/url` or `/notes` (`/password`, `/value` and `/secret` all mean the value), or one of the item's own fields by its name, URL-encoded: `vauly://itm_7k2m9qx4hc3r/fields/PIN`, `…/fields/Security%20answer`. The name is matched whatever its case. The dialog lists a reference for each of the item's fields, and a hidden field is masked in the command's output like the password.
 
 Use references anywhere you'd put the value, in the environment or in an `.env` file:
 

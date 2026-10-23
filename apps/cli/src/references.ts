@@ -1,17 +1,30 @@
-// vauly://<item id>[/<field>] in environment values and .env files.
+// vauly://<item id>[/<field>] in environment values and .env files. A custom field is
+// vauly://<item id>/fields/<its label>, the label URL-encoded: …/fields/Security%20answer.
 
-export type Field = "secret" | "username" | "url" | "notes";
+export type Field = "secret" | "username" | "url" | "notes" | "custom";
 
-export type Reference = { name: string; itemId: string; field: Field };
+export type Reference = {
+	name: string;
+	itemId: string;
+	field: Field;
+	/** The custom field's label, for `field: "custom"`. */
+	label?: string;
+};
 
 const pattern =
-	/^vauly:\/\/(itm_[a-z0-9]+)(?:\/(password|secret|value|username|url|notes))?$/;
+	/^vauly:\/\/(itm_[a-z0-9]+)(?:\/(password|secret|value|username|url|notes)|\/fields\/([^/]+))?$/;
 
-export function parseReference(
-	value: string,
-): { itemId: string; field: Field } | null {
+export function parseReference(value: string): Omit<Reference, "name"> | null {
 	const match = pattern.exec(value.trim());
 	if (!match?.[1]) return null;
+	if (match[3]) {
+		try {
+			const label = decodeURIComponent(match[3]);
+			return label.trim() ? { itemId: match[1], field: "custom", label } : null;
+		} catch {
+			return null;
+		}
+	}
 	const field = match[2];
 	return {
 		itemId: match[1],
@@ -20,6 +33,16 @@ export function parseReference(
 				? "secret"
 				: (field as Field),
 	};
+}
+
+/** The reference as someone would write it: vauly://itm_…, …/username, …/fields/PIN. */
+export function formatReference(ref: Omit<Reference, "name">) {
+	const base = `vauly://${ref.itemId}`;
+	if (ref.field === "secret") return base;
+	if (ref.field === "custom") {
+		return `${base}/fields/${encodeURIComponent(ref.label ?? "")}`;
+	}
+	return `${base}/${ref.field}`;
 }
 
 export function findReferences(

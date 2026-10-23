@@ -41,6 +41,7 @@ import { useLookup } from "@/lib/use-lookup";
 import {
 	canEdit,
 	errorMessage,
+	fieldsOf,
 	type Item,
 	useActions,
 	useAgents,
@@ -49,6 +50,7 @@ import {
 	useLinks,
 	useMembers,
 	useVaults,
+	websitesOf,
 } from "@/lib/vault-data";
 
 import { ActivityRow } from "./activity-row";
@@ -392,19 +394,45 @@ export function ItemDetail({ item }: { item: Item }) {
 						/>
 					</Field>
 				)}
-				{item.url && (
-					<Field label="Website">
+				{websitesOf(item).map((url) => (
+					<Field key={url} label="Website">
 						<a
-							href={item.url}
+							href={url}
 							target="_blank"
 							rel="noreferrer"
 							className="text-body-sm text-link flex min-w-0 items-center gap-1 hover:underline"
 						>
-							<span className="truncate">{hostOf(item.url)}</span>
+							<span className="truncate">{hostOf(url)}</span>
 							<ArrowSquareOutIcon className="size-3.5 shrink-0" />
 						</a>
 					</Field>
-				)}
+				))}
+				{item.fields?.map((field) => (
+					<Field key={`${field.label}:${field.value}`} label={field.label}>
+						{field.hidden ? (
+							<SecretValue
+								value={field.value}
+								label={field.label}
+								source={item.name}
+								onReveal={log("revealed", field.label.slice(0, 40))}
+								onCopied={log("copied", field.label.slice(0, 40))}
+							/>
+						) : (
+							<>
+								<span className="text-body-sm text-fg min-w-0 flex-1 break-words whitespace-pre-wrap">
+									{field.value}
+								</span>
+								<CopyButton
+									value={field.value}
+									label={field.label}
+									source={item.name}
+									secret={false}
+									onCopied={log("copied", field.label.slice(0, 40))}
+								/>
+							</>
+						)}
+					</Field>
+				))}
 				{item.notes && (
 					<Field label="Notes">
 						<p className="text-body-sm text-fg py-1 leading-relaxed whitespace-pre-wrap">
@@ -629,11 +657,6 @@ function EarlierSecrets({
 			</dd>
 		</div>
 	);
-}
-
-function fieldsOf(item: Item) {
-	const { kind, name, username, secret, url, totp, notes, tags } = item;
-	return { kind, name, username, secret, url, totp, notes, tags };
 }
 
 function hostOf(url: string) {

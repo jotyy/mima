@@ -1,10 +1,10 @@
 import type { ItemFields, ItemKind, PreviousSecret } from "../vault-data";
 
-// What every format reads an item into before it becomes vauly's item fields. vauly keeps
-// one address, one secret and one one-time code per item, so whatever else an item has
-// (more addresses, custom fields) is written into its notes rather than lost.
+// What every format reads an item into before it becomes vauly's item fields: one
+// secret and one one-time code, any number of websites and custom fields.
 
-export type Field = { label: string; value: string };
+/** A custom field. Hidden ones were concealed, protected or sensitive in the other app. */
+export type Field = { label: string; value: string; hidden?: boolean };
 
 export type Draft = {
 	/** Logins by default; an item with nothing but notes becomes a secure note. */
@@ -25,37 +25,36 @@ export type Draft = {
 const HISTORY_LIMIT = 10;
 
 export function toItem(draft: Draft): ItemFields | null {
-	const [first = "", ...others] = [
+	const [first = "", ...moreUrls] = [
 		...new Set((draft.urls ?? []).map(normalizeUrl).filter(Boolean)),
 	];
 	const username = draft.username?.trim() ?? "";
 	const secret = draft.secret ?? "";
-	const fields = [
-		...(others.length > 0
-			? [
-					{
-						label: others.length === 1 ? "Other website" : "Other websites",
-						value: others.join("\n"),
-					},
-				]
-			: []),
-		...(draft.fields ?? []),
-	].filter((field) => field.value.trim() !== "");
-	const notes = joinNotes(draft.notes ?? "", fields);
+	const fields = (draft.fields ?? [])
+		.filter((field) => field.value.trim() !== "")
+		.map(({ label, value, hidden }) => ({
+			label: label.trim() || "Field",
+			value: value.replace(/\r\n?/g, "\n"),
+			...(hidden && { hidden: true }),
+		}));
+	const notes = (draft.notes ?? "").trim().replace(/\r\n?/g, "\n");
 	const tags = [
 		...new Set((draft.tags ?? []).map((tag) => tag.trim()).filter(Boolean)),
 	];
 	const optional = {
 		...(notes && { notes }),
 		...(tags.length > 0 && { tags }),
+		...(fields.length > 0 && { fields }),
 	};
 
 	const kind = draft.kind ?? "login";
 	if (kind === "note" || (!secret.trim() && !username && !first)) {
-		if (!notes) return null;
+		if (!notes && fields.length === 0) return null;
 		return {
 			kind: "note",
-			name: draft.name?.trim() || firstLine(notes),
+			name:
+				draft.name?.trim() ||
+				firstLine(notes || fields.map((field) => field.label).join(", ")),
 			...optional,
 		};
 	}
@@ -70,22 +69,11 @@ export function toItem(draft: Draft): ItemFields | null {
 		...(username && { username }),
 		...(secret && { secret }),
 		...(first && { url: first }),
+		...(kind === "login" && moreUrls.length > 0 && { moreUrls }),
 		...(draft.totp?.trim() && { totp: draft.totp.trim() }),
 		...optional,
 		...(history.length > 0 && { history }),
 	};
-}
-
-function joinNotes(notes: string, fields: Field[]) {
-	const lines = fields.map(({ label, value }) =>
-		value.includes("\n")
-			? `${label}:\n${value.trim()}`
-			: `${label}: ${value.trim()}`,
-	);
-	return [notes.trim(), lines.join("\n")]
-		.filter(Boolean)
-		.join("\n\n")
-		.replace(/\r\n?/g, "\n");
 }
 
 export function normalizeUrl(value: string) {

@@ -18,7 +18,7 @@ import { SecretValue } from "@/components/secret-value";
 import { VaulyLogo } from "@/components/vauly-mark";
 import { timeLeft } from "@/lib/format";
 import { logoDomain } from "@/lib/logos";
-import type { SharedItem } from "@/lib/vault-data";
+import { type SharedItem, websitesOf } from "@/lib/vault-data";
 import { client } from "@/utils/orpc";
 
 // The page someone outside the workspace lands on from a share link. The key is in the
@@ -180,19 +180,41 @@ function Opened({ item }: { item: SharedItem }) {
 						<OneTimeCode secret={item.totp} source={item.name} />
 					</Field>
 				)}
-				{item.url && (
-					<Field label="Website">
+				{websitesOf(item).map((url) => (
+					<Field key={url} label="Website">
 						<a
-							href={item.url}
+							href={url}
 							target="_blank"
 							rel="noreferrer"
 							className="text-body-sm text-link flex min-w-0 items-center gap-1 hover:underline"
 						>
-							<span className="truncate">{item.url}</span>
+							<span className="truncate">{url}</span>
 							<ArrowSquareOutIcon className="size-3.5 shrink-0" />
 						</a>
 					</Field>
-				)}
+				))}
+				{item.fields?.map((field) => (
+					<Field key={`${field.label}:${field.value}`} label={field.label}>
+						{field.hidden ? (
+							<SecretValue
+								value={field.value}
+								label={field.label}
+								source={item.name}
+							/>
+						) : (
+							<>
+								<span className="text-body-sm text-fg min-w-0 flex-1 break-words whitespace-pre-wrap">
+									{field.value}
+								</span>
+								<CopyButton
+									value={field.value}
+									label={field.label}
+									secret={false}
+								/>
+							</>
+						)}
+					</Field>
+				))}
 				{item.notes && (
 					<Field label="Notes">
 						<p className="text-body-sm text-fg py-1 leading-relaxed whitespace-pre-wrap">

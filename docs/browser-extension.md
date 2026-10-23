@@ -24,7 +24,7 @@ Open the extension and enter the address you open vauly at, such as `vauly.examp
 ## Use it
 
 - **On a login page**, click into the email or password field and vauly's mark shows up inside it. Choose it to open the menu with the logins saved for that site, then choose one to fill the form. The menu waits for the mark, so it never fights with the browser's own suggestions under the field. If the login has a one-time code, filling also copies the current code, ready to paste on the next step. Typing, Escape or a click elsewhere closes the menu. When the extension is locked or not signed in yet, the menu offers to do that first.
-- **In the extension**, the items saved for the site you're on come first, with a **Fill** button.
+- **In the extension**, the items saved for the site you're on come first, with a **Fill** button. A login with more than one website shows up, and fills, on each of them.
 - **After you sign in somewhere new**, vauly asks in the top corner of the page whether to save the login, and to which vault; the vauly icon shows a badge too, and the extension offers the same. Choose **Not now** to let it go. If you signed in to a saved login with a different password, it offers to update the password instead, and the old one stays under Earlier passwords. Logins you already saved, and anything typed into vauly itself, are never offered.
 - **Search** to find any item; the buttons copy its username, password or one-time code.
 - **Lock** forgets the key. The extension also locks itself after 15 idle minutes, and whenever the browser closes.

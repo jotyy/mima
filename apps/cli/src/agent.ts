@@ -8,7 +8,7 @@ import {
 	unwrapKeyFrom,
 } from "@vauly/crypto";
 
-import { createMasker, type Field, type Reference } from "./references";
+import { createMasker, type Reference } from "./references";
 
 // What `vauly run` and `vauly mcp` share: the agent's token, its calls to the server, and
 // getting each referenced item, with a person's approval when it's new.
@@ -73,7 +73,14 @@ export type ItemFields = {
 	username?: string;
 	url?: string;
 	notes?: string;
+	fields?: { label: string; value: string; hidden?: boolean }[];
 };
+
+/** A custom field by its label, whatever its case and surrounding spaces. */
+const customField = (fields: ItemFields, label: string) =>
+	fields.fields?.find(
+		(field) => field.label.trim().toLowerCase() === label.trim().toLowerCase(),
+	);
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -152,13 +159,32 @@ export async function resolveAll(
 	return values;
 }
 
-export function pick(fields: ItemFields, field: Field) {
-	const value = fields[field];
+export function pick(
+	fields: ItemFields,
+	ref: Pick<Reference, "field" | "label">,
+) {
+	if (ref.field === "custom") {
+		const custom = customField(fields, ref.label ?? "");
+		if (!custom) {
+			throw new CliError(`${fields.name} has no field called ${ref.label}.`);
+		}
+		return custom.value;
+	}
+	const value = fields[ref.field];
 	if (value === undefined)
 		throw new CliError(
-			`${fields.name} has no ${field === "secret" ? "value" : field}.`,
+			`${fields.name} has no ${ref.field === "secret" ? "value" : ref.field}.`,
 		);
 	return value;
+}
+
+/** Whether a value is a secret, to be masked in what the command prints. */
+function isSecret(fields: ItemFields, ref: Pick<Reference, "field" | "label">) {
+	if (ref.field === "secret") return true;
+	return (
+		ref.field === "custom" &&
+		Boolean(customField(fields, ref.label ?? "")?.hidden)
+	);
 }
 
 /**
@@ -175,9 +201,9 @@ export function withValues(
 	for (const ref of refs) {
 		const fields = values.get(ref.itemId);
 		if (!fields) throw new CliError(`Couldn't open ${ref.itemId}.`);
-		const value = pick(fields, ref.field);
+		const value = pick(fields, ref);
 		filled[ref.name] = value;
-		if (ref.field === "secret") secrets.push(value);
+		if (isSecret(fields, ref)) secrets.push(value);
 	}
 	delete filled.VAULY_TOKEN;
 	return { env: filled, secrets };

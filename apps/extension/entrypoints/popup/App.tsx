@@ -332,7 +332,7 @@ function Items({
 				(entry) =>
 					entry.name.toLowerCase().includes(q) ||
 					entry.username?.toLowerCase().includes(q) ||
-					entry.url?.toLowerCase().includes(q),
+					entry.urls.some((url) => url.toLowerCase().includes(q)),
 			)
 		: null;
 

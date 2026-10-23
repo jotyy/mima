@@ -34,13 +34,59 @@ export type ItemFields = {
 	name: string;
 	username?: string;
 	secret?: string;
+	/** The first website, and the one the logo comes from. */
 	url?: string;
+	/** Websites after the first, for a login used on more than one. */
+	moreUrls?: string[];
 	totp?: string;
 	notes?: string;
 	tags?: string[];
+	/** Anything else the item holds: an account number, a PIN, a security answer. */
+	fields?: CustomField[];
 	/** Earlier passwords or values, newest first. Kept inside the encrypted item. */
 	history?: PreviousSecret[];
 };
+
+/** A labelled value on an item. Hidden ones are masked like the password. */
+export type CustomField = { label: string; value: string; hidden?: boolean };
+
+const knownKeys = new Set<string>([
+	"kind",
+	"name",
+	"username",
+	"secret",
+	"url",
+	"moreUrls",
+	"totp",
+	"notes",
+	"tags",
+	"fields",
+	"history",
+]);
+
+/** Every website a login is used on, the first one first. */
+export const websitesOf = (item: Pick<ItemFields, "url" | "moreUrls">) =>
+	[item.url, ...(item.moreUrls ?? [])].filter((url): url is string =>
+		Boolean(url),
+	);
+
+/** The item's own fields, without what the app adds around them. */
+export function fieldsOf(item: Item): ItemFields {
+	const { kind, name, username, secret, url, moreUrls, totp, notes, tags } =
+		item;
+	return {
+		kind,
+		name,
+		username,
+		secret,
+		url,
+		moreUrls,
+		totp,
+		notes,
+		tags,
+		fields: item.fields,
+	};
+}
 
 export type PreviousSecret = { secret: string; until: string; by?: string };
 
@@ -89,6 +135,11 @@ export type Item = ItemFields &
 		strength?: Strength;
 		/** Other live logins with the same password. */
 		reusedWith?: string[];
+		/**
+		 * What a newer vauly put in the item that this version doesn't know. Saving keeps
+		 * it, so editing here never drops a later version's fields.
+		 */
+		unknown?: Record<string, unknown>;
 	};
 export type Member = Rows<typeof client.members.list>["members"][number];
 export type Invite = Rows<typeof client.members.list>["invites"][number];
@@ -101,16 +152,33 @@ export type LinkDuration = "hour" | "day" | "week" | "month";
 /** What a share link carries: a copy of the item without its history or tags. */
 export type SharedItem = Pick<
 	ItemFields,
-	"kind" | "name" | "username" | "secret" | "url" | "totp" | "notes"
+	| "kind"
+	| "name"
+	| "username"
+	| "secret"
+	| "url"
+	| "moreUrls"
+	| "totp"
+	| "notes"
+	| "fields"
 >;
 
 export const itemReference = (item: { id: string }) => `vauly://${item.id}`;
 
-/** Whether an item's name, username, address or tags contain the (lowercase) query. */
+/**
+ * Whether an item's name, username, websites, tags or visible fields contain the
+ * (lowercase) query. Hidden fields aren't searched, like the password.
+ */
 export const itemMatches = (item: Item, query: string) =>
-	[item.name, item.username, item.url, ...(item.tags ?? [])].some((value) =>
-		value?.toLowerCase().includes(query),
-	);
+	[
+		item.name,
+		item.username,
+		...websitesOf(item),
+		...(item.tags ?? []),
+		...(item.fields ?? []).flatMap((field) =>
+			field.hidden ? [field.label] : [field.label, field.value],
+		),
+	].some((value) => value?.toLowerCase().includes(query));
 
 function useVaultQueryOptions() {
 	const keyring = useKeyring();
@@ -177,10 +245,14 @@ function useItemQuery(select: (all: Item[]) => Item[]) {
 					if (!vaultKey) return null;
 					const key = await unwrapKey(vaultKey, wrappedKey);
 					const fields = await openJson<ItemFields>(key, data);
+					const unknown = Object.fromEntries(
+						Object.entries(fields).filter(([name]) => !knownKeys.has(name)),
+					);
 					return {
 						...row,
 						...fields,
 						key,
+						...(Object.keys(unknown).length > 0 && { unknown }),
 						strength:
 							fields.kind === "login" && fields.secret
 								? passwordStrength(fields.secret)
@@ -454,6 +526,7 @@ export function useActions() {
 						id: item.id,
 						revision: item.revision,
 						data: await sealJson(item.key, {
+							...item.unknown,
 							...fields,
 							...(history?.length ? { history } : {}),
 						}),
@@ -483,7 +556,9 @@ export function useActions() {
 					username: item.username,
 					secret: item.secret,
 					url: item.url,
+					moreUrls: item.moreUrls,
 					notes: item.notes,
+					fields: item.fields,
 					totp: options.totp ? item.totp : undefined,
 				};
 				const { id, expiresAt } = await after(

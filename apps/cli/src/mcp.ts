@@ -14,6 +14,7 @@ import {
 } from "./agent";
 import {
 	findReferences,
+	formatReference,
 	parseEnvFile,
 	parseReference,
 	type Reference,
@@ -240,7 +241,7 @@ async function listSecrets(context: Context, args: Record<string, unknown>) {
 		const status = found.get(ref.itemId);
 		return {
 			name: ref.name,
-			reference: `vauly://${ref.itemId}${ref.field === "secret" ? "" : `/${ref.field}`}`,
+			reference: formatReference(ref),
 			status: label[status?.status ?? "none"],
 			detail: describe(status),
 		};

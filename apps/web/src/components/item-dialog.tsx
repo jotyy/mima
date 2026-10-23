@@ -2,6 +2,8 @@ import {
 	ArrowsClockwiseIcon,
 	EyeIcon,
 	EyeSlashIcon,
+	PlusIcon,
+	XIcon,
 } from "@phosphor-icons/react";
 import { Button } from "@vauly/ui/components/button";
 import {
@@ -32,6 +34,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { timesSeen, useDraftBreaches } from "@/lib/breaches";
 import { generatePassword, parseTotp, passwordStrength } from "@/lib/secrets";
 import {
+	type CustomField,
 	canEdit,
 	errorMessage,
 	type Item,
@@ -58,6 +61,10 @@ const secretLabel: Record<ItemKind, string> = {
 	"ssh-key": "Private key",
 };
 
+// Rows the form adds and removes carry an id, so React keeps each input with its row.
+type Website = { id: string; value: string };
+type FieldRow = CustomField & { id: string };
+
 type Form = {
 	kind: ItemKind;
 	vaultId: string;
@@ -65,10 +72,14 @@ type Form = {
 	username: string;
 	secret: string;
 	url: string;
+	moreUrls: Website[];
 	totp: string;
 	notes: string;
 	tags: string;
+	fields: FieldRow[];
 };
+
+const rowId = () => crypto.randomUUID();
 
 function fromItem(item?: Item, vaultId?: string): Form {
 	return {
@@ -78,9 +89,11 @@ function fromItem(item?: Item, vaultId?: string): Form {
 		username: item?.username ?? "",
 		secret: item?.secret ?? "",
 		url: item?.url ?? "",
+		moreUrls: (item?.moreUrls ?? []).map((value) => ({ id: rowId(), value })),
 		totp: item?.totp ?? "",
 		notes: item?.notes ?? "",
 		tags: (item?.tags ?? []).join(", "),
+		fields: (item?.fields ?? []).map((field) => ({ ...field, id: rowId() })),
 	};
 }
 
@@ -147,13 +160,35 @@ export function ItemDialog({
 		}
 		const vault = vaults.data?.find((v) => v.id === form.vaultId);
 		if (!vault) return setError("Pick a vault.");
+		const custom = form.fields
+			.map(({ label, value, hidden }) => ({
+				label: label.trim(),
+				value,
+				...(hidden && { hidden: true }),
+			}))
+			.filter((field) => field.label || field.value.trim());
+		if (custom.some((field) => !field.label)) {
+			return setError("Give each field a name, such as PIN.");
+		}
+		// The first website is `url`, as older vauly versions expect; the rest follow it.
+		const [url, ...moreUrls] =
+			form.kind === "login"
+				? [
+						...new Set(
+							[form.url, ...form.moreUrls.map((website) => website.value)]
+								.map((value) => value.trim())
+								.filter(Boolean)
+								.map(normalizeUrl),
+						),
+					]
+				: [];
 		const fields: ItemFields = {
 			kind: form.kind,
 			name: form.name.trim(),
 			...(form.username.trim() && { username: form.username.trim() }),
 			...(showSecret && form.secret && { secret: form.secret }),
-			...(form.kind === "login" &&
-				form.url.trim() && { url: normalizeUrl(form.url.trim()) }),
+			...(url && { url }),
+			...(moreUrls.length > 0 && { moreUrls }),
 			...(form.kind === "login" &&
 				form.totp.trim() && { totp: form.totp.trim() }),
 			...(form.notes.trim() && { notes: form.notes.trim() }),
@@ -161,6 +196,7 @@ export function ItemDialog({
 				.split(",")
 				.map((tag) => tag.trim())
 				.filter(Boolean),
+			...(custom.length > 0 && { fields: custom }),
 		};
 		setBusy(true);
 		try {
@@ -281,6 +317,102 @@ export function ItemDialog({
 								</Row>
 							</div>
 						)}
+						{form.kind === "login" &&
+							form.moreUrls.map((website, index) => (
+								<div key={website.id} className="flex gap-1.5">
+									<Input
+										aria-label={`Website ${index + 2}`}
+										value={website.value}
+										placeholder="eu.example.com"
+										onChange={(event) =>
+											set(
+												"moreUrls",
+												form.moreUrls.map((other) =>
+													other.id === website.id
+														? { ...other, value: event.target.value }
+														: other,
+												),
+											)
+										}
+									/>
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon"
+										aria-label={`Remove website ${index + 2}`}
+										onClick={() =>
+											set(
+												"moreUrls",
+												form.moreUrls.filter(
+													(other) => other.id !== website.id,
+												),
+											)
+										}
+									>
+										<XIcon />
+									</Button>
+								</div>
+							))}
+						{form.fields.length > 0 && (
+							<fieldset className="flex min-w-0 flex-col gap-1.5">
+								<legend className="text-caption text-fg-muted mb-1.5">
+									Fields
+								</legend>
+								{form.fields.map((field, index) => (
+									<FieldInput
+										key={field.id}
+										number={index + 1}
+										field={field}
+										onChange={(next) =>
+											set(
+												"fields",
+												form.fields.map((other) =>
+													other.id === field.id ? { ...other, ...next } : other,
+												),
+											)
+										}
+										onRemove={() =>
+											set(
+												"fields",
+												form.fields.filter((other) => other.id !== field.id),
+											)
+										}
+									/>
+								))}
+							</fieldset>
+						)}
+						<div className="-mt-1 flex flex-wrap gap-1">
+							{form.kind === "login" && (
+								<Button
+									type="button"
+									variant="ghost"
+									size="xs"
+									onClick={() =>
+										set("moreUrls", [
+											...form.moreUrls,
+											{ id: rowId(), value: "" },
+										])
+									}
+								>
+									<PlusIcon data-icon="inline-start" />
+									Add another website
+								</Button>
+							)}
+							<Button
+								type="button"
+								variant="ghost"
+								size="xs"
+								onClick={() =>
+									set("fields", [
+										...form.fields,
+										{ id: rowId(), label: "", value: "" },
+									])
+								}
+							>
+								<PlusIcon data-icon="inline-start" />
+								Add a field
+							</Button>
+						</div>
 						<Row label="Notes" optional={form.kind !== "note"}>
 							<Textarea
 								value={form.notes}
@@ -319,6 +451,69 @@ export function ItemDialog({
 				</form>
 			</DialogContent>
 		</Dialog>
+	);
+}
+
+/** One custom field: its name, its value, and whether it's masked like a password. */
+function FieldInput({
+	number,
+	field,
+	onChange,
+	onRemove,
+}: {
+	number: number;
+	field: FieldRow;
+	onChange: (field: Partial<CustomField>) => void;
+	onRemove: () => void;
+}) {
+	return (
+		<div className="flex min-w-0 gap-1.5">
+			<Input
+				aria-label={`Field ${number} name`}
+				value={field.label}
+				placeholder="PIN"
+				className="w-40 shrink-0"
+				onChange={(event) => onChange({ label: event.target.value })}
+			/>
+			<Input
+				aria-label={`Field ${number} value`}
+				value={field.value}
+				type={field.hidden ? "password" : "text"}
+				autoComplete="off"
+				className="min-w-0 flex-1"
+				onChange={(event) => onChange({ value: event.target.value })}
+			/>
+			<Tooltip>
+				<TooltipTrigger
+					render={
+						<Button
+							type="button"
+							variant={field.hidden ? "outline" : "ghost"}
+							size="icon"
+							aria-label={`Hide field ${number}`}
+							aria-pressed={Boolean(field.hidden)}
+							onClick={() => onChange({ hidden: !field.hidden })}
+						/>
+					}
+				>
+					{field.hidden ? <EyeSlashIcon /> : <EyeIcon />}
+				</TooltipTrigger>
+				<TooltipContent>
+					{field.hidden
+						? "Hidden: masked until revealed, like the password"
+						: "Hide it, like a password"}
+				</TooltipContent>
+			</Tooltip>
+			<Button
+				type="button"
+				variant="ghost"
+				size="icon"
+				aria-label={`Remove field ${number}`}
+				onClick={onRemove}
+			>
+				<XIcon />
+			</Button>
+		</div>
 	);
 }
 

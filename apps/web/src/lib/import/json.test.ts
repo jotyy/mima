@@ -38,11 +38,28 @@ describe("1Password .1pux", () => {
 			username: "alex@acme.test",
 			secret: "example-pass-1",
 			url: "https://github.example.test",
+			moreUrls: ["https://gist.example.test"],
 			totp: "otpauth://totp/GitHub:alex?secret=JBSWY3DPEHPK3PXP",
-			notes:
-				"Recovery codes are in the safe.\n\nOther website: https://gist.example.test\nrecovery email: backup@acme.test",
+			notes: "Recovery codes are in the safe.",
 			tags: ["Private", "Work/Dev"],
-			history: [{ secret: "example-old-1", until: "2023-07-22T04:26:40.000Z" }],
+			fields: [
+				{
+					label: "recovery email",
+					value: "backup@acme.test",
+				},
+				// Concealed in 1Password, so hidden here.
+				{
+					hidden: true,
+					label: "recovery PIN",
+					value: "example-4711",
+				},
+			],
+			history: [
+				{
+					secret: "example-old-1",
+					until: "2023-07-22T04:26:40.000Z",
+				},
+			],
 		});
 	});
 
@@ -54,15 +71,26 @@ describe("1Password .1pux", () => {
 			username: "ops",
 			secret: "sk_example_1",
 			url: "https://api.example.test",
-			notes: "type: other\nexpires: 2030-01-01",
 			tags: ["Private", "Archived"],
+			fields: [
+				{
+					label: "type",
+					value: "other",
+				},
+				{
+					label: "expires",
+					value: "2030-01-01",
+				},
+			],
 		});
 		expect(deploy).toMatchObject({
 			kind: "ssh-key",
 			secret:
 				"-----BEGIN PRIVATE KEY-----\nnot-a-real-key\n-----END PRIVATE KEY-----",
-			notes:
-				"Public key: ssh-ed25519 AAAAexample deploy@prod\nFingerprint: SHA256:example",
+			fields: [
+				{ label: "Public key", value: "ssh-ed25519 AAAAexample deploy@prod" },
+				{ label: "Fingerprint", value: "SHA256:example" },
+			],
 		});
 		expect(door).toMatchObject({ kind: "note", notes: "Front: example-0000" });
 		expect(postgres).toMatchObject({
@@ -70,7 +98,10 @@ describe("1Password .1pux", () => {
 			username: "app",
 			secret: "example-pass-2",
 			url: "https://db.example.test",
-			notes: "type: postgresql\nport: 5432",
+			fields: [
+				{ label: "type", value: "postgresql" },
+				{ label: "port", value: "5432" },
+			],
 		});
 	});
 
@@ -91,22 +122,48 @@ describe("Bitwarden JSON", () => {
 				username: "admin",
 				secret: "example-pass-1",
 				url: "https://db.example.test",
+				moreUrls: ["https://db2.example.test"],
 				totp: "JBSWY3DPEHPK3PXP",
-				notes:
-					"primary\n\nOther website: https://db2.example.test\nport: 5432\napi key: k_example",
+				notes: "primary",
 				tags: ["Work/Servers"],
+				fields: [
+					{
+						label: "port",
+						value: "5432",
+					},
+					{
+						label: "api key",
+						value: "k_example",
+						hidden: true,
+					},
+				],
 				history: [
-					{ secret: "example-old-1", until: "2025-01-01T00:00:00.000Z" },
+					{
+						secret: "example-old-1",
+						until: "2025-01-01T00:00:00.000Z",
+					},
 				],
 			},
 			{
 				kind: "ssh-key",
 				name: "deploy key",
 				secret: privateKey,
-				notes:
-					"Public key: ssh-ed25519 AAAAexample\nFingerprint: SHA256:example",
+				fields: [
+					{
+						label: "Public key",
+						value: "ssh-ed25519 AAAAexample",
+					},
+					{
+						label: "Fingerprint",
+						value: "SHA256:example",
+					},
+				],
 			},
-			{ kind: "note", name: "Wi-Fi", notes: "guest network: example-only" },
+			{
+				kind: "note",
+				name: "Wi-Fi",
+				notes: "guest network: example-only",
+			},
 		]);
 	});
 
@@ -168,31 +225,57 @@ describe("Proton Pass", () => {
 				username: "alex",
 				secret: "example-pass-1",
 				url: "https://shop.example.test",
+				moreUrls: ["https://checkout.example.test"],
 				totp: "otpauth://totp/Shop:alex?secret=JBSWY3DPEHPK3PXP&issuer=Shop",
-				notes:
-					"Loyalty account\n\nOther website: https://checkout.example.test\nEmail: alex@example.test\nPIN: 0420",
+				notes: "Loyalty account",
 				tags: ["Personal/Work/Shops"],
+				fields: [
+					{
+						label: "Email",
+						value: "alex@example.test",
+					},
+					{
+						label: "PIN",
+						value: "0420",
+						hidden: true,
+					},
+				],
 			},
 			{
 				kind: "login",
 				name: "Office Wi-Fi",
 				secret: "example-wifi",
-				notes: "Network name: AcmeGuest",
 				tags: ["Personal"],
+				fields: [
+					{
+						label: "Network name",
+						value: "AcmeGuest",
+					},
+				],
 			},
 			{
 				kind: "api-key",
 				name: "Mail API",
 				secret: "key_example_1",
-				notes: "Details · Host: smtp.example.test",
 				tags: ["Team"],
+				fields: [
+					{
+						label: "Details · Host",
+						value: "smtp.example.test",
+					},
+				],
 			},
 			{
 				kind: "ssh-key",
 				name: "Backup server",
 				secret: privateKey,
-				notes: "Public key: ssh-ed25519 AAAAexample",
 				tags: ["Team"],
+				fields: [
+					{
+						label: "Public key",
+						value: "ssh-ed25519 AAAAexample",
+					},
+				],
 			},
 		]);
 	});
@@ -230,9 +313,18 @@ describe("Dashlane", () => {
 				username: "sam",
 				secret: "example-pass-2",
 				url: "https://forum.example.test",
-				notes: "Other username: sam.alt",
+				fields: [
+					{
+						label: "Other username",
+						value: "sam.alt",
+					},
+				],
 			},
-			{ kind: "note", name: "Door codes", notes: "Front: example-0000" },
+			{
+				kind: "note",
+				name: "Door codes",
+				notes: "Front: example-0000",
+			},
 		]);
 	});
 
@@ -253,18 +345,39 @@ test("Enpass: tags, one-time codes, archived and trashed items", () => {
 			secret: "example-pass-1",
 			url: "https://social.example.test",
 			totp: "JBSWY3DPEHPK3PXP",
-			notes: "E-mail: alex@example.test",
 			tags: ["Work/Clients"],
+			fields: [
+				{
+					label: "E-mail",
+					value: "alex@example.test",
+				},
+				// Sensitive in Enpass, so hidden here.
+				{
+					hidden: true,
+					label: "Security answer",
+					value: "example-answer",
+				},
+			],
 		},
 		{
 			kind: "login",
 			name: "Prod DB",
 			username: "app",
 			secret: "example-pass-2",
-			notes: "Primary\n\nHost: db.example.test",
+			notes: "Primary",
 			tags: ["Archived"],
+			fields: [
+				{
+					label: "Host",
+					value: "db.example.test",
+				},
+			],
 		},
-		{ kind: "note", name: "Server room", notes: "Code: example-0000" },
+		{
+			kind: "note",
+			name: "Server room",
+			notes: "Code: example-0000",
+		},
 	]);
 });
 
@@ -279,10 +392,20 @@ test("Keeper JSON: record types, shared folders and key pairs", () => {
 			username: "alex@example.test",
 			secret: "example-pass-1",
 			url: "https://github.example.test",
+			moreUrls: ["https://gist.example.test"],
 			totp: "otpauth://totp/GitHub:alex?secret=JBSWY3DPEHPK3PXP",
-			notes:
-				"work account\n\nOther website: https://gist.example.test\nTeam: Ops\nSecurity question: First pet?, example-answer",
+			notes: "work account",
 			tags: ["Work/Dev", "Team/Ops"],
+			fields: [
+				{
+					label: "Team",
+					value: "Ops",
+				},
+				{
+					label: "Security question",
+					value: "First pet?, example-answer",
+				},
+			],
 		},
 		{
 			kind: "ssh-key",
@@ -290,14 +413,28 @@ test("Keeper JSON: record types, shared folders and key pairs", () => {
 			username: "deploy",
 			secret: privateKey,
 			url: "https://build.example.test:22",
-			notes:
-				"Passphrase: example-passphrase\nPublic key: ssh-ed25519 AAAAexample",
 			tags: ["Team/Ops/Servers"],
+			fields: [
+				{
+					label: "Passphrase",
+					value: "example-passphrase",
+				},
+				{
+					label: "Public key",
+					value: "ssh-ed25519 AAAAexample",
+				},
+			],
 		},
 		{
 			kind: "note",
 			name: "Alarm code",
-			notes: "example-1234\n\nDate: 2030-01-01",
+			notes: "example-1234",
+			fields: [
+				{
+					label: "Date",
+					value: "2030-01-01",
+				},
+			],
 		},
 	]);
 });
