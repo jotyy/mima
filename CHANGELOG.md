@@ -18,6 +18,8 @@ The first public version.
 - An activity log of reveals, copies, shares, imports and backups.
 - Import from 1Password, Bitwarden, LastPass, Chrome, Firefox, Safari or any CSV with a password column.
 - Settings: change your name, change your master password, choose when mima locks on this device, rename the workspace, and download a decrypted backup.
+- A Get started checklist on the Overview of a new workspace: add items, invite the team, add the browser extension, print the Emergency Kit.
+- The Emergency Kit: a printable page with your sign-in address, your email and a blank for your master password, from the checklist or Settings.
 - Settings lists the browsers you're signed in on, and can sign out one of them or every other one. A browser signed out this way, or one whose person was removed, drops its keys and returns to sign-in on its next request.
 - Recently deleted: deleted items can be restored for 30 days, and the deletion can be undone from its notification.
 - Earlier passwords: a changed password or value stays on the item, encrypted, with when it was replaced and by whom.

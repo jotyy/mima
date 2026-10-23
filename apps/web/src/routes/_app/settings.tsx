@@ -24,6 +24,7 @@ import {
 } from "@/components/settings-dialogs";
 import { authClient } from "@/lib/auth-client";
 import { describeDevice } from "@/lib/device";
+import { openEmergencyKit } from "@/lib/emergency-kit";
 import { ago } from "@/lib/format";
 import {
 	AUTO_LOCK_CHOICES,
@@ -87,6 +88,29 @@ function Settings() {
 				>
 					<Button variant="outline" onClick={() => setChanging(true)}>
 						Change master password
+					</Button>
+				</Row>
+				<Row
+					label="Emergency Kit"
+					hint="A page with your sign-in details and a blank for your master password, to print and keep safe."
+				>
+					<Button
+						variant="outline"
+						onClick={() => {
+							const opened = openEmergencyKit(me.id, {
+								name: me.name,
+								email: me.email,
+								workspace: workspaceName,
+								address: window.location.origin,
+							});
+							if (!opened)
+								notify.error(
+									"Couldn't open the kit",
+									"Allow pop-ups for mima and try again.",
+								);
+						}}
+					>
+						Print Emergency Kit
 					</Button>
 				</Row>
 			</Card>

@@ -19,6 +19,7 @@ import { type ComponentType, type ReactNode, useState } from "react";
 
 import { ActivityRow } from "@/components/activity-row";
 import { CopyButton } from "@/components/copy-button";
+import { GetStarted } from "@/components/get-started";
 import { ItemTile } from "@/components/item-tile";
 import {
 	GiveAccessDialog,
@@ -69,6 +70,7 @@ function Overview() {
 					: `Hi ${firstName}. Nothing needs you right now.`
 			}
 		>
+			<GetStarted />
 			<SearchCard />
 
 			<div className="mt-8">
