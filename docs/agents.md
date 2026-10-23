@@ -64,6 +64,66 @@ vauly run --env-file .env -- npm test
 
 `vauly run` finds every reference, gets each value, starts the command with the values in its environment, and replaces any of those values that appear in the command's output with `<hidden>`. Variables without a reference pass through unchanged.
 
+## Coding agents over MCP
+
+Coding agents such as Claude Code and Cursor can use vauly as an MCP server. `vauly mcp` is the same agent as `vauly run`: the same token, the same approvals, and the same rule that the agent never sees a value. It reads the vauly:// references from the `.env` in the project, or from variables the agent passes.
+
+| Tool               | What it does                                                                                                                                                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `list_secrets`     | Lists the variables that hold a reference, and whether the agent may use each item yet or a person has to approve it first. No values, and no item names.                                                                      |
+| `run_with_secrets` | Runs a shell command with the values in its environment, like `vauly run`, and returns its exit code and output with every value as `<hidden>`. A new item waits for approval, then returns without running if nobody answers. |
+| `request_access`   | Asks a person to allow items, with a reason they read when they approve. Nothing runs.                                                                                                                                         |
+
+There is no tool that returns a value. Whatever a tool returns lands in the model's context, and from there in transcripts and logs; everything an agent does with a secret, such as tests, migrations and deploys, works through `run_with_secrets` instead.
+
+Keep the token out of files you commit. Set it in your shell, and let the client pass it on.
+
+**Claude Code**, for your user only:
+
+```sh
+claude mcp add vauly -e VAULY_SERVER=https://vauly-api.example.com -e VAULY_TOKEN=vauly_agent_agt_… -- vauly mcp
+```
+
+Or for everyone on the project, in `.mcp.json`, with each person's token from their environment:
+
+```json
+{
+	"mcpServers": {
+		"vauly": {
+			"command": "vauly",
+			"args": ["mcp"],
+			"env": {
+				"VAULY_SERVER": "${VAULY_SERVER}",
+				"VAULY_TOKEN": "${VAULY_TOKEN}"
+			}
+		}
+	}
+}
+```
+
+**Cursor**, in `.cursor/mcp.json` or `~/.cursor/mcp.json`:
+
+```json
+{
+	"mcpServers": {
+		"vauly": {
+			"command": "vauly",
+			"args": ["mcp"],
+			"env": {
+				"VAULY_SERVER": "https://vauly-api.example.com",
+				"VAULY_TOKEN": "${env:VAULY_TOKEN}"
+			}
+		}
+	}
+}
+```
+
+**Other clients** that start servers over stdio need the command `vauly`, the argument `mcp`, and `VAULY_SERVER` and `VAULY_TOKEN` in its environment. The server works in the directory the client starts it in; every tool also takes a `cwd`, for clients that start servers somewhere else.
+
+When an item needs approval, `run_with_secrets` asks in vauly, tells the client it's waiting, and waits 90 seconds (`VAULY_MCP_APPROVAL_WAIT`). If nobody has answered by then, it returns without running and says so; the request stays open, and the next call picks up the answer. Some clients stop waiting for a tool sooner than that, which is what `request_access` is for: ask first, then run once the person has said yes.
+
+Masking catches a value only as it is. A command that prints it changed, such as base64-encoded or reversed, gets past it, with `run_with_secrets` as with `vauly run`. The agent can run commands either way, as any coding agent with a shell can.
+
 ## Approvals
 
 The first time an agent asks for an item it hasn't been allowed to use, `vauly run` waits, and vauly shows the request to people who can open that item: in **Needs you** on the Overview, and as a waiting-for-approval link at the top right. They can:
@@ -81,8 +141,9 @@ Every request, approval, denial and value handed to an agent appears in **Activi
 
 ## Environment
 
-| Variable                 |                                                         |
-| ------------------------ | ------------------------------------------------------- |
-| `VAULY_SERVER`           | The URL of your vauly API                               |
-| `VAULY_TOKEN`            | The agent's token, shown once when the agent is created |
-| `VAULY_APPROVAL_TIMEOUT` | Seconds to wait for a person to approve; default 300    |
+| Variable                  |                                                                             |
+| ------------------------- | --------------------------------------------------------------------------- |
+| `VAULY_SERVER`            | The URL of your vauly API                                                   |
+| `VAULY_TOKEN`             | The agent's token, shown once when the agent is created                     |
+| `VAULY_APPROVAL_TIMEOUT`  | Seconds to wait for a person to approve; default 300                        |
+| `VAULY_MCP_APPROVAL_WAIT` | Seconds `run_with_secrets` waits for a person before it returns; default 90 |

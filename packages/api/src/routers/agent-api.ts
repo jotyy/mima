@@ -1,4 +1,5 @@
 import { ORPCError } from "@orpc/server";
+import type { Database } from "@vauly/db";
 import {
 	accessRequest,
 	agent,
@@ -62,6 +63,91 @@ const agentProcedure = publicProcedure.use(async ({ context, next }) => {
 	return next({ context: { agent: row } });
 });
 
+const itemIds = z.array(z.string().max(40)).min(1).max(20);
+const reason = z.string().trim().min(1).max(200);
+
+type Lookup = Awaited<ReturnType<typeof lookup>>[number];
+
+/** Each item with this agent's live grant on it, and its open or recently denied request. */
+async function lookup(db: Database, agentId: string, ids: string[]) {
+	const unique = [...new Set(ids)];
+	const now = new Date();
+	const [items, grants, requests] = await Promise.all([
+		db
+			.select()
+			.from(item)
+			.where(and(inArray(item.id, unique), isNull(item.deletedAt))),
+		db
+			.select()
+			.from(agentGrant)
+			.where(
+				and(
+					eq(agentGrant.agentId, agentId),
+					inArray(agentGrant.itemId, unique),
+				),
+			),
+		db
+			.select()
+			.from(accessRequest)
+			.where(
+				and(
+					eq(accessRequest.agentId, agentId),
+					inArray(accessRequest.itemId, unique),
+				),
+			),
+	]);
+	return unique.map((id) => {
+		const grant = grants.find(
+			(row) => row.itemId === id && (!row.expiresAt || row.expiresAt > now),
+		);
+		const mine = requests.filter((row) => row.itemId === id);
+		return {
+			id,
+			target: items.find((row) => row.id === id),
+			grant,
+			pending: mine.find((row) => row.status === "pending"),
+			denied: mine.some(
+				(row) =>
+					row.status === "denied" &&
+					row.decidedAt &&
+					now.getTime() - row.decidedAt.getTime() < DENIAL_COOLDOWN,
+			),
+		};
+	});
+}
+
+/** For an item without a grant: its open request, a recent denial, or a new request. */
+async function ask(
+	db: Database,
+	agentId: string,
+	{ id, target, pending, denied }: Lookup,
+	command: string,
+) {
+	if (!target) return { itemId: id, status: "missing" as const };
+	if (pending) {
+		return { itemId: id, status: "pending" as const, requestId: pending.id };
+	}
+	if (denied) return { itemId: id, status: "denied" as const };
+	const requestId = newId("req");
+	await db.batch([
+		db.insert(accessRequest).values({
+			id: requestId,
+			agentId,
+			itemId: id,
+			command,
+		}),
+		logEvent(db, {
+			actorType: "agent",
+			actorId: agentId,
+			action: "requested",
+			itemId: id,
+			vaultId: target.vaultId,
+			detail: command,
+		}),
+	]);
+	return { itemId: id, status: "pending" as const, requestId };
+}
+
 export const agentApiRouter = {
 	whoami: agentProcedure.handler(({ context }) => ({
 		id: context.agent.id,
@@ -74,47 +160,14 @@ export const agentApiRouter = {
 	 * request that a person approves in vauly.
 	 */
 	resolve: agentProcedure
-		.input(
-			z.object({
-				itemIds: z.array(z.string().max(40)).min(1).max(20),
-				command: z.string().trim().min(1).max(200),
-			}),
-		)
+		.input(z.object({ itemIds, command: reason }))
 		.handler(async ({ context, input }) => {
 			const { db, agent: me } = context;
-			const ids = [...new Set(input.itemIds)];
-			const now = new Date();
-			const [items, grants, requests] = await Promise.all([
-				db
-					.select()
-					.from(item)
-					.where(and(inArray(item.id, ids), isNull(item.deletedAt))),
-				db
-					.select()
-					.from(agentGrant)
-					.where(
-						and(eq(agentGrant.agentId, me.id), inArray(agentGrant.itemId, ids)),
-					),
-				db
-					.select()
-					.from(accessRequest)
-					.where(
-						and(
-							eq(accessRequest.agentId, me.id),
-							inArray(accessRequest.itemId, ids),
-						),
-					),
-			]);
-
+			const found = await lookup(db, me.id, input.itemIds);
 			const results = [];
-			for (const id of ids) {
-				const target = items.find((row) => row.id === id);
-				if (!target) {
-					results.push({ itemId: id, status: "missing" as const });
-					continue;
-				}
-				const grant = grants.find((row) => row.itemId === id);
-				if (grant && (!grant.expiresAt || grant.expiresAt > now)) {
+			for (const entry of found) {
+				const { id, target, grant } = entry;
+				if (target && grant) {
 					if (grant.once)
 						await db.delete(agentGrant).where(eq(agentGrant.id, grant.id));
 					await logEvent(db, {
@@ -133,46 +186,54 @@ export const agentApiRouter = {
 					});
 					continue;
 				}
-				const mine = requests.filter((row) => row.itemId === id);
-				const pending = mine.find((row) => row.status === "pending");
+				results.push(await ask(db, me.id, entry, input.command));
+			}
+			return results;
+		}),
+
+	/**
+	 * Whether this agent can use each item, and until when. Hands nothing over, logs
+	 * nothing and doesn't use up a one-time grant, so `vauly mcp` can show what's ready.
+	 */
+	status: agentProcedure
+		.input(z.object({ itemIds }))
+		.handler(async ({ context, input }) => {
+			const found = await lookup(context.db, context.agent.id, input.itemIds);
+			return found.map(({ id, target, grant, pending, denied }) => {
+				if (!target) return { itemId: id, status: "missing" as const };
+				if (grant) {
+					return {
+						itemId: id,
+						status: "granted" as const,
+						once: grant.once,
+						expiresAt: grant.expiresAt,
+					};
+				}
 				if (pending) {
-					results.push({
+					return {
 						itemId: id,
 						status: "pending" as const,
 						requestId: pending.id,
-					});
-					continue;
+					};
 				}
-				const recentDenial = mine.find(
-					(row) =>
-						row.status === "denied" &&
-						row.decidedAt &&
-						now.getTime() - row.decidedAt.getTime() < DENIAL_COOLDOWN,
-				);
-				if (recentDenial) {
-					results.push({ itemId: id, status: "denied" as const });
-					continue;
-				}
-				const requestId = newId("req");
-				await db.batch([
-					db.insert(accessRequest).values({
-						id: requestId,
-						agentId: me.id,
-						itemId: id,
-						command: input.command,
-					}),
-					logEvent(db, {
-						actorType: "agent",
-						actorId: me.id,
-						action: "requested",
-						itemId: id,
-						vaultId: target.vaultId,
-						detail: input.command,
-					}),
-				]);
-				results.push({ itemId: id, status: "pending" as const, requestId });
-			}
-			return results;
+				if (denied) return { itemId: id, status: "denied" as const };
+				return { itemId: id, status: "none" as const };
+			});
+		}),
+
+	/** Asks a person to let this agent use items, with a reason they'll read. Hands nothing over. */
+	request: agentProcedure
+		.input(z.object({ itemIds, reason }))
+		.handler(async ({ context, input }) => {
+			const { db, agent: me } = context;
+			const found = await lookup(db, me.id, input.itemIds);
+			return Promise.all(
+				found.map((entry) =>
+					entry.target && entry.grant
+						? { itemId: entry.id, status: "granted" as const }
+						: ask(db, me.id, entry, input.reason),
+				),
+			);
 		}),
 
 	poll: agentProcedure
