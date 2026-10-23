@@ -7,6 +7,11 @@ import "varlock/auto-load";
 // The e2e suite runs its own stack (stage `e2e`) next to `bun run dev`, on other ports.
 const apiPort = Number(process.env.VAULY_API_PORT ?? 3000);
 const webPort = Number(process.env.VAULY_WEB_PORT ?? 3001);
+// The app's and the API's own domains, such as app.vauly.app and api.vauly.app; without
+// them both stay on workers.dev. Keep the API on the same site as the app, so browsers
+// that block third-party cookies still send it the session.
+const appDomain = process.env.VAULY_APP_DOMAIN;
+const apiDomain = process.env.VAULY_API_DOMAIN;
 
 export const db = Cloudflare.D1.Database("database", {
 	migrations: "../../packages/db/src/migrations",
@@ -18,7 +23,9 @@ export const server = Cloudflare.Worker("server", {
 		DB: db,
 		CORS_ORIGIN: process.env.VAULY_WEB_PORT
 			? `http://localhost:${webPort}`
-			: Config.String("CORS_ORIGIN"),
+			: appDomain
+				? `https://${appDomain}`
+				: Config.String("CORS_ORIGIN"),
 		BETTER_AUTH_SECRET: Config.Redacted("BETTER_AUTH_SECRET"),
 		BETTER_AUTH_URL: Cloudflare.Worker.URL,
 		// Only the e2e stack sets this; without it the reset route does not exist.
@@ -26,6 +33,7 @@ export const server = Cloudflare.Worker("server", {
 		// When set, creating the workspace needs the setup link with this code.
 		SETUP_CODE: process.env.VAULY_SETUP_CODE ?? "",
 	},
+	domain: apiDomain,
 	dev: {
 		port: apiPort,
 	},
@@ -53,6 +61,7 @@ export default Alchemy.Stack(
 			env: {
 				VITE_SERVER_URL: serverWorker.url.as<string>(),
 			},
+			domain: appDomain,
 			dev: {
 				port: webPort,
 			},
