@@ -1,6 +1,6 @@
-import { user } from "@mima/db/schema/auth";
-import { item, member, vault, vaultAccess } from "@mima/db/schema/vault";
 import { ORPCError } from "@orpc/server";
+import { user } from "@vauly/db/schema/auth";
+import { item, member, vault, vaultAccess } from "@vauly/db/schema/vault";
 import { and, count, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 

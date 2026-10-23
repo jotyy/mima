@@ -1,4 +1,5 @@
-import { Button } from "@mima/ui/components/button";
+import { LockSimpleIcon } from "@phosphor-icons/react";
+import { Button } from "@vauly/ui/components/button";
 import {
 	Dialog,
 	DialogContent,
@@ -6,10 +7,9 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@mima/ui/components/dialog";
-import { Switch } from "@mima/ui/components/switch";
-import { Tabs, TabsList, TabsTrigger } from "@mima/ui/components/tabs";
-import { LockSimpleIcon } from "@phosphor-icons/react";
+} from "@vauly/ui/components/dialog";
+import { Switch } from "@vauly/ui/components/switch";
+import { Tabs, TabsList, TabsTrigger } from "@vauly/ui/components/tabs";
 import { type ReactNode, useEffect, useState } from "react";
 
 import {
@@ -87,8 +87,8 @@ export function ShareLinkDialog({
 						<DialogHeader>
 							<DialogTitle>Your link is ready</DialogTitle>
 							<DialogDescription>
-								Copy it now. mima can't show it again: the key at the end of the
-								link is never saved anywhere.
+								Copy it now. vauly can't show it again: the key at the end of
+								the link is never saved anywhere.
 							</DialogDescription>
 						</DialogHeader>
 						<div className="border-line bg-surface-sunken flex items-center gap-1 rounded-lg border py-1 pr-1 pl-3">
@@ -164,7 +164,7 @@ export function ShareLinkDialog({
 							<span>
 								The link shows the {listOf(shown)} as they are now. It's
 								encrypted on this device, and the key travels only in the link,
-								so mima's server can't read it.
+								so vauly's server can't read it.
 							</span>
 						</p>
 

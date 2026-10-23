@@ -1,8 +1,3 @@
-import { Badge } from "@mima/ui/components/badge";
-import { Button } from "@mima/ui/components/button";
-import { Kbd } from "@mima/ui/components/kbd";
-import { Tabs, TabsList, TabsTrigger } from "@mima/ui/components/tabs";
-import { cn } from "@mima/ui/lib/utils";
 import {
 	ArrowUpRightIcon,
 	CheckCircleIcon,
@@ -18,6 +13,11 @@ import {
 	XIcon,
 } from "@phosphor-icons/react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Badge } from "@vauly/ui/components/badge";
+import { Button } from "@vauly/ui/components/button";
+import { Kbd } from "@vauly/ui/components/kbd";
+import { Tabs, TabsList, TabsTrigger } from "@vauly/ui/components/tabs";
+import { cn } from "@vauly/ui/lib/utils";
 import { type ComponentType, type ReactNode, useState } from "react";
 
 import { ActivityRow } from "@/components/activity-row";
@@ -52,7 +52,7 @@ import {
 
 export const Route = createFileRoute("/_app/")({
 	component: Overview,
-	head: () => ({ meta: [{ title: "Overview · mima" }] }),
+	head: () => ({ meta: [{ title: "Overview · vauly" }] }),
 });
 
 function Overview() {

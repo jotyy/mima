@@ -1,6 +1,6 @@
 # Self-hosting
 
-mima runs on your own Cloudflare account. A deploy creates three things:
+vauly runs on your own Cloudflare account. A deploy creates three things:
 - **server**, a Worker that runs the API
 - **web**, a Worker that serves the web app
 - **database**, a D1 database, with the migrations in `packages/db/src/migrations` applied
@@ -10,7 +10,7 @@ mima runs on your own Cloudflare account. A deploy creates three things:
 ```
  your browser ──┐        ┌─ your Cloudflare account ──────────────────────┐
  the extension ─┼─ HTTPS ─▶  web     Worker   serves the app               │
- mima run ──────┘        │  server  Worker   the API ──▶ database  D1      │
+ vauly run ──────┘        │  server  Worker   the API ──▶ database  D1      │
                          └────────────────────────────────────────────────┘
  everything is encrypted on the left; the right only ever holds ciphertext
 ```
@@ -39,9 +39,9 @@ The deploy needs two values. Keep both somewhere safe; you'll use the same ones 
 | Setting              | What it is                                                                                                                       |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | `BETTER_AUTH_SECRET` | Signs session cookies. Use at least 32 random characters, for example `openssl rand -base64 32`. Changing it signs everyone out. |
-| `CORS_ORIGIN`        | The exact address of your web app, such as `https://mima.example.com`. The API only accepts requests from it.                    |
+| `CORS_ORIGIN`        | The exact address of your web app, such as `https://vauly.example.com`. The API only accepts requests from it.                   |
 
-One more is optional. `VITE_BRANDFETCH_CLIENT_ID` picks where website logos come from: by default the web app and the extension load them from Brandfetch with the mima project's client ID. Set it to your own [Brandfetch client ID](https://developers.brandfetch.com), or to `off` to show plain icons and never contact Brandfetch.
+One more is optional. `VITE_BRANDFETCH_CLIENT_ID` picks where website logos come from: by default the web app and the extension load them from Brandfetch with the vauly project's client ID. Set it to your own [Brandfetch client ID](https://developers.brandfetch.com), or to `off` to show plain icons and never contact Brandfetch.
 
 Pass them in the environment when you deploy, as below. Values in the environment take precedence over `apps/server/.env`, which only holds your local development settings.
 
@@ -51,12 +51,12 @@ You won't know the web app's `workers.dev` address until the first deploy, so th
 
 ```sh
 cd packages/infra
-export MIMA_SETUP_CODE=$(openssl rand -hex 16)
-BETTER_AUTH_SECRET='…' CORS_ORIGIN='https://mima.example.com' \
+export VAULY_SETUP_CODE=$(openssl rand -hex 16)
+BETTER_AUTH_SECRET='…' CORS_ORIGIN='https://vauly.example.com' \
   bunx alchemy deploy --stage production
 ```
 
-`MIMA_SETUP_CODE` keeps a fresh instance from being claimed by whoever finds it first: creating the workspace takes the code, through the setup link below. Once the workspace has an owner it no longer matters.
+`VAULY_SETUP_CODE` keeps a fresh instance from being claimed by whoever finds it first: creating the workspace takes the code, through the setup link below. Once the workspace has an owner it no longer matters.
 
 When it finishes, Alchemy prints the addresses of `web` and `server`. If `CORS_ORIGIN` doesn't match `web` yet, set it and run the same command again.
 
@@ -64,13 +64,13 @@ Alchemy keeps track of what it created per stage, so `--stage production` always
 
 ## 4. Claim your workspace
 
-Open the setup link, the web address followed by `/setup?code=` and your `MIMA_SETUP_CODE`, and create the workspace. You become its owner. Then invite your team from **Members**; each invite link works once, for one email address.
+Open the setup link, the web address followed by `/setup?code=` and your `VAULY_SETUP_CODE`, and create the workspace. You become its owner. Then invite your team from **Members**; each invite link works once, for one email address.
 
-Without `MIMA_SETUP_CODE`, the first person to visit creates the workspace, so don't leave such a deploy unclaimed.
+Without `VAULY_SETUP_CODE`, the first person to visit creates the workspace, so don't leave such a deploy unclaimed.
 
 ## Your own domain
 
-To serve mima from your own domain, add it to the `web` and `server` Workers in `packages/infra/alchemy.run.ts` (see Alchemy's Cloudflare docs for the current option), set `CORS_ORIGIN` to the new address, and deploy again.
+To serve vauly from your own domain, add it to the `web` and `server` Workers in `packages/infra/alchemy.run.ts` (see Alchemy's Cloudflare docs for the current option), set `CORS_ORIGIN` to the new address, and deploy again.
 
 ## Upgrading
 
@@ -110,5 +110,5 @@ Their master password alone signs them in again. It changes nothing about encryp
 
 ## Good to know
 
-- The `e2e` stage used by the test suite adds a route that wipes the database, guarded by `MIMA_E2E_RESET_TOKEN`. It only exists when that variable is set; never set it for a real deploy.
+- The `e2e` stage used by the test suite adds a route that wipes the database, guarded by `VAULY_E2E_RESET_TOKEN`. It only exists when that variable is set; never set it for a real deploy.
 - `bun run dev` keeps its state on disk and never touches your Cloudflare account.

@@ -1,4 +1,9 @@
 import {
+	type QueryClient,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
+import {
 	encodeAgentToken,
 	keyToText,
 	newDataKey,
@@ -10,12 +15,7 @@ import {
 	unwrapKey,
 	wrapKey,
 	wrapKeyFor,
-} from "@mima/crypto";
-import {
-	type QueryClient,
-	useQuery,
-	useQueryClient,
-} from "@tanstack/react-query";
+} from "@vauly/crypto";
 import { useMemo } from "react";
 
 import { client } from "@/utils/orpc";
@@ -76,7 +76,7 @@ export type SharedItem = Pick<
 	"kind" | "name" | "username" | "secret" | "url" | "totp" | "notes"
 >;
 
-export const itemReference = (item: { id: string }) => `mima://${item.id}`;
+export const itemReference = (item: { id: string }) => `vauly://${item.id}`;
 
 /** Whether an item's name, username, address or tags contain the (lowercase) query. */
 export const itemMatches = (item: Item, query: string) =>
@@ -202,7 +202,7 @@ export type Exposure = {
 	people: { name: string; removalId: string; at: Date }[];
 };
 
-const DISMISSED_KEY = "mima.dismissedRemovals";
+const DISMISSED_KEY = "vauly.dismissedRemovals";
 
 function dismissedRemovals() {
 	try {

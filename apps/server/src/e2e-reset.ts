@@ -1,5 +1,5 @@
-import type { Database } from "@mima/db";
-import { account, session, user, verification } from "@mima/db/schema/auth";
+import type { Database } from "@vauly/db";
+import { account, session, user, verification } from "@vauly/db/schema/auth";
 import {
 	accessRequest,
 	agent,
@@ -12,7 +12,7 @@ import {
 	setting,
 	vault,
 	vaultAccess,
-} from "@mima/db/schema/vault";
+} from "@vauly/db/schema/vault";
 
 /**
  * Empties every table so each e2e run starts from a fresh workspace. Mounted only when the

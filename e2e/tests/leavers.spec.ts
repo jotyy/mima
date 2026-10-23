@@ -10,7 +10,7 @@ import {
 } from "./helpers";
 
 // When someone loses access to a shared vault, the passwords they could see should
-// change. mima points at the ones that haven't.
+// change. vauly points at the ones that haven't.
 
 test.describe.configure({ mode: "serial" });
 

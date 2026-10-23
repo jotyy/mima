@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Report a security problem
-    url: https://github.com/jotyy/mima/security/advisories/new
+    url: https://github.com/jotyy/vauly/security/advisories/new
     about: Report vulnerabilities privately, not in a public issue.

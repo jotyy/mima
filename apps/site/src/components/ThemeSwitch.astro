@@ -10,7 +10,7 @@ const themes = [
 ];
 ---
 
-<div role="radiogroup" aria-label="Theme" data-theme-switch class="mima-theme-switch">
+<div role="radiogroup" aria-label="Theme" data-theme-switch class="vauly-theme-switch">
 	{
 		themes.map((theme) => (
 			<button type="button" role="radio" aria-checked="false" aria-label={theme.label} title={theme.label} data-value={theme.value}>
@@ -21,7 +21,7 @@ const themes = [
 </div>
 
 <style>
-	.mima-theme-switch {
+	.vauly-theme-switch {
 		display: flex;
 		align-items: center;
 		gap: 0.125rem;
@@ -30,7 +30,7 @@ const themes = [
 		background: var(--surface-sunken);
 	}
 
-	.mima-theme-switch button {
+	.vauly-theme-switch button {
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -44,22 +44,22 @@ const themes = [
 		transition: color 150ms;
 	}
 
-	.mima-theme-switch button:hover {
+	.vauly-theme-switch button:hover {
 		color: var(--fg);
 	}
 
-	.mima-theme-switch button[aria-checked="true"] {
+	.vauly-theme-switch button[aria-checked="true"] {
 		background: var(--surface);
 		color: var(--fg);
 		box-shadow: var(--elevation-pill);
 	}
 
-	.mima-theme-switch button:focus-visible {
+	.vauly-theme-switch button:focus-visible {
 		outline: 2px solid #1f5bf9;
 		outline-offset: 1px;
 	}
 
-	.mima-theme-switch :global(svg) {
+	.vauly-theme-switch :global(svg) {
 		width: 0.875rem;
 		height: 0.875rem;
 	}

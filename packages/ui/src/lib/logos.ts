@@ -2,7 +2,7 @@
 // browser extension. Only a brand's own domain is ever looked up: never a subdomain,
 // a private network name or anything else from the item.
 
-/** The mima project's Brandfetch client ID; an instance can use its own. */
+/** The vauly project's Brandfetch client ID; an instance can use its own. */
 export const BRANDFETCH_CLIENT_ID = "1idzU4xXvIcwxy_dNwT";
 
 type Kind = "login" | "api-key" | "note" | "ssh-key";

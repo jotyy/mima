@@ -1,5 +1,5 @@
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog";
-import { cn } from "@mima/ui/lib/utils";
+import { cn } from "@vauly/ui/lib/utils";
 
 // A panel that slides in from the left edge, for navigation on narrow screens.
 

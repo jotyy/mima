@@ -1,11 +1,11 @@
-// mima://<item id>[/<field>] in environment values and .env files.
+// vauly://<item id>[/<field>] in environment values and .env files.
 
 export type Field = "secret" | "username" | "url" | "notes";
 
 export type Reference = { name: string; itemId: string; field: Field };
 
 const pattern =
-	/^mima:\/\/(itm_[a-z0-9]+)(?:\/(password|secret|value|username|url|notes))?$/;
+	/^vauly:\/\/(itm_[a-z0-9]+)(?:\/(password|secret|value|username|url|notes))?$/;
 
 export function parseReference(
 	value: string,

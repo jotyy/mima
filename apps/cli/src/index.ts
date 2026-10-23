@@ -8,7 +8,7 @@ import {
 	importPrivateKey,
 	openJson,
 	unwrapKeyFrom,
-} from "@mima/crypto";
+} from "@vauly/crypto";
 
 import {
 	createMasker,
@@ -18,33 +18,33 @@ import {
 	type Reference,
 } from "./references";
 
-// mima run -- <command>: resolves mima:// references in the environment, waits for a
+// vauly run -- <command>: resolves vauly:// references in the environment, waits for a
 // person to approve new items, and starts the command with the values injected. The
-// values never pass through the agent that called mima, and the command's output masks them.
+// values never pass through the agent that called vauly, and the command's output masks them.
 
-const HELP = `mima — use secrets without seeing them
+const HELP = `vauly — use secrets without seeing them
 
 Usage:
-  mima run [--env-file <path>] -- <command> [args...]
-  mima whoami
-  mima help
+  vauly run [--env-file <path>] -- <command> [args...]
+  vauly whoami
+  vauly help
 
 Environment:
-  MIMA_SERVER   URL of your mima server
-  MIMA_TOKEN    the agent token shown when the agent was created
-  MIMA_APPROVAL_TIMEOUT   seconds to wait for approval (default 300)
+  VAULY_SERVER   URL of your vauly server
+  VAULY_TOKEN    the agent token shown when the agent was created
+  VAULY_APPROVAL_TIMEOUT   seconds to wait for approval (default 300)
 
-Values like mima://itm_7k2m9qx4hc3r (or …/username) in the environment or the
+Values like vauly://itm_7k2m9qx4hc3r (or …/username) in the environment or the
 env file are replaced by the item's value inside <command> only.`;
 
 class CliError extends Error {}
 
 function config() {
-	const server = process.env.MIMA_SERVER?.replace(/\/$/, "");
-	const token = process.env.MIMA_TOKEN;
+	const server = process.env.VAULY_SERVER?.replace(/\/$/, "");
+	const token = process.env.VAULY_TOKEN;
 	if (!server || !token) {
 		throw new CliError(
-			"Set MIMA_SERVER and MIMA_TOKEN (from the agent's page in mima).",
+			"Set VAULY_SERVER and VAULY_TOKEN (from the agent's page in vauly).",
 		);
 	}
 	const decoded = decodeAgentToken(token);
@@ -61,7 +61,7 @@ async function call<T>(
 		headers: {
 			"content-type": "application/json",
 			authorization: `Bearer ${cfg.agentId}.${cfg.secret}`,
-			"x-mima-host": hostname(),
+			"x-vauly-host": hostname(),
 		},
 		body: JSON.stringify({ json: input }),
 	}).catch(() => {
@@ -72,7 +72,7 @@ async function call<T>(
 	} | null;
 	if (!response.ok) {
 		const message = (body?.json as { message?: string } | undefined)?.message;
-		throw new CliError(message ?? `mima answered ${response.status}.`);
+		throw new CliError(message ?? `vauly answered ${response.status}.`);
 	}
 	return body?.json as T;
 }
@@ -105,7 +105,7 @@ async function resolveAll(
 	const privateKey = await importPrivateKey(cfg.privateKeyRaw);
 	const itemIds = [...new Set(refs.map((ref) => ref.itemId))];
 	const values = new Map<string, ItemFields>();
-	const timeout = Number(process.env.MIMA_APPROVAL_TIMEOUT ?? 300) * 1000;
+	const timeout = Number(process.env.VAULY_APPROVAL_TIMEOUT ?? 300) * 1000;
 	const started = Date.now();
 	let announced = false;
 
@@ -127,7 +127,7 @@ async function resolveAll(
 			} else if (result.status === "pending") {
 				pending.push(result.requestId);
 			} else if (result.status === "denied") {
-				throw new CliError(`Access to ${result.itemId} was denied in mima.`);
+				throw new CliError(`Access to ${result.itemId} was denied in vauly.`);
 			} else {
 				throw new CliError(`${result.itemId} doesn't exist or was deleted.`);
 			}
@@ -135,7 +135,7 @@ async function resolveAll(
 		if (pending.length === 0) continue;
 		if (!announced) {
 			process.stderr.write(
-				`mima: ${me.name} needs approval for ${pending.length} ${pending.length === 1 ? "item" : "items"}. Approve it in mima under Needs you…\n`,
+				`vauly: ${me.name} needs approval for ${pending.length} ${pending.length === 1 ? "item" : "items"}. Approve it in vauly under Needs you…\n`,
 			);
 			announced = true;
 		}
@@ -153,7 +153,7 @@ async function resolveAll(
 				},
 			);
 			if (statuses.some((s) => s.status === "denied")) {
-				throw new CliError("The request was denied in mima.");
+				throw new CliError("The request was denied in vauly.");
 			}
 			if (statuses.every((s) => s.status !== "pending")) break;
 		}
@@ -179,7 +179,7 @@ async function run(args: string[]) {
 		if (options[i] === "--env-file") envFile = options[++i];
 	}
 	if (commandArgs.length === 0)
-		throw new CliError("Nothing to run. Usage: mima run -- <command>");
+		throw new CliError("Nothing to run. Usage: vauly run -- <command>");
 
 	const fileEnv = envFile ? parseEnvFile(readFileSync(envFile, "utf8")) : {};
 	const env: Record<string, string | undefined> = {
@@ -201,7 +201,7 @@ async function run(args: string[]) {
 			if (ref.field === "secret") secrets.push(value);
 		}
 	}
-	delete env.MIMA_TOKEN;
+	delete env.VAULY_TOKEN;
 
 	const [bin, ...rest] = commandArgs as [string, ...string[]];
 	const child = spawn(bin, rest, {
@@ -221,7 +221,7 @@ async function run(args: string[]) {
 		process.on(signal, () => child.kill(signal));
 	}
 	child.on("error", (error) => {
-		process.stderr.write(`mima: couldn't start ${bin}: ${error.message}\n`);
+		process.stderr.write(`vauly: couldn't start ${bin}: ${error.message}\n`);
 		process.exit(127);
 	});
 	child.on("close", (code) => process.exit(code ?? 1));
@@ -245,12 +245,12 @@ async function main() {
 		return;
 	}
 	if (command === "run") return run(args);
-	throw new CliError(`Unknown command "${command}". Run mima help.`);
+	throw new CliError(`Unknown command "${command}". Run vauly help.`);
 }
 
 main().catch((error) => {
 	process.stderr.write(
-		`mima: ${error instanceof CliError ? error.message : String(error)}\n`,
+		`vauly: ${error instanceof CliError ? error.message : String(error)}\n`,
 	);
 	process.exit(1);
 });

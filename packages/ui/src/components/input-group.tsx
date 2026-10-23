@@ -1,9 +1,9 @@
 "use client";
 
-import { Button } from "@mima/ui/components/button";
-import { Input } from "@mima/ui/components/input";
-import { Textarea } from "@mima/ui/components/textarea";
-import { cn } from "@mima/ui/lib/utils";
+import { Button } from "@vauly/ui/components/button";
+import { Input } from "@vauly/ui/components/input";
+import { Textarea } from "@vauly/ui/components/textarea";
+import { cn } from "@vauly/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 import type * as React from "react";
 

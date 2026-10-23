@@ -1,11 +1,11 @@
 {
-	"extends": "@mima/config/tsconfig.base.json",
+	"extends": "@vauly/config/tsconfig.base.json",
 	"compilerOptions": {
 		"jsx": "react-jsx",
 		"lib": ["ESNext", "DOM", "DOM.Iterable"],
 		"types": [],
 		"paths": {
-			"@mima/ui/*": ["./src/*"]
+			"@vauly/ui/*": ["./src/*"]
 		}
 	},
 	"include": ["src/**/*.ts", "src/**/*.tsx"],

@@ -1,6 +1,11 @@
-import { user } from "@mima/db/schema/auth";
-import { accessRequest, agent, agentGrant, event } from "@mima/db/schema/vault";
 import { ORPCError } from "@orpc/server";
+import { user } from "@vauly/db/schema/auth";
+import {
+	accessRequest,
+	agent,
+	agentGrant,
+	event,
+} from "@vauly/db/schema/vault";
 import { and, count, eq, gt, inArray } from "drizzle-orm";
 import { z } from "zod";
 

@@ -1,5 +1,3 @@
-import { keyFromText, openJson } from "@mima/crypto";
-import { Button } from "@mima/ui/components/button";
 import {
 	ArrowSquareOutIcon,
 	ClockIcon,
@@ -8,14 +6,16 @@ import {
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { keyFromText, openJson } from "@vauly/crypto";
+import { Button } from "@vauly/ui/components/button";
 import { type ReactNode, useState } from "react";
 
 import { CopyButton } from "@/components/copy-button";
 import { ItemTile } from "@/components/item-tile";
 import Loader from "@/components/loader";
-import { MimaLogo } from "@/components/mima-mark";
 import { OneTimeCode } from "@/components/one-time-code";
 import { SecretValue } from "@/components/secret-value";
+import { VaulyLogo } from "@/components/vauly-mark";
 import { timeLeft } from "@/lib/format";
 import { logoDomain } from "@/lib/logos";
 import type { SharedItem } from "@/lib/vault-data";
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/s/$id")({
 	component: SharedItemPage,
 	head: () => ({
 		meta: [
-			{ title: "A shared item · mima" },
+			{ title: "A shared item · vauly" },
 			{ name: "robots", content: "noindex" },
 		],
 	}),
@@ -117,10 +117,10 @@ function SharedItemPage() {
 
 	return (
 		<div className="bg-frame flex min-h-svh flex-col items-center px-4 py-12 sm:py-20">
-			<MimaLogo className="mb-8" />
+			<VaulyLogo className="mb-8" />
 			<main className="w-full max-w-md">{content}</main>
 			<p className="text-caption text-fg-subtle mt-6 max-w-md text-center text-balance">
-				Shared with mima. The item was encrypted before it left the sender's
+				Shared with vauly. The item was encrypted before it left the sender's
 				device and is decrypted only in this browser.
 			</p>
 		</div>

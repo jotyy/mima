@@ -1,4 +1,6 @@
-import type { AppRouterClient } from "@mima/api/routers/index";
+import { createORPCClient } from "@orpc/client";
+import { RPCLink } from "@orpc/client/fetch";
+import type { AppRouterClient } from "@vauly/api/routers/index";
 import {
 	deriveMasterKeys,
 	fromBase64,
@@ -11,13 +13,11 @@ import {
 	unwrapKey,
 	unwrapKeyFrom,
 	wrapKey,
-} from "@mima/crypto";
-import { createORPCClient } from "@orpc/client";
-import { RPCLink } from "@orpc/client/fetch";
+} from "@vauly/crypto";
 
 import type { Connection, Unlocked } from "./storage";
 
-// Talks to the mima API and decrypts on this device, like the web app does.
+// Talks to the vauly API and decrypts on this device, like the web app does.
 
 export type ItemKind = "login" | "api-key" | "note" | "ssh-key";
 
@@ -78,14 +78,14 @@ export function apiClient(server: string, token?: string): AppRouterClient {
 }
 
 /**
- * Finds the API from the address someone types: the web app's /mima.json names it. An
+ * Finds the API from the address someone types: the web app's /vauly.json names it. An
  * API address works too.
  */
 export async function findServer(address: string) {
 	const trimmed = address.trim().replace(/\/+$/, "");
 	const web = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 	try {
-		const response = await fetch(`${web}/mima.json`);
+		const response = await fetch(`${web}/vauly.json`);
 		const { server } = (await response.json()) as { server?: string };
 		if (response.ok && server)
 			return { web, server: server.replace(/\/+$/, "") };
@@ -93,7 +93,7 @@ export async function findServer(address: string) {
 		// Not the web app; maybe it's the API itself.
 	}
 	try {
-		// Only mima's API answers this with {"ok":true}; any other site's page doesn't count.
+		// Only vauly's API answers this with {"ok":true}; any other site's page doesn't count.
 		const response = await fetch(`${web}/api/auth/ok`);
 		const body = (await response.json()) as { ok?: boolean };
 		if (response.ok && body.ok === true) return { web, server: web };
@@ -101,7 +101,7 @@ export async function findServer(address: string) {
 		// Fall through.
 	}
 	throw new Error(
-		"There's no mima at that address. Use the address you open mima at.",
+		"There's no vauly at that address. Use the address you open vauly at.",
 	);
 }
 
@@ -158,7 +158,7 @@ async function signIn(
 		method: "POST",
 		headers: {
 			"content-type": "application/json",
-			...(code ? { "x-mima-code": code } : {}),
+			...(code ? { "x-vauly-code": code } : {}),
 		},
 		body: JSON.stringify({ email, password: authKey }),
 	});

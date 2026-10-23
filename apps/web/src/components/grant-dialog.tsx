@@ -1,4 +1,5 @@
-import { Button } from "@mima/ui/components/button";
+import { Link } from "@tanstack/react-router";
+import { Button } from "@vauly/ui/components/button";
 import {
 	Dialog,
 	DialogContent,
@@ -6,16 +7,15 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@mima/ui/components/dialog";
+} from "@vauly/ui/components/dialog";
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@mima/ui/components/select";
-import { Tabs, TabsList, TabsTrigger } from "@mima/ui/components/tabs";
-import { Link } from "@tanstack/react-router";
+} from "@vauly/ui/components/select";
+import { Tabs, TabsList, TabsTrigger } from "@vauly/ui/components/tabs";
 import { useEffect, useState } from "react";
 
 import {
@@ -65,7 +65,7 @@ export function GrantDialog({
 				<DialogHeader>
 					<DialogTitle>Use {item.name} with an agent</DialogTitle>
 					<DialogDescription>
-						Put this reference in an .env file and run the command with mima
+						Put this reference in an .env file and run the command with vauly
 						run. The value goes into the command, never into the agent's output,
 						and the first run waits for your approval.
 					</DialogDescription>

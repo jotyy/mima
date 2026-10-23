@@ -12,7 +12,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 
-const REPOSITORY = "https://github.com/jotyy/mima";
+const REPOSITORY = "https://github.com/jotyy/vauly";
 const root = path.resolve(import.meta.dirname, "../../..");
 const source = path.join(root, "docs");
 const pages = path.resolve(import.meta.dirname, "../src/content/docs/docs");

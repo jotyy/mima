@@ -1,5 +1,6 @@
-import { Avatar, AvatarFallback } from "@mima/ui/components/avatar";
-import { Button } from "@mima/ui/components/button";
+import { CheckIcon } from "@phosphor-icons/react";
+import { Avatar, AvatarFallback } from "@vauly/ui/components/avatar";
+import { Button } from "@vauly/ui/components/button";
 import {
 	Dialog,
 	DialogContent,
@@ -7,17 +8,16 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@mima/ui/components/dialog";
-import { Input } from "@mima/ui/components/input";
+} from "@vauly/ui/components/dialog";
+import { Input } from "@vauly/ui/components/input";
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@mima/ui/components/select";
-import { cn } from "@mima/ui/lib/utils";
-import { CheckIcon } from "@phosphor-icons/react";
+} from "@vauly/ui/components/select";
+import { cn } from "@vauly/ui/lib/utils";
 import { useEffect, useState } from "react";
 
 import { initials, toneDot } from "@/lib/format";

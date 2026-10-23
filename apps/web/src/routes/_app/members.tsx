@@ -1,23 +1,3 @@
-import { Avatar, AvatarFallback } from "@mima/ui/components/avatar";
-import { Badge } from "@mima/ui/components/badge";
-import { Button } from "@mima/ui/components/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuGroup,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@mima/ui/components/dropdown-menu";
-import { Input } from "@mima/ui/components/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@mima/ui/components/select";
 import {
 	DotsThreeIcon,
 	LinkIcon,
@@ -28,6 +8,26 @@ import {
 	XIcon,
 } from "@phosphor-icons/react";
 import { createFileRoute } from "@tanstack/react-router";
+import { Avatar, AvatarFallback } from "@vauly/ui/components/avatar";
+import { Badge } from "@vauly/ui/components/badge";
+import { Button } from "@vauly/ui/components/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuGroup,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@vauly/ui/components/dropdown-menu";
+import { Input } from "@vauly/ui/components/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@vauly/ui/components/select";
 import { useState } from "react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -49,7 +49,7 @@ import {
 
 export const Route = createFileRoute("/_app/members")({
 	component: Members,
-	head: () => ({ meta: [{ title: "Members · mima" }] }),
+	head: () => ({ meta: [{ title: "Members · vauly" }] }),
 });
 
 const roles = [

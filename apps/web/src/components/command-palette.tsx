@@ -1,6 +1,3 @@
-import { Dialog, DialogContent, DialogTitle } from "@mima/ui/components/dialog";
-import { Kbd } from "@mima/ui/components/kbd";
-import { cn } from "@mima/ui/lib/utils";
 import {
 	GearSixIcon,
 	MagnifyingGlassIcon,
@@ -14,6 +11,13 @@ import {
 	VaultIcon,
 } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
+import {
+	Dialog,
+	DialogContent,
+	DialogTitle,
+} from "@vauly/ui/components/dialog";
+import { Kbd } from "@vauly/ui/components/kbd";
+import { cn } from "@vauly/ui/lib/utils";
 import { type ComponentType, type ReactNode, useMemo, useState } from "react";
 
 import { toneDot } from "@/lib/format";
@@ -180,7 +184,7 @@ export function CommandPalette({
 				showCloseButton={false}
 				className="top-24 translate-y-0 gap-0 overflow-hidden p-0 sm:max-w-lg"
 			>
-				<DialogTitle className="sr-only">Search mima</DialogTitle>
+				<DialogTitle className="sr-only">Search vauly</DialogTitle>
 				<div className="border-line-subtle flex h-12 items-center gap-2.5 border-b px-4">
 					<MagnifyingGlassIcon className="text-fg-subtle size-4" />
 					<input

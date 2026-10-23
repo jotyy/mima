@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { mima } from "./cli";
+import { vauly } from "./cli";
 import {
 	createWorkspace,
 	openAllItems,
@@ -17,7 +17,7 @@ let token = "";
 let reference = "";
 
 // The command checks the injected value itself and prints it, so the test sees both
-// that it arrived and that mima masked it in the output.
+// that it arrived and that vauly masked it in the output.
 const check = [
 	"sh",
 	"-c",
@@ -38,13 +38,13 @@ test.beforeAll(async ({ browser, request }) => {
 	await expect(form).toBeHidden();
 
 	// Agents stay out of the way: the reference lives behind the item's menu.
-	await expect(page.getByText(/^mima:\/\/itm_/)).toHaveCount(0);
+	await expect(page.getByText(/^vauly:\/\/itm_/)).toHaveCount(0);
 	await page.getByRole("button", { name: "More actions" }).click();
 	await page.getByRole("menuitem", { name: "Use with an agent…" }).click();
 	const use = page.getByRole("dialog");
 	await expect(use.getByText("No agents yet.")).toBeVisible();
 	reference = (
-		(await use.getByText(/^mima:\/\/itm_/).textContent()) ?? ""
+		(await use.getByText(/^vauly:\/\/itm_/).textContent()) ?? ""
 	).trim();
 	await page.close();
 });
@@ -52,27 +52,27 @@ test.beforeAll(async ({ browser, request }) => {
 test("creating an agent shows its token once", async ({ page }) => {
 	await signIn(page, owner);
 	await sidebarLink(page, "Agents").click();
-	await expect(page).toHaveTitle("Agents · mima");
+	await expect(page).toHaveTitle("Agents · vauly");
 	await expect(page.getByText("No agents yet")).toBeVisible();
 	await page.getByRole("button", { name: "New agent" }).click();
 	const dialog = page.getByRole("dialog");
 	await dialog.getByLabel("Name").fill("Claude Code");
 	await dialog.getByRole("button", { name: "Create agent" }).click();
 	const env = dialog.getByTestId("agent-env");
-	await expect(env).toContainText("MIMA_TOKEN=mima_agent_");
-	token = /MIMA_TOKEN=(\S+)/.exec((await env.textContent()) ?? "")?.[1] ?? "";
-	expect(token).toMatch(/^mima_agent_agt_/);
+	await expect(env).toContainText("VAULY_TOKEN=vauly_agent_");
+	token = /VAULY_TOKEN=(\S+)/.exec((await env.textContent()) ?? "")?.[1] ?? "";
+	expect(token).toMatch(/^vauly_agent_agt_/);
 	await dialog.getByRole("button", { name: "I've stored it" }).click();
 	await expect(
 		page.getByRole("region", { name: "Agents" }).getByText("Claude Code"),
 	).toBeVisible();
 });
 
-test("mima run waits for approval, then injects the value without revealing it", async ({
+test("vauly run waits for approval, then injects the value without revealing it", async ({
 	page,
 }) => {
-	const run = mima(["run", "--", ...check], {
-		MIMA_TOKEN: token,
+	const run = vauly(["run", "--", ...check], {
+		VAULY_TOKEN: token,
 		DATABASE_URL: reference,
 	});
 	await run.waitForStderr("needs approval");
@@ -94,8 +94,8 @@ test("mima run waits for approval, then injects the value without revealing it",
 test("allow once means once: the next run asks again, and deny stops it", async ({
 	page,
 }) => {
-	const run = mima(["run", "--", ...check], {
-		MIMA_TOKEN: token,
+	const run = vauly(["run", "--", ...check], {
+		VAULY_TOKEN: token,
 		DATABASE_URL: reference,
 	});
 	await run.waitForStderr("needs approval");
@@ -130,8 +130,8 @@ test("an item granted until revoked works without asking", async ({ page }) => {
 		page.getByRole("switch", { name: "Allow Claude Code" }),
 	).toBeChecked();
 
-	const run = mima(["run", "--", ...check], {
-		MIMA_TOKEN: token,
+	const run = vauly(["run", "--", ...check], {
+		VAULY_TOKEN: token,
 		DATABASE_URL: reference,
 	});
 	expect(await run.exit).toBe(0);
@@ -145,8 +145,8 @@ test("pausing the agent stops its token right away", async ({ page }) => {
 	await page.getByRole("switch", { name: "Claude Code enabled" }).click();
 	await expect(page.getByText("Claude Code is paused")).toBeVisible();
 
-	const run = mima(["run", "--", ...check], {
-		MIMA_TOKEN: token,
+	const run = vauly(["run", "--", ...check], {
+		VAULY_TOKEN: token,
 		DATABASE_URL: reference,
 	});
 	expect(await run.exit).toBe(1);
@@ -155,8 +155,8 @@ test("pausing the agent stops its token right away", async ({ page }) => {
 
 test("a forged token is rejected", async () => {
 	const forged = token.replace(/\.[0-9a-f]{48}\./, `.${"0".repeat(48)}.`);
-	const run = mima(["run", "--", "true"], {
-		MIMA_TOKEN: forged,
+	const run = vauly(["run", "--", "true"], {
+		VAULY_TOKEN: forged,
 		DATABASE_URL: reference,
 	});
 	expect(await run.exit).toBe(1);
@@ -174,8 +174,8 @@ test("a deleted item is out of reach for agents until it's restored", async ({
 	await openAllItems(page);
 	await page.getByRole("button", { name: "More actions" }).click();
 	await page.getByRole("menuitem", { name: "Delete item" }).click();
-	const blocked = mima(["run", "--", ...check], {
-		MIMA_TOKEN: token,
+	const blocked = vauly(["run", "--", ...check], {
+		VAULY_TOKEN: token,
 		DATABASE_URL: reference,
 	});
 	expect(await blocked.exit).toBe(1);
@@ -184,8 +184,8 @@ test("a deleted item is out of reach for agents until it's restored", async ({
 	// Restoring brings back the item with its grant, so the agent runs without asking.
 	await page.getByRole("button", { name: "Undo" }).click();
 	await expect(page.getByText("Restored Postgres staging")).toBeVisible();
-	const run = mima(["run", "--", ...check], {
-		MIMA_TOKEN: token,
+	const run = vauly(["run", "--", ...check], {
+		VAULY_TOKEN: token,
 		DATABASE_URL: reference,
 	});
 	expect(await run.exit).toBe(0);
@@ -222,8 +222,8 @@ test("an agent can be extended, and deleting it stops its token for good", async
 	await expect(page.getByText("Deleted Claude Code")).toBeVisible();
 	await expect(page.getByText("No agents yet")).toBeVisible();
 
-	const run = mima(["run", "--", ...check], {
-		MIMA_TOKEN: token,
+	const run = vauly(["run", "--", ...check], {
+		VAULY_TOKEN: token,
 		DATABASE_URL: reference,
 	});
 	expect(await run.exit).toBe(1);

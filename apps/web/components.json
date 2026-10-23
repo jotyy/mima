@@ -13,8 +13,8 @@
 	"iconLibrary": "phosphor",
 	"aliases": {
 		"components": "@/components",
-		"utils": "@mima/ui/lib/utils",
-		"ui": "@mima/ui/components",
+		"utils": "@vauly/ui/lib/utils",
+		"ui": "@vauly/ui/components",
 		"lib": "@/lib",
 		"hooks": "@/hooks"
 	},

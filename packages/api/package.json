@@ -1,5 +1,5 @@
 {
-	"name": "@mima/api",
+	"name": "@vauly/api",
 	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
@@ -10,8 +10,8 @@
 		"check-types": "tsc -b"
 	},
 	"dependencies": {
-		"@mima/auth": "workspace:*",
-		"@mima/db": "workspace:*",
+		"@vauly/auth": "workspace:*",
+		"@vauly/db": "workspace:*",
 		"@orpc/client": "catalog:",
 		"@orpc/openapi": "catalog:",
 		"@orpc/server": "catalog:",
@@ -20,7 +20,7 @@
 		"zod": "catalog:"
 	},
 	"devDependencies": {
-		"@mima/config": "workspace:*",
+		"@vauly/config": "workspace:*",
 		"typescript": "catalog:"
 	}
 }

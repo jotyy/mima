@@ -1,7 +1,7 @@
-import { Button } from "@mima/ui/components/button";
-import { Input } from "@mima/ui/components/input";
-import { cn } from "@mima/ui/lib/utils";
 import { EyeIcon, EyeSlashIcon, LockSimpleIcon } from "@phosphor-icons/react";
+import { Button } from "@vauly/ui/components/button";
+import { Input } from "@vauly/ui/components/input";
+import { cn } from "@vauly/ui/lib/utils";
 import {
 	type ComponentProps,
 	type CSSProperties,
@@ -14,7 +14,7 @@ import { passwordStrength } from "@/lib/secrets";
 import type { ItemKind } from "@/lib/vault-data";
 
 import { ItemTile } from "./item-tile";
-import { MimaLogo } from "./mima-mark";
+import { VaulyLogo } from "./vauly-mark";
 
 /**
  * The page's grid: the panel takes a little less than half, so the note beside it has
@@ -25,7 +25,7 @@ const grid =
 
 /**
  * The frame around sign-in, setup, join and unlock: the logo up top, a card on a brand
- * panel drawn on a page of thin guide lines, and a short note on how mima keeps items
+ * panel drawn on a page of thin guide lines, and a short note on how vauly keeps items
  * safe beside it.
  */
 export function AuthLayout({
@@ -48,7 +48,7 @@ export function AuthLayout({
 		<div className="bg-surface relative isolate flex min-h-svh flex-col overflow-x-hidden">
 			<Guides />
 			<header className={cn(grid, "px-4 pt-5 sm:px-6 sm:pt-7")}>
-				<MimaLogo className="h-7 sm:ml-5" />
+				<VaulyLogo className="h-7 sm:ml-5" />
 			</header>
 			<div className="min-h-6 flex-1 sm:min-h-16" />
 			<div className="sm:border-line-subtle sm:border-y">
@@ -270,7 +270,7 @@ function Seal() {
 	);
 }
 
-/** What mima does with your items, in the spot a sign-in page would put a testimonial. */
+/** What vauly does with your items, in the spot a sign-in page would put a testimonial. */
 function SafetyCard() {
 	return (
 		<section className="rounded-panel bg-brand-soft/60 w-full max-w-lg p-1.5">

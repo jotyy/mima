@@ -11,7 +11,7 @@ import {
 import { user } from "./auth";
 
 // Everything named `encrypted*`, `wrapped*` or `data` is ciphertext produced by
-// @mima/crypto on a client. The server can store and return it, never read it.
+// @vauly/crypto on a client. The server can store and return it, never read it.
 
 const createdAt = () =>
 	integer("created_at", { mode: "timestamp_ms" })

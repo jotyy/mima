@@ -1,4 +1,4 @@
-import { cn } from "@mima/ui/lib/utils";
+import { cn } from "@vauly/ui/lib/utils";
 
 // The landing page's buttons: larger and rounder than the app's, the same colors.
 
@@ -28,4 +28,4 @@ export function button(
 	return cn(base, sizes[size], variants[variant], className);
 }
 
-export const REPOSITORY = "https://github.com/jotyy/mima";
+export const REPOSITORY = "https://github.com/jotyy/vauly";

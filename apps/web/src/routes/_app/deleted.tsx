@@ -1,14 +1,14 @@
-import { Badge } from "@mima/ui/components/badge";
-import { Button } from "@mima/ui/components/button";
+import { DotsThreeIcon, TrashIcon } from "@phosphor-icons/react";
+import { createFileRoute } from "@tanstack/react-router";
+import { Badge } from "@vauly/ui/components/badge";
+import { Button } from "@vauly/ui/components/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuTrigger,
-} from "@mima/ui/components/dropdown-menu";
-import { Skeleton } from "@mima/ui/components/skeleton";
-import { DotsThreeIcon, TrashIcon } from "@phosphor-icons/react";
-import { createFileRoute } from "@tanstack/react-router";
+} from "@vauly/ui/components/dropdown-menu";
+import { Skeleton } from "@vauly/ui/components/skeleton";
 import { useState } from "react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -28,7 +28,7 @@ import {
 
 export const Route = createFileRoute("/_app/deleted")({
 	component: RecentlyDeleted,
-	head: () => ({ meta: [{ title: "Recently deleted · mima" }] }),
+	head: () => ({ meta: [{ title: "Recently deleted · vauly" }] }),
 });
 
 const KEEP_DAYS = 30;

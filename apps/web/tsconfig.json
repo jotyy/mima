@@ -12,7 +12,7 @@
 		"rootDirs": ["."],
 		"paths": {
 			"@/*": ["./src/*"],
-			"@mima/ui/*": ["../../packages/ui/src/*"]
+			"@vauly/ui/*": ["../../packages/ui/src/*"]
 		}
 	}
 }

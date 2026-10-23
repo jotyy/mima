@@ -1,11 +1,11 @@
-import { Button, buttonVariants } from "@mima/ui/components/button";
-import { cn } from "@mima/ui/lib/utils";
 import {
 	ArrowUpRightIcon,
 	CheckCircleIcon,
 	CircleIcon,
 } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
+import { Button, buttonVariants } from "@vauly/ui/components/button";
+import { cn } from "@vauly/ui/lib/utils";
 import { type ReactNode, useState } from "react";
 
 import { emergencyKitDone, openEmergencyKit } from "@/lib/emergency-kit";
@@ -20,7 +20,7 @@ import {
 import { notify } from "./notify";
 
 const EXTENSION_DOCS =
-	"https://github.com/jotyy/mima/blob/main/docs/browser-extension.md";
+	"https://github.com/jotyy/vauly/blob/main/docs/browser-extension.md";
 
 type Step = {
 	id: string;
@@ -38,7 +38,7 @@ export function GetStarted() {
 	const members = useMembers();
 	const events = useEvents();
 	const workspace = useWorkspace();
-	const hiddenKey = `mima.getStarted.hidden.${me?.id}`;
+	const hiddenKey = `vauly.getStarted.hidden.${me?.id}`;
 	const [hidden, setHidden] = useState(() => readFlag(hiddenKey));
 	const [kitDone, setKitDone] = useState(() =>
 		me ? emergencyKitDone(me.id) : false,
@@ -126,14 +126,14 @@ export function GetStarted() {
 						const opened = openEmergencyKit(me.id, {
 							name: me.name,
 							email: me.email,
-							workspace: workspace.data?.workspaceName ?? "mima",
+							workspace: workspace.data?.workspaceName ?? "vauly",
 							address: window.location.origin,
 						});
 						if (opened) setKitDone(true);
 						else
 							notify.error(
 								"Couldn't open the kit",
-								"Allow pop-ups for mima and try again.",
+								"Allow pop-ups for vauly and try again.",
 							);
 					}}
 				>

@@ -1,5 +1,5 @@
-import { favorite, item } from "@mima/db/schema/vault";
 import { ORPCError } from "@orpc/server";
+import { favorite, item } from "@vauly/db/schema/vault";
 import { and, eq, inArray, lt } from "drizzle-orm";
 import { z } from "zod";
 

@@ -1,19 +1,4 @@
 import {
-	Avatar,
-	AvatarFallback,
-	AvatarGroup,
-} from "@mima/ui/components/avatar";
-import { Badge } from "@mima/ui/components/badge";
-import { Button } from "@mima/ui/components/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@mima/ui/components/dropdown-menu";
-import { Skeleton } from "@mima/ui/components/skeleton";
-import {
 	DotsThreeIcon,
 	PencilSimpleIcon,
 	PlusIcon,
@@ -21,6 +6,21 @@ import {
 	UsersThreeIcon,
 } from "@phosphor-icons/react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import {
+	Avatar,
+	AvatarFallback,
+	AvatarGroup,
+} from "@vauly/ui/components/avatar";
+import { Badge } from "@vauly/ui/components/badge";
+import { Button } from "@vauly/ui/components/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@vauly/ui/components/dropdown-menu";
+import { Skeleton } from "@vauly/ui/components/skeleton";
 import { useState } from "react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -39,7 +39,7 @@ import {
 
 export const Route = createFileRoute("/_app/vaults")({
 	component: Vaults,
-	head: () => ({ meta: [{ title: "Vaults · mima" }] }),
+	head: () => ({ meta: [{ title: "Vaults · vauly" }] }),
 });
 
 function Vaults() {

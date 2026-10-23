@@ -1,4 +1,4 @@
-import { Button } from "@mima/ui/components/button";
+import { Button } from "@vauly/ui/components/button";
 import {
 	Dialog,
 	DialogContent,
@@ -6,7 +6,7 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@mima/ui/components/dialog";
+} from "@vauly/ui/components/dialog";
 import { type ReactNode, useState } from "react";
 
 export function ConfirmDialog({

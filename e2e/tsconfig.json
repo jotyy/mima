@@ -1,5 +1,5 @@
 {
-	"extends": "@mima/config/tsconfig.base.json",
+	"extends": "@vauly/config/tsconfig.base.json",
 	"compilerOptions": {
 		"lib": ["ESNext", "DOM"],
 		"types": ["node"],

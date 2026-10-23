@@ -1,5 +1,5 @@
-import { member } from "@mima/db/schema/vault";
 import { ORPCError, os } from "@orpc/server";
+import { member } from "@vauly/db/schema/vault";
 import { eq } from "drizzle-orm";
 
 import type { Context } from "./context";

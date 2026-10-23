@@ -30,7 +30,7 @@ async function printKit(page: Page, button: string) {
 		page.getByRole("button", { name: button }).click(),
 	]);
 	await expect(
-		kit.getByRole("heading", { name: "mima Emergency Kit" }),
+		kit.getByRole("heading", { name: "vauly Emergency Kit" }),
 	).toBeVisible();
 	await expect(kit.getByText(owner.email)).toBeVisible();
 	await expect(kit.getByText("Master password", { exact: true })).toBeVisible();

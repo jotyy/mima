@@ -1,32 +1,32 @@
-import { Button } from "@mima/ui/components/button";
+import {
+	ArrowsClockwiseIcon,
+	EyeIcon,
+	EyeSlashIcon,
+} from "@phosphor-icons/react";
+import { Button } from "@vauly/ui/components/button";
 import {
 	Dialog,
 	DialogContent,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@mima/ui/components/dialog";
-import { Input } from "@mima/ui/components/input";
+} from "@vauly/ui/components/dialog";
+import { Input } from "@vauly/ui/components/input";
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@mima/ui/components/select";
-import { Tabs, TabsList, TabsTrigger } from "@mima/ui/components/tabs";
-import { Textarea } from "@mima/ui/components/textarea";
+} from "@vauly/ui/components/select";
+import { Tabs, TabsList, TabsTrigger } from "@vauly/ui/components/tabs";
+import { Textarea } from "@vauly/ui/components/textarea";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
-} from "@mima/ui/components/tooltip";
-import { cn } from "@mima/ui/lib/utils";
-import {
-	ArrowsClockwiseIcon,
-	EyeIcon,
-	EyeSlashIcon,
-} from "@phosphor-icons/react";
+} from "@vauly/ui/components/tooltip";
+import { cn } from "@vauly/ui/lib/utils";
 import { type ReactNode, useEffect, useState } from "react";
 
 import { generatePassword, parseTotp, passwordStrength } from "@/lib/secrets";

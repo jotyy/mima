@@ -1,21 +1,3 @@
-import { Badge } from "@mima/ui/components/badge";
-import { Button } from "@mima/ui/components/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuGroup,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@mima/ui/components/dropdown-menu";
-import { Switch } from "@mima/ui/components/switch";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@mima/ui/components/tooltip";
-import { cn } from "@mima/ui/lib/utils";
 import {
 	ArrowSquareOutIcon,
 	ArrowUpRightIcon,
@@ -31,6 +13,24 @@ import {
 	UserMinusIcon,
 } from "@phosphor-icons/react";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
+import { Badge } from "@vauly/ui/components/badge";
+import { Button } from "@vauly/ui/components/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuGroup,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@vauly/ui/components/dropdown-menu";
+import { Switch } from "@vauly/ui/components/switch";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@vauly/ui/components/tooltip";
+import { cn } from "@vauly/ui/lib/utils";
 import { type ReactNode, useState } from "react";
 
 import { ago, plural, timeLeft, toneDot } from "@/lib/format";

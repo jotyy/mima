@@ -1,9 +1,9 @@
-import { appRouter } from "@mima/api/routers/index";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
+import { appRouter } from "@vauly/api/routers/index";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
@@ -21,7 +21,7 @@ app.use(
 	cors({
 		origin: ENV.CORS_ORIGIN,
 		allowMethods: ["GET", "POST", "OPTIONS"],
-		allowHeaders: ["Content-Type", "Authorization", "X-Mima-Code"],
+		allowHeaders: ["Content-Type", "Authorization", "X-Vauly-Code"],
 		credentials: true,
 	}),
 );

@@ -1,5 +1,5 @@
-@import "@mima/ui/globals.css";
-@import "@mima/ui/pure.css";
+@import "@vauly/ui/globals.css";
+@import "@vauly/ui/pure.css";
 
 /* The frame sits on someone else's page: only the card shows, with room for its shadow. */
 html {

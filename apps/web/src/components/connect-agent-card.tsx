@@ -1,7 +1,7 @@
-import { Button } from "@mima/ui/components/button";
-import { Tabs, TabsList, TabsTrigger } from "@mima/ui/components/tabs";
-import { cn } from "@mima/ui/lib/utils";
 import { CopyIcon, PlusIcon } from "@phosphor-icons/react";
+import { Button } from "@vauly/ui/components/button";
+import { Tabs, TabsList, TabsTrigger } from "@vauly/ui/components/tabs";
+import { cn } from "@vauly/ui/lib/utils";
 import { type ReactNode, useState } from "react";
 
 import { useItems } from "@/lib/vault-data";
@@ -12,8 +12,8 @@ import { copyToClipboard } from "./notify";
 
 const prompts = {
 	agent:
-		"This project keeps secrets in mima. Values in .env are mima:// references: start commands with `mima run -- <command>` so they get the real values. Never print, log or commit secret values, and never try to read them another way. If mima says a secret is waiting for approval, tell me and wait.",
-	app: "Replace each secret in .env with its mima:// reference from mima, keep .env out of git, and start the app with `mima run -- bun run dev`.",
+		"This project keeps secrets in vauly. Values in .env are vauly:// references: start commands with `vauly run -- <command>` so they get the real values. Never print, log or commit secret values, and never try to read them another way. If vauly says a secret is waiting for approval, tell me and wait.",
+	app: "Replace each secret in .env with its vauly:// reference from vauly, keep .env out of git, and start the app with `vauly run -- bun run dev`.",
 };
 
 /**
@@ -33,8 +33,8 @@ export function ConnectAgentCard({
 	const example = items.data?.find(
 		(item) => item.secret && item.kind !== "login",
 	);
-	const envLine = `DATABASE_URL=mima://${example?.id ?? "itm_…"}`;
-	const runLine = "mima run -- bun run dev";
+	const envLine = `DATABASE_URL=vauly://${example?.id ?? "itm_…"}`;
+	const runLine = "vauly run -- bun run dev";
 
 	return (
 		<section
@@ -69,11 +69,11 @@ export function ConnectAgentCard({
 					</Button>
 				</Step>
 
-				<Step n={2} title="Point your .env at mima instead of real values">
+				<Step n={2} title="Point your .env at vauly instead of real values">
 					<Snippet value={envLine} label=".env line" />
 				</Step>
 
-				<Step n={3} title="Run commands through mima">
+				<Step n={3} title="Run commands through vauly">
 					<Snippet value={runLine} label="command" />
 					<p className="text-caption text-fg-subtle text-pretty">
 						The first time a command needs an item, you approve it here. The

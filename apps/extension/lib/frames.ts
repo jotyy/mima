@@ -1,4 +1,4 @@
-// mima inside a page: a small button in a focused login field, the fill menu it opens,
+// vauly inside a page: a small button in a focused login field, the fill menu it opens,
 // and the save prompt in the top corner. The menu and the prompt are iframes of the
 // extension's own page, so the site can't read what's in them; the page script only
 // places and sizes them. The menu waits for the button rather than opening on focus:
@@ -47,7 +47,7 @@ export function mountFrames() {
 	const showButton = (field: HTMLInputElement) => {
 		if (button?.field === field) return;
 		hideButton();
-		const host = document.createElement("mima-button");
+		const host = document.createElement("vauly-button");
 		host.style.cssText =
 			"all: initial; position: fixed; z-index: 2147483647; display: block;";
 		const shadow = host.attachShadow({ mode: "open" });
@@ -61,8 +61,8 @@ export function mountFrames() {
 			img { width: 18px; height: 18px; pointer-events: none; }`;
 		const control = document.createElement("button");
 		control.type = "button";
-		control.title = "Fill with mima";
-		control.setAttribute("aria-label", "Fill with mima");
+		control.title = "Fill with vauly";
+		control.setAttribute("aria-label", "Fill with vauly");
 		control.setAttribute("aria-expanded", "false");
 		const mark = document.createElement("img");
 		mark.src = browser.runtime.getURL("/icon/32.png");
@@ -130,13 +130,14 @@ export function mountFrames() {
 		if (current && current.anchor === anchor) return;
 		if (current) close(view);
 
-		const host = document.createElement("mima-frame");
+		const host = document.createElement("vauly-frame");
 		host.style.cssText =
 			"all: initial; position: fixed; z-index: 2147483647; display: block;";
 		const shadow = host.attachShadow({ mode: "open" });
 		const frame = document.createElement("iframe");
 		frame.src = `${browser.runtime.getURL("/inline.html")}#${view}`;
-		frame.title = view === "menu" ? "mima: fill a login" : "mima: save a login";
+		frame.title =
+			view === "menu" ? "vauly: fill a login" : "vauly: save a login";
 		// The frame copies a one-time code after filling.
 		frame.allow = "clipboard-write";
 		frame.style.cssText =
@@ -160,12 +161,12 @@ export function mountFrames() {
 	window.addEventListener("message", (event) => {
 		for (const [view, { frame }] of open) {
 			if (event.source !== frame.contentWindow) continue;
-			const data = event.data as { mima?: string; height?: number };
-			if (data.mima === "size" && typeof data.height === "number") {
+			const data = event.data as { vauly?: string; height?: number };
+			if (data.vauly === "size" && typeof data.height === "number") {
 				frame.style.height = `${Math.min(MAX_HEIGHT, Math.ceil(data.height))}px`;
 				place(view);
 			}
-			if (data.mima === "close") close(view);
+			if (data.vauly === "close") close(view);
 		}
 	});
 
@@ -201,7 +202,7 @@ export function mountFrames() {
 		hideButton,
 		/** The field the menu is open for. */
 		anchor: () => open.get("menu")?.anchor,
-		/** The field showing mima's button. */
+		/** The field showing vauly's button. */
 		buttonField: () => button?.field,
 	};
 }

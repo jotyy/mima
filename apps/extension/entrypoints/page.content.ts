@@ -6,10 +6,10 @@ import {
 	type PageRequest,
 } from "@/lib/messages";
 
-// mima on the sites people sign in to. Focusing a login field shows mima's button in it,
+// vauly on the sites people sign in to. Focusing a login field shows vauly's button in it,
 // which opens the fill menu; submitting a login hands it to the background, and the save
 // prompt offers to keep it. The page script holds no secrets: the menu and the prompt
-// are mima's own frames.
+// are vauly's own frames.
 export default defineContentScript({
 	matches: ["http://*/*", "https://*/*"],
 	runAt: "document_idle",
@@ -19,9 +19,9 @@ export default defineContentScript({
 		let quietUntil = 0;
 
 		browser.runtime.onMessage.addListener((message: PageMessage) => {
-			if (message.type === "mima:filling") quietUntil = Date.now() + 1500;
+			if (message.type === "vauly:filling") quietUntil = Date.now() + 1500;
 			// A login form still holding the password wasn't sent, or didn't work.
-			if (message.type === "mima:offer-ready" && !typedPassword())
+			if (message.type === "vauly:offer-ready" && !typedPassword())
 				frames.show("save");
 		});
 
@@ -35,7 +35,7 @@ export default defineContentScript({
 					return;
 				}
 				if (Date.now() < quietUntil || frames.buttonField() === field) return;
-				const answer = await ask<{ show: boolean }>({ type: "mima:field" });
+				const answer = await ask<{ show: boolean }>({ type: "vauly:field" });
 				if (answer?.show && document.activeElement === field)
 					frames.showButton(field);
 			},
@@ -44,7 +44,7 @@ export default defineContentScript({
 		document.addEventListener(
 			"focusout",
 			(event) => {
-				// Into the menu's frame is still with mima; anywhere else, the button goes.
+				// Into the menu's frame is still with vauly; anywhere else, the button goes.
 				if (event.target === frames.buttonField() && !frames.anchor())
 					frames.hideButton();
 			},
@@ -62,7 +62,7 @@ export default defineContentScript({
 
 		watchSubmits();
 		// A login typed on the page before this one is offered once this one has loaded.
-		void ask<{ show: boolean }>({ type: "mima:offer?" }).then((answer) => {
+		void ask<{ show: boolean }>({ type: "vauly:offer?" }).then((answer) => {
 			if (answer?.show && !typedPassword()) frames.show("save");
 		});
 	},
@@ -129,7 +129,7 @@ function watchSubmits() {
 		if (!password || password.value.length < 4) return;
 
 		const login: LoginMessage = {
-			type: "mima:login",
+			type: "vauly:login",
 			username: usernameFor(password, true)?.value.trim() ?? "",
 			password: password.value,
 		};

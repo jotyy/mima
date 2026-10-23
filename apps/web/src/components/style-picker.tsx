@@ -1,5 +1,5 @@
-import { cn } from "@mima/ui/lib/utils";
 import { CheckIcon } from "@phosphor-icons/react";
+import { cn } from "@vauly/ui/lib/utils";
 
 import {
 	APP_STYLES,

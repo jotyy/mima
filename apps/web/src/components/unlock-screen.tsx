@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback } from "@mima/ui/components/avatar";
+import { Avatar, AvatarFallback } from "@vauly/ui/components/avatar";
 import { useState } from "react";
 
 import { initials } from "@/lib/format";
@@ -22,7 +22,7 @@ export function UnlockScreen() {
 
 	return (
 		<AuthLayout
-			title={`Unlock ${workspace.data?.workspaceName ?? "mima"}`}
+			title={`Unlock ${workspace.data?.workspaceName ?? "vauly"}`}
 			description={
 				keyring.me && (
 					<span className="bg-surface shadow-pill text-fg-emphasis mt-1 inline-flex max-w-full items-center gap-2 rounded-full py-1 pr-3 pl-1">

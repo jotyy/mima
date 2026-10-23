@@ -6,23 +6,27 @@ import { defineConfig } from "astro/config";
 // The landing page lives in src/pages; the docs are Starlight, under /docs, built from
 // the repository's docs/ folder (see scripts/sync-docs.ts).
 // Where the site will live. Links in the sitemap and the social preview use it.
-const SITE = "https://mima.example.com";
+const SITE = "https://vauly.app";
 
 export default defineConfig({
 	site: SITE,
 	devToolbar: { enabled: false },
 	integrations: [
 		starlight({
-			title: "mima",
+			title: "vauly",
 			description:
 				"A self-hosted, end-to-end encrypted password manager for small teams.",
-			logo: { src: "./src/assets/logo.svg", replacesTitle: true },
+			logo: {
+				light: "./src/assets/logo-light.svg",
+				dark: "./src/assets/logo-dark.svg",
+				replacesTitle: true,
+			},
 			favicon: "/favicon.svg",
 			social: [
 				{
 					icon: "github",
 					label: "GitHub",
-					href: "https://github.com/jotyy/mima",
+					href: "https://github.com/jotyy/vauly",
 				},
 			],
 			sidebar: [
@@ -34,7 +38,7 @@ export default defineConfig({
 					],
 				},
 				{
-					label: "Using mima",
+					label: "Using vauly",
 					items: [
 						{ label: "Browser extension", slug: "docs/browser-extension" },
 						{ label: "Agents and scripts", slug: "docs/agents" },
@@ -51,6 +55,14 @@ export default defineConfig({
 				ThemeSelect: "./src/components/docs/ThemeSelect.astro",
 			},
 			head: [
+				{
+					tag: "link",
+					attrs: { rel: "icon", href: "/favicon.ico", sizes: "48x48" },
+				},
+				{
+					tag: "link",
+					attrs: { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+				},
 				{
 					tag: "meta",
 					attrs: { property: "og:image", content: `${SITE}/og.png` },

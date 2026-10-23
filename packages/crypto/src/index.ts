@@ -1,4 +1,4 @@
-// End-to-end encryption for mima. Everything runs on WebCrypto, so the browser, the
+// End-to-end encryption for vauly. Everything runs on WebCrypto, so the browser, the
 // server and the CLI share one implementation. The server only ever stores what this
 // module outputs: ciphertext, wrapped keys and public keys.
 //
@@ -76,12 +76,12 @@ export async function deriveMasterKeys(
 		info: encoder.encode(info),
 	});
 	const authBits = await crypto.subtle.deriveBits(
-		hkdf("mima/auth"),
+		hkdf("vauly/auth"),
 		masterKey,
 		256,
 	);
 	const wrapKey = await crypto.subtle.deriveKey(
-		hkdf("mima/wrap"),
+		hkdf("vauly/wrap"),
 		masterKey,
 		AES,
 		false,
@@ -94,7 +94,7 @@ export const newSalt = () => toBase64(randomBytes(16));
 
 // --- Symmetric encryption --------------------------------------------------------
 
-/** `base64(iv) . base64(ciphertext)`: the only ciphertext format mima stores. */
+/** `base64(iv) . base64(ciphertext)`: the only ciphertext format vauly stores. */
 export type Sealed = string;
 
 export async function seal(
@@ -238,7 +238,7 @@ export async function wrapKeyFor(
 	const aes = await sharedKey(
 		ephemeral.privateKey,
 		await importPublicKey(recipientPublicKey),
-		encoder.encode(`mima/share:${recipientPublicKey}`),
+		encoder.encode(`vauly/share:${recipientPublicKey}`),
 	);
 	return `${toBase64(ephemeralPublic)}:${await wrapKey(aes, key)}`;
 }
@@ -253,7 +253,7 @@ export async function unwrapKeyFrom(
 	const aes = await sharedKey(
 		privateKey,
 		await importPublicKey(ephemeralPublic),
-		encoder.encode(`mima/share:${ownPublicKey}`),
+		encoder.encode(`vauly/share:${ownPublicKey}`),
 	);
 	return unwrapKey(aes, sealed);
 }
@@ -336,19 +336,19 @@ export async function changeMasterPassword(
 
 // --- Agent tokens ----------------------------------------------------------------
 
-/** `mima_agent_<id>.<secret>.<private key>`: everything an agent needs, shown once. */
+/** `vauly_agent_<id>.<secret>.<private key>`: everything an agent needs, shown once. */
 export function encodeAgentToken(
 	agentId: string,
 	secret: string,
 	privateKeyRaw: Uint8Array,
 ) {
-	return `mima_agent_${agentId}.${secret}.${toBase64(privateKeyRaw).replaceAll("/", "_").replaceAll("+", "-")}`;
+	return `vauly_agent_${agentId}.${secret}.${toBase64(privateKeyRaw).replaceAll("/", "_").replaceAll("+", "-")}`;
 }
 
 export function decodeAgentToken(token: string) {
-	const match = /^mima_agent_([^.]+)\.([^.]+)\.(.+)$/.exec(token.trim());
+	const match = /^vauly_agent_([^.]+)\.([^.]+)\.(.+)$/.exec(token.trim());
 	if (!match?.[1] || !match[2] || !match[3])
-		throw new Error("Not a mima agent token");
+		throw new Error("Not a vauly agent token");
 	return {
 		agentId: match[1],
 		secret: match[2],

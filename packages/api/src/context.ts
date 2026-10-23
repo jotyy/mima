@@ -1,5 +1,5 @@
-import type { Auth, Session } from "@mima/auth";
-import type { Database } from "@mima/db";
+import type { Auth, Session } from "@vauly/auth";
+import type { Database } from "@vauly/db";
 
 export type Context = {
 	session: Session | null;

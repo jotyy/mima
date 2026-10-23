@@ -1,4 +1,4 @@
-import { newDataKey, sealJson, wrapKey } from "@mima/crypto";
+import { newDataKey, sealJson, wrapKey } from "@vauly/crypto";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { cx } from "@/lib/cx";
 import {
@@ -11,8 +11,8 @@ import {
 	NoteIcon,
 } from "@/lib/icons";
 
-// The hero's demo: an item on the left, as you'd type it into mima, and on the right
-// what the server receives for it. It runs mima's real encryption in this page, so every
+// The hero's demo: an item on the left, as you'd type it into vauly, and on the right
+// what the server receives for it. It runs vauly's real encryption in this page, so every
 // keystroke really is sealed with AES-256-GCM under a fresh key.
 
 type Kind = "login" | "api-key" | "note";

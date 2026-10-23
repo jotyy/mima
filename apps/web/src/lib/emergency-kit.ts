@@ -1,5 +1,5 @@
 // The Emergency Kit: one printable page with what it takes to sign in again, and a blank
-// line for the master password, which mima can't reset.
+// line for the master password, which vauly can't reset.
 
 type KitDetails = {
 	name: string;
@@ -24,7 +24,7 @@ export function emergencyKitHtml(kit: KitDetails, date = new Date()) {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>mima Emergency Kit · ${escapeHtml(kit.email)}</title>
+<title>vauly Emergency Kit · ${escapeHtml(kit.email)}</title>
 <style>
 	* { box-sizing: border-box; }
 	body { margin: 0; font: 15px/1.5 "IBM Plex Sans", system-ui, sans-serif; color: #111; background: #fff; }
@@ -47,7 +47,7 @@ export function emergencyKitHtml(kit: KitDetails, date = new Date()) {
 </head>
 <body>
 <main>
-	<h1>mima Emergency Kit</h1>
+	<h1>vauly Emergency Kit</h1>
 	<p class="sub">For ${escapeHtml(kit.name)} in ${escapeHtml(kit.workspace)} · ${escapeHtml(date.toLocaleDateString(undefined, { dateStyle: "long" }))}</p>
 	<div class="card">
 		${row("Sign-in address", escapeHtml(kit.address))}
@@ -60,14 +60,14 @@ export function emergencyKitHtml(kit: KitDetails, date = new Date()) {
 		<li>Your master password can't be reset. Nobody at ${escapeHtml(kit.workspace)}, and nothing on the server, can open your private vault without it.</li>
 		<li>If you lose it anyway, an admin can invite you again. You'll start with an empty private vault, and shared vaults can be opened to you again.</li>
 	</ul>
-	<footer>Printed from mima. This page holds no secret until you write one on it.</footer>
+	<footer>Printed from vauly. This page holds no secret until you write one on it.</footer>
 </main>
 <script>window.addEventListener("load", () => window.print());</script>
 </body>
 </html>`;
 }
 
-const doneKey = (userId: string) => `mima.emergencyKit.${userId}`;
+const doneKey = (userId: string) => `vauly.emergencyKit.${userId}`;
 
 export function emergencyKitDone(userId: string) {
 	try {

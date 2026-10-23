@@ -1,5 +1,5 @@
-import { createAuth as createConfiguredAuth } from "@mima/auth";
-import { createDb, type Database } from "@mima/db";
+import { createAuth as createConfiguredAuth } from "@vauly/auth";
+import { createDb, type Database } from "@vauly/db";
 
 import { ENV } from "./env.server";
 

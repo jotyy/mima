@@ -1,4 +1,5 @@
-import { Button } from "@mima/ui/components/button";
+import { DownloadSimpleIcon } from "@phosphor-icons/react";
+import { Button } from "@vauly/ui/components/button";
 import {
 	Dialog,
 	DialogContent,
@@ -6,9 +7,8 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@mima/ui/components/dialog";
-import { Input } from "@mima/ui/components/input";
-import { DownloadSimpleIcon } from "@phosphor-icons/react";
+} from "@vauly/ui/components/dialog";
+import { Input } from "@vauly/ui/components/input";
 import { type FormEvent, useEffect, useState } from "react";
 import { encode } from "uqr";
 
@@ -74,7 +74,7 @@ export function TurnOnTwoStepDialog({
 						<DialogDescription>
 							Two-step login is on. If you lose your phone, each of these codes
 							signs you in once instead of a code from the app. This is the only
-							time mima shows them.
+							time vauly shows them.
 						</DialogDescription>
 					</DialogHeader>
 					<ol
@@ -91,11 +91,11 @@ export function TurnOnTwoStepDialog({
 							onClick={() => {
 								const link = document.createElement("a");
 								link.href = URL.createObjectURL(
-									new Blob([`mima recovery codes\n\n${text}\n`], {
+									new Blob([`vauly recovery codes\n\n${text}\n`], {
 										type: "text/plain",
 									}),
 								);
-								link.download = "mima-recovery-codes.txt";
+								link.download = "vauly-recovery-codes.txt";
 								link.click();
 								URL.revokeObjectURL(link.href);
 							}}

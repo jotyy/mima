@@ -1,8 +1,8 @@
-import type { AppRouterClient } from "@mima/api/routers/index";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 import { QueryCache, QueryClient } from "@tanstack/react-query";
+import type { AppRouterClient } from "@vauly/api/routers/index";
 
 import { notify } from "../components/notify";
 import { ENV } from "../env.public";
@@ -24,7 +24,7 @@ export function createQueryClient() {
 export const queryClient = createQueryClient();
 
 /** Fired when the server no longer knows this session: signed out elsewhere, or removed. */
-export const SESSION_ENDED = "mima:session-ended";
+export const SESSION_ENDED = "vauly:session-ended";
 
 export const link = new RPCLink({
 	url: `${ENV.VITE_SERVER_URL.replace(/\/$/, "")}/rpc`,

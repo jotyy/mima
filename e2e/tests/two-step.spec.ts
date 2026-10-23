@@ -1,5 +1,5 @@
-import { parseTotp, totpCode } from "@mima/crypto";
 import { expect, type Page, test } from "@playwright/test";
+import { parseTotp, totpCode } from "@vauly/crypto";
 
 import {
 	createWorkspace,

@@ -1,12 +1,12 @@
 # Security policy
 
-mima stores the secrets of the teams that run it, so we take reports seriously and are grateful for them.
+vauly stores the secrets of the teams that run it, so we take reports seriously and are grateful for them.
 
 ## Reporting a vulnerability
 
 **Please don't open a public issue, discussion or pull request for a security problem.**
 
-Report it privately through GitHub instead: open the repository's **Security** tab and choose **Report a vulnerability** ([direct link](https://github.com/jotyy/mima/security/advisories/new)). Only the maintainers can see the report.
+Report it privately through GitHub instead: open the repository's **Security** tab and choose **Report a vulnerability** ([direct link](https://github.com/jotyy/vauly/security/advisories/new)). Only the maintainers can see the report.
 
 Helpful things to include:
 - what an attacker can do, and what they need first (an account, a member's session, control of the server, …)
@@ -17,7 +17,7 @@ We'll confirm we've received the report, keep you updated while we work on a fix
 
 ## Supported versions
 
-mima has no stable release yet. Fixes go to the `main` branch; run the latest `main` to get them.
+vauly has no stable release yet. Fixes go to the `main` branch; run the latest `main` to get them.
 
 ## Scope
 

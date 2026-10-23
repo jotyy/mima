@@ -1,5 +1,5 @@
-import { logoUrl } from "@mima/ui/lib/logos";
 import type { Icon } from "@phosphor-icons/react";
+import { logoUrl } from "@vauly/ui/lib/logos";
 import { useState } from "react";
 
 /** An item's brand logo, or the icon for its kind when there's none to show. */

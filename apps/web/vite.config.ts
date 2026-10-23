@@ -5,10 +5,10 @@ import { defineConfig, type Plugin, type ResolvedConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 /**
- * Serves /mima.json with the API address, so the browser extension can connect from the
+ * Serves /vauly.json with the API address, so the browser extension can connect from the
  * web app address people already know.
  */
-function mimaJson(): Plugin {
+function vaulyJson(): Plugin {
 	// The stack passes VITE_SERVER_URL through `define`; a plain build reads it from the env.
 	let config: ResolvedConfig | undefined;
 	const server = () => {
@@ -24,18 +24,18 @@ function mimaJson(): Plugin {
 	};
 	const body = () => JSON.stringify({ server: server() });
 	return {
-		name: "mima-json",
+		name: "vauly-json",
 		configResolved(resolved) {
 			config = resolved;
 		},
 		configureServer(dev) {
-			dev.middlewares.use("/mima.json", (_request, response) => {
+			dev.middlewares.use("/vauly.json", (_request, response) => {
 				response.setHeader("content-type", "application/json");
 				response.end(body());
 			});
 		},
 		generateBundle() {
-			this.emitFile({ type: "asset", fileName: "mima.json", source: body() });
+			this.emitFile({ type: "asset", fileName: "vauly.json", source: body() });
 		},
 	};
 }
@@ -55,18 +55,29 @@ export default defineConfig(() => {
 				autoCodeSplitting: true,
 			}),
 			react(),
-			mimaJson(),
+			vaulyJson(),
 			VitePWA({
 				registerType: "autoUpdate",
 				workbox: { globPatterns: ["**/*.{js,css,html,png,svg,ico}"] },
 				manifest: {
-					name: "mima",
-					short_name: "mima",
+					name: "vauly",
+					short_name: "vauly",
 					description: "A password manager for small teams.",
 					theme_color: "#FAFAFA",
 					background_color: "#FAFAFA",
+					// Made by brand/build.ts, from the same artwork as the logo.
+					icons: [
+						{ src: "pwa-64x64.png", sizes: "64x64", type: "image/png" },
+						{ src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
+						{ src: "pwa-512x512.png", sizes: "512x512", type: "image/png" },
+						{
+							src: "maskable-icon-512x512.png",
+							sizes: "512x512",
+							type: "image/png",
+							purpose: "maskable",
+						},
+					],
 				},
-				pwaAssets: { disabled: false, config: true },
 				devOptions: { enabled: true },
 			}),
 		],

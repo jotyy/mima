@@ -2,7 +2,7 @@
 @import "@fontsource-variable/spline-sans-mono";
 
 /*
- * Pure, mima's default look: near-white paper, surfaces drawn with a single hairline
+ * Pure, vauly's default look: near-white paper, surfaces drawn with a single hairline
  * instead of drop shadows, and Spline Sans. These are only its tokens; the web app and
  * the browser extension each turn it on with data-style="pure" on <html>.
  */

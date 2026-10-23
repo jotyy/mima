@@ -1,7 +1,7 @@
 // Password strength and generation, and the one-time codes shared with the extension.
 // Everything runs locally.
 
-export { parseTotp, totpCode, totpSecondsLeft } from "@mima/crypto";
+export { parseTotp, totpCode, totpSecondsLeft } from "@vauly/crypto";
 
 export type Strength = "weak" | "fair" | "strong";
 

@@ -1,5 +1,5 @@
 {
-	"name": "@mima/auth",
+	"name": "@vauly/auth",
 	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
@@ -12,14 +12,14 @@
 	"dependencies": {
 		"@better-auth/core": "1.7.7",
 		"@better-auth/drizzle-adapter": "1.7.7",
-		"@mima/crypto": "workspace:*",
-		"@mima/db": "workspace:*",
+		"@vauly/crypto": "workspace:*",
+		"@vauly/db": "workspace:*",
 		"better-auth": "catalog:",
 		"drizzle-orm": "catalog:",
 		"zod": "catalog:"
 	},
 	"devDependencies": {
-		"@mima/config": "workspace:*",
+		"@vauly/config": "workspace:*",
 		"typescript": "catalog:"
 	}
 }

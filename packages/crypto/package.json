@@ -1,5 +1,5 @@
 {
-	"name": "@mima/crypto",
+	"name": "@vauly/crypto",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
@@ -11,7 +11,7 @@
 		"test": "bun test"
 	},
 	"devDependencies": {
-		"@mima/config": "workspace:*",
+		"@vauly/config": "workspace:*",
 		"@types/bun": "^1.3.14",
 		"typescript": "catalog:"
 	}

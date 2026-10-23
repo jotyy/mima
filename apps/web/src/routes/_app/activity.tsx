@@ -1,7 +1,7 @@
-import { Skeleton } from "@mima/ui/components/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@mima/ui/components/tabs";
 import { XIcon } from "@phosphor-icons/react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Skeleton } from "@vauly/ui/components/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@vauly/ui/components/tabs";
 import { useState } from "react";
 import { z } from "zod";
 
@@ -14,7 +14,7 @@ import { useEvents, useItemEvents } from "@/lib/vault-data";
 export const Route = createFileRoute("/_app/activity")({
 	validateSearch: z.object({ item: z.string().optional() }),
 	component: Activity,
-	head: () => ({ meta: [{ title: "Activity · mima" }] }),
+	head: () => ({ meta: [{ title: "Activity · vauly" }] }),
 });
 
 const DAY = 24 * 60 * 60 * 1000;

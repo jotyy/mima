@@ -1,11 +1,11 @@
-@import "@mima/ui/pure.css";
+@import "@vauly/ui/pure.css";
 
 /*
- * Styles to choose from. Every one keeps mima's layout, mima blue, the logo and the
+ * Styles to choose from. Every one keeps vauly's layout, vauly blue, the logo and the
  * sign-in page; they change only how things look: typefaces, neutrals, surfaces, depth,
  * radii and how a selection shows. Fonts load only when a style uses them. The app shell
  * sets data-style on <html> while it's open. Pure is the default; without data-style,
- * mima looks as it first did ("classic").
+ * vauly looks as it first did ("classic").
  */
 
 /* ── Frost: light and airy. A soft blue morning light behind everything, a glass sidebar,
@@ -104,7 +104,7 @@ html[data-style="frost"] [data-slot="page-header"] h1 {
 	letter-spacing: -0.02em;
 }
 
-/* ── Pure: after Mercury and Attio; its tokens live in @mima/ui/pure.css so the browser
+/* ── Pure: after Mercury and Attio; its tokens live in @vauly/ui/pure.css so the browser
    extension wears it too. Here, how the app's own pieces sit in it. ─────────────── */
 
 html[data-style="pure"] [data-slot="page-header"] h1 {

@@ -8,8 +8,8 @@ import {
 	ShieldCheckIcon,
 } from "@/lib/icons";
 
-// A coding agent runs the tests through `mima run`: mima asks a person, the person
-// approves in mima, and the command gets the value without the agent ever seeing it.
+// A coding agent runs the tests through `vauly run`: vauly asks a person, the person
+// approves in vauly, and the command gets the value without the agent ever seeing it.
 // Plays once when it comes into view, then waits to be replayed.
 
 type Step = {
@@ -32,7 +32,7 @@ const steps: Step[] = [
 		at: 1100,
 		line: (
 			<span>
-				<span className="text-terminal-faint">$</span> mima run -- bun test api
+				<span className="text-terminal-faint">$</span> vauly run -- bun test api
 			</span>
 		),
 	},
@@ -50,7 +50,7 @@ const steps: Step[] = [
 		approval: "asking",
 		line: (
 			<span className="text-terminal-dim">
-				<Tag /> Waiting for someone to allow it in mima…
+				<Tag /> Waiting for someone to allow it in vauly…
 			</span>
 		),
 	},
@@ -87,7 +87,7 @@ const steps: Step[] = [
 const END = 6400;
 
 function Tag() {
-	return <span className="text-terminal-link">mima</span>;
+	return <span className="text-terminal-link">vauly</span>;
 }
 
 export default function AgentsDemo() {
@@ -175,7 +175,7 @@ export default function AgentsDemo() {
 				</div>
 			</div>
 
-			{/* The request, as a person sees it in mima */}
+			{/* The request, as a person sees it in vauly */}
 			<div
 				className={cx(
 					"bg-surface shadow-popover ring-line-subtle ease-emphasized absolute right-3 bottom-0 left-10 rounded-2xl p-4 ring-1 transition-all duration-500 sm:left-auto sm:w-88 lg:-right-8",

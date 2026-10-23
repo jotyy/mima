@@ -1,11 +1,11 @@
-import { Button } from "@mima/ui/components/button";
+import { EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
+import { Button } from "@vauly/ui/components/button";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
-} from "@mima/ui/components/tooltip";
-import { cn } from "@mima/ui/lib/utils";
-import { EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
+} from "@vauly/ui/components/tooltip";
+import { cn } from "@vauly/ui/lib/utils";
 import { useState } from "react";
 
 import { CopyButton } from "./copy-button";

@@ -13,7 +13,7 @@ export const DEFAULT_STYLE = "pure";
 
 export type AppStyle = (typeof APP_STYLES)[number]["value"];
 
-const KEY = "mima.style";
+const KEY = "vauly.style";
 const listeners = new Set<() => void>();
 
 function read(): AppStyle {

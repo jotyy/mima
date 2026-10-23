@@ -1,11 +1,11 @@
-import type { Database } from "@mima/db";
+import { ORPCError } from "@orpc/server";
+import type { Database } from "@vauly/db";
 import {
 	type EventAction,
 	event,
 	item,
 	vaultAccess,
-} from "@mima/db/schema/vault";
-import { ORPCError } from "@orpc/server";
+} from "@vauly/db/schema/vault";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
 const alphabet = "0123456789abcdefghjkmnpqrstvwxyz";

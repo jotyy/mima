@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest something mima should do.
+description: Suggest something vauly should do.
 labels: [enhancement]
 body:
   - type: textarea

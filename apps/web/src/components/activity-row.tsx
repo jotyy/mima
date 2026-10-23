@@ -1,6 +1,6 @@
-import { Avatar, AvatarFallback } from "@mima/ui/components/avatar";
-import { cn } from "@mima/ui/lib/utils";
 import { LinkSimpleIcon } from "@phosphor-icons/react";
+import { Avatar, AvatarFallback } from "@vauly/ui/components/avatar";
+import { cn } from "@vauly/ui/lib/utils";
 
 import { describeEvent } from "@/lib/describe-event";
 import { ago, initials, toneDot } from "@/lib/format";

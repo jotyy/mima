@@ -1,5 +1,5 @@
-@import "@mima/ui/globals.css";
-@import "@mima/ui/pure.css";
+@import "@vauly/ui/globals.css";
+@import "@vauly/ui/pure.css";
 
 @source "../**/*.{astro,ts,tsx}";
 
@@ -110,7 +110,7 @@ body {
 	}
 }
 
-/* ── The hero's sky: navy at the top, mima blue in the middle, the page at the bottom ── */
+/* ── The hero's sky: navy at the top, vauly blue in the middle, the page at the bottom ── */
 
 [data-slot="hero-sky"] {
 	position: relative;

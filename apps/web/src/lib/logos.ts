@@ -1,13 +1,13 @@
 import {
 	BRANDFETCH_CLIENT_ID,
 	logoUrl as brandLogoUrl,
-} from "@mima/ui/lib/logos";
+} from "@vauly/ui/lib/logos";
 import { useSyncExternalStore } from "react";
 
-export { brandDomain, logoDomain } from "@mima/ui/lib/logos";
+export { brandDomain, logoDomain } from "@vauly/ui/lib/logos";
 
 // The browser asks Brandfetch for a logo by domain, so Brandfetch learns which brands'
-// logos this device shows, and the address of this mima (its Referer, which it
+// logos this device shows, and the address of this vauly (its Referer, which it
 // requires). Logos can be turned off per device in Settings, or for a whole instance
 // with VITE_BRANDFETCH_CLIENT_ID=off.
 
@@ -20,7 +20,7 @@ export const logoUrl = (domain: string, size: number) =>
 
 // Whether this device shows logos: on unless someone turned them off in Settings.
 
-const KEY = "mima.logos";
+const KEY = "vauly.logos";
 const listeners = new Set<() => void>();
 
 function read() {

@@ -1,5 +1,5 @@
-import { accessRequest, agent, agentGrant, item } from "@mima/db/schema/vault";
 import { ORPCError } from "@orpc/server";
+import { accessRequest, agent, agentGrant, item } from "@vauly/db/schema/vault";
 import { and, eq, gt, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
@@ -16,7 +16,7 @@ function sameHash(a: string, b: string) {
 }
 
 /**
- * Called by `mima run` with `Authorization: Bearer <agentId>.<secret>`. The agent's
+ * Called by `vauly run` with `Authorization: Bearer <agentId>.<secret>`. The agent's
  * private key never leaves its machine; it only receives ciphertext it can open.
  */
 const agentProcedure = publicProcedure.use(async ({ context, next }) => {
@@ -33,14 +33,14 @@ const agentProcedure = publicProcedure.use(async ({ context, next }) => {
 	}
 	if (!row.enabled)
 		throw new ORPCError("FORBIDDEN", {
-			message: "This agent is paused in mima",
+			message: "This agent is paused in vauly",
 		});
 	if (row.expiresAt && row.expiresAt.getTime() < Date.now()) {
 		throw new ORPCError("FORBIDDEN", {
 			message: "This agent's access has expired",
 		});
 	}
-	const host = context.headers.get("x-mima-host")?.slice(0, 80) ?? row.host;
+	const host = context.headers.get("x-vauly-host")?.slice(0, 80) ?? row.host;
 	await context.db
 		.update(agent)
 		.set({ lastSeenAt: new Date(), host })
@@ -57,7 +57,7 @@ export const agentApiRouter = {
 
 	/**
 	 * For each item: the sealed item and its key wrapped to this agent, or a pending
-	 * request that a person approves in mima.
+	 * request that a person approves in vauly.
 	 */
 	resolve: agentProcedure
 		.input(

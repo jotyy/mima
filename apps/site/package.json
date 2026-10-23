@@ -2,7 +2,7 @@
 	"name": "site",
 	"version": "0.0.0",
 	"private": true,
-	"description": "mima's website: the landing page and the docs.",
+	"description": "vauly's website: the landing page and the docs.",
 	"type": "module",
 	"scripts": {
 		"sync-docs": "bun scripts/sync-docs.ts",
@@ -15,8 +15,8 @@
 	"dependencies": {
 		"@astrojs/preact": "6.1.1",
 		"@astrojs/starlight": "0.42.6",
-		"@mima/crypto": "workspace:*",
-		"@mima/ui": "workspace:*",
+		"@vauly/crypto": "workspace:*",
+		"@vauly/ui": "workspace:*",
 		"@phosphor-icons/core": "2.1.1",
 		"@tailwindcss/vite": "^4.3.3",
 		"astro": "7.4.2",

@@ -1,4 +1,3 @@
-import { cn } from "@mima/ui/lib/utils";
 import {
 	GlobeIcon,
 	KeyIcon,
@@ -6,6 +5,7 @@ import {
 	RobotIcon,
 	TerminalWindowIcon,
 } from "@phosphor-icons/react";
+import { cn } from "@vauly/ui/lib/utils";
 
 import { useState } from "react";
 

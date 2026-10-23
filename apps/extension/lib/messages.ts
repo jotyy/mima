@@ -1,10 +1,10 @@
-// What the page script, mima's frame inside the page and the background say to each
+// What the page script, vauly's frame inside the page and the background say to each
 // other. Passwords only ever travel from the page script to the background: the frame
 // asks the background to fill or save, and never holds a secret itself.
 
 /** A login the page script saw being submitted. */
 export type LoginMessage = {
-	type: "mima:login";
+	type: "vauly:login";
 	username: string;
 	password: string;
 };
@@ -13,27 +13,27 @@ export type LoginMessage = {
 export type PageRequest =
 	| LoginMessage
 	/** Someone focused a login field: is there anything to show? */
-	| { type: "mima:field" }
+	| { type: "vauly:field" }
 	/** The page loaded: is a login from before waiting to be saved? */
-	| { type: "mima:offer?" };
+	| { type: "vauly:offer?" };
 
-/** Asked by mima's frame, about the tab it sits in. */
+/** Asked by vauly's frame, about the tab it sits in. */
 export type FrameRequest =
-	| { type: "mima:menu" }
-	| { type: "mima:fill"; id: string }
-	| { type: "mima:offer" }
-	| { type: "mima:save"; vaultId: string; name: string; username: string }
-	| { type: "mima:update" }
-	| { type: "mima:dismiss" };
+	| { type: "vauly:menu" }
+	| { type: "vauly:fill"; id: string }
+	| { type: "vauly:offer" }
+	| { type: "vauly:save"; vaultId: string; name: string; username: string }
+	| { type: "vauly:update" }
+	| { type: "vauly:dismiss" };
 
 export type Request = PageRequest | FrameRequest;
 
 /** Sent by the background to the page script. */
 export type PageMessage =
 	/** A login was just captured on this page; offer to save it. */
-	| { type: "mima:offer-ready" }
+	| { type: "vauly:offer-ready" }
 	/** A fill is about to focus the page's fields; don't open the menu for that. */
-	| { type: "mima:filling" };
+	| { type: "vauly:filling" };
 
 export type MenuLogin = {
 	id: string;

@@ -1,10 +1,10 @@
-import { Button } from "@mima/ui/components/button";
+import { CheckIcon, CopyIcon } from "@phosphor-icons/react";
+import { Button } from "@vauly/ui/components/button";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
-} from "@mima/ui/components/tooltip";
-import { CheckIcon, CopyIcon } from "@phosphor-icons/react";
+} from "@vauly/ui/components/tooltip";
 import { useState } from "react";
 
 import { copyToClipboard } from "./notify";

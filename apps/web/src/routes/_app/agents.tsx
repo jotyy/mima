@@ -1,13 +1,3 @@
-import { Badge } from "@mima/ui/components/badge";
-import { Button } from "@mima/ui/components/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@mima/ui/components/dropdown-menu";
-import { Switch } from "@mima/ui/components/switch";
 import {
 	ClockIcon,
 	DotsThreeIcon,
@@ -16,6 +6,16 @@ import {
 	TrashIcon,
 } from "@phosphor-icons/react";
 import { createFileRoute } from "@tanstack/react-router";
+import { Badge } from "@vauly/ui/components/badge";
+import { Button } from "@vauly/ui/components/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@vauly/ui/components/dropdown-menu";
+import { Switch } from "@vauly/ui/components/switch";
 import { useState } from "react";
 
 import { NewAgentDialog } from "@/components/agent-dialogs";
@@ -37,7 +37,7 @@ import {
 
 export const Route = createFileRoute("/_app/agents")({
 	component: Agents,
-	head: () => ({ meta: [{ title: "Agents · mima" }] }),
+	head: () => ({ meta: [{ title: "Agents · vauly" }] }),
 });
 
 const kindLabel = { mcp: "Coding agent", cli: "Script", ci: "CI" } as const;

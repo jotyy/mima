@@ -1,26 +1,3 @@
-import { Avatar, AvatarFallback } from "@mima/ui/components/avatar";
-import { Badge } from "@mima/ui/components/badge";
-import { Button } from "@mima/ui/components/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@mima/ui/components/dropdown-menu";
-import { Kbd } from "@mima/ui/components/kbd";
-import {
-	Sheet,
-	SheetContent,
-	SheetTitle,
-	SheetTrigger,
-} from "@mima/ui/components/sheet";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@mima/ui/components/tooltip";
-import { cn } from "@mima/ui/lib/utils";
 import {
 	CaretUpDownIcon,
 	DesktopIcon,
@@ -39,6 +16,29 @@ import {
 	VaultIcon,
 } from "@phosphor-icons/react";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { Avatar, AvatarFallback } from "@vauly/ui/components/avatar";
+import { Badge } from "@vauly/ui/components/badge";
+import { Button } from "@vauly/ui/components/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@vauly/ui/components/dropdown-menu";
+import { Kbd } from "@vauly/ui/components/kbd";
+import {
+	Sheet,
+	SheetContent,
+	SheetTitle,
+	SheetTrigger,
+} from "@vauly/ui/components/sheet";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@vauly/ui/components/tooltip";
+import { cn } from "@vauly/ui/lib/utils";
 import { useTheme } from "next-themes";
 import {
 	type ComponentType,
@@ -58,7 +58,7 @@ import {
 } from "@/lib/vault-data";
 
 import { CommandPalette } from "./command-palette";
-import { MimaMark } from "./mima-mark";
+import { VaulyMark } from "./vauly-mark";
 
 export function AppShell() {
 	const [searching, setSearching] = useState(false);
@@ -131,8 +131,8 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
 			<div className="flex items-center gap-1">
 				<MobileNav />
 				<div className="text-body-sm text-fg flex items-center gap-2 px-2 font-medium">
-					<MimaMark />
-					{workspace.data?.workspaceName ?? "mima"}
+					<VaulyMark />
+					{workspace.data?.workspaceName ?? "vauly"}
 				</div>
 				<Tooltip>
 					<TooltipTrigger
@@ -473,7 +473,7 @@ function UserMenu() {
 	);
 }
 
-const REPOSITORY = "https://github.com/jotyy/mima";
+const REPOSITORY = "https://github.com/jotyy/vauly";
 
 const themes = [
 	{ value: "light", label: "Light", icon: SunIcon },

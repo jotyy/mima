@@ -1,5 +1,3 @@
-import { Button } from "@mima/ui/components/button";
-import { Input } from "@mima/ui/components/input";
 import { WarningIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -8,6 +6,8 @@ import {
 	Navigate,
 	useNavigate,
 } from "@tanstack/react-router";
+import { Button } from "@vauly/ui/components/button";
+import { Input } from "@vauly/ui/components/input";
 import { useState } from "react";
 import { z } from "zod";
 
@@ -27,7 +27,7 @@ import { client } from "@/utils/orpc";
 export const Route = createFileRoute("/join")({
 	validateSearch: z.object({ token: z.string().default("") }),
 	component: Join,
-	head: () => ({ meta: [{ title: "Join your team · mima" }] }),
+	head: () => ({ meta: [{ title: "Join your team · vauly" }] }),
 });
 
 function Join() {
@@ -69,7 +69,7 @@ function Join() {
 		);
 	}
 
-	const workspaceName = workspace.data?.workspaceName ?? "mima";
+	const workspaceName = workspace.data?.workspaceName ?? "vauly";
 	return (
 		<AuthLayout
 			title={`Join ${workspaceName}`}

@@ -1,7 +1,7 @@
 import type { ItemFields } from "./vault-data";
 
 // A decrypted backup in Bitwarden's CSV layout, so most password managers can read it,
-// plus the item kind and tags, so a mima import brings back exactly what was there.
+// plus the item kind and tags, so a vauly import brings back exactly what was there.
 
 const columns = [
 	"folder",
@@ -15,8 +15,8 @@ const columns = [
 	"login_username",
 	"login_password",
 	"login_totp",
-	"mima_kind",
-	"mima_tags",
+	"vauly_kind",
+	"vauly_tags",
 ] as const;
 
 export type BackupRow = ItemFields & { vault: string; favorite?: boolean };
@@ -35,8 +35,8 @@ export function toBackupCsv(rows: BackupRow[]) {
 			login_username: row.username ?? "",
 			login_password: row.secret ?? "",
 			login_totp: row.totp ?? "",
-			mima_kind: row.kind,
-			mima_tags: (row.tags ?? []).join(";"),
+			vauly_kind: row.kind,
+			vauly_tags: (row.tags ?? []).join(";"),
 		};
 		return columns.map((column) => quote(values[column])).join(",");
 	});
@@ -48,5 +48,5 @@ function quote(value: string) {
 }
 
 export function backupFileName(date = new Date()) {
-	return `mima-backup-${date.toISOString().slice(0, 10)}.csv`;
+	return `vauly-backup-${date.toISOString().slice(0, 10)}.csv`;
 }

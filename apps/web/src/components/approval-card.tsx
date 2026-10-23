@@ -1,5 +1,5 @@
-import { Badge } from "@mima/ui/components/badge";
-import { Button } from "@mima/ui/components/button";
+import { Badge } from "@vauly/ui/components/badge";
+import { Button } from "@vauly/ui/components/button";
 import { useState } from "react";
 
 import { ago } from "@/lib/format";
@@ -71,7 +71,7 @@ export function ApprovalCard({
 				<Badge variant="warning">Needs you</Badge>
 			</div>
 			<div className="bg-surface-sunken text-caption mx-3.5 mb-3.5 flex flex-col gap-1 rounded-lg px-3 py-2.5 font-mono">
-				<span className="text-fg-muted">$ mima run -- {request.command}</span>
+				<span className="text-fg-muted">$ vauly run -- {request.command}</span>
 				{item && (
 					<span className="text-fg-subtle">injects {itemReference(item)}</span>
 				)}

@@ -1,21 +1,21 @@
 {
-	"name": "@mima/cli",
+	"name": "@vauly/cli",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
 	"bin": {
-		"mima": "./src/index.ts"
+		"vauly": "./src/index.ts"
 	},
 	"scripts": {
 		"check-types": "tsc --noEmit",
-		"build": "bun build --compile --minify ./src/index.ts --outfile dist/mima",
+		"build": "bun build --compile --minify ./src/index.ts --outfile dist/vauly",
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@mima/crypto": "workspace:*"
+		"@vauly/crypto": "workspace:*"
 	},
 	"devDependencies": {
-		"@mima/config": "workspace:*",
+		"@vauly/config": "workspace:*",
 		"@types/bun": "^1.3.14",
 		"typescript": "catalog:"
 	}

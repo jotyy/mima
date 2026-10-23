@@ -7,13 +7,13 @@ const CLI = fileURLToPath(
 	new URL("../../apps/cli/src/index.ts", import.meta.url),
 );
 
-/** Runs the real `mima` CLI the way an agent would. */
-export function mima(args: string[], env: Record<string, string>) {
+/** Runs the real `vauly` CLI the way an agent would. */
+export function vauly(args: string[], env: Record<string, string>) {
 	const child: ChildProcess = spawn("bun", [CLI, ...args], {
 		env: {
 			...process.env,
-			MIMA_SERVER: API_URL,
-			MIMA_APPROVAL_TIMEOUT: "60",
+			VAULY_SERVER: API_URL,
+			VAULY_APPROVAL_TIMEOUT: "60",
 			...env,
 		},
 	});
@@ -36,7 +36,7 @@ export function mima(args: string[], env: Record<string, string>) {
 			const started = Date.now();
 			while (!stderr.includes(text)) {
 				if (Date.now() - started > timeout) {
-					throw new Error(`mima never printed "${text}". stderr: ${stderr}`);
+					throw new Error(`vauly never printed "${text}". stderr: ${stderr}`);
 				}
 				await new Promise((resolve) => setTimeout(resolve, 200));
 			}

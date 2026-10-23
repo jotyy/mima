@@ -60,7 +60,7 @@ test("the auto-lock time is kept on this device", async ({ page }) => {
 	await openSettings(page);
 	await page.getByRole("combobox", { name: "Lock after" }).click();
 	await page.getByRole("option", { name: "5 minutes", exact: true }).click();
-	await expect(page.getByText("mima now locks after 5 minutes")).toBeVisible();
+	await expect(page.getByText("vauly now locks after 5 minutes")).toBeVisible();
 	await expect(page.getByText(/Locks in 5 minutes/)).toBeVisible();
 
 	// A reload locks the vault; the choice survives it.
@@ -103,7 +103,7 @@ test("a backup needs the master password and holds every item", async ({
 		dialog.getByRole("button", { name: "Download backup" }).click(),
 	]);
 	expect(download.suggestedFilename()).toMatch(
-		/^mima-backup-\d{4}-\d{2}-\d{2}\.csv$/,
+		/^vauly-backup-\d{4}-\d{2}-\d{2}\.csv$/,
 	);
 	const csv = await readFile((await download.path()) ?? "", "utf8");
 	expect(csv.split("\n")[0]).toContain("login_password");

@@ -1,11 +1,11 @@
-import { Button } from "@mima/ui/components/button";
-import { Input } from "@mima/ui/components/input";
-import { cn } from "@mima/ui/lib/utils";
 import {
 	ArrowsClockwiseIcon,
 	CaretDownIcon,
 	FloppyDiskIcon,
 } from "@phosphor-icons/react";
+import { Button } from "@vauly/ui/components/button";
+import { Input } from "@vauly/ui/components/input";
+import { cn } from "@vauly/ui/lib/utils";
 import { type ReactNode, useState } from "react";
 
 import type { OfferView } from "@/lib/messages";
@@ -33,7 +33,7 @@ export function SaveOffer({
 	) => Promise<void>;
 	onUpdate: () => Promise<void>;
 	onDismiss: () => void;
-	/** On a site's page, the card shows mima's mark so it's clear who's asking. */
+	/** On a site's page, the card shows vauly's mark so it's clear who's asking. */
 	onPage?: boolean;
 	className?: string;
 }) {
@@ -90,7 +90,7 @@ export function SaveOffer({
 			<OfferTitle
 				icon={FloppyDiskIcon}
 				onPage={onPage}
-				title="Save this login to mima?"
+				title="Save this login to vauly?"
 			>
 				You just signed in on {offer.host}.
 			</OfferTitle>
@@ -162,7 +162,7 @@ function OfferTitle({
 	return (
 		<div className="flex items-start gap-2.5">
 			{onPage ? (
-				<img src="/icon/32.png" alt="mima" className="size-7 shrink-0" />
+				<img src="/icon/32.png" alt="vauly" className="size-7 shrink-0" />
 			) : (
 				<span className="bg-brand-soft text-brand flex size-7 shrink-0 items-center justify-center rounded-md">
 					<Icon className="size-4" />

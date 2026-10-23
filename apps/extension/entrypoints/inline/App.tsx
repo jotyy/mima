@@ -1,5 +1,5 @@
-import { Button } from "@mima/ui/components/button";
 import { CheckCircleIcon, GlobeIcon } from "@phosphor-icons/react";
+import { Button } from "@vauly/ui/components/button";
 import {
 	type ReactNode,
 	useCallback,
@@ -20,18 +20,18 @@ import {
 	type OfferState,
 } from "@/lib/messages";
 
-// mima's frame inside a site's page. The page script decides where it goes; what it
+// vauly's frame inside a site's page. The page script decides where it goes; what it
 // shows comes from the background, which knows the tab it's in.
 
 const view = location.hash === "#save" ? "save" : "menu";
 
 export function tellPage(
-	message: { mima: "size"; height: number } | { mima: "close" },
+	message: { vauly: "size"; height: number } | { vauly: "close" },
 ) {
 	window.parent.postMessage(message, "*");
 }
 
-const close = () => tellPage({ mima: "close" });
+const close = () => tellPage({ vauly: "close" });
 
 export default function App() {
 	return view === "save" ? <Save /> : <Menu />;
@@ -92,7 +92,7 @@ function Menu() {
 	const [state, setState] = useState<MenuState | null>(null);
 	const [note, setNote] = useState("");
 	const load = useCallback(() => {
-		void ask<MenuState>({ type: "mima:menu" }).then(setState);
+		void ask<MenuState>({ type: "vauly:menu" }).then(setState);
 	}, []);
 	useEffect(load, [load]);
 	useSessionChange(load);
@@ -107,7 +107,7 @@ function Menu() {
 					<img src="/icon/32.png" alt="" className="size-7 shrink-0" />
 					<div className="flex min-w-0 flex-1 flex-col">
 						<span className="text-body-sm text-fg font-medium">
-							{locked ? "mima is locked" : "Sign in to mima"}
+							{locked ? "vauly is locked" : "Sign in to vauly"}
 						</span>
 						<span className="text-caption text-fg-subtle">
 							{locked
@@ -121,7 +121,7 @@ function Menu() {
 						onClick={async () => {
 							if (!(await openPopup()))
 								setNote(
-									"Click mima among your browser's extensions to continue.",
+									"Click vauly among your browser's extensions to continue.",
 								);
 						}}
 					>
@@ -134,7 +134,7 @@ function Menu() {
 	}
 
 	const fill = async (login: MenuLogin) => {
-		const result = await ask<FillResult>({ type: "mima:fill", id: login.id });
+		const result = await ask<FillResult>({ type: "vauly:fill", id: login.id });
 		if (!result?.ok) {
 			setNote("There's no password field to fill on this page.");
 			return;
@@ -153,7 +153,7 @@ function Menu() {
 		<Card>
 			{state.logins.length === 0 ? (
 				<p className="text-caption text-fg-subtle px-3 py-3">
-					Nothing saved for {state.host} yet. Sign in, and mima offers to keep
+					Nothing saved for {state.host} yet. Sign in, and vauly offers to keep
 					the login.
 				</p>
 			) : (
@@ -191,7 +191,7 @@ function Menu() {
 			) : (
 				<div className="border-line-subtle text-micro text-fg-subtle flex items-center gap-1.5 border-t px-3 py-2">
 					<img src="/icon/16.png" alt="" className="size-3.5" />
-					mima
+					vauly
 				</div>
 			)}
 		</Card>
@@ -207,7 +207,7 @@ function Save() {
 	/** Saving from here clears the waiting login too; that mustn't close the frame early. */
 	const saving = useRef(false);
 	const load = useCallback(() => {
-		void ask<OfferState>({ type: "mima:offer" }).then((next) => {
+		void ask<OfferState>({ type: "vauly:offer" }).then((next) => {
 			if (saving.current) return;
 			// Saved or dismissed somewhere else, such as the popup.
 			if (!next || next.status === "none") close();
@@ -228,7 +228,7 @@ function Save() {
 		setTimeout(close, 1500);
 	};
 	const dismiss = async () => {
-		await ask<Done>({ type: "mima:dismiss" });
+		await ask<Done>({ type: "vauly:dismiss" });
 		close();
 	};
 
@@ -252,13 +252,13 @@ function Save() {
 			<Card>
 				<section aria-label="Save login" className="flex flex-col gap-3 p-3">
 					<div className="flex items-start gap-2.5">
-						<img src="/icon/32.png" alt="mima" className="size-7 shrink-0" />
+						<img src="/icon/32.png" alt="vauly" className="size-7 shrink-0" />
 						<div className="flex min-w-0 flex-col gap-0.5">
 							<h2 className="text-body-sm text-fg font-medium">
-								Save this login to mima?
+								Save this login to vauly?
 							</h2>
 							<p className="text-caption text-fg-muted">
-								You just signed in on {state.host}. Unlock mima to keep it; it
+								You just signed in on {state.host}. Unlock vauly to keep it; it
 								waits for five minutes.
 							</p>
 						</div>
@@ -273,7 +273,7 @@ function Save() {
 							onClick={async () => {
 								if (!(await openPopup()))
 									setNote(
-										"Click mima among your browser's extensions to unlock.",
+										"Click vauly among your browser's extensions to unlock.",
 									);
 							}}
 						>
@@ -294,9 +294,9 @@ function Save() {
 			vaults={state.vaults}
 			className="shadow-popover"
 			onSave={(vaultId, login) =>
-				send({ type: "mima:save", vaultId, ...login })
+				send({ type: "vauly:save", vaultId, ...login })
 			}
-			onUpdate={() => send({ type: "mima:update" })}
+			onUpdate={() => send({ type: "vauly:update" })}
 			onDismiss={dismiss}
 		/>
 	);

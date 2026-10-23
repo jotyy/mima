@@ -1,4 +1,5 @@
-import { Button } from "@mima/ui/components/button";
+import { WarningIcon } from "@phosphor-icons/react";
+import { Button } from "@vauly/ui/components/button";
 import {
 	Dialog,
 	DialogContent,
@@ -6,10 +7,9 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@mima/ui/components/dialog";
-import { Input } from "@mima/ui/components/input";
-import { Tabs, TabsList, TabsTrigger } from "@mima/ui/components/tabs";
-import { WarningIcon } from "@phosphor-icons/react";
+} from "@vauly/ui/components/dialog";
+import { Input } from "@vauly/ui/components/input";
+import { Tabs, TabsList, TabsTrigger } from "@vauly/ui/components/tabs";
 import { useEffect, useState } from "react";
 
 import { ENV } from "@/env.public";
@@ -56,7 +56,7 @@ export function NewAgentDialog({
 		}
 	}, [open]);
 
-	const env = token ? `MIMA_SERVER=${serverUrl()}\nMIMA_TOKEN=${token}` : "";
+	const env = token ? `VAULY_SERVER=${serverUrl()}\nVAULY_TOKEN=${token}` : "";
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>

@@ -1,6 +1,6 @@
-import type { AppRouterClient } from "@mima/api/routers/index";
-import { parseTotp, totpCode } from "@mima/crypto";
-import { logoDomain } from "@mima/ui/lib/logos";
+import type { AppRouterClient } from "@vauly/api/routers/index";
+import { parseTotp, totpCode } from "@vauly/crypto";
+import { logoDomain } from "@vauly/ui/lib/logos";
 
 import {
 	dropCapture,
@@ -51,7 +51,7 @@ export default defineBackground(() => {
 		if (!isRequest(message) || tabId === undefined) return;
 		const tab = { id: tabId, url: sender.tab?.url ?? "" };
 		void answer(message, tab, {
-			// Filling and saving come only from mima's own frame; the page script just reports.
+			// Filling and saving come only from vauly's own frame; the page script just reports.
 			fromFrame: Boolean(sender.url?.startsWith(browser.runtime.getURL("/"))),
 			topFrame: sender.frameId === 0,
 			url: sender.url ?? tab.url,
@@ -71,7 +71,7 @@ export default defineBackground(() => {
 
 function isRequest(message: unknown): message is Request {
 	const type = (message as { type?: unknown } | null)?.type;
-	return typeof type === "string" && type.startsWith("mima:");
+	return typeof type === "string" && type.startsWith("vauly:");
 }
 
 async function answer(
@@ -80,28 +80,28 @@ async function answer(
 	sender: { fromFrame: boolean; topFrame: boolean; url: string },
 ): Promise<unknown> {
 	switch (request.type) {
-		case "mima:login":
+		case "vauly:login":
 			if (sender.topFrame && !sender.fromFrame && isLogin(request))
 				await remember(tab.id, request, sender.url);
 			return null;
-		case "mima:field":
+		case "vauly:field":
 			return { show: await wantsMenu(tab.url) };
-		case "mima:offer?":
+		case "vauly:offer?":
 			return { show: (await offerState(tab)).status !== "none" };
 	}
 	if (!sender.fromFrame) return null;
 	switch (request.type) {
-		case "mima:menu":
+		case "vauly:menu":
 			return menuState(tab.url);
-		case "mima:fill":
+		case "vauly:fill":
 			return fill(tab, request.id);
-		case "mima:offer":
+		case "vauly:offer":
 			return offerState(tab);
-		case "mima:save":
+		case "vauly:save":
 			return save(tab, request);
-		case "mima:update":
+		case "vauly:update":
 			return update(tab);
-		case "mima:dismiss":
+		case "vauly:dismiss":
 			await dropCapture(tab.id);
 			return { ok: true } satisfies Done;
 	}
@@ -152,7 +152,7 @@ async function openVault(): Promise<Open | null> {
 }
 
 /**
- * Whether mima has anything to say on this site: never on mima itself. Before the
+ * Whether vauly has anything to say on this site: never on vauly itself. Before the
  * extension is connected and signed in, it can only offer to do that.
  */
 async function siteStatus(url: string) {
@@ -203,7 +203,7 @@ async function fill(tab: Tab, id: string): Promise<FillResult> {
 	if (!open || !entry || !fillable(entry, tab.url)) return { ok: false };
 	await touch();
 	await browser.tabs
-		.sendMessage(tab.id, { type: "mima:filling" } satisfies PageMessage)
+		.sendMessage(tab.id, { type: "vauly:filling" } satisfies PageMessage)
 		.catch(() => {});
 	const [result] = await browser.scripting.executeScript({
 		target: { tabId: tab.id, frameIds: [0] },
@@ -226,7 +226,7 @@ async function fill(tab: Tab, id: string): Promise<FillResult> {
 // ── Saving what was typed ───────────────────────────────────────────────────────────
 
 async function remember(tabId: number, login: LoginMessage, url: string) {
-	// Nothing to save into yet, and never the master password typed into mima itself.
+	// Nothing to save into yet, and never the master password typed into vauly itself.
 	if ((await siteStatus(url)) !== "on") return;
 	const capture = {
 		username: login.username,
@@ -239,7 +239,7 @@ async function remember(tabId: number, login: LoginMessage, url: string) {
 	if (open && !offerFor(capture, open.entries)) return dropCapture(tabId);
 	await saveCapture(tabId, capture);
 	await browser.tabs
-		.sendMessage(tabId, { type: "mima:offer-ready" } satisfies PageMessage)
+		.sendMessage(tabId, { type: "vauly:offer-ready" } satisfies PageMessage)
 		.catch(() => {});
 }
 

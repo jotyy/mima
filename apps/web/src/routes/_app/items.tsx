@@ -1,12 +1,3 @@
-import { Button } from "@mima/ui/components/button";
-import {
-	InputGroup,
-	InputGroupAddon,
-	InputGroupInput,
-} from "@mima/ui/components/input-group";
-import { Skeleton } from "@mima/ui/components/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@mima/ui/components/tabs";
-import { cn } from "@mima/ui/lib/utils";
 import {
 	CaretLeftIcon,
 	LockSimpleIcon,
@@ -17,6 +8,15 @@ import {
 	WarningIcon,
 } from "@phosphor-icons/react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Button } from "@vauly/ui/components/button";
+import {
+	InputGroup,
+	InputGroupAddon,
+	InputGroupInput,
+} from "@vauly/ui/components/input-group";
+import { Skeleton } from "@vauly/ui/components/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@vauly/ui/components/tabs";
+import { cn } from "@vauly/ui/lib/utils";
 import type { CSSProperties } from "react";
 import { z } from "zod";
 import { ImportDialog } from "@/components/import-dialog";
@@ -48,7 +48,7 @@ const searchSchema = z.object({
 export const Route = createFileRoute("/_app/items")({
 	validateSearch: searchSchema,
 	component: Items,
-	head: () => ({ meta: [{ title: "All items · mima" }] }),
+	head: () => ({ meta: [{ title: "All items · vauly" }] }),
 });
 
 const kinds = [

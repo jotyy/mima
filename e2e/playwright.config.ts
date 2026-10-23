@@ -4,7 +4,8 @@ import { defineConfig, devices } from "@playwright/test";
 // touches the database behind `bun run dev`. Each spec file resets it first.
 export const API_PORT = 3100;
 export const WEB_PORT = 3101;
-export const RESET_TOKEN = process.env.MIMA_E2E_RESET_TOKEN ?? "mima-e2e-local";
+export const RESET_TOKEN =
+	process.env.VAULY_E2E_RESET_TOKEN ?? "vauly-e2e-local";
 export const API_URL = `http://localhost:${API_PORT}`;
 
 export default defineConfig({
@@ -27,9 +28,9 @@ export default defineConfig({
 		cwd: "../packages/infra",
 		url: `http://localhost:${WEB_PORT}`,
 		env: {
-			MIMA_API_PORT: String(API_PORT),
-			MIMA_WEB_PORT: String(WEB_PORT),
-			MIMA_E2E_RESET_TOKEN: RESET_TOKEN,
+			VAULY_API_PORT: String(API_PORT),
+			VAULY_WEB_PORT: String(WEB_PORT),
+			VAULY_E2E_RESET_TOKEN: RESET_TOKEN,
 		},
 		reuseExistingServer: !process.env.CI,
 		timeout: 180_000,

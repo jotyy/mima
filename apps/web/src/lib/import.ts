@@ -4,7 +4,7 @@ import type { ItemFields } from "./vault-data";
 // Everything here runs on this device: the file is never uploaded as it is.
 
 export type ImportSource =
-	| "mima"
+	| "vauly"
 	| "1Password"
 	| "Bitwarden"
 	| "LastPass"
@@ -16,7 +16,7 @@ export type ImportSource =
 export type ParsedImport = {
 	source: ImportSource;
 	items: ItemFields[];
-	/** Rows with nothing worth keeping, or kinds mima doesn't store (cards, identities). */
+	/** Rows with nothing worth keeping, or kinds vauly doesn't store (cards, identities). */
 	skipped: number;
 };
 
@@ -68,7 +68,7 @@ type Row = (name: string) => string;
 
 function detect(columns: Columns): ImportSource {
 	const has = (...names: string[]) => names.every((name) => name in columns);
-	if (has("mima_kind")) return "mima";
+	if (has("vauly_kind")) return "vauly";
 	if (has("login_password") || has("login_uri")) return "Bitwarden";
 	if (has("grouping") || has("extra")) return "LastPass";
 	if (has("formactionorigin") || has("httprealm")) return "Firefox";
@@ -122,8 +122,8 @@ export function parseImport(text: string): ParsedImport {
 		};
 
 		// Bitwarden marks cards and identities; LastPass marks notes with this URL.
-		// A mima backup is Bitwarden's layout with the item kind and tags alongside.
-		const bitwardenLayout = source === "Bitwarden" || source === "mima";
+		// A vauly backup is Bitwarden's layout with the item kind and tags alongside.
+		const bitwardenLayout = source === "Bitwarden" || source === "vauly";
 		const type = get("type").toLowerCase();
 		if (bitwardenLayout && type && type !== "login" && type !== "note") {
 			skipped++;
@@ -132,7 +132,7 @@ export function parseImport(text: string): ParsedImport {
 		const isNote =
 			(bitwardenLayout && type === "note") ||
 			(source === "LastPass" && field("url") === "http://sn");
-		const kind = get("mima_kind");
+		const kind = get("vauly_kind");
 
 		const item = toItem({
 			name: field("name"),
@@ -141,7 +141,7 @@ export function parseImport(text: string): ParsedImport {
 			password: field("password"),
 			totp: field("totp"),
 			notes: field("notes"),
-			tags: source === "mima" ? get("mima_tags") : field("tags"),
+			tags: source === "vauly" ? get("vauly_tags") : field("tags"),
 			isNote,
 			kind: kind === "api-key" || kind === "ssh-key" ? kind : "login",
 		});

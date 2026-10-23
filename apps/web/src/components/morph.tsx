@@ -1,4 +1,4 @@
-import { cn } from "@mima/ui/lib/utils";
+import { cn } from "@vauly/ui/lib/utils";
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 
 const duration = 320;

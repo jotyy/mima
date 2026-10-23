@@ -5,9 +5,9 @@
 export const AUTO_LOCK_MS = 15 * 60 * 1000;
 
 export type Connection = {
-	/** The web app address people use, for "Open mima". */
+	/** The web app address people use, for "Open vauly". */
 	web: string;
-	/** The API address, from the web app's /mima.json. */
+	/** The API address, from the web app's /vauly.json. */
 	server: string;
 	email: string;
 	/** The session token, sent as a bearer token. */

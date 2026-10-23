@@ -9,9 +9,9 @@
 		"env:generate": "varlock codegen"
 	},
 	"dependencies": {
-		"@mima/api": "workspace:*",
-		"@mima/auth": "workspace:*",
-		"@mima/db": "workspace:*",
+		"@vauly/api": "workspace:*",
+		"@vauly/auth": "workspace:*",
+		"@vauly/db": "workspace:*",
 		"@orpc/openapi": "catalog:",
 		"@orpc/server": "catalog:",
 		"@orpc/zod": "catalog:",
@@ -22,8 +22,8 @@
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "catalog:",
-		"@mima/config": "workspace:*",
-		"@mima/infra": "workspace:*",
+		"@vauly/config": "workspace:*",
+		"@vauly/infra": "workspace:*",
 		"@types/node": "^26.4.1",
 		"tsdown": "^0.23.0",
 		"typescript": "catalog:"

@@ -3,7 +3,7 @@ import Logo from "@/components/Logo.astro";
 import CipherField from "@/components/landing/CipherField.astro";
 import "@/styles/site.css";
 
-// The picture shown when someone shares a link to mima: 1200 × 630, in the hero's sky.
+// The picture shown when someone shares a link to vauly: 1200 × 630, in the hero's sky.
 // Not linked anywhere; scripts/og.ts saves it as public/og.png.
 ---
 
@@ -12,7 +12,7 @@ import "@/styles/site.css";
 	<head>
 		<meta charset="utf-8" />
 		<meta name="robots" content="noindex" />
-		<title>mima</title>
+		<title>vauly</title>
 	</head>
 	<body class="m-0">
 		<!-- A fixed canvas, in the sky's blue all the way down, without the fade to the page. -->
@@ -22,7 +22,7 @@ import "@/styles/site.css";
 			style="width: 1200px; height: 630px; background-image: radial-gradient(60% 55% at 85% 20%, rgb(80 130 255 / 0.55), transparent 70%), linear-gradient(160deg, #040a20 0%, #0a1f6b 45%, #1443e0 100%);"
 		>
 			<CipherField />
-			<Logo class="h-12 w-auto self-start text-white" />
+			<Logo tone="white" class="h-12 w-auto self-start text-white" />
 			<div class="flex flex-col gap-6">
 				<h1 class="text-display max-w-4xl text-white">
 					The password manager

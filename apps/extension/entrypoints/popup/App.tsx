@@ -1,8 +1,3 @@
-import { parseTotp, totpCode, totpSecondsLeft } from "@mima/crypto";
-import { Button } from "@mima/ui/components/button";
-import { Input } from "@mima/ui/components/input";
-import { logoDomain } from "@mima/ui/lib/logos";
-import { cn } from "@mima/ui/lib/utils";
 import {
 	ArrowSquareOutIcon,
 	ClockCountdownIcon,
@@ -15,6 +10,11 @@ import {
 	TerminalWindowIcon,
 	UserIcon,
 } from "@phosphor-icons/react";
+import { parseTotp, totpCode, totpSecondsLeft } from "@vauly/crypto";
+import { Button } from "@vauly/ui/components/button";
+import { Input } from "@vauly/ui/components/input";
+import { logoDomain } from "@vauly/ui/lib/logos";
+import { cn } from "@vauly/ui/lib/utils";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 
 import { Field, FormError } from "@/components/form";
@@ -140,15 +140,15 @@ function Connect({ onConnected }: { onConnected: () => void }) {
 
 	return (
 		<Card
-			title="Connect to mima"
-			description="Enter the address you open mima at in your browser."
+			title="Connect to vauly"
+			description="Enter the address you open vauly at in your browser."
 		>
 			<form onSubmit={submit} className="flex flex-col gap-3">
-				<Field label="mima address">
+				<Field label="vauly address">
 					<Input
 						autoFocus
 						required
-						placeholder="mima.example.com"
+						placeholder="vauly.example.com"
 						value={address}
 						onChange={(event) => setAddress(event.target.value)}
 					/>
@@ -218,7 +218,7 @@ function SignIn({
 
 	return (
 		<Card
-			title={known ? "Unlock mima" : "Sign in to mima"}
+			title={known ? "Unlock vauly" : "Sign in to vauly"}
 			description={known ? connection.email : hostOf(connection.web)}
 		>
 			<form onSubmit={submit} className="flex flex-col gap-3">
@@ -267,7 +267,7 @@ function SignIn({
 				{known ? (
 					<LinkButton onClick={onOtherAccount}>Use another account</LinkButton>
 				) : (
-					<LinkButton onClick={onOtherServer}>Use another mima</LinkButton>
+					<LinkButton onClick={onOtherServer}>Use another vauly</LinkButton>
 				)}
 			</div>
 		</Card>
@@ -391,12 +391,12 @@ function Items({
 		<div className="flex max-h-150 flex-col">
 			<header className="border-line-subtle flex items-center gap-2 border-b px-3 py-2.5">
 				<img src="/icon/32.png" alt="" className="size-5" />
-				<span className="text-body-sm text-fg flex-1 font-medium">mima</span>
+				<span className="text-body-sm text-fg flex-1 font-medium">vauly</span>
 				<Button
 					variant="ghost"
 					size="icon-sm"
-					aria-label="Open mima"
-					title="Open mima"
+					aria-label="Open vauly"
+					title="Open vauly"
 					onClick={() => browser.tabs.create({ url: connection.web })}
 				>
 					<ArrowSquareOutIcon />
@@ -503,7 +503,7 @@ function Items({
 						)}
 						<Section label="All items">
 							{entries.length === 0 ? (
-								<Empty>No items yet. Add them in mima.</Empty>
+								<Empty>No items yet. Add them in vauly.</Empty>
 							) : (
 								entries.map((entry) => (
 									<Row

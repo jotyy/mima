@@ -11,7 +11,7 @@ import {
 
 test.describe.configure({ mode: "serial" });
 
-// A Bitwarden export with made-up values: three logins, a note and a card mima skips.
+// A Bitwarden export with made-up values: three logins, a note and a card vauly skips.
 const bitwarden = [
 	"folder,favorite,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp",
 	"Work,1,login,GitHub,,,0,https://github.com,alex@example.test,example-pass-1,",

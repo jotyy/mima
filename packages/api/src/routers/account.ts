@@ -1,18 +1,18 @@
+import { ORPCError } from "@orpc/server";
 import {
 	hashRecoveryCode,
 	matchCode,
 	newRecoveryCodes,
 	newSetupKey,
-} from "@mima/auth/two-step";
-import { account, session, user } from "@mima/db/schema/auth";
+} from "@vauly/auth/two-step";
+import { account, session, user } from "@vauly/db/schema/auth";
 import {
 	invite,
 	member,
 	setting,
 	vault,
 	vaultAccess,
-} from "@mima/db/schema/vault";
-import { ORPCError } from "@orpc/server";
+} from "@vauly/db/schema/vault";
 import { and, count, eq, gt, isNull, ne } from "drizzle-orm";
 import { z } from "zod";
 import { adminProcedure, memberProcedure, publicProcedure } from "../index";
@@ -58,7 +58,7 @@ export const accountRouter = {
 		]);
 		return {
 			hasOwner: (row?.n ?? 0) > 0,
-			workspaceName: name?.value ?? "mima",
+			workspaceName: name?.value ?? "vauly",
 			needsSetupCode: (row?.n ?? 0) === 0 && Boolean(context.setupCode),
 		};
 	}),
@@ -203,7 +203,7 @@ export const accountRouter = {
 									.insert(setting)
 									.values({
 										key: "workspace_name",
-										value: input.workspaceName ?? "mima",
+										value: input.workspaceName ?? "vauly",
 									})
 									.onConflictDoNothing(),
 							]
@@ -353,7 +353,7 @@ export const accountRouter = {
 			.select({ value: setting.value })
 			.from(setting)
 			.where(eq(setting.key, "workspace_name"));
-		const issuer = `mima ${workspace?.value ?? ""}`.trim();
+		const issuer = `vauly ${workspace?.value ?? ""}`.trim();
 		const label = encodeURIComponent(`${issuer}:${session.user.email}`);
 		return {
 			secret,

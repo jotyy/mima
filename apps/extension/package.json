@@ -2,7 +2,7 @@
 	"name": "extension",
 	"version": "0.0.0",
 	"private": true,
-	"description": "Fill and copy your mima items in the browser.",
+	"description": "Fill and copy your vauly items in the browser.",
 	"type": "module",
 	"scripts": {
 		"dev": "wxt --port 5555",
@@ -15,9 +15,9 @@
 		"postinstall": "wxt prepare"
 	},
 	"dependencies": {
-		"@mima/api": "workspace:*",
-		"@mima/crypto": "workspace:*",
-		"@mima/ui": "workspace:*",
+		"@vauly/api": "workspace:*",
+		"@vauly/crypto": "workspace:*",
+		"@vauly/ui": "workspace:*",
 		"@orpc/client": "catalog:",
 		"@phosphor-icons/react": "^2.1.10",
 		"react": "^19.3.0",

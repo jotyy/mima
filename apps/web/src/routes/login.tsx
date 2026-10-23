@@ -1,5 +1,5 @@
-import { Input } from "@mima/ui/components/input";
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
+import { Input } from "@vauly/ui/components/input";
 import { useState } from "react";
 
 import {
@@ -15,7 +15,7 @@ import { errorMessage, useWorkspace } from "@/lib/vault-data";
 
 export const Route = createFileRoute("/login")({
 	component: SignIn,
-	head: () => ({ meta: [{ title: "Sign in · mima" }] }),
+	head: () => ({ meta: [{ title: "Sign in · vauly" }] }),
 });
 
 function SignIn() {
@@ -41,7 +41,7 @@ function SignIn() {
 			title={
 				askCode
 					? "Two-step login"
-					: `Sign in to ${workspace.data?.workspaceName ?? "mima"}`
+					: `Sign in to ${workspace.data?.workspaceName ?? "vauly"}`
 			}
 			description={
 				askCode
@@ -90,7 +90,7 @@ function SignIn() {
 							hint={
 								recovery
 									? "One of the codes you saved when you turned on two-step login. Each works once."
-									: "The six digits your app shows for mima right now."
+									: "The six digits your app shows for vauly right now."
 							}
 						>
 							<Input

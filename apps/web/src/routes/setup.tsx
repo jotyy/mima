@@ -1,6 +1,6 @@
-import { Input } from "@mima/ui/components/input";
 import { WarningIcon } from "@phosphor-icons/react";
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
+import { Input } from "@vauly/ui/components/input";
 import { useState } from "react";
 import { z } from "zod";
 
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/setup")({
 	// A deploy that set a setup code prints the link with it.
 	validateSearch: z.object({ code: z.string().optional() }),
 	component: Setup,
-	head: () => ({ meta: [{ title: "Create your workspace · mima" }] }),
+	head: () => ({ meta: [{ title: "Create your workspace · vauly" }] }),
 });
 
 function Setup() {
@@ -48,10 +48,10 @@ function Setup() {
 		return (
 			<AuthLayout
 				title="Use your setup link"
-				description="This mima is waiting for its owner. Open the setup link from the deploy, which carries a code, to create the workspace."
+				description="This vauly is waiting for its owner. Open the setup link from the deploy, which carries a code, to create the workspace."
 			>
 				<p className="text-caption text-fg-muted text-center">
-					Lost it? Deploy again with a new MIMA_SETUP_CODE.
+					Lost it? Deploy again with a new VAULY_SETUP_CODE.
 				</p>
 			</AuthLayout>
 		);

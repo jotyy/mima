@@ -1,5 +1,3 @@
-import { Toaster } from "@mima/ui/components/sonner";
-import { TooltipProvider } from "@mima/ui/components/tooltip";
 import type { QueryClient } from "@tanstack/react-query";
 import {
 	createRootRouteWithContext,
@@ -7,6 +5,8 @@ import {
 	Link,
 	Outlet,
 } from "@tanstack/react-router";
+import { Toaster } from "@vauly/ui/components/sonner";
+import { TooltipProvider } from "@vauly/ui/components/tooltip";
 import type { CSSProperties } from "react";
 
 import { ThemeProvider } from "@/components/theme-provider";
@@ -25,7 +25,7 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 	notFoundComponent: NotFound,
 	head: () => ({
 		meta: [
-			{ title: "mima" },
+			{ title: "vauly" },
 			{
 				name: "description",
 				content: "A password manager for small teams and their agents.",
@@ -53,7 +53,7 @@ function RootComponent() {
 				attribute="class"
 				defaultTheme="system"
 				disableTransitionOnChange
-				storageKey="mima-theme"
+				storageKey="vauly-theme"
 			>
 				<KeyringProvider>
 					<TooltipProvider delay={300}>

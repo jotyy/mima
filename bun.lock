@@ -3,32 +3,33 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "mima",
+      "name": "vauly",
       "dependencies": {
         "zod": "catalog:",
       },
       "devDependencies": {
         "@biomejs/biome": "^2.5.15",
         "@cloudflare/workers-types": "catalog:",
-        "@mima/config": "workspace:*",
+        "@playwright/test": "1.64.1",
         "@types/node": "^26.4.1",
+        "@vauly/config": "workspace:*",
         "turbo": "^2.11.7",
         "typescript": "catalog:",
         "varlock": "catalog:",
       },
     },
     "apps/cli": {
-      "name": "@mima/cli",
+      "name": "@vauly/cli",
       "version": "0.0.0",
       "bin": {
-        "mima": "./src/index.ts",
+        "vauly": "./src/index.ts",
       },
       "dependencies": {
-        "@mima/crypto": "workspace:*",
+        "@vauly/crypto": "workspace:*",
       },
       "devDependencies": {
-        "@mima/config": "workspace:*",
         "@types/bun": "^1.3.14",
+        "@vauly/config": "workspace:*",
         "typescript": "catalog:",
       },
     },
@@ -36,11 +37,11 @@
       "name": "extension",
       "version": "0.0.0",
       "dependencies": {
-        "@mima/api": "workspace:*",
-        "@mima/crypto": "workspace:*",
-        "@mima/ui": "workspace:*",
         "@orpc/client": "catalog:",
         "@phosphor-icons/react": "^2.1.10",
+        "@vauly/api": "workspace:*",
+        "@vauly/crypto": "workspace:*",
+        "@vauly/ui": "workspace:*",
         "react": "^19.3.0",
         "react-dom": "^19.3.0",
       },
@@ -59,12 +60,12 @@
     "apps/server": {
       "name": "server",
       "dependencies": {
-        "@mima/api": "workspace:*",
-        "@mima/auth": "workspace:*",
-        "@mima/db": "workspace:*",
         "@orpc/openapi": "catalog:",
         "@orpc/server": "catalog:",
         "@orpc/zod": "catalog:",
+        "@vauly/api": "workspace:*",
+        "@vauly/auth": "workspace:*",
+        "@vauly/db": "workspace:*",
         "better-auth": "catalog:",
         "hono": "^4.13.7",
         "varlock": "catalog:",
@@ -72,9 +73,9 @@
       },
       "devDependencies": {
         "@cloudflare/workers-types": "catalog:",
-        "@mima/config": "workspace:*",
-        "@mima/infra": "workspace:*",
         "@types/node": "^26.4.1",
+        "@vauly/config": "workspace:*",
+        "@vauly/infra": "workspace:*",
         "tsdown": "^0.23.0",
         "typescript": "catalog:",
       },
@@ -85,10 +86,10 @@
       "dependencies": {
         "@astrojs/preact": "6.1.1",
         "@astrojs/starlight": "0.42.6",
-        "@mima/crypto": "workspace:*",
-        "@mima/ui": "workspace:*",
         "@phosphor-icons/core": "2.1.1",
         "@tailwindcss/vite": "^4.3.3",
+        "@vauly/crypto": "workspace:*",
+        "@vauly/ui": "workspace:*",
         "astro": "7.4.2",
         "preact": "11.0.1",
         "simple-icons": "16.35.0",
@@ -104,9 +105,6 @@
       "name": "web",
       "version": "0.0.0",
       "dependencies": {
-        "@mima/api": "workspace:*",
-        "@mima/crypto": "workspace:*",
-        "@mima/ui": "workspace:*",
         "@orpc/client": "catalog:",
         "@orpc/server": "catalog:",
         "@orpc/tanstack-query": "^1.15.6",
@@ -115,6 +113,9 @@
         "@tanstack/react-form": "^1.33.5",
         "@tanstack/react-query": "^5.104.2",
         "@tanstack/react-router": "^1.170.44",
+        "@vauly/api": "workspace:*",
+        "@vauly/crypto": "workspace:*",
+        "@vauly/ui": "workspace:*",
         "better-auth": "catalog:",
         "next-themes": "catalog:",
         "react": "^19.3.0",
@@ -126,13 +127,12 @@
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@mima/config": "workspace:*",
         "@tanstack/router-plugin": "^1.168.45",
         "@types/bun": "^1.3.14",
         "@types/node": "^26.6.5",
         "@types/react": "^19.3.0",
         "@types/react-dom": "^19.3.0",
-        "@vite-pwa/assets-generator": "^2.0.0",
+        "@vauly/config": "workspace:*",
         "@vitejs/plugin-react": "^6.1.2",
         "postcss": "^8.5.30",
         "tailwindcss": "catalog:",
@@ -141,63 +141,63 @@
       },
     },
     "e2e": {
-      "name": "@mima/e2e",
+      "name": "@vauly/e2e",
       "devDependencies": {
         "@axe-core/playwright": "^4.14.0",
-        "@mima/crypto": "workspace:*",
         "@playwright/test": "1.64.1",
         "@types/node": "^26.4.1",
+        "@vauly/crypto": "workspace:*",
         "typescript": "catalog:",
       },
     },
     "packages/api": {
-      "name": "@mima/api",
+      "name": "@vauly/api",
       "dependencies": {
-        "@mima/auth": "workspace:*",
-        "@mima/db": "workspace:*",
         "@orpc/client": "catalog:",
         "@orpc/openapi": "catalog:",
         "@orpc/server": "catalog:",
         "@orpc/zod": "catalog:",
+        "@vauly/auth": "workspace:*",
+        "@vauly/db": "workspace:*",
         "drizzle-orm": "catalog:",
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@mima/config": "workspace:*",
+        "@vauly/config": "workspace:*",
         "typescript": "catalog:",
       },
     },
     "packages/auth": {
-      "name": "@mima/auth",
+      "name": "@vauly/auth",
       "dependencies": {
         "@better-auth/core": "1.7.7",
         "@better-auth/drizzle-adapter": "1.7.7",
-        "@mima/crypto": "workspace:*",
-        "@mima/db": "workspace:*",
+        "@vauly/crypto": "workspace:*",
+        "@vauly/db": "workspace:*",
         "better-auth": "catalog:",
         "drizzle-orm": "catalog:",
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@mima/config": "workspace:*",
+        "@vauly/config": "workspace:*",
         "typescript": "catalog:",
       },
     },
     "packages/config": {
-      "name": "@mima/config",
+      "name": "@vauly/config",
       "version": "0.0.0",
     },
     "packages/crypto": {
-      "name": "@mima/crypto",
+      "name": "@vauly/crypto",
       "version": "0.0.0",
       "devDependencies": {
-        "@mima/config": "workspace:*",
         "@types/bun": "^1.3.14",
+        "@vauly/config": "workspace:*",
         "typescript": "catalog:",
       },
     },
     "packages/db": {
-      "name": "@mima/db",
+      "name": "@vauly/db",
       "dependencies": {
         "@libsql/client": "0.18.0",
         "drizzle-orm": "catalog:",
@@ -205,21 +205,21 @@
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@mima/config": "workspace:*",
+        "@vauly/config": "workspace:*",
         "drizzle-kit": "1.0.0-rc.4",
         "typescript": "catalog:",
         "varlock": "catalog:",
       },
     },
     "packages/infra": {
-      "name": "@mima/infra",
+      "name": "@vauly/infra",
       "dependencies": {
         "zod": "catalog:",
       },
       "devDependencies": {
         "@effect/platform-bun": "4.0.5",
         "@effect/platform-node": "4.0.5",
-        "@mima/config": "workspace:*",
+        "@vauly/config": "workspace:*",
         "alchemy": "2.0.0-beta.83",
         "effect": "4.0.5",
         "typescript": "catalog:",
@@ -227,7 +227,7 @@
       },
     },
     "packages/ui": {
-      "name": "@mima/ui",
+      "name": "@vauly/ui",
       "version": "0.0.0",
       "dependencies": {
         "@base-ui/react": "^1.8.0",
@@ -247,10 +247,10 @@
         "tw-animate-css": "^1.4.0",
       },
       "devDependencies": {
-        "@mima/config": "workspace:*",
         "@tailwindcss/postcss": "^4.3.3",
         "@types/react": "^19.2.18",
         "@types/react-dom": "^19.2.7",
+        "@vauly/config": "workspace:*",
         "tailwindcss": "catalog:",
         "typescript": "catalog:",
       },
@@ -922,24 +922,6 @@
 
     "@mdn/browser-compat-data": ["@mdn/browser-compat-data@8.1.4", "", {}, "sha512-Cgp3OP3u9x57kT1sZPI115SP5H1IyaBhdDPnvnHRYZ1988kW83wuqcIdcMinLJXlMKOL5Y2cufWHzngh5cVtow=="],
 
-    "@mima/api": ["@mima/api@workspace:packages/api"],
-
-    "@mima/auth": ["@mima/auth@workspace:packages/auth"],
-
-    "@mima/cli": ["@mima/cli@workspace:apps/cli"],
-
-    "@mima/config": ["@mima/config@workspace:packages/config"],
-
-    "@mima/crypto": ["@mima/crypto@workspace:packages/crypto"],
-
-    "@mima/db": ["@mima/db@workspace:packages/db"],
-
-    "@mima/e2e": ["@mima/e2e@workspace:e2e"],
-
-    "@mima/infra": ["@mima/infra@workspace:packages/infra"],
-
-    "@mima/ui": ["@mima/ui@workspace:packages/ui"],
-
     "@modelcontextprotocol/sdk": ["@modelcontextprotocol/sdk@1.32.1", "", { "dependencies": { "@hono/node-server": "^1.19.9 || ^2.0.5", "ajv": "^8.17.1", "ajv-formats": "^3.0.1", "content-type": "^1.0.5", "cors": "^2.8.5", "cross-spawn": "^7.0.5", "eventsource": "^3.0.2", "eventsource-parser": "^3.0.0", "express": "^5.2.1", "express-rate-limit": "^8.2.1", "hono": "^4.11.4", "jose": "^6.1.3", "json-schema-typed": "^8.0.2", "pkce-challenge": "^5.0.0", "raw-body": "^3.0.0", "zod": "^3.25 || ^4.0", "zod-to-json-schema": "^3.25.1" }, "peerDependencies": { "@cfworker/json-schema": "^4.1.1" }, "optionalPeers": ["@cfworker/json-schema"] }, "sha512-2DdE+SJDtzLEEWzY1ZjY7Q+VcPhcV1KisD3zI4u0XZyktsjHum1mwbMI+JaulUBi2OZk+KJAi2uPXzxichPkdw=="],
 
     "@mrleebo/prisma-ast": ["@mrleebo/prisma-ast@0.13.1", "", { "dependencies": { "chevrotain": "^10.5.0", "lilconfig": "^2.1.0" } }, "sha512-XyroGQXcHrZdvmrGJvsA9KNeOOgGMg1Vg9OlheUsBOSKznLMDl+YChxbkboRHvtFYJEMRYmlV3uoo/njCw05iw=="],
@@ -1355,6 +1337,24 @@
     "@varlock/native-helper-linux-x64": ["@varlock/native-helper-linux-x64@1.18.0", "", { "os": "linux", "cpu": "x64" }, "sha512-eUz2vLIMAKwiTMXfJDbJxIgV1D/GAUH6oKHde7i0kr4F+JpbduRblwbI8Qe1XF3DeEB/OBEJrtvhu0gp6t5d/g=="],
 
     "@varlock/native-helper-win32-x64": ["@varlock/native-helper-win32-x64@1.18.0", "", { "os": [ "linux", "win32", ] }, "sha512-L95F5rrZtA6Fn1zjR2iIGBCHg+mA8tIylQOSo5TBZfAx0FlWd38jgwewm6b/nfYKeGrx/R6pSlSMDDuj1WsUMg=="],
+
+    "@vauly/api": ["@vauly/api@workspace:packages/api"],
+
+    "@vauly/auth": ["@vauly/auth@workspace:packages/auth"],
+
+    "@vauly/cli": ["@vauly/cli@workspace:apps/cli"],
+
+    "@vauly/config": ["@vauly/config@workspace:packages/config"],
+
+    "@vauly/crypto": ["@vauly/crypto@workspace:packages/crypto"],
+
+    "@vauly/db": ["@vauly/db@workspace:packages/db"],
+
+    "@vauly/e2e": ["@vauly/e2e@workspace:e2e"],
+
+    "@vauly/infra": ["@vauly/infra@workspace:packages/infra"],
+
+    "@vauly/ui": ["@vauly/ui@workspace:packages/ui"],
 
     "@vite-pwa/assets-generator": ["@vite-pwa/assets-generator@2.0.0", "", { "dependencies": { "cac": "^7.0.0", "consola": "^3.4.2", "picocolors": "^1.1.1", "sharp": "^0.35.4", "sharp-ico": "^0.1.5", "unconfig": "^7.5.0" }, "bin": { "pwa-assets-generator": "./bin/pwa-assets-generator.mjs" } }, "sha512-GBjHBLBzOP1GDJTc7MjeDdeJTi+PS9eFjw3HYjNHXnEbkS7vRS/YFwl8VW5/4vWF0Fo35Mji1yXAABvSVzu0Ew=="],
 

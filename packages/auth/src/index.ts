@@ -1,6 +1,6 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter/relations-v2";
-import type { Database } from "@mima/db";
-import * as schema from "@mima/db/schema/auth";
+import type { Database } from "@vauly/db";
+import * as schema from "@vauly/db/schema/auth";
 import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { bearer } from "better-auth/plugins";

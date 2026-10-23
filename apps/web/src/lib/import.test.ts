@@ -122,7 +122,7 @@ test("sameItem ignores case in the name only", () => {
 	expect(sameItem(a, { ...a, secret: "y" })).toBe(false);
 });
 
-test("a mima backup imports back to the same items", () => {
+test("a vauly backup imports back to the same items", () => {
 	const items: BackupRow[] = [
 		{
 			vault: "Engineering",
@@ -155,7 +155,7 @@ test("a mima backup imports back to the same items", () => {
 		},
 	];
 	const result = parseImport(toBackupCsv(items));
-	expect(result.source).toBe("mima");
+	expect(result.source).toBe("vauly");
 	expect(result.skipped).toBe(0);
 	expect(result.items).toEqual(items.map(({ vault: _, ...fields }) => fields));
 });

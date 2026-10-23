@@ -1,5 +1,5 @@
-import { user } from "@mima/db/schema/auth";
-import { agent, event } from "@mima/db/schema/vault";
+import { user } from "@vauly/db/schema/auth";
+import { agent, event } from "@vauly/db/schema/vault";
 import { and, desc, eq, inArray, isNull, or, type SQL } from "drizzle-orm";
 import { z } from "zod";
 

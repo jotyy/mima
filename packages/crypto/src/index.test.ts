@@ -168,6 +168,6 @@ describe("sharing", () => {
 	});
 
 	test("malformed tokens are rejected", () => {
-		expect(() => decodeAgentToken("mima_agent_only")).toThrow();
+		expect(() => decodeAgentToken("vauly_agent_only")).toThrow();
 	});
 });

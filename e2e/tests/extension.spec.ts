@@ -1,6 +1,5 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { parseTotp, totpCode } from "@mima/crypto";
 import {
 	type BrowserContext,
 	chromium,
@@ -9,6 +8,7 @@ import {
 	test,
 	type Worker,
 } from "@playwright/test";
+import { parseTotp, totpCode } from "@vauly/crypto";
 
 import { WEB_PORT } from "../playwright.config";
 import {
@@ -120,50 +120,50 @@ async function tabIdOf(url: string) {
 	);
 }
 
-test("before it's signed in, a login field offers to sign in to mima", async () => {
+test("before it's signed in, a login field offers to sign in to vauly", async () => {
 	const page = await context.newPage();
 	await page.goto(`${site}/`);
 	await page.getByLabel("Email").click();
 	// Only the button shows on focus: the browser's own suggestions go under the field.
-	const button = page.getByRole("button", { name: "Fill with mima" });
+	const button = page.getByRole("button", { name: "Fill with vauly" });
 	await expect(button).toBeVisible();
-	await expect(page.locator("mima-frame")).toHaveCount(0);
+	await expect(page.locator("vauly-frame")).toHaveCount(0);
 	await button.click();
-	await expect(fillMenu(page).getByText("Sign in to mima")).toBeVisible();
+	await expect(fillMenu(page).getByText("Sign in to vauly")).toBeVisible();
 	await page.keyboard.press("Escape");
-	await expect(page.locator("mima-frame")).toHaveCount(0);
+	await expect(page.locator("vauly-frame")).toHaveCount(0);
 	// Leaving the field takes the button away.
 	await page.mouse.click(600, 500);
 	await expect(button).toHaveCount(0);
 	await page.close();
 });
 
-/** mima's fill menu inside a site's page, and its save prompt. */
+/** vauly's fill menu inside a site's page, and its save prompt. */
 const fillMenu = (page: Page) =>
-	page.frameLocator('iframe[title="mima: fill a login"]');
-/** Focuses a login field and opens mima's menu from the button that shows up in it. */
+	page.frameLocator('iframe[title="vauly: fill a login"]');
+/** Focuses a login field and opens vauly's menu from the button that shows up in it. */
 async function openMenu(page: Page, field: string) {
 	await page.getByLabel(field).click();
-	await page.getByRole("button", { name: "Fill with mima" }).click();
+	await page.getByRole("button", { name: "Fill with vauly" }).click();
 }
 const savePrompt = (page: Page) =>
-	page.frameLocator('iframe[title="mima: save a login"]');
+	page.frameLocator('iframe[title="vauly: save a login"]');
 
 test("the extension connects from the web address and signs in", async () => {
 	const popup = await openPopup();
 	await expect(
-		popup.getByRole("heading", { name: "Connect to mima" }),
+		popup.getByRole("heading", { name: "Connect to vauly" }),
 	).toBeVisible();
-	await popup.getByLabel("mima address").fill("nothing.example.test");
+	await popup.getByLabel("vauly address").fill("nothing.example.test");
 	await popup.getByRole("button", { name: "Continue" }).click();
 	await expect(popup.getByRole("alert")).toContainText(
-		"no mima at that address",
+		"no vauly at that address",
 	);
 
-	await popup.getByLabel("mima address").fill(`http://localhost:${WEB_PORT}`);
+	await popup.getByLabel("vauly address").fill(`http://localhost:${WEB_PORT}`);
 	await popup.getByRole("button", { name: "Continue" }).click();
 	await expect(
-		popup.getByRole("heading", { name: "Sign in to mima" }),
+		popup.getByRole("heading", { name: "Sign in to vauly" }),
 	).toBeVisible();
 	await popup.getByLabel("Email").fill(owner.email);
 	await popup.getByLabel("Master password").fill("not the right password");
@@ -206,13 +206,13 @@ test("the menu under a login field fills the site's form", async () => {
 	await expect(page.getByLabel("Email")).toHaveValue(login.username);
 	await expect(page.getByLabel("Password")).toHaveValue(login.password);
 	await expect(menu.getByText("The one-time code is copied")).toBeVisible();
-	await expect(page.locator("mima-frame")).toHaveCount(0);
+	await expect(page.locator("vauly-frame")).toHaveCount(0);
 
 	// Typing in by hand closes it.
 	await openMenu(page, "Email");
 	await expect(menu.getByRole("button", { name: /^Fill / })).toBeVisible();
 	await page.getByLabel("Email").pressSequentially("x");
-	await expect(page.locator("mima-frame")).toHaveCount(0);
+	await expect(page.locator("vauly-frame")).toHaveCount(0);
 	await page.close();
 });
 
@@ -250,7 +250,7 @@ test("Lock forgets the key until the master password is entered again", async ()
 	const popup = await openPopup();
 	await popup.getByRole("button", { name: "Lock" }).click();
 	await expect(
-		popup.getByRole("heading", { name: "Unlock mima" }),
+		popup.getByRole("heading", { name: "Unlock vauly" }),
 	).toBeVisible();
 	await expect(popup.getByText(owner.email)).toBeVisible();
 	await popup.getByLabel("Master password").fill(owner.password);
@@ -268,7 +268,7 @@ test("locked, the menu offers to unlock, and shows the logins once unlocked", as
 	await page.goto(`${site}/`);
 	await openMenu(page, "Email");
 	const menu = fillMenu(page);
-	await expect(menu.getByText("mima is locked")).toBeVisible();
+	await expect(menu.getByText("vauly is locked")).toBeVisible();
 
 	await popup.getByLabel("Master password").fill(owner.password);
 	await popup.getByRole("button", { name: "Unlock" }).click();
@@ -339,7 +339,7 @@ test("a new login is offered for saving right on the site", async () => {
 	await offer.getByLabel("Name", { exact: true }).fill("Shop");
 	await offer.getByRole("button", { name: "Save" }).click();
 	await expect(prompt.getByText("Saved to Private")).toBeVisible();
-	await expect(page.locator("mima-frame")).toHaveCount(0);
+	await expect(page.locator("vauly-frame")).toHaveCount(0);
 	expect(await badgeOf(await tabIdOf(url))).toBe("");
 
 	// Next time, the menu has it.
@@ -420,9 +420,9 @@ test("the activity log shows the fill", async () => {
 		page.getByRole("main").getByText("filled in").first(),
 	).toBeVisible();
 
-	// mima's own sign-in gets no menu, and the master password typed into it is never
+	// vauly's own sign-in gets no menu, and the master password typed into it is never
 	// offered for saving.
-	await expect(page.locator("mima-frame")).toHaveCount(0);
+	await expect(page.locator("vauly-frame")).toHaveCount(0);
 	await page.waitForTimeout(500);
 	const popup = await openPopup(await tabIdOf(`http://localhost:${WEB_PORT}`));
 	await expect(popup.getByRole("list", { name: "All items" })).toBeVisible();

@@ -1,5 +1,5 @@
-import { Button } from "@mima/ui/components/button";
-import { Checkbox } from "@mima/ui/components/checkbox";
+import { Button } from "@vauly/ui/components/button";
+import { Checkbox } from "@vauly/ui/components/checkbox";
 import {
 	Dialog,
 	DialogContent,
@@ -7,7 +7,7 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@mima/ui/components/dialog";
+} from "@vauly/ui/components/dialog";
 import { useEffect, useState } from "react";
 
 import { toneDot } from "@/lib/format";
@@ -40,7 +40,7 @@ export function InviteLinkDialog({
 				<DialogHeader>
 					<DialogTitle>Send this link to {invite?.email}</DialogTitle>
 					<DialogDescription>
-						It works once and expires in 7 days. mima doesn't email it: send it
+						It works once and expires in 7 days. vauly doesn't email it: send it
 						the way your team usually talks.
 					</DialogDescription>
 				</DialogHeader>

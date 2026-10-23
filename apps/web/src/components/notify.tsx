@@ -1,5 +1,5 @@
-import { cn } from "@mima/ui/lib/utils";
 import { CheckIcon, InfoIcon, WarningIcon } from "@phosphor-icons/react";
+import { cn } from "@vauly/ui/lib/utils";
 import {
 	type CSSProperties,
 	type ReactNode,
@@ -10,7 +10,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 
-// Every notification in mima is one dark pill at the bottom center, close to the content
+// Every notification in vauly is one dark pill at the bottom center, close to the content
 // the person is working in. Copies of secrets replace each other (there is only one
 // clipboard) and show when the clipboard clears.
 

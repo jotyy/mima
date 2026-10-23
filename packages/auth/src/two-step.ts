@@ -1,14 +1,14 @@
-import { newTotpSecret, sha256Hex, verifyTotp } from "@mima/crypto";
-import type { Database } from "@mima/db";
-import { member } from "@mima/db/schema/vault";
+import { newTotpSecret, sha256Hex, verifyTotp } from "@vauly/crypto";
+import type { Database } from "@vauly/db";
+import { member } from "@vauly/db/schema/vault";
 import { eq } from "drizzle-orm";
 
 // Two-step login: after the master password checks out, a member who turned it on must
 // also give a code from their authenticator app, or one of their recovery codes. The
-// code travels in the `x-mima-code` header, so the web app and the extension sign in
+// code travels in the `x-vauly-code` header, so the web app and the extension sign in
 // the same way.
 
-export const CODE_HEADER = "x-mima-code";
+export const CODE_HEADER = "x-vauly-code";
 
 export type SecondStep = "not-needed" | "ok" | "missing" | "wrong";
 

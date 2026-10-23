@@ -1,11 +1,11 @@
 name: Bug report
-description: Something in mima doesn't work the way it should.
+description: Something in vauly doesn't work the way it should.
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report this. **If it's a security problem, don't file it here**: see [SECURITY.md](https://github.com/jotyy/mima/blob/main/SECURITY.md).
+        Thanks for taking the time to report this. **If it's a security problem, don't file it here**: see [SECURITY.md](https://github.com/jotyy/vauly/blob/main/SECURITY.md).
 
         Never paste real passwords, tokens or exports into an issue.
   - type: textarea
@@ -39,7 +39,7 @@ body:
         - Web app (desktop browser)
         - Web app (phone)
         - Installed app (PWA)
-        - mima CLI
+        - vauly CLI
         - Self-hosting / deploy
   - type: input
     id: browser

@@ -1,4 +1,5 @@
-import { Button } from "@mima/ui/components/button";
+import { FileCsvIcon, WarningIcon } from "@phosphor-icons/react";
+import { Button } from "@vauly/ui/components/button";
 import {
 	Dialog,
 	DialogContent,
@@ -6,16 +7,15 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@mima/ui/components/dialog";
+} from "@vauly/ui/components/dialog";
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@mima/ui/components/select";
-import { cn } from "@mima/ui/lib/utils";
-import { FileCsvIcon, WarningIcon } from "@phosphor-icons/react";
+} from "@vauly/ui/components/select";
+import { cn } from "@vauly/ui/lib/utils";
 import { type DragEvent, useEffect, useId, useState } from "react";
 import { plural } from "@/lib/format";
 import {
@@ -89,7 +89,7 @@ export function ImportDialog({
 			if (parsed.items.length === 0) {
 				setStep({
 					name: "pick",
-					error: "That file has no logins or notes mima can import.",
+					error: "That file has no logins or notes vauly can import.",
 				});
 				return;
 			}
@@ -145,7 +145,7 @@ export function ImportDialog({
 				<DialogHeader>
 					<DialogTitle>Import items</DialogTitle>
 					<DialogDescription>
-						Export a CSV from your old password manager or browser. mima reads
+						Export a CSV from your old password manager or browser. vauly reads
 						it on this device and encrypts every item before it's saved.
 					</DialogDescription>
 				</DialogHeader>

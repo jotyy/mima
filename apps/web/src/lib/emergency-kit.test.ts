@@ -7,13 +7,13 @@ describe("emergencyKitHtml", () => {
 		name: "Alex Kim",
 		email: "alex@acme.test",
 		workspace: "Acme <Ops>",
-		address: "https://mima.example.test",
+		address: "https://vauly.example.test",
 	};
 
 	test("holds the sign-in details and a blank for the master password", () => {
 		const html = emergencyKitHtml(kit);
 		expect(html).toContain("alex@acme.test");
-		expect(html).toContain("https://mima.example.test");
+		expect(html).toContain("https://vauly.example.test");
 		expect(html).toContain('<span class="blank"></span>');
 	});
 

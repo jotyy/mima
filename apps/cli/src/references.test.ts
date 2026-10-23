@@ -9,38 +9,38 @@ import {
 
 describe("references", () => {
 	test("parses item references and fields", () => {
-		expect(parseReference("mima://itm_abc123")).toEqual({
+		expect(parseReference("vauly://itm_abc123")).toEqual({
 			itemId: "itm_abc123",
 			field: "secret",
 		});
-		expect(parseReference("mima://itm_abc123/password")).toEqual({
+		expect(parseReference("vauly://itm_abc123/password")).toEqual({
 			itemId: "itm_abc123",
 			field: "secret",
 		});
-		expect(parseReference("mima://itm_abc123/username")).toEqual({
+		expect(parseReference("vauly://itm_abc123/username")).toEqual({
 			itemId: "itm_abc123",
 			field: "username",
 		});
 		expect(parseReference("postgres://localhost")).toBeNull();
-		expect(parseReference("mima://not-an-item")).toBeNull();
+		expect(parseReference("vauly://not-an-item")).toBeNull();
 	});
 
 	test("finds references among environment values", () => {
 		const refs = findReferences({
-			A: "mima://itm_one",
+			A: "vauly://itm_one",
 			B: "plain",
-			C: "mima://itm_two/url",
+			C: "vauly://itm_two/url",
 		});
 		expect(refs.map((r) => r.name)).toEqual(["A", "C"]);
 	});
 
 	test("reads .env files", () => {
 		const env = parseEnvFile(
-			'# comment\nDATABASE_URL=mima://itm_db\nexport NAME="mima app"\nEMPTY=\nPORT=3000 # inline\n',
+			'# comment\nDATABASE_URL=vauly://itm_db\nexport NAME="vauly app"\nEMPTY=\nPORT=3000 # inline\n',
 		);
 		expect(env).toEqual({
-			DATABASE_URL: "mima://itm_db",
-			NAME: "mima app",
+			DATABASE_URL: "vauly://itm_db",
+			NAME: "vauly app",
 			EMPTY: "",
 			PORT: "3000",
 		});

@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import {
 	type AccountKeys,
 	changeMasterPassword,
@@ -8,8 +9,7 @@ import {
 	sealJson,
 	unwrapKeyFrom,
 	wrapKeyFor,
-} from "@mima/crypto";
-import { useQueryClient } from "@tanstack/react-query";
+} from "@vauly/crypto";
 import {
 	createContext,
 	type ReactNode,
@@ -31,7 +31,7 @@ import { client, SESSION_ENDED } from "@/utils/orpc";
 /** Idle minutes before the vault locks. Each device keeps its own choice. */
 export const AUTO_LOCK_CHOICES = [5, 15, 30, 60, 240] as const;
 export type AutoLockMinutes = (typeof AUTO_LOCK_CHOICES)[number];
-const AUTO_LOCK_KEY = "mima.autoLockMinutes";
+const AUTO_LOCK_KEY = "vauly.autoLockMinutes";
 
 function storedAutoLock(): AutoLockMinutes {
 	try {
@@ -177,7 +177,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			);
 			const result = await authClient.signIn.email(
 				{ email, password: authKey },
-				code ? { headers: { "x-mima-code": code } } : undefined,
+				code ? { headers: { "x-vauly-code": code } } : undefined,
 			);
 			if (result.error?.code === "TWO_FACTOR_REQUIRED")
 				throw new TwoStepError(false);

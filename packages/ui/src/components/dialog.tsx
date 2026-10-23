@@ -1,7 +1,7 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { Button } from "@mima/ui/components/button";
-import { cn } from "@mima/ui/lib/utils";
 import { XIcon } from "@phosphor-icons/react";
+import { Button } from "@vauly/ui/components/button";
+import { cn } from "@vauly/ui/lib/utils";
 import type * as React from "react";
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {

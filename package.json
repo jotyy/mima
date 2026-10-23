@@ -1,12 +1,12 @@
 {
-	"name": "mima",
+	"name": "vauly",
 	"description": "A self-hosted, end-to-end encrypted password manager for small teams.",
 	"license": "AGPL-3.0-only",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/jotyy/mima.git"
+		"url": "git+https://github.com/jotyy/vauly.git"
 	},
-	"bugs": "https://github.com/jotyy/mima/issues",
+	"bugs": "https://github.com/jotyy/vauly/issues",
 	"private": true,
 	"workspaces": {
 		"packages": [
@@ -32,20 +32,21 @@
 	},
 	"type": "module",
 	"scripts": {
-		"dev": "turbo run dev -F @mima/infra",
+		"dev": "turbo run dev -F @vauly/infra",
 		"dev:extension": "turbo run dev -F extension",
 		"build": "turbo run build",
 		"check-types": "turbo run check-types",
 		"dev:web": "turbo run dev:bare -F web --",
-		"db:generate": "turbo run db:generate -F @mima/db --",
-		"deploy": "turbo run deploy -F @mima/infra --",
-		"destroy": "turbo run destroy -F @mima/infra --",
+		"db:generate": "turbo run db:generate -F @vauly/db --",
+		"deploy": "turbo run deploy -F @vauly/infra --",
+		"destroy": "turbo run destroy -F @vauly/infra --",
 		"env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/",
 		"postinstall": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/",
 		"check": "biome check --write .",
 		"test": "bun test --cwd packages/crypto && bun test --cwd apps/cli && bun test --cwd apps/web",
 		"test:e2e": "bun run --cwd e2e test",
-		"test:site": "bun run --cwd e2e test:site"
+		"test:site": "bun run --cwd e2e test:site",
+		"brand": "bun brand/build.ts"
 	},
 	"dependencies": {
 		"zod": "catalog:"
@@ -53,8 +54,9 @@
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.15",
 		"@cloudflare/workers-types": "catalog:",
-		"@mima/config": "workspace:*",
+		"@playwright/test": "1.64.1",
 		"@types/node": "^26.4.1",
+		"@vauly/config": "workspace:*",
 		"turbo": "^2.11.7",
 		"typescript": "catalog:",
 		"varlock": "catalog:"

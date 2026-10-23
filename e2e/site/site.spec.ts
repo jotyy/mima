@@ -20,7 +20,7 @@ function watchAssets(page: Page) {
 
 test("the landing page leads into the docs", async ({ page }) => {
 	await page.goto("/");
-	await expect(page).toHaveTitle(/mima/);
+	await expect(page).toHaveTitle(/vauly/);
 	await expect(page.getByRole("heading", { level: 1 })).toContainText(
 		"The password manager",
 	);
@@ -97,14 +97,14 @@ test("every docs page loads all it asks for, diagrams and code styles included",
 	await page.goto("/docs/agents/");
 	await expect(
 		page.getByRole("figure", {
-			name: "How a command gets a secret through mima run",
+			name: "How a command gets a secret through vauly run",
 		}),
 	).toBeVisible();
 });
 
 test("the questions open one answer at a time", async ({ page }) => {
 	await page.goto("/#faq");
-	const first = page.locator("details").filter({ hasText: "Is mima free?" });
+	const first = page.locator("details").filter({ hasText: "Is vauly free?" });
 	const second = page
 		.locator("details")
 		.filter({ hasText: "What if I forget my master password?" });
@@ -121,7 +121,7 @@ test("a page that isn't there says so, and leads back", async ({ page }) => {
 	await expect(
 		page.getByRole("heading", { name: "Nothing here" }),
 	).toBeVisible();
-	await page.getByRole("link", { name: "Back to mima" }).click();
+	await page.getByRole("link", { name: "Back to vauly" }).click();
 	await expect(page).toHaveURL(/\/$/);
 });
 

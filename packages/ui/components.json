@@ -12,11 +12,11 @@
 	},
 	"iconLibrary": "phosphor",
 	"aliases": {
-		"components": "@mima/ui/components",
-		"utils": "@mima/ui/lib/utils",
-		"hooks": "@mima/ui/hooks",
-		"lib": "@mima/ui/lib",
-		"ui": "@mima/ui/components"
+		"components": "@vauly/ui/components",
+		"utils": "@vauly/ui/lib/utils",
+		"hooks": "@vauly/ui/hooks",
+		"lib": "@vauly/ui/lib",
+		"ui": "@vauly/ui/components"
 	},
 	"menuColor": "default",
 	"menuAccent": "subtle",

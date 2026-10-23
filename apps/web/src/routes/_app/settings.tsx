@@ -1,19 +1,19 @@
-import { Badge } from "@mima/ui/components/badge";
-import { Button } from "@mima/ui/components/button";
-import { Input } from "@mima/ui/components/input";
+import { DesktopIcon, DeviceMobileIcon } from "@phosphor-icons/react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Badge } from "@vauly/ui/components/badge";
+import { Button } from "@vauly/ui/components/button";
+import { Input } from "@vauly/ui/components/input";
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@mima/ui/components/select";
-import { Skeleton } from "@mima/ui/components/skeleton";
-import { Switch } from "@mima/ui/components/switch";
-import { Tabs, TabsList, TabsTrigger } from "@mima/ui/components/tabs";
-import { DesktopIcon, DeviceMobileIcon } from "@phosphor-icons/react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+} from "@vauly/ui/components/select";
+import { Skeleton } from "@vauly/ui/components/skeleton";
+import { Switch } from "@vauly/ui/components/switch";
+import { Tabs, TabsList, TabsTrigger } from "@vauly/ui/components/tabs";
 import { useTheme } from "next-themes";
 import { type ReactNode, useState } from "react";
 
@@ -43,7 +43,7 @@ import { client } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_app/settings")({
 	component: Settings,
-	head: () => ({ meta: [{ title: "Settings · mima" }] }),
+	head: () => ({ meta: [{ title: "Settings · vauly" }] }),
 });
 
 const lockLabels: Record<AutoLockMinutes, string> = {
@@ -67,12 +67,12 @@ function Settings() {
 	const me = keyring.me;
 	if (!me) return null;
 	const isAdmin = me.role !== "member";
-	const workspaceName = workspace.data?.workspaceName ?? "mima";
+	const workspaceName = workspace.data?.workspaceName ?? "vauly";
 
 	return (
 		<Page
 			title="Settings"
-			description={`Your account in ${workspaceName}, and how mima behaves on this device.`}
+			description={`Your account in ${workspaceName}, and how vauly behaves on this device.`}
 		>
 			<SectionTitle>Account</SectionTitle>
 			<Card>
@@ -94,7 +94,7 @@ function Settings() {
 				</Row>
 				<Row
 					label="Master password"
-					hint="Unlocks mima on every device. Nobody can reset it for you."
+					hint="Unlocks vauly on every device. Nobody can reset it for you."
 				>
 					<Button variant="outline" onClick={() => setChanging(true)}>
 						Change master password
@@ -131,7 +131,7 @@ function Settings() {
 							if (!opened)
 								notify.error(
 									"Couldn't open the kit",
-									"Allow pop-ups for mima and try again.",
+									"Allow pop-ups for vauly and try again.",
 								);
 						}}
 					>
@@ -144,7 +144,7 @@ function Settings() {
 			<Card>
 				<Row
 					label="Lock after"
-					hint="Idle time before mima forgets the keys and asks for the master password."
+					hint="Idle time before vauly forgets the keys and asks for the master password."
 				>
 					<Select
 						items={AUTO_LOCK_CHOICES.map((minutes) => ({
@@ -155,7 +155,7 @@ function Settings() {
 						onValueChange={(value) => {
 							const minutes = Number(value) as AutoLockMinutes;
 							keyring.setAutoLockMinutes(minutes);
-							notify.success(`mima now locks after ${lockLabels[minutes]}`);
+							notify.success(`vauly now locks after ${lockLabels[minutes]}`);
 						}}
 					>
 						<SelectTrigger className="w-40" aria-label="Lock after">
@@ -198,7 +198,7 @@ function Settings() {
 					<div className="flex flex-col gap-0.5">
 						<span className="text-body-sm text-fg">Style</span>
 						<span className="text-caption text-fg-muted">
-							How mima looks on this device: its colors, depth and typeface.
+							How vauly looks on this device: its colors, depth and typeface.
 							Everything stays in the same place.
 						</span>
 					</div>
@@ -246,7 +246,7 @@ function Settings() {
 				</Row>
 				<Row
 					label="Backup"
-					hint="Every item you can open, decrypted into one CSV file. mima and most password managers can import it."
+					hint="Every item you can open, decrypted into one CSV file. vauly and most password managers can import it."
 				>
 					<Button variant="outline" onClick={() => setExporting(true)}>
 						Download a backup

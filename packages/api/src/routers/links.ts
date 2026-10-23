@@ -1,6 +1,6 @@
-import { user } from "@mima/db/schema/auth";
-import { item, setting, shareLink } from "@mima/db/schema/vault";
 import { ORPCError } from "@orpc/server";
+import { user } from "@vauly/db/schema/auth";
+import { item, setting, shareLink } from "@vauly/db/schema/vault";
 import { and, desc, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -144,7 +144,7 @@ export const linksRouter = {
 			.where(eq(setting.key, "workspace_name"));
 		return {
 			sharedBy: row.sharedBy ?? "Someone",
-			workspace: workspace?.value ?? "mima",
+			workspace: workspace?.value ?? "vauly",
 			expiresAt: row.expiresAt,
 			viewsLeft: row.maxViews === null ? null : row.maxViews - row.views,
 		};

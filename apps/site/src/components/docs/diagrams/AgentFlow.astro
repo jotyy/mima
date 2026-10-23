@@ -1,19 +1,19 @@
 ---
 import Icon from "@/components/Icon.astro";
 
-// How a command gets a secret through mima run, in four steps. The drawn version of the
+// How a command gets a secret through vauly run, in four steps. The drawn version of the
 // diagram in docs/agents.md.
 
 const steps = [
 	{
 		icon: "robot",
 		title: "The agent runs",
-		code: "mima run -- npm test",
-		note: "Its .env holds mima:// references.",
+		code: "vauly run -- npm test",
+		note: "Its .env holds vauly:// references.",
 	},
 	{
 		icon: "cloud",
-		title: "mima asks",
+		title: "vauly asks",
 		code: null,
 		note: "your server for the item, as ciphertext.",
 	},
@@ -21,7 +21,7 @@ const steps = [
 		icon: "check-circle",
 		title: "A person allows it",
 		code: null,
-		note: "in mima: once, or for an hour.",
+		note: "in vauly: once, or for an hour.",
 	},
 	{
 		icon: "eye-slash",
@@ -32,7 +32,7 @@ const steps = [
 ];
 ---
 
-<figure class="agent-flow not-content" aria-label="How a command gets a secret through mima run">
+<figure class="agent-flow not-content" aria-label="How a command gets a secret through vauly run">
 	<ol>
 		{
 			steps.map((step, index) => (

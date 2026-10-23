@@ -1,4 +1,4 @@
-# Contributing to mima
+# Contributing to vauly
 
 Thanks for helping. This guide gets you from a clone to a pull request. By taking part you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
@@ -9,8 +9,8 @@ Security problems go through [SECURITY.md](SECURITY.md), not public issues.
 You need [Bun](https://bun.sh) 1.3 or later.
 
 ```sh
-git clone https://github.com/jotyy/mima.git
-cd mima
+git clone https://github.com/jotyy/vauly.git
+cd vauly
 bun install
 cp apps/server/.env.example apps/server/.env   # set BETTER_AUTH_SECRET to 32+ random characters
 cp apps/web/.env.example apps/web/.env
@@ -39,7 +39,7 @@ The end-to-end suite starts its own stack (stage `e2e`, web on port 3101, API on
 ```
 apps/web            the React app; pages in src/routes, pieces in src/components, logic in src/lib
 apps/server         the Worker entry point
-apps/cli            mima run
+apps/cli            vauly run
 packages/crypto     all cryptography; nothing else calls WebCrypto for item data
 packages/api        oRPC routes and access rules
 packages/db         Drizzle schema and migrations

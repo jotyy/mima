@@ -1,5 +1,5 @@
 {
-	"name": "@mima/db",
+	"name": "@vauly/db",
 	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
@@ -18,7 +18,7 @@
 		"zod": "catalog:"
 	},
 	"devDependencies": {
-		"@mima/config": "workspace:*",
+		"@vauly/config": "workspace:*",
 		"drizzle-kit": "1.0.0-rc.4",
 		"typescript": "catalog:",
 		"varlock": "catalog:"

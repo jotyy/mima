@@ -1,8 +1,8 @@
 "use client";
 
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
-import { cn } from "@mima/ui/lib/utils";
 import { CaretRightIcon, CheckIcon } from "@phosphor-icons/react";
+import { cn } from "@vauly/ui/lib/utils";
 import type * as React from "react";
 
 function DropdownMenu({ ...props }: MenuPrimitive.Root.Props) {

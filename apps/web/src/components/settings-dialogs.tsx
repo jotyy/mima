@@ -1,4 +1,5 @@
-import { Button } from "@mima/ui/components/button";
+import { WarningIcon } from "@phosphor-icons/react";
+import { Button } from "@vauly/ui/components/button";
 import {
 	Dialog,
 	DialogContent,
@@ -6,8 +7,7 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@mima/ui/components/dialog";
-import { WarningIcon } from "@phosphor-icons/react";
+} from "@vauly/ui/components/dialog";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 
 import { backupFileName, toBackupCsv } from "@/lib/backup";
@@ -75,7 +75,7 @@ export function ChangePasswordDialog({
 			open={open}
 			onOpenChange={(next) => !busy && onOpenChange(next)}
 			title="Change master password"
-			description="Your items stay as they are: mima seals your keys again with the new password, on this device."
+			description="Your items stay as they are: vauly seals your keys again with the new password, on this device."
 			onSubmit={submit}
 			footer={
 				<>

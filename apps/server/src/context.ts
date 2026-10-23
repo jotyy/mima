@@ -1,4 +1,4 @@
-import type { Context as ApiContext } from "@mima/api/context";
+import type { Context as ApiContext } from "@vauly/api/context";
 import type { Context as HonoContext } from "hono";
 
 import { ENV } from "./env.server";

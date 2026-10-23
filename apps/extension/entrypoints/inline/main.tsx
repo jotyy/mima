@@ -19,7 +19,7 @@ if (!root) throw new Error("The frame page has no #root element");
 // frame never covers the page for no reason.
 new ResizeObserver(() =>
 	tellPage({
-		mima: "size",
+		vauly: "size",
 		height: root.childElementCount ? document.documentElement.scrollHeight : 0,
 	}),
 ).observe(document.body);
