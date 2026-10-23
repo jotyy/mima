@@ -59,6 +59,7 @@ function securityHeaders(): Plugin {
 			const source = headersFile({
 				server: setting(config, "VITE_SERVER_URL"),
 				logos: setting(config, "VITE_BRANDFETCH_CLIENT_ID") !== "off",
+				breaches: setting(config, "VITE_BREACH_CHECK") !== "off",
 			});
 			this.emitFile({ type: "asset", fileName: "_headers", source });
 		},

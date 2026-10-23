@@ -31,6 +31,17 @@ export default defineConfig({
 		screenshot: "only-on-failure",
 		...devices["Desktop Chrome"],
 		viewport: { width: 1440, height: 900 },
+		// Browsers start with the breach check off, so no test depends on Have I Been
+		// Pwned; breaches.spec.ts turns it on and stands in for the service.
+		storageState: {
+			cookies: [],
+			origins: [
+				{
+					origin: `http://localhost:${WEB_PORT}`,
+					localStorage: [{ name: "vauly.breachCheck", value: "off" }],
+				},
+			],
+		},
 	},
 	webServer: oneWorker
 		? {

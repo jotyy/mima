@@ -7,6 +7,7 @@ import {
 	KeyReturnIcon,
 	MagnifyingGlassIcon,
 	ShieldCheckIcon,
+	ShieldWarningIcon,
 	UserMinusIcon,
 	UserPlusIcon,
 	WarningIcon,
@@ -30,6 +31,7 @@ import {
 } from "@/components/member-dialogs";
 import { notify } from "@/components/notify";
 import { Page, SectionTitle } from "@/components/page";
+import { useBreached } from "@/lib/breaches";
 import { ago, plural } from "@/lib/format";
 import { useKeyring } from "@/lib/keyring";
 import { logoDomain } from "@/lib/logos";
@@ -274,6 +276,7 @@ function useNeeds() {
 	const navigate = useNavigate();
 	const lookup = useLookup();
 	const exposure = useExposed();
+	const breaches = useBreached();
 	const [busy, setBusy] = useState<string | null>(null);
 	const [giving, setGiving] = useState<Member | null>(null);
 	const [link, setLink] = useState<{ email: string; token: string } | null>(
@@ -353,8 +356,50 @@ function useNeeds() {
 	const live = items.data ?? [];
 	const openItem = (item: Item) =>
 		navigate({ to: "/items", search: { id: item.id, vault: item.vaultId } });
-	const review = (health: "weak" | "reused" | "exposed") =>
+	const review = (health: "breached" | "weak" | "reused" | "exposed") =>
 		navigate({ to: "/items", search: { health } });
+
+	const breachedItems = live.filter((item) => breaches.has(item.id));
+	const breached: NeedRowProps[] = breachedItems.length
+		? [
+				{
+					id: "breached",
+					icon: ShieldWarningIcon,
+					tone: "text-danger",
+					title:
+						breachedItems.length === 1 ? (
+							<>
+								<span className="font-medium">{breachedItems[0]?.name}</span>{" "}
+								uses a password found in data breaches
+							</>
+						) : (
+							<>
+								<span className="font-medium">
+									{breachedItems.length} logins
+								</span>{" "}
+								use passwords found in data breaches
+							</>
+						),
+					meta:
+						breachedItems.length === 1
+							? "Leaked passwords are the first ones attackers try"
+							: listNames(breachedItems),
+					actions: (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() =>
+								breachedItems.length === 1 && breachedItems[0]
+									? openItem(breachedItems[0])
+									: review("breached")
+							}
+						>
+							{breachedItems.length === 1 ? "Change" : "Review"}
+						</Button>
+					),
+				},
+			]
+		: [];
 
 	const weakItems = live.filter((item) => item.strength === "weak");
 	const weak: NeedRowProps[] = weakItems.length
@@ -609,6 +654,7 @@ function useNeeds() {
 		rows: [
 			...approvals,
 			...newcomers,
+			...breached,
 			...weak,
 			...reused,
 			...exposed,

@@ -1,5 +1,7 @@
 import { LOGO_ORIGIN } from "@vauly/ui/lib/logos";
 
+import { PWNED_PASSWORDS_ORIGIN } from "./src/lib/pwned-passwords";
+
 // The headers the app's pages and files are served with. The build writes them to
 // dist/_headers, which Workers Static Assets apply in both deploy shapes: the one Worker
 // from wrangler.jsonc and the Alchemy stack's web Website. `vite dev` ignores the file;
@@ -10,9 +12,15 @@ export type HeaderOptions = {
 	server: string;
 	/** Whether this build shows website logos, which load from Brandfetch. */
 	logos: boolean;
+	/** Whether this build checks passwords against Have I Been Pwned. */
+	breaches: boolean;
 };
 
-export function contentSecurityPolicy({ server, logos }: HeaderOptions) {
+export function contentSecurityPolicy({
+	server,
+	logos,
+	breaches,
+}: HeaderOptions) {
 	const directives: [string, ...string[]][] = [
 		["default-src", "'self'"],
 		// Only the app's own script files run: nothing inline, nothing from a string.
@@ -21,7 +29,12 @@ export function contentSecurityPolicy({ server, logos }: HeaderOptions) {
 		["style-src", "'self'", "'unsafe-inline'"],
 		// The data: images are the backgrounds and masks in the app's CSS.
 		["img-src", "'self'", "data:", "blob:", ...(logos ? [LOGO_ORIGIN] : [])],
-		["connect-src", "'self'", ...(server ? [new URL(server).origin] : [])],
+		[
+			"connect-src",
+			"'self'",
+			...(server ? [new URL(server).origin] : []),
+			...(breaches ? [PWNED_PASSWORDS_ORIGIN] : []),
+		],
 		["worker-src", "'self'"],
 		["manifest-src", "'self'"],
 		["object-src", "'none'"],

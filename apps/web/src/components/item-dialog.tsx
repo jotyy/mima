@@ -29,6 +29,7 @@ import {
 import { cn } from "@vauly/ui/lib/utils";
 import { type ReactNode, useEffect, useState } from "react";
 
+import { timesSeen, useDraftBreaches } from "@/lib/breaches";
 import { generatePassword, parseTotp, passwordStrength } from "@/lib/secrets";
 import {
 	errorMessage,
@@ -362,6 +363,7 @@ function SecretInput({
 	onChange: (value: string) => void;
 }) {
 	const [visible, setVisible] = useState(kind !== "login");
+	const breaches = useDraftBreaches(value, kind === "login");
 	if (kind === "ssh-key") {
 		return (
 			<Textarea
@@ -419,7 +421,11 @@ function SecretInput({
 					</Tooltip>
 				)}
 			</div>
-			{strength && (
+			{breaches ? (
+				<span className="text-caption text-danger">
+					Leaked: seen {timesSeen(breaches)} in data breaches
+				</span>
+			) : strength ? (
 				<span
 					className={cn(
 						"text-caption",
@@ -434,7 +440,7 @@ function SecretInput({
 							? "Fair: longer is better"
 							: "Strong"}
 				</span>
-			)}
+			) : null}
 		</>
 	);
 }

@@ -29,6 +29,11 @@ import {
 	TurnOnTwoStepDialog,
 } from "@/components/two-step-dialogs";
 import { authClient } from "@/lib/auth-client";
+import {
+	breachCheckAvailable,
+	setBreachCheck,
+	useBreachCheck,
+} from "@/lib/breaches";
 import { describeDevice } from "@/lib/device";
 import { openEmergencyKit } from "@/lib/emergency-kit";
 import { ago, plural } from "@/lib/format";
@@ -64,6 +69,7 @@ function Settings() {
 	const [exporting, setExporting] = useState(false);
 	const [twoStep, setTwoStep] = useState<"on" | "off" | null>(null);
 	const logosShown = useLogosShown();
+	const breachCheck = useBreachCheck();
 	const me = keyring.me;
 	if (!me) return null;
 	const isAdmin = me.role !== "member";
@@ -179,6 +185,18 @@ function Settings() {
 							aria-label="Website logos"
 							checked={logosShown}
 							onCheckedChange={setLogosShown}
+						/>
+					</Row>
+				)}
+				{breachCheckAvailable && (
+					<Row
+						label="Breached passwords"
+						hint="Check logins against Have I Been Pwned's list of leaked passwords. Only the first five characters of each password's SHA-1 hash leave this device."
+					>
+						<Switch
+							aria-label="Breached passwords"
+							checked={breachCheck}
+							onCheckedChange={setBreachCheck}
 						/>
 					</Row>
 				)}

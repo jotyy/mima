@@ -8,6 +8,7 @@ import {
 	PencilSimpleIcon,
 	PlusIcon,
 	RobotIcon,
+	ShieldWarningIcon,
 	StarIcon,
 	TrashIcon,
 	UserMinusIcon,
@@ -33,6 +34,7 @@ import {
 import { cn } from "@vauly/ui/lib/utils";
 import { type ReactNode, useState } from "react";
 
+import { timesSeen, useBreached } from "@/lib/breaches";
 import { ago, plural, timeLeft, toneDot } from "@/lib/format";
 import { logoDomain } from "@/lib/logos";
 import { useLookup } from "@/lib/use-lookup";
@@ -82,6 +84,7 @@ export function ItemDetail({ item }: { item: Item }) {
 	const links = useLinks(item.id);
 	const history = useItemEvents(item.id);
 	const exposure = useExposed().exposed.get(item.id);
+	const breaches = useBreached().get(item.id);
 	const [editing, setEditing] = useState(false);
 	const [granting, setGranting] = useState(false);
 	const [sharing, setSharing] = useState(false);
@@ -139,10 +142,15 @@ export function ItemDetail({ item }: { item: Item }) {
 							</Badge>
 						)}
 						<Badge variant="secondary">{kindLabel[item.kind]}</Badge>
-						{item.strength && (
-							<Badge variant={strengthBadge[item.strength].variant}>
-								{strengthBadge[item.strength].label}
-							</Badge>
+						{breaches ? (
+							// However long it is, a leaked password isn't strong.
+							<Badge variant="destructive">Leaked</Badge>
+						) : (
+							item.strength && (
+								<Badge variant={strengthBadge[item.strength].variant}>
+									{strengthBadge[item.strength].label}
+								</Badge>
+							)
 						)}
 					</div>
 				</div>
@@ -241,6 +249,19 @@ export function ItemDetail({ item }: { item: Item }) {
 					</DropdownMenu>
 				</div>
 			</header>
+
+			{breaches ? (
+				<div className="border-danger-line bg-danger-soft text-caption text-danger-strong mx-4 mt-3 flex items-center gap-2 rounded-lg border px-3 py-2">
+					<ShieldWarningIcon className="size-4 shrink-0" />
+					<p className="min-w-0 flex-1">
+						This password turned up {timesSeen(breaches)} in data breaches.
+						Attackers try leaked passwords first, so change it.
+					</p>
+					<Button variant="outline" size="xs" onClick={() => setEditing(true)}>
+						Change
+					</Button>
+				</div>
+			) : null}
 
 			{item.reusedWith?.length ? (
 				<div className="border-warning-line bg-warning-soft text-caption text-warning mx-4 mt-3 flex items-center gap-2 rounded-lg border px-3 py-2">

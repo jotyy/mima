@@ -31,7 +31,7 @@ vauly is for small teams who want one place for their shared logins, API keys an
 - **Two-step login.** Optionally ask for a code from an authenticator app too, with recovery codes for a lost phone. Admins can reset it for a teammate.
 - **Vaults for sharing.** Everyone gets a private vault. Shared vaults are opened to people one by one, and taking someone out takes the vault away from them.
 - **The items a team actually keeps.** Logins with one-time codes (TOTP), API keys, SSH keys and secure notes, with a password generator and a strength check.
-- **Password health.** The Overview points out weak passwords, logins that share one, and items someone could see before they left a vault or the team. It's worked out on your device, because only it can read them.
+- **Password health.** The Overview points out passwords found in data breaches, weak passwords, logins that share one, and items someone could see before they left a vault or the team. It's worked out on your device, because only it can read them: breaches are checked with Have I Been Pwned, and only the first five characters of a password's hash leave the device.
 - **Share links for everyone else.** Send one item to a contractor or a friend through a link that expires, optionally after a single view. It's encrypted on your device and the key travels only in the link.
 - **Hard to lose things.** Deleting an item moves it to Recently deleted for 30 days, with Undo right in the notification. A changed password stays under Earlier.
 - **An activity log.** Every reveal, copy, share, import and backup is recorded, so the team knows who used what.

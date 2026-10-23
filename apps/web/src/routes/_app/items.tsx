@@ -24,9 +24,11 @@ import { ItemDetail } from "@/components/item-detail";
 import { ItemDialog } from "@/components/item-dialog";
 import { ItemTile } from "@/components/item-tile";
 import { Page } from "@/components/page";
+import { timesSeen, useBreached } from "@/lib/breaches";
 import { plural, toneDot } from "@/lib/format";
 import { logoDomain } from "@/lib/logos";
 import {
+	type Item,
 	type ItemKind,
 	itemMatches,
 	useExposed,
@@ -42,7 +44,7 @@ const searchSchema = z.object({
 	id: z.string().optional(),
 	new: z.boolean().optional(),
 	import: z.boolean().optional(),
-	health: z.enum(["weak", "reused", "exposed"]).optional(),
+	health: z.enum(["breached", "weak", "reused", "exposed"]).optional(),
 });
 
 export const Route = createFileRoute("/_app/items")({
@@ -60,12 +62,14 @@ const kinds = [
 ];
 
 const healthLabel = {
+	breached: "Found in data breaches",
 	weak: "Weak passwords",
 	reused: "Passwords used more than once",
 	exposed: "Seen by people who lost access",
 };
 
 const healthClear = {
+	breached: "No login uses a breached password now.",
 	weak: "No weak passwords left.",
 	reused: "Every login has its own password now.",
 	exposed: "Everything they could see has changed since.",
@@ -77,6 +81,7 @@ function Items() {
 	const items = useItems();
 	const vaults = useVaults();
 	const { exposed } = useExposed();
+	const breached = useBreached();
 	const vault = vaults.data?.find((v) => v.id === search.vault);
 	const query = (search.q ?? "").toLowerCase();
 
@@ -86,12 +91,28 @@ function Items() {
 	const visible = inScope.filter(
 		(item) =>
 			(!search.kind || item.kind === search.kind) &&
+			(search.health !== "breached" || breached.has(item.id)) &&
 			(search.health !== "weak" || item.strength === "weak") &&
 			(search.health !== "reused" || Boolean(item.reusedWith?.length)) &&
 			(search.health !== "exposed" || exposed.has(item.id)) &&
 			(!query || itemMatches(item, query)),
 	);
 	const names = new Map(inScope.map((item) => [item.id, item.name]));
+	// Under each name: what's wrong with it while the list shows one problem.
+	const note = (item: Item) => {
+		const seen = breached.get(item.id);
+		const people = exposed.get(item.id)?.people;
+		if (search.health === "breached" && seen) {
+			return `Seen ${timesSeen(seen)} in breaches`;
+		}
+		if (search.health === "reused" && item.reusedWith) {
+			return `Same password as ${item.reusedWith.map((id) => names.get(id)).join(", ")}`;
+		}
+		if (search.health === "exposed" && people) {
+			return `${people.map((person) => person.name).join(", ")} could see it`;
+		}
+		return item.username ?? item.url ?? item.notes ?? " ";
+	};
 	const selected =
 		visible.find((item) => item.id === search.id) ?? visible[0] ?? null;
 	const setNew = (open: boolean) =>
@@ -242,16 +263,7 @@ function Items() {
 											)}
 										</span>
 										<span className="text-caption text-fg-subtle truncate">
-											{search.health === "reused" && item.reusedWith
-												? `Same password as ${item.reusedWith
-														.map((id) => names.get(id))
-														.join(", ")}`
-												: search.health === "exposed" && exposed.has(item.id)
-													? `${exposed
-															.get(item.id)
-															?.people.map((person) => person.name)
-															.join(", ")} could see it`
-													: (item.username ?? item.url ?? item.notes ?? " ")}
+											{note(item)}
 										</span>
 									</div>
 									{!vault && itemVault && (
