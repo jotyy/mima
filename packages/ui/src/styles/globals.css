@@ -79,6 +79,11 @@
 	--round-window: 10px;
 	--round-shell: 12px;
 	--round-panel: 16px;
+
+	/* Typefaces: text, titles and code. A style can swap all three. */
+	--font-text: "IBM Plex Sans Variable", system-ui, sans-serif;
+	--font-display: var(--font-text);
+	--font-code: "IBM Plex Mono", ui-monospace, monospace;
 }
 
 .dark {
@@ -174,9 +179,9 @@
 }
 
 @theme inline {
-	--font-sans: "IBM Plex Sans Variable", system-ui, sans-serif;
-	--font-heading: "IBM Plex Sans Variable", system-ui, sans-serif;
-	--font-mono: "IBM Plex Mono", ui-monospace, monospace;
+	--font-sans: var(--font-text);
+	--font-heading: var(--font-display);
+	--font-mono: var(--font-code);
 
 	--font-weight-normal: 400;
 	--font-weight-medium: 450;
