@@ -174,7 +174,7 @@ function ClipboardPill({
 			{icons.success}
 			<span className="truncate">
 				Copied {label}
-				{source && <span className="opacity-60"> · {source}</span>}
+				{source && <span className="opacity-60"> for {source}</span>}
 			</span>
 			{secret && (
 				<>
@@ -201,7 +201,7 @@ function ClipboardPill({
 								className="stroke-current transition-[stroke-dashoffset] duration-300 ease-linear"
 							/>
 						</svg>
-						{Math.ceil(left)}s
+						Clears in {Math.ceil(left)}s
 					</span>
 					<button
 						type="button"

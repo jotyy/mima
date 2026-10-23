@@ -98,7 +98,11 @@ export function ShareLinkDialog({
 							>
 								{created.url}
 							</code>
-							<CopyButton value={created.url} label="link" source={item.name} />
+							<CopyButton
+								value={created.url}
+								label="share link"
+								source={item.name}
+							/>
 						</div>
 						<p className="text-caption text-fg-subtle">
 							{created.once ? "Works once, until " : "Works until "}
