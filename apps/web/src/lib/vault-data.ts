@@ -78,6 +78,12 @@ export type SharedItem = Pick<
 
 export const itemReference = (item: { id: string }) => `mima://${item.id}`;
 
+/** Whether an item's name, username, address or tags contain the (lowercase) query. */
+export const itemMatches = (item: Item, query: string) =>
+	[item.name, item.username, item.url, ...(item.tags ?? [])].some((value) =>
+		value?.toLowerCase().includes(query),
+	);
+
 function useVaultQueryOptions() {
 	const keyring = useKeyring();
 	return useMemo(

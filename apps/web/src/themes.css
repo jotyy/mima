@@ -162,10 +162,6 @@ html[data-style="pure"] [data-slot="page-header"] h1 {
 	letter-spacing: -0.015em;
 }
 
-html[data-style="pure"] [data-slot="section-title"] h2 {
-	font-weight: 600;
-}
-
 html[data-style="pure"] [data-slot="nav-label"] {
 	border: 0;
 	background: none;

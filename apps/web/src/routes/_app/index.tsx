@@ -1,19 +1,21 @@
 import { Badge } from "@mima/ui/components/badge";
 import { Button } from "@mima/ui/components/button";
+import { Kbd } from "@mima/ui/components/kbd";
 import { Tabs, TabsList, TabsTrigger } from "@mima/ui/components/tabs";
 import { cn } from "@mima/ui/lib/utils";
 import {
-	ArrowRightIcon,
 	ArrowUpRightIcon,
 	CheckCircleIcon,
 	ClockIcon,
 	CopySimpleIcon,
 	EnvelopeSimpleIcon,
+	KeyReturnIcon,
 	MagnifyingGlassIcon,
 	ShieldCheckIcon,
 	UserMinusIcon,
 	UserPlusIcon,
 	WarningIcon,
+	XIcon,
 } from "@phosphor-icons/react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { type ComponentType, type ReactNode, useState } from "react";
@@ -36,6 +38,7 @@ import {
 	type AccessRequest,
 	errorMessage,
 	type Item,
+	itemMatches,
 	type Member,
 	useActions,
 	useAgents,
@@ -50,14 +53,6 @@ import {
 export const Route = createFileRoute("/_app/")({
 	component: Overview,
 });
-
-const kinds = [
-	{ value: "all", label: "Everything" },
-	{ value: "login", label: "Logins" },
-	{ value: "api-key", label: "API keys" },
-	{ value: "note", label: "Notes" },
-	{ value: "ssh-key", label: "SSH keys" },
-];
 
 function Overview() {
 	const { me } = useKeyring();
@@ -74,7 +69,7 @@ function Overview() {
 			}
 		>
 			<GetStarted />
-			<SearchCard />
+			<QuickFind />
 
 			<div className="mt-8">
 				<SectionTitle>
@@ -112,74 +107,149 @@ function Overview() {
 	);
 }
 
-function SearchCard() {
+/**
+ * Find an item without leaving the overview: matches show up under the field as you
+ * type, with their copy buttons. Enter opens the highlighted one.
+ */
+function QuickFind() {
 	const navigate = useNavigate();
 	const items = useItems();
 	const vaults = useVaults();
-	const [kind, setKind] = useState("all");
 	const [query, setQuery] = useState("");
+	const [active, setActive] = useState(0);
+	const q = query.trim().toLowerCase();
+	const matches = q
+		? (items.data ?? []).filter((item) => itemMatches(item, q))
+		: [];
+	const shown = matches.slice(0, 5);
+	const search = (value: string) => {
+		setQuery(value);
+		setActive(0);
+	};
 
 	return (
 		<div
 			data-slot="search-card"
-			className="rounded-window border-line-subtle bg-surface-sunken border"
+			className="rounded-window bg-surface shadow-card"
 		>
-			<form
-				className="rounded-window bg-surface shadow-card"
-				onSubmit={(event) => {
-					event.preventDefault();
-					navigate({
-						to: "/items",
-						search: {
-							q: query || undefined,
-							kind: kind === "all" ? undefined : kind,
-						},
-					});
-				}}
-			>
-				<div className="flex items-center justify-between p-1.5">
-					<Tabs
-						value={kind}
-						onValueChange={(value) => setKind(String(value))}
-						className="min-w-0 overflow-x-auto"
+			<div className="flex h-12 items-center gap-3 pr-2 pl-4">
+				<MagnifyingGlassIcon className="text-fg-subtle size-4" />
+				<input
+					value={query}
+					aria-label="Find an item"
+					onChange={(event) => search(event.target.value)}
+					onKeyDown={(event) => {
+						if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+							event.preventDefault();
+							const step = event.key === "ArrowDown" ? 1 : -1;
+							setActive((i) => (i + step + shown.length) % shown.length);
+						} else if (event.key === "Enter" && shown[active]) {
+							navigate({
+								to: "/items",
+								search: { id: shown[active].id, vault: shown[active].vaultId },
+							});
+						} else if (event.key === "Escape") {
+							search("");
+						}
+					}}
+					placeholder={`Search ${plural(items.data?.length ?? 0, "item")} in ${plural(vaults.data?.length ?? 0, "vault")}`}
+					className="text-fg text-field min-w-0 flex-1 bg-transparent outline-none"
+				/>
+				{q && (
+					<Button
+						variant="ghost"
+						size="icon-xs"
+						aria-label="Clear search"
+						onClick={() => search("")}
 					>
-						<TabsList>
-							{kinds.map((k) => (
-								<TabsTrigger key={k.value} value={k.value}>
-									{k.label}
-								</TabsTrigger>
-							))}
-						</TabsList>
-					</Tabs>
-					<Link
-						to="/items"
-						className="text-caption text-fg-muted hover:text-fg mr-1.5 flex shrink-0 items-center gap-1 max-sm:hidden"
-					>
-						All items
-						<ArrowUpRightIcon className="size-3" />
-					</Link>
-				</div>
-				<div className="flex h-11 items-center gap-2 pr-1.5 pl-3.5">
-					<MagnifyingGlassIcon className="text-fg-subtle size-4" />
-					<input
-						value={query}
-						aria-label="Search everything"
-						onChange={(event) => setQuery(event.target.value)}
-						placeholder={`Search ${plural(items.data?.length ?? 0, "item")} in ${plural(vaults.data?.length ?? 0, "vault")}`}
-						className="text-fg text-field min-w-0 flex-1 bg-transparent outline-none"
-					/>
-					<Button type="submit" variant="brand" size="icon" aria-label="Search">
-						<ArrowRightIcon />
+						<XIcon />
 					</Button>
+				)}
+			</div>
+			{q && (
+				<div className="border-line-subtle border-t p-1.5">
+					{shown.length === 0 ? (
+						<p className="text-caption text-fg-subtle px-2 py-4 text-center">
+							Nothing matches “{query.trim()}”.
+						</p>
+					) : (
+						<ul aria-label="Matches" className="flex flex-col gap-0.5">
+							{shown.map((item, index) => (
+								<ItemRow key={item.id} item={item} active={index === active}>
+									{index === active && (
+										<Kbd aria-hidden className="max-sm:hidden">
+											<KeyReturnIcon />
+										</Kbd>
+									)}
+								</ItemRow>
+							))}
+						</ul>
+					)}
+					{matches.length > shown.length && (
+						<Link
+							to="/items"
+							search={{ q: query.trim() }}
+							className="text-caption text-fg-muted hover:text-fg block px-2 pt-2 pb-1"
+						>
+							See all {matches.length} in All items
+						</Link>
+					)}
 				</div>
-			</form>
-			<p
-				data-slot="search-hint"
-				className="text-caption text-fg-muted py-2 text-center"
-			>
-				Press ⌘K to search from anywhere
-			</p>
+			)}
 		</div>
+	);
+}
+
+/** An item in a short list: its name opens it, the buttons copy what's in it. */
+function ItemRow({
+	item,
+	active,
+	children,
+}: {
+	item: Item;
+	/** Shows the copy buttons without hovering. */
+	active?: boolean;
+	children?: ReactNode;
+}) {
+	const lookup = useLookup();
+	const actions = useActions();
+	return (
+		<li
+			data-active={active}
+			className="group/row hover:bg-tint/3 data-[active=true]:bg-tint/3 flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors"
+		>
+			<ItemTile kind={item.kind} logo={logoDomain(item)} />
+			<Link
+				to="/items"
+				search={{ id: item.id, vault: item.vaultId }}
+				className="flex min-w-0 flex-1 flex-col"
+			>
+				<span className="text-body-sm text-fg truncate">{item.name}</span>
+				<span className="text-caption text-fg-subtle truncate">
+					{item.username ?? lookup.vaults.get(item.vaultId)?.name}
+				</span>
+			</Link>
+			<div className="flex items-center opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100 group-data-[active=true]/row:opacity-100">
+				{item.username && (
+					<CopyButton
+						value={item.username}
+						label="username"
+						source={item.name}
+						secret={false}
+						onCopied={() => actions.logUse(item, "copied", "username")}
+					/>
+				)}
+				{item.secret && (
+					<CopyButton
+						value={item.secret}
+						label={item.kind === "login" ? "password" : "value"}
+						source={item.name}
+						onCopied={() => actions.logUse(item, "copied", "secret")}
+					/>
+				)}
+			</div>
+			{children}
+		</li>
 	);
 }
 
@@ -588,7 +658,6 @@ function RecentItems() {
 	const items = useItems();
 	const events = useEvents();
 	const lookup = useLookup();
-	const actions = useActions();
 	const [tab, setTab] = useState("recent");
 
 	const used = new Map<string, Date>();
@@ -632,48 +701,13 @@ function RecentItems() {
 			) : (
 				<ul className="flex flex-col gap-0.5">
 					{list.map(({ item, at }) => (
-						<li
-							key={item.id}
-							className="group/row hover:bg-tint/3 flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors"
-						>
-							<ItemTile kind={item.kind} logo={logoDomain(item)} />
-							<Link
-								to="/items"
-								search={{ id: item.id, vault: item.vaultId }}
-								className="flex min-w-0 flex-1 flex-col"
-							>
-								<span className="text-body-sm text-fg truncate">
-									{item.name}
-								</span>
-								<span className="text-caption text-fg-subtle truncate">
-									{item.username ?? lookup.vaults.get(item.vaultId)?.name}
-								</span>
-							</Link>
-							<div className="flex items-center opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100">
-								{item.username && (
-									<CopyButton
-										value={item.username}
-										label="username"
-										source={item.name}
-										secret={false}
-										onCopied={() => actions.logUse(item, "copied", "username")}
-									/>
-								)}
-								{item.secret && (
-									<CopyButton
-										value={item.secret}
-										label={item.kind === "login" ? "password" : "value"}
-										source={item.name}
-										onCopied={() => actions.logUse(item, "copied", "secret")}
-									/>
-								)}
-							</div>
+						<ItemRow key={item.id} item={item}>
 							{at && (
 								<span className="text-caption text-fg-subtle w-14 shrink-0 text-right tabular-nums">
 									{ago(at)}
 								</span>
 							)}
-						</li>
+						</ItemRow>
 					))}
 				</ul>
 			)}

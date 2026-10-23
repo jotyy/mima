@@ -18,7 +18,7 @@ import { type ComponentType, type ReactNode, useMemo, useState } from "react";
 
 import { toneDot } from "@/lib/format";
 import { logoDomain } from "@/lib/logos";
-import { useActions, useItems, useVaults } from "@/lib/vault-data";
+import { itemMatches, useActions, useItems, useVaults } from "@/lib/vault-data";
 
 import { ItemTile } from "./item-tile";
 import { copyToClipboard } from "./notify";
@@ -81,9 +81,7 @@ export function CommandPalette({
 		const vaultName = new Map((vaults.data ?? []).map((v) => [v.id, v.name]));
 
 		const itemResults = (items.data ?? [])
-			.filter((item) =>
-				match(item.name, item.username, item.url, ...(item.tags ?? [])),
-			)
+			.filter((item) => !q || itemMatches(item, q))
 			.slice(0, 8)
 			.map<Result>((item) => ({
 				id: item.id,

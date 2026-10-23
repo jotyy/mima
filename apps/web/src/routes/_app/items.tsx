@@ -28,6 +28,7 @@ import { plural, toneDot } from "@/lib/format";
 import { logoDomain } from "@/lib/logos";
 import {
 	type ItemKind,
+	itemMatches,
 	useExposed,
 	useItems,
 	useVaults,
@@ -87,11 +88,7 @@ function Items() {
 			(search.health !== "weak" || item.strength === "weak") &&
 			(search.health !== "reused" || Boolean(item.reusedWith?.length)) &&
 			(search.health !== "exposed" || exposed.has(item.id)) &&
-			(!query ||
-				item.name.toLowerCase().includes(query) ||
-				item.username?.toLowerCase().includes(query) ||
-				item.url?.toLowerCase().includes(query) ||
-				item.tags?.some((tag) => tag.toLowerCase().includes(query))),
+			(!query || itemMatches(item, query)),
 	);
 	const names = new Map(inScope.map((item) => [item.id, item.name]));
 	const selected =

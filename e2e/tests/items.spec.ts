@@ -198,6 +198,27 @@ test("the command palette copies a password without opening the item", async ({
 	).toBe(20);
 });
 
+test("the overview finds an item to copy from, and Enter opens it", async ({
+	page,
+}) => {
+	await signIn(page, owner);
+	const find = page.getByLabel("Find an item");
+	await find.fill("alex");
+	const matches = page.getByRole("list", { name: "Matches" });
+	await expect(matches.getByText("GitHub (work)")).toBeVisible();
+	await matches.getByRole("button", { name: "Copy password" }).click();
+	await expect(page.getByText("Copied password")).toBeVisible();
+
+	await find.fill("nothing-like-this");
+	await expect(page.getByText("Nothing matches")).toBeVisible();
+	await find.fill("github");
+	await find.press("Enter");
+	await expect(page).toHaveURL(/\/items\?/);
+	await expect(
+		(await detail(page)).getByRole("heading", { name: "GitHub (work)" }),
+	).toBeVisible();
+});
+
 test("a new password keeps the old one under Earlier", async ({ page }) => {
 	await signIn(page, owner);
 	await openAllItems(page);
