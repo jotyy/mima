@@ -54,4 +54,8 @@ html.dark[data-style="pure"] {
 	--skeleton: #1e1e22;
 	--elevation-card: 0 0 0 1px #222226;
 	--elevation-pill: 0 0 0 1px #2a2a2f;
+	--elevation-popover:
+		0 0 0 1px #2a2a2f, 0 0.75rem 2rem -0.75rem rgb(0 0 0 / 60%);
+	--elevation-float:
+		0 0 0 1px #2a2a2f, 0 0.5rem 1.5rem -0.75rem rgb(0 0 0 / 50%);
 }

@@ -16,9 +16,13 @@ export default defineConfig({
 		// has its own address.
 		host_permissions: ["<all_urls>"],
 		action: { default_title: "mima" },
-		// The fill menu and the save prompt are this page, framed inside the site's page.
+		// The fill menu and the save prompt are this page, framed inside the site's page;
+		// the button in a login field shows the mark.
 		web_accessible_resources: [
-			{ resources: ["inline.html"], matches: ["http://*/*", "https://*/*"] },
+			{
+				resources: ["inline.html", "icon/32.png"],
+				matches: ["http://*/*", "https://*/*"],
+			},
 		],
 	},
 });

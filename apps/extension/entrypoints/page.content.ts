@@ -6,9 +6,10 @@ import {
 	type PageRequest,
 } from "@/lib/messages";
 
-// mima on the sites people sign in to. Focusing a login field opens the fill menu under
-// it; submitting a login hands it to the background, and the save prompt offers to keep
-// it. The page script holds no secrets: the menu and the prompt are mima's own frames.
+// mima on the sites people sign in to. Focusing a login field shows mima's button in it,
+// which opens the fill menu; submitting a login hands it to the background, and the save
+// prompt offers to keep it. The page script holds no secrets: the menu and the prompt
+// are mima's own frames.
 export default defineContentScript({
 	matches: ["http://*/*", "https://*/*"],
 	runAt: "document_idle",
@@ -28,17 +29,24 @@ export default defineContentScript({
 			"focusin",
 			async (event) => {
 				const field = loginField(event.target);
-				if (!field) return frames.close("menu");
-				if (Date.now() < quietUntil || frames.anchor() === field) return;
-				const typed = field.value;
+				if (!field) {
+					frames.close("menu");
+					frames.hideButton();
+					return;
+				}
+				if (Date.now() < quietUntil || frames.buttonField() === field) return;
 				const answer = await ask<{ show: boolean }>({ type: "mima:field" });
-				// Not if they've moved on, or started typing while mima looked.
-				if (
-					answer?.show &&
-					document.activeElement === field &&
-					field.value === typed
-				)
-					frames.show("menu", field);
+				if (answer?.show && document.activeElement === field)
+					frames.showButton(field);
+			},
+			true,
+		);
+		document.addEventListener(
+			"focusout",
+			(event) => {
+				// Into the menu's frame is still with mima; anywhere else, the button goes.
+				if (event.target === frames.buttonField() && !frames.anchor())
+					frames.hideButton();
 			},
 			true,
 		);

@@ -124,15 +124,28 @@ test("before it's signed in, a login field offers to sign in to mima", async () 
 	const page = await context.newPage();
 	await page.goto(`${site}/`);
 	await page.getByLabel("Email").click();
+	// Only the button shows on focus: the browser's own suggestions go under the field.
+	const button = page.getByRole("button", { name: "Fill with mima" });
+	await expect(button).toBeVisible();
+	await expect(page.locator("mima-frame")).toHaveCount(0);
+	await button.click();
 	await expect(fillMenu(page).getByText("Sign in to mima")).toBeVisible();
 	await page.keyboard.press("Escape");
 	await expect(page.locator("mima-frame")).toHaveCount(0);
+	// Leaving the field takes the button away.
+	await page.mouse.click(600, 500);
+	await expect(button).toHaveCount(0);
 	await page.close();
 });
 
 /** mima's fill menu inside a site's page, and its save prompt. */
 const fillMenu = (page: Page) =>
 	page.frameLocator('iframe[title="mima: fill a login"]');
+/** Focuses a login field and opens mima's menu from the button that shows up in it. */
+async function openMenu(page: Page, field: string) {
+	await page.getByLabel(field).click();
+	await page.getByRole("button", { name: "Fill with mima" }).click();
+}
 const savePrompt = (page: Page) =>
 	page.frameLocator('iframe[title="mima: save a login"]');
 
@@ -185,7 +198,7 @@ test("Fill puts the username and password into the site's form", async () => {
 test("the menu under a login field fills the site's form", async () => {
 	const page = await context.newPage();
 	await page.goto(`${site}/`);
-	await page.getByLabel("Password").click();
+	await openMenu(page, "Password");
 	const menu = fillMenu(page);
 	await menu
 		.getByRole("button", { name: `Fill ${login.name}, ${login.username}` })
@@ -196,7 +209,7 @@ test("the menu under a login field fills the site's form", async () => {
 	await expect(page.locator("mima-frame")).toHaveCount(0);
 
 	// Typing in by hand closes it.
-	await page.getByLabel("Email").click();
+	await openMenu(page, "Email");
 	await expect(menu.getByRole("button", { name: /^Fill / })).toBeVisible();
 	await page.getByLabel("Email").pressSequentially("x");
 	await expect(page.locator("mima-frame")).toHaveCount(0);
@@ -253,7 +266,7 @@ test("locked, the menu offers to unlock, and shows the logins once unlocked", as
 	await popup.getByRole("button", { name: "Lock" }).click();
 	const page = await context.newPage();
 	await page.goto(`${site}/`);
-	await page.getByLabel("Email").click();
+	await openMenu(page, "Email");
 	const menu = fillMenu(page);
 	await expect(menu.getByText("mima is locked")).toBeVisible();
 
@@ -330,7 +343,7 @@ test("a new login is offered for saving right on the site", async () => {
 	expect(await badgeOf(await tabIdOf(url))).toBe("");
 
 	// Next time, the menu has it.
-	await page.getByLabel("Email").click();
+	await openMenu(page, "Email");
 	await expect(
 		fillMenu(page).getByRole("button", { name: "Fill Shop, kim@example.test" }),
 	).toBeVisible();
