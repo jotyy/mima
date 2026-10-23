@@ -6,9 +6,7 @@ export const APP_STYLES = [
 	{ value: "classic", label: "Classic" },
 	{ value: "frost", label: "Frost" },
 	{ value: "pure", label: "Pure" },
-	{ value: "glass", label: "Glass" },
 	{ value: "azure", label: "Azure" },
-	{ value: "lift", label: "Lift" },
 ] as const;
 
 export type AppStyle = (typeof APP_STYLES)[number]["value"];

@@ -13,13 +13,10 @@
 		"env:generate": "varlock codegen"
 	},
 	"dependencies": {
-		"@fontsource-variable/bricolage-grotesque": "5.3.0",
 		"@fontsource-variable/geist": "5.3.0",
 		"@fontsource-variable/geist-mono": "5.3.0",
-		"@fontsource-variable/onest": "5.3.1",
 		"@fontsource-variable/spline-sans": "5.3.0",
 		"@fontsource-variable/spline-sans-mono": "5.3.0",
-		"@fontsource/fragment-mono": "5.3.0",
 		"@mima/api": "workspace:*",
 		"@mima/crypto": "workspace:*",
 		"@mima/ui": "workspace:*",

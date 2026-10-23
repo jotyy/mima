@@ -2,9 +2,6 @@
 @import "@fontsource-variable/geist-mono";
 @import "@fontsource-variable/spline-sans";
 @import "@fontsource-variable/spline-sans-mono";
-@import "@fontsource-variable/bricolage-grotesque";
-@import "@fontsource-variable/onest";
-@import "@fontsource/fragment-mono";
 
 /*
  * Styles to choose from. Every one keeps mima's layout, mima blue, the logo and the
@@ -183,113 +180,6 @@ html[data-style="pure"] [data-slot="nav-link"][data-status="active"] {
 	color: var(--fg);
 }
 
-/* ── Glass: after Apple's Passwords app and macOS. Frosted cards over a faint blue wash,
-   accent-tinted sidebar icons with a filled selection, and blue primary buttons. ──── */
-
-html[data-style="glass"] {
-	--font-text:
-		-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui,
-		sans-serif;
-	--font-display:
-		-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui,
-		sans-serif;
-	--font-code: ui-monospace, "SF Mono", Menlo, monospace;
-	--frame: #eef1f6;
-	--canvas: #f2f4f8;
-	--surface: rgb(255 255 255 / 78%);
-	--surface-sunken: rgb(255 255 255 / 55%);
-	--fg: #1d1d1f;
-	--fg-emphasis: #323236;
-	--fg-muted: #55565c;
-	--fg-subtle: #76777e;
-	--fg-faint: #a9a9af;
-	--line: rgb(0 0 0 / 8%);
-	--line-subtle: rgb(0 0 0 / 5%);
-	--line-strong: rgb(0 0 0 / 14%);
-	--hairline: rgb(0 0 0 / 6%);
-	--tint: #1d1d1f;
-	--cta: var(--brand);
-	--cta-hover: var(--brand-hover);
-	/* Dialogs and menus stay solid: only cards on the page are frosted. */
-	--popover: #ffffff;
-	--elevation-card:
-		inset 0 0 0 0.5px rgb(255 255 255 / 80%), 0 0 0 0.5px rgb(0 0 0 / 8%),
-		0 1px 3px rgb(0 0 0 / 5%), 0 8px 24px -12px rgb(31 60 150 / 18%);
-	--elevation-pill: 0 0.5px 1.5px rgb(0 0 0 / 12%), 0 0 0 0.5px rgb(0 0 0 / 6%);
-	--elevation-popover:
-		0 0 0 0.5px rgb(0 0 0 / 10%), 0 1.25rem 2.5rem -0.75rem rgb(0 0 0 / 24%);
-	--radius: 0.45rem;
-	--round-window: 12px;
-	--round-shell: 14px;
-	--round-panel: 16px;
-}
-
-html.dark[data-style="glass"] {
-	--popover: #26272d;
-	--frame: #121318;
-	--canvas: #15161b;
-	--surface: rgb(40 41 48 / 72%);
-	--surface-sunken: rgb(255 255 255 / 4%);
-	--fg: #f5f5f7;
-	--fg-emphasis: #dcdce0;
-	--fg-muted: #aeaeb4;
-	--fg-subtle: #86868d;
-	--fg-faint: #5f5f66;
-	--line: rgb(255 255 255 / 9%);
-	--line-subtle: rgb(255 255 255 / 5%);
-	--line-strong: rgb(255 255 255 / 15%);
-	--tint: #ffffff;
-	--elevation-card:
-		inset 0 0 0 0.5px rgb(255 255 255 / 8%), 0 1px 3px rgb(0 0 0 / 40%);
-}
-
-html[data-style="glass"] [data-slot="app-shell"] {
-	background:
-		radial-gradient(70% 55% at 0% 0%, rgb(31 91 249 / 0.1), transparent 70%),
-		radial-gradient(60% 50% at 100% 10%, rgb(54 177 254 / 0.1), transparent 70%),
-		radial-gradient(
-			70% 60% at 50% 110%,
-			rgb(128 141 254 / 0.08),
-			transparent 70%
-		),
-		var(--frame);
-}
-
-/* Frosted: cards blur what's behind them, so the wash shows through softly. */
-html[data-style="glass"] .shadow-card {
-	backdrop-filter: blur(20px) saturate(1.6);
-}
-
-html[data-style="glass"] [data-slot="page-header"] h1 {
-	font-weight: 600;
-	letter-spacing: -0.02em;
-}
-
-html[data-style="glass"] [data-slot="section-title"] h2 {
-	font-weight: 600;
-}
-
-html[data-style="glass"] [data-slot="nav-label"] {
-	border: 0;
-	background: none;
-	font-weight: 600;
-	color: var(--fg-subtle);
-}
-
-/* Sidebar icons take the accent, and the selected row fills with it, like Finder. */
-html[data-style="glass"] [data-slot="nav-link"] svg {
-	color: var(--brand);
-}
-
-html[data-style="glass"] [data-slot="nav-link"][data-status="active"] {
-	background: var(--brand);
-	color: #ffffff;
-
-	& svg {
-		color: #ffffff;
-	}
-}
-
 /* ── Azure: mima blue all the way through. Neutrals with a faint blue cast, soft blue
    shadows, blue labels and a blue selection; calm, friendly and unmistakably ours. ── */
 
@@ -370,81 +260,6 @@ html.dark[data-style="azure"] [data-slot="section-title"] h2 {
 	color: var(--fg);
 }
 
-/* ── Lift: depth done carefully. A slightly deeper frame, white cards with layered,
-   very soft shadows, rounder corners and firmer titles: tactile and premium. ────── */
-
-html[data-style="lift"] {
-	--font-text: "Onest Variable", system-ui, sans-serif;
-	--font-display: "Bricolage Grotesque Variable", system-ui, sans-serif;
-	--font-code: "Fragment Mono", ui-monospace, monospace;
-	--frame: #eef0f3;
-	--canvas: #f1f2f5;
-	--surface: #ffffff;
-	--surface-sunken: #f5f6f8;
-	--fg: #0e0e10;
-	--fg-emphasis: #2a2a2f;
-	--fg-muted: #505058;
-	--fg-subtle: #71717b;
-	--fg-faint: #a3a3ab;
-	--line: #e3e4e9;
-	--line-subtle: #eeeff2;
-	--line-strong: #d2d3da;
-	--tint: #0e0e10;
-	--elevation-card:
-		0 0 0 1px rgb(14 14 16 / 5%), 0 1px 1px rgb(14 14 16 / 4%),
-		0 3px 6px -2px rgb(14 14 16 / 5%), 0 14px 32px -12px rgb(14 14 16 / 16%);
-	--elevation-pill:
-		0 0 0 1px rgb(14 14 16 / 6%), 0 1px 2px rgb(14 14 16 / 8%),
-		0 3px 8px -4px rgb(14 14 16 / 12%);
-	--elevation-popover:
-		0 0 0 1px rgb(14 14 16 / 6%), 0 1rem 2.5rem -0.75rem rgb(14 14 16 / 28%);
-	--radius: 0.6rem;
-	--round-window: 14px;
-	--round-shell: 16px;
-	--round-panel: 20px;
-}
-
-html.dark[data-style="lift"] {
-	--frame: #09090b;
-	--canvas: #0c0c0e;
-	--surface: #18181b;
-	--surface-sunken: #141417;
-	--fg: #f4f4f5;
-	--fg-emphasis: #d8d8dc;
-	--fg-muted: #aaaab2;
-	--fg-subtle: #82828b;
-	--fg-faint: #5b5b63;
-	--line: #26262b;
-	--line-subtle: #1d1d21;
-	--line-strong: #33333a;
-	--tint: #ffffff;
-	--elevation-card:
-		inset 0 1px 0 rgb(255 255 255 / 5%), 0 0 0 1px rgb(255 255 255 / 6%),
-		0 14px 32px -12px rgb(0 0 0 / 70%);
-	--elevation-pill: inset 0 1px 0 rgb(255 255 255 / 6%), 0 0 0 1px #2a2a30;
-}
-
-html[data-style="lift"] [data-slot="page-header"] h1 {
-	font-size: 24px;
-	font-weight: 600;
-	letter-spacing: -0.02em;
-}
-
-html[data-style="lift"] [data-slot="section-title"] h2 {
-	font-weight: 600;
-}
-
-html[data-style="lift"] [data-slot="nav-link"][data-status="active"] {
-	background: var(--surface);
-	box-shadow: var(--elevation-pill);
-	color: var(--fg);
-	font-weight: 500;
-}
-
-html[data-style="lift"] [data-slot="item-tile"] {
-	box-shadow: var(--elevation-pill);
-}
-
 /* Page titles use the style's display face (the text face unless a style sets one). */
 [data-slot="page-header"] h1 {
 	font-family: var(--font-display);
@@ -473,20 +288,6 @@ html[data-style="pure"]
 	font-weight: 500;
 }
 
-/* Glass: a translucent strip the full height of the window, like a macOS sidebar. */
-html[data-style="glass"] [data-slot="app-shell"] [data-slot="sidebar"] {
-	padding-inline: 0.5rem;
-	border-right: 0.5px solid var(--line);
-	background: rgb(255 255 255 / 38%);
-	box-shadow: inset -1px 0 0 rgb(255 255 255 / 55%);
-	backdrop-filter: blur(24px) saturate(1.6);
-}
-
-html.dark[data-style="glass"] [data-slot="app-shell"] [data-slot="sidebar"] {
-	background: rgb(255 255 255 / 4%);
-	box-shadow: none;
-}
-
 /* Azure: the sidebar sits on the tinted page; the page you're on is a white chip. */
 html[data-style="azure"]
 	[data-slot="app-shell"]
@@ -502,49 +303,4 @@ html.dark[data-style="azure"]
 	[data-slot="nav-link"][data-status="active"] {
 	background: rgb(255 255 255 / 7%);
 	box-shadow: none;
-}
-
-/* Lift: a solid white card standing off the page; the page you're on is pressed in. */
-html[data-style="lift"] [data-slot="app-shell"] [data-slot="sidebar"] {
-	margin: 0 0 0.75rem 0.75rem;
-	padding-top: 0.5rem;
-	border-radius: var(--round-shell);
-	background: var(--surface);
-	box-shadow: var(--elevation-card);
-}
-
-html[data-style="lift"] [data-slot="app-shell"] [data-slot="sidebar"] > nav {
-	margin-top: 1rem;
-}
-
-html[data-style="lift"]
-	[data-slot="app-shell"]
-	[data-slot="nav-link"][data-status="active"] {
-	background: var(--surface-sunken);
-	box-shadow:
-		inset 0 1px 2px rgb(14 14 16 / 9%),
-		inset 0 0 0 1px rgb(14 14 16 / 4%);
-}
-
-html.dark[data-style="lift"]
-	[data-slot="app-shell"]
-	[data-slot="nav-link"][data-status="active"] {
-	box-shadow:
-		inset 0 1px 2px rgb(0 0 0 / 50%),
-		inset 0 0 0 1px rgb(255 255 255 / 5%);
-}
-
-html[data-style="glass"] [data-slot="app-shell"] [data-slot="sidebar"] > nav {
-	margin-top: 1rem;
-}
-
-html[data-style="glass"] [data-slot="app-shell"] [data-slot="nav-label"] {
-	margin-left: 0;
-	padding-left: 0.75rem;
-}
-
-html[data-style="glass"] [data-slot="lock-box"] {
-	border-color: transparent;
-	background: none;
-	padding-inline: 0.75rem;
 }

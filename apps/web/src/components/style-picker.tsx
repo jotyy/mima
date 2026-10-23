@@ -45,14 +45,6 @@ const previews: Record<
 		font: '"Geist Variable", sans-serif',
 		fontName: "Geist",
 	},
-	glass: {
-		page: "radial-gradient(80% 70% at 0% 0%, rgb(31 91 249 / 0.16), transparent 70%), radial-gradient(70% 60% at 100% 100%, rgb(128 141 254 / 0.16), transparent 70%), #eef1f6",
-		sidebar: "rgb(255 255 255 / 45%)",
-		card: "rgb(255 255 255 / 85%)",
-		depth: "0 0 0 0.5px rgb(0 0 0 / 8%), 0 4px 12px -6px rgb(31 60 150 / 25%)",
-		font: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-		fontName: "System",
-	},
 	azure: {
 		page: "#f2f5fc",
 		sidebar: "#e3ebfd",
@@ -61,15 +53,6 @@ const previews: Record<
 			"0 0 0 1px rgb(31 91 249 / 8%), 0 4px 12px -4px rgb(16 40 120 / 16%)",
 		font: '"Spline Sans Variable", sans-serif',
 		fontName: "Spline Sans",
-	},
-	lift: {
-		page: "#eef0f3",
-		sidebar: "#ffffff",
-		card: "#ffffff",
-		depth:
-			"0 0 0 1px rgb(14 14 16 / 5%), 0 3px 6px -2px rgb(14 14 16 / 6%), 0 10px 20px -8px rgb(14 14 16 / 22%)",
-		font: '"Bricolage Grotesque Variable", sans-serif',
-		fontName: "Bricolage Grotesque",
 	},
 };
 
