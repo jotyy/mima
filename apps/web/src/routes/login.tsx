@@ -10,6 +10,7 @@ import {
 	SubmitButton,
 } from "@/components/auth-layout";
 import Loader from "@/components/loader";
+import { demoAccount } from "@/env.public";
 import { TwoStepError, useKeyring, WrongPasswordError } from "@/lib/keyring";
 import { errorMessage, useWorkspace } from "@/lib/vault-data";
 
@@ -22,8 +23,9 @@ function SignIn() {
 	const keyring = useKeyring();
 	const workspace = useWorkspace();
 	const navigate = useNavigate();
-	const [email, setEmail] = useState("");
-	const [password, setPassword] = useState("");
+	// The demo fills in the account every visitor shares.
+	const [email, setEmail] = useState(demoAccount?.email ?? "");
+	const [password, setPassword] = useState(demoAccount?.password ?? "");
 	const [error, setError] = useState("");
 	const [busy, setBusy] = useState(false);
 	// Two-step login: asked for once the password turned out right.
@@ -46,9 +48,17 @@ function SignIn() {
 			description={
 				askCode
 					? `Your master password is right. Now the code for ${email.trim()}.`
-					: "Use the email and master password you joined with."
+					: demoAccount
+						? "This is the vauly demo. Its account is filled in for you."
+						: "Use the email and master password you joined with."
 			}
-			footer={<p>New here? Ask a teammate for an invite link.</p>}
+			footer={
+				demoAccount ? (
+					<p>Look around and change anything: it all goes back on the hour.</p>
+				) : (
+					<p>New here? Ask a teammate for an invite link.</p>
+				)
+			}
 			note="Forgot your master password? Nobody can reset it, not even an admin: it is the only key to your items."
 		>
 			<form
@@ -147,7 +157,13 @@ function SignIn() {
 								onChange={(event) => setEmail(event.target.value)}
 							/>
 						</Field>
-						<Field label="Master password">
+						<Field
+							label="Master password"
+							hint={
+								demoAccount &&
+								`The demo's master password is ${demoAccount.password}.`
+							}
+						>
 							<PasswordInput
 								autoComplete="current-password"
 								required

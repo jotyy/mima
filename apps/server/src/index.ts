@@ -9,6 +9,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
 import { createContext } from "./context";
+import { demoGuard, isDemo, mountDemo, restore } from "./demo";
 import { resetDatabase } from "./e2e-reset";
 import { ENV } from "./env.server";
 import { createAuth, getDb, prepare } from "./services";
@@ -29,6 +30,9 @@ if (ENV.CORS_ORIGIN) {
 		}),
 	);
 }
+
+// Ahead of Better Auth, since the demo answers some of its routes itself.
+if (isDemo()) mountDemo(app);
 
 app.on(["POST", "GET"], "/api/auth/*", async (c) =>
 	(await createAuth(new URL(c.req.url).origin)).handler(c.req.raw),
@@ -60,6 +64,7 @@ export const apiHandler = new OpenAPIHandler(appRouter, {
 			console.error(error);
 		}),
 	],
+	clientInterceptors: [demoGuard],
 });
 
 export const rpcHandler = new RPCHandler(appRouter, {
@@ -68,6 +73,7 @@ export const rpcHandler = new RPCHandler(appRouter, {
 			console.error(error);
 		}),
 	],
+	clientInterceptors: [demoGuard],
 });
 
 app.use("/*", async (c, next) => {
@@ -98,4 +104,12 @@ app.get("/", (c) => {
 	return c.text("OK");
 });
 
-export default app;
+export default {
+	fetch: app.fetch,
+	// Only the demo has a cron: on the hour, it goes back to how it started.
+	async scheduled() {
+		if (!isDemo()) return;
+		await prepare();
+		await restore(ENV.DB);
+	},
+} satisfies ExportedHandler<Env>;

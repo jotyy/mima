@@ -1,6 +1,7 @@
 import { Avatar, AvatarFallback } from "@vauly/ui/components/avatar";
 import { useState } from "react";
 
+import { demoAccount } from "@/env.public";
 import { initials } from "@/lib/format";
 import { useKeyring, WrongPasswordError } from "@/lib/keyring";
 import { errorMessage, useWorkspace } from "@/lib/vault-data";
@@ -16,7 +17,7 @@ import {
 export function UnlockScreen() {
 	const keyring = useKeyring();
 	const workspace = useWorkspace();
-	const [password, setPassword] = useState("");
+	const [password, setPassword] = useState(demoAccount?.password ?? "");
 	const [error, setError] = useState("");
 	const [busy, setBusy] = useState(false);
 
@@ -66,7 +67,13 @@ export function UnlockScreen() {
 					}
 				}}
 			>
-				<Field label="Master password">
+				<Field
+					label="Master password"
+					hint={
+						demoAccount &&
+						`The demo's master password is ${demoAccount.password}.`
+					}
+				>
 					<PasswordInput
 						className="h-10"
 						autoFocus

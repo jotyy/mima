@@ -47,6 +47,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { demoAccount } from "@/env.public";
 import { useApplyAppStyle } from "@/lib/app-style";
 import { initials, toneDot } from "@/lib/format";
 import { useKeyring } from "@/lib/keyring";
@@ -102,6 +103,7 @@ export function AppShell() {
 
 	return (
 		<div data-slot="app-shell" className="bg-frame flex h-svh flex-col">
+			{demoAccount && <DemoBanner />}
 			<TopBar onSearch={() => setSearching(true)} />
 			<div className="flex min-h-0 flex-1">
 				<Sidebar className="max-md:hidden" />
@@ -115,6 +117,22 @@ export function AppShell() {
 			</div>
 			<CommandPalette open={searching} onOpenChange={setSearching} />
 		</div>
+	);
+}
+
+/** Across the top of the demo: whose place this is, and where to get one of your own. */
+function DemoBanner() {
+	return (
+		<p className="bg-brand text-brand-fg text-caption flex shrink-0 flex-wrap items-center justify-center gap-x-2 px-4 py-1.5 text-center">
+			You're in the vauly demo. Everything here goes back to how it was on the
+			hour.
+			<a
+				href="https://vauly.app/docs/self-hosting/"
+				className="font-medium underline underline-offset-4"
+			>
+				Get your own
+			</a>
+		</p>
 	);
 }
 

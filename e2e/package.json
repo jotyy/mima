@@ -7,6 +7,7 @@
 		"test:one-worker": "VAULY_E2E_ONE_WORKER=1 playwright test",
 		"report": "playwright show-report",
 		"screenshots": "playwright test --config screenshots.config.ts",
+		"demo:seed": "playwright test --config demo.config.ts",
 		"test:site": "playwright test --config site.config.ts"
 	},
 	"devDependencies": {

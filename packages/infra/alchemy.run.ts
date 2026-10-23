@@ -32,7 +32,14 @@ export const server = Cloudflare.Worker("server", {
 		E2E_RESET_TOKEN: process.env.VAULY_E2E_RESET_TOKEN ?? "",
 		// When set, creating the workspace needs the setup link with this code.
 		SETUP_CODE: process.env.VAULY_SETUP_CODE ?? "",
+		// Only the demo at demo.vauly.app sets this: it holds the routes that save and
+		// restore the example team, and turns on what keeps a shared account usable.
+		DEMO_TOKEN: process.env.VAULY_DEMO_TOKEN
+			? Config.Redacted("VAULY_DEMO_TOKEN")
+			: "",
 	},
+	// The demo goes back to how it started at the top of every hour.
+	crons: process.env.VAULY_DEMO_TOKEN ? ["0 * * * *"] : undefined,
 	domain: apiDomain,
 	dev: {
 		port: apiPort,
@@ -60,6 +67,9 @@ export default Alchemy.Stack(
 			},
 			env: {
 				VITE_SERVER_URL: serverWorker.url.as<string>(),
+				// The demo's shared account, which its sign-in page offers to everyone.
+				VITE_DEMO_EMAIL: process.env.VAULY_DEMO_EMAIL ?? "",
+				VITE_DEMO_PASSWORD: process.env.VAULY_DEMO_PASSWORD ?? "",
 			},
 			domain: appDomain,
 			dev: {
