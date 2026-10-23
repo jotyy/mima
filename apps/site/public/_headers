@@ -1,3 +1,9 @@
 # Astro names these files after what's in them, so browsers can keep them for good.
 /_astro/*
   Cache-Control: public, max-age=31536000, immutable
+
+# The text for agents is UTF-8; without saying so, browsers garble the diagrams' lines.
+/*.md
+  Content-Type: text/markdown; charset=utf-8
+/*.txt
+  Content-Type: text/plain; charset=utf-8
