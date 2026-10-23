@@ -58,9 +58,29 @@ export default Alchemy.Stack(
 			},
 		});
 
+		// The website (landing page and docs) is static and lives at vauly.app, so only
+		// production deploys it; locally it runs on its own with `bun run dev` in apps/site.
+		if ((yield* Alchemy.Stage) !== "production") {
+			return {
+				web: webWorker.url,
+				server: serverWorker.url,
+			};
+		}
+		const siteWorker = yield* Cloudflare.Website.StaticSite("site", {
+			cwd: "../../apps/site",
+			command: "bun run build",
+			outdir: "dist",
+			assets: {
+				htmlHandling: "auto-trailing-slash",
+				notFoundHandling: "404-page",
+			},
+			domain: { name: "vauly.app", redirects: ["www.vauly.app"] },
+		});
+
 		return {
 			web: webWorker.url,
 			server: serverWorker.url,
+			site: siteWorker.url,
 		};
 	}),
 );
