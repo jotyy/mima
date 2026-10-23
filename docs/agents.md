@@ -81,7 +81,10 @@ Keep the token out of files you commit. Set it in your shell, and let the client
 **Claude Code**, for your user only:
 
 ```sh
-claude mcp add vauly -e VAULY_SERVER=https://vauly-api.example.com -e VAULY_TOKEN=vauly_agent_agt_… -- vauly mcp
+claude mcp add vauly \
+  -e VAULY_SERVER=https://vauly-api.example.com \
+  -e VAULY_TOKEN=vauly_agent_agt_… \
+  -- vauly mcp
 ```
 
 Or for everyone on the project, in `.mcp.json`, with each person's token from their environment:
