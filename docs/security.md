@@ -32,6 +32,19 @@ item key           AES-256-GCM, one per item, wrapped with its vault key
 - **Two-step login.** Someone who turns it on must give a six-digit code (RFC 6238: SHA-1, 30 seconds) after their password checks out. The server checks the code, so it keeps the setup key; it accepts one step of clock drift either way and never the same step twice. Without a valid code, the session the password just created is deleted before it's returned. Ten recovery codes, 50 random bits each, are shown once and stored as SHA-256 hashes; each works once. The web app and the browser extension send the code the same way, in an `x-vauly-code` header. Two-step login guards signing in only: it adds nothing to encryption, which still rests on the master password alone.
 - **Changing the master password** derives new keys from a fresh salt and seals the same private key with the new wrap key. The server swaps the auth hash and the sealed key in one batch and signs out your other sessions. Your key pair, and so your access to shared vaults, stays the same.
 
+## Formats
+
+Another implementation, such as a native app, must produce exactly these bytes. [`packages/crypto/test-vectors.json`](../packages/crypto/test-vectors.json) has made-up inputs and the expected output of each step below, intermediate values included, and the unit tests check `packages/crypto` against it. `bun run vectors` in `packages/crypto` regenerates the file from the formats as described here.
+- **Text.** Bytes are standard base64 with padding, unless noted. The auth key is lowercase hex.
+- **Master keys.** The password is normalized to NFKC and encoded as UTF-8. PBKDF2-HMAC-SHA256 with the account's salt (16 random bytes, stored as `kdfSalt`) and `kdfIterations` (600,000) gives a 32-byte master key. HKDF-SHA256, with 32 zero bytes as salt and the ASCII info `vauly/auth` or `vauly/wrap`, turns it into the 32-byte auth key and the wrap key.
+- **Sealed values.** AES-256-GCM with a random 12-byte IV, no additional data and a 16-byte tag after the ciphertext, written as `base64(iv) + "." + base64(ciphertext ‖ tag)`. An item is the UTF-8 JSON of its fields, sealed with its item key.
+- **Data keys.** Vault and item keys are 32 random bytes. A key wrapped with another key is those 32 bytes, sealed.
+- **Key pairs.** ECDH on P-256. Public keys are DER SubjectPublicKeyInfo; private keys are DER PKCS#8. The account's PKCS#8 private key, sealed with the wrap key, is `encryptedPrivateKey`.
+- **Wrapping to a public key.** A fresh P-256 key pair, then ECDH with the recipient's public key (the 32-byte x coordinate). HKDF-SHA256, with 32 zero bytes as salt and the info `vauly/share:` followed by the recipient's public key in base64, gives an AES-256-GCM key. The result is `base64(ephemeral public key) + ":" + ` the data key sealed with it.
+- **Share links.** The link key is 32 bytes in base64url without padding, after the `#`.
+- **Agent tokens.** `vauly_agent_<id>.<secret>.<private key>`: the secret is 24 random bytes in hex, and the private key is PKCS#8 in base64 with `+` and `/` replaced by `-` and `_` (padding kept). The server stores the SHA-256 of the secret, in hex.
+- **One-time codes.** RFC 6238 with base32 setup keys, or `otpauth://` links.
+
 ## What the server stores
 
 | Encrypted (the server can't read it)                                                                            | In plain text (the server can read it)                                                  |

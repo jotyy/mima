@@ -28,6 +28,7 @@ The first public version.
 - A browser extension for Chromium browsers that lists the items for the current site, fills login forms and copies usernames, passwords and one-time codes. After you sign in on a site, it offers to save the new login or update a changed password.
 - Brand logos for logins and well-known services, in the web app and the extension, from Brandfetch. Only a brand's own domain is looked up, never a subdomain or a private address, and logos can be turned off per device or per instance.
 - Layouts for phones, light and dark themes, and installing vauly as an app (PWA).
+- Test vectors for the cryptography (`packages/crypto/test-vectors.json`), so another implementation, such as a native app, can prove it reads and writes the same bytes. docs/security.md describes the formats.
 - Self-hosting on Cloudflare Workers and D1 with Alchemy.
 - Breached passwords: logins whose password turned up in data breaches show on the Overview, on the item and in the editor. The check uses Have I Been Pwned's Pwned Passwords, and only the first five characters of each password's SHA-1 hash leave the device. It can be turned off per device in Settings, or for an instance with `VITE_BREACH_CHECK=off`.
 - A strict Content-Security-Policy for the web app, which also keeps other sites from showing it in a frame, with the usual security headers alongside.

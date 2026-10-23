@@ -1,0 +1,318 @@
+{
+	"about": "Test vectors for vauly's cryptography (packages/crypto). Every value is made up. Bytes are base64 (standard alphabet, padded) unless a field says hex. docs/security.md describes the formats; regenerate with `bun run vectors` in packages/crypto.",
+	"masterKeys": [
+		{
+			"password": "correct horse battery staple",
+			"passwordNfkc": "correct horse battery staple",
+			"salt": "AAECAwQFBgcICQoLDA0ODw==",
+			"iterations": 600000,
+			"masterKey": "ef177144eec9420cbc1093d2a8b344a92bc506d0d4ec9c028dd19f8324d8c1e6",
+			"authKey": "2476b530b1b54b8b80c7ccd5ce1ca22d6af356dd9040f03169963862b0850129",
+			"wrapKey": "813fa3065a8229aedbc98aec494ebebf6b5d48976549c5229e9d568663d2bf9a",
+			"wrapKeyCheck": {
+				"iv": "oKGio6Slpqeoqaqr",
+				"plaintext": "vauly",
+				"sealed": "oKGio6Slpqeoqaqr.kbUWtV7vqxTNKM7JiXnTf2WkLKxh"
+			}
+		},
+		{
+			"password": "Ｐａｓｓ ｗｏｒｄ ﬁ①",
+			"passwordNfkc": "Pass word fi1",
+			"salt": "EBESExQVFhcYGRobHB0eHw==",
+			"iterations": 1000,
+			"masterKey": "2946d9ad0bea380c62eb10022632d9692e05b5b85a164e4857d8608911977c92",
+			"authKey": "94316920e047f50de772432035e48ad37926ccf9fc698da9b3c88484d63f5b06",
+			"wrapKey": "c834e34a0c4a548f554be99d3df324b72cb5fa435bfa32fee735fc21396506ee",
+			"wrapKeyCheck": {
+				"iv": "sLGys7S1tre4ubq7",
+				"plaintext": "vauly",
+				"sealed": "sLGys7S1tre4ubq7.q8qTfxytAarb+b8EEDAXFMyktyMU"
+			}
+		}
+	],
+	"seal": [
+		{
+			"key": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8=",
+			"iv": "wMHCw8TFxsfIycrL",
+			"plaintext": "Hello, vauly",
+			"sealed": "wMHCw8TFxsfIycrL.FyFcohW2HZ0VzEhPzGbb7PxwRfrpS/IRUUFMyA=="
+		},
+		{
+			"key": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8=",
+			"iv": "0NHS09TV1tfY2drb",
+			"plaintext": "",
+			"sealed": "0NHS09TV1tfY2drb.fhY/4tu0U9FxKHVBhuUOAQ=="
+		},
+		{
+			"key": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8=",
+			"iv": "8PHy8/T19vf4+fr7",
+			"plaintext": "Grüße, 你好 🔐",
+			"sealed": "8PHy8/T19vf4+fr7.lE+1vjzNtNRQWSVZSB0Teh/oJssvWkuU+8ouvbZ4tiI1d1zw"
+		}
+	],
+	"sealJson": [
+		{
+			"key": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8=",
+			"iv": "AAECAwQFBgcICQoL",
+			"value": {
+				"kind": "login",
+				"name": "Example",
+				"username": "alex@example.test"
+			},
+			"json": "{\"kind\":\"login\",\"name\":\"Example\",\"username\":\"alex@example.test\"}",
+			"sealed": "AAECAwQFBgcICQoL.QScHERnoZprgfu+l0YPul6GqTGQJbpdxq1iJ+zHdDHxsUrFy3jBlHt19WqVjyruVUV9vRbcpa0hWrfPQIhFsm5sWhzXliRz2f8EzHfNKrYU="
+		}
+	],
+	"wrapKey": [
+		{
+			"wrappingKey": "YGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn8=",
+			"key": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8=",
+			"iv": "EBESExQVFhcYGRob",
+			"wrapped": "EBESExQVFhcYGRob.IUHr5nYMJUITTYQJSjj9zoGlGOKriZgwYhQu5uFCBRvv5dAjbNRcOLv4xDaEG++u"
+		}
+	],
+	"wrapKeyFor": [
+		{
+			"recipientPrivateKey": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg69o/mAN9LikgDta6+hURNbky7edYcCvtEdl6BPc3zxehRANCAAQTFth9I28Gi/QAcbdotbLGtvfpX1H/k8NwY3czo6nCKaA56+UO1qExP9izIPRufBHV6mt0batJ+TDXNlx2AcMN",
+			"recipientPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEExbYfSNvBov0AHG3aLWyxrb36V9R/5PDcGN3M6OpwimgOevlDtahMT/YsyD0bnwR1eprdG2rSfkw1zZcdgHDDQ==",
+			"ephemeralPrivateKey": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgaNrV0Wa+6KqC8dnbF9QpjTqAGdDg5Xmm8c89aVQAiF6hRANCAASDcOaVmRlefddHVYvhffRp1AldOf16jbuaqavcrHZCVKkihaDbTKXAE3t+224TsjCgqRapZ8zjyrmbAFgYcOSU",
+			"ephemeralPublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEg3DmlZkZXn3XR1WL4X30adQJXTn9eo27mqmr3Kx2QlSpIoWg20ylwBN7fttuE7IwoKkWqWfM48q5mwBYGHDklA==",
+			"key": "YGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn8=",
+			"sharedSecret": "ec7de780f09e00a2de0ced41953b03c718f991cc3f88763724954fefcf281b89",
+			"info": "vauly/share:MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEExbYfSNvBov0AHG3aLWyxrb36V9R/5PDcGN3M6OpwimgOevlDtahMT/YsyD0bnwR1eprdG2rSfkw1zZcdgHDDQ==",
+			"wrappingKey": "408283b3ad07261beda352bf9947ff47984731195cee714473a2df6dec08abb5",
+			"iv": "ICEiIyQlJicoKSor",
+			"wrapped": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEg3DmlZkZXn3XR1WL4X30adQJXTn9eo27mqmr3Kx2QlSpIoWg20ylwBN7fttuE7IwoKkWqWfM48q5mwBYGHDklA==:ICEiIyQlJicoKSor.5U7rha0TTVqI8/9AUsOKkJ2ifL/iKW55gEYcwQoawa1n41LtleWm8zsGYxjA5IKQ"
+		}
+	],
+	"linkKey": [
+		{
+			"key": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8=",
+			"text": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8"
+		}
+	],
+	"createAccount": [
+		{
+			"password": "correct horse battery staple",
+			"iterations": 1000,
+			"salt": "AAECAwQFBgcICQoLDA0ODw==",
+			"privateKey": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg39xIWH6p27YIMw3m4kGCDMC3dOnRc2F6c1sPBxfPy/uhRANCAATYf8lz1wcc3Jf7vbCOPXrpBfh01PqCxIgYnnnXuos/ZtVBtxucWy4s1QrORnTJ9TBQWA+c9fCF9EZ2ptfy85EA",
+			"publicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2H/Jc9cHHNyX+72wjj166QX4dNT6gsSIGJ5517qLP2bVQbcbnFsuLNUKzkZ0yfUwUFgPnPXwhfRGdqbX8vORAA==",
+			"iv": "4OHi4+Tl5ufo6err",
+			"authKey": "9e79b5e37f6e9ac3f4fe406aea21d64021b491557df5a2eaeef08ac8196245ee",
+			"keys": {
+				"kdfSalt": "AAECAwQFBgcICQoLDA0ODw==",
+				"kdfIterations": 1000,
+				"publicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2H/Jc9cHHNyX+72wjj166QX4dNT6gsSIGJ5517qLP2bVQbcbnFsuLNUKzkZ0yfUwUFgPnPXwhfRGdqbX8vORAA==",
+				"encryptedPrivateKey": "4OHi4+Tl5ufo6err.ck9R25RWz5JPq4Bl5GpPrk6kBBs5uL341tREg66y3WO5c5BAWCXwsQEkHuB85aRY9moQv/tmY5w0pM8MYoLea/Kzq0OrGa3Ip++4dcexahG/Y9WCN7Zkj/LHJgXFNfnAXTySF/FnSiarOgiijfPqc8DEIz0iuvebIlLJ7hzKmMc+efvEtGz7cqiRMxdcKa2etTu5ktJnetPDgQ=="
+			}
+		}
+	],
+	"changeMasterPassword": [
+		{
+			"current": "correct horse battery staple",
+			"next": "a new and longer passphrase",
+			"keys": {
+				"kdfSalt": "AAECAwQFBgcICQoLDA0ODw==",
+				"kdfIterations": 1000,
+				"publicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2H/Jc9cHHNyX+72wjj166QX4dNT6gsSIGJ5517qLP2bVQbcbnFsuLNUKzkZ0yfUwUFgPnPXwhfRGdqbX8vORAA==",
+				"encryptedPrivateKey": "4OHi4+Tl5ufo6err.ck9R25RWz5JPq4Bl5GpPrk6kBBs5uL341tREg66y3WO5c5BAWCXwsQEkHuB85aRY9moQv/tmY5w0pM8MYoLea/Kzq0OrGa3Ip++4dcexahG/Y9WCN7Zkj/LHJgXFNfnAXTySF/FnSiarOgiijfPqc8DEIz0iuvebIlLJ7hzKmMc+efvEtGz7cqiRMxdcKa2etTu5ktJnetPDgQ=="
+			},
+			"iterations": 1000,
+			"salt": "EBESExQVFhcYGRobHB0eHw==",
+			"iv": "MDEyMzQ1Njc4OTo7",
+			"currentAuthKey": "9e79b5e37f6e9ac3f4fe406aea21d64021b491557df5a2eaeef08ac8196245ee",
+			"authKey": "e7779bfa0f01c40ba1cd34f2c999274b6e83b21cf9613b30a6a6a7a49c224530",
+			"nextKeys": {
+				"kdfSalt": "EBESExQVFhcYGRobHB0eHw==",
+				"kdfIterations": 1000,
+				"publicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2H/Jc9cHHNyX+72wjj166QX4dNT6gsSIGJ5517qLP2bVQbcbnFsuLNUKzkZ0yfUwUFgPnPXwhfRGdqbX8vORAA==",
+				"encryptedPrivateKey": "MDEyMzQ1Njc4OTo7.BSpgr8HQahXLxSLDk7LmuScfkV2/EPbpoCOx7subEMatpSJOSvnTF0EIXxRqQg5r6KRTp5crNrKHnfLiP6vpWsnVflgUzXLm9LZnO08Wo1i5o4Rt8bsbvwcXWeuGosi38TMveJdKv+ZpJO4SklK8u48P4qDoYhOlzOv4U7xW78LRAPMTxKHHuhmzFSUUQbIv9WoASGBCrm+LLw=="
+			}
+		}
+	],
+	"agentToken": [
+		{
+			"agentId": "agent_0123456789",
+			"secret": "808182838485868788898a8b8c8d8e8f9091929394959697",
+			"privateKey": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQguIlIgAcUvyQupF3/EcWWJ0zMgRrlsGuIlw3/sW6HCaahRANCAATkpNixrPNOUH9k/3y0pf+nQ0vp+qfl99WVzbqzh6GDN7eR8c8DlkXG6geDvpY9xragMGvejAsrIvraTEAImnv+",
+			"token": "vauly_agent_agent_0123456789.808182838485868788898a8b8c8d8e8f9091929394959697.MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQguIlIgAcUvyQupF3_EcWWJ0zMgRrlsGuIlw3_sW6HCaahRANCAATkpNixrPNOUH9k_3y0pf-nQ0vp-qfl99WVzbqzh6GDN7eR8c8DlkXG6geDvpY9xragMGvejAsrIvraTEAImnv-",
+			"secretHash": "cb966a295a9b50f2fbcb1871cbff1a031efcf64b36eeaac802ea793dd55423ac"
+		}
+	],
+	"totp": [
+		{
+			"secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+			"algorithm": "SHA-1",
+			"digits": 8,
+			"period": 30,
+			"time": 59,
+			"code": "94287082"
+		},
+		{
+			"secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA",
+			"algorithm": "SHA-256",
+			"digits": 8,
+			"period": 30,
+			"time": 59,
+			"code": "46119246"
+		},
+		{
+			"secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA",
+			"algorithm": "SHA-512",
+			"digits": 8,
+			"period": 30,
+			"time": 59,
+			"code": "90693936"
+		},
+		{
+			"secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+			"algorithm": "SHA-1",
+			"digits": 8,
+			"period": 30,
+			"time": 1111111109,
+			"code": "07081804"
+		},
+		{
+			"secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA",
+			"algorithm": "SHA-256",
+			"digits": 8,
+			"period": 30,
+			"time": 1111111109,
+			"code": "68084774"
+		},
+		{
+			"secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA",
+			"algorithm": "SHA-512",
+			"digits": 8,
+			"period": 30,
+			"time": 1111111109,
+			"code": "25091201"
+		},
+		{
+			"secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+			"algorithm": "SHA-1",
+			"digits": 8,
+			"period": 30,
+			"time": 1111111111,
+			"code": "14050471"
+		},
+		{
+			"secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA",
+			"algorithm": "SHA-256",
+			"digits": 8,
+			"period": 30,
+			"time": 1111111111,
+			"code": "67062674"
+		},
+		{
+			"secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA",
+			"algorithm": "SHA-512",
+			"digits": 8,
+			"period": 30,
+			"time": 1111111111,
+			"code": "99943326"
+		},
+		{
+			"secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+			"algorithm": "SHA-1",
+			"digits": 8,
+			"period": 30,
+			"time": 1234567890,
+			"code": "89005924"
+		},
+		{
+			"secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA",
+			"algorithm": "SHA-256",
+			"digits": 8,
+			"period": 30,
+			"time": 1234567890,
+			"code": "91819424"
+		},
+		{
+			"secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA",
+			"algorithm": "SHA-512",
+			"digits": 8,
+			"period": 30,
+			"time": 1234567890,
+			"code": "93441116"
+		},
+		{
+			"secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+			"algorithm": "SHA-1",
+			"digits": 8,
+			"period": 30,
+			"time": 2000000000,
+			"code": "69279037"
+		},
+		{
+			"secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA",
+			"algorithm": "SHA-256",
+			"digits": 8,
+			"period": 30,
+			"time": 2000000000,
+			"code": "90698825"
+		},
+		{
+			"secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA",
+			"algorithm": "SHA-512",
+			"digits": 8,
+			"period": 30,
+			"time": 2000000000,
+			"code": "38618901"
+		},
+		{
+			"secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+			"algorithm": "SHA-1",
+			"digits": 8,
+			"period": 30,
+			"time": 20000000000,
+			"code": "65353130"
+		},
+		{
+			"secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA",
+			"algorithm": "SHA-256",
+			"digits": 8,
+			"period": 30,
+			"time": 20000000000,
+			"code": "77737706"
+		},
+		{
+			"secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA",
+			"algorithm": "SHA-512",
+			"digits": 8,
+			"period": 30,
+			"time": 20000000000,
+			"code": "47863826"
+		}
+	],
+	"parseTotp": [
+		{
+			"input": "otpauth://totp/Example:alex@example.test?secret=JBSWY3DPEHPK3PXP&issuer=Example",
+			"config": {
+				"secret": "JBSWY3DPEHPK3PXP",
+				"digits": 6,
+				"period": 30,
+				"algorithm": "SHA-1"
+			}
+		},
+		{
+			"input": "otpauth://totp/Example?secret=GEZDGNBVGY3TQOJQ&digits=8&period=60&algorithm=SHA256",
+			"config": {
+				"secret": "GEZDGNBVGY3TQOJQ",
+				"digits": 8,
+				"period": 60,
+				"algorithm": "SHA-256"
+			}
+		},
+		{
+			"input": "JBSWY3DPEHPK3PXP",
+			"config": {
+				"secret": "JBSWY3DPEHPK3PXP",
+				"digits": 6,
+				"period": 30,
+				"algorithm": "SHA-1"
+			}
+		}
+	]
+}

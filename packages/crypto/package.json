@@ -8,7 +8,8 @@
 	},
 	"scripts": {
 		"check-types": "tsc -b",
-		"test": "bun test"
+		"test": "bun test",
+		"vectors": "bun scripts/vectors.ts"
 	},
 	"devDependencies": {
 		"@vauly/config": "workspace:*",

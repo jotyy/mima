@@ -8,6 +8,8 @@
 //   vault key (AES-256-GCM): wraps the item keys of one vault
 //   item key  (AES-256-GCM): encrypts one item; also wrapped to an agent's public key to grant it
 
+import { random } from "./random";
+
 export const KDF_ITERATIONS = 600_000;
 const AES = { name: "AES-GCM", length: 256 } as const;
 const ECDH = { name: "ECDH", namedCurve: "P-256" } as const;
@@ -30,7 +32,7 @@ export function fromBase64(text: string): Bytes {
 }
 
 export function randomBytes(length: number): Bytes {
-	return crypto.getRandomValues(new Uint8Array(length));
+	return random.bytes(length);
 }
 
 const toHex = (bytes: Uint8Array) =>
@@ -183,7 +185,7 @@ export type Keypair = { publicKey: string; privateKey: CryptoKey };
 export async function newKeypair(): Promise<
 	Keypair & { privateKeyRaw: Bytes }
 > {
-	const pair = await crypto.subtle.generateKey(ECDH, true, ["deriveBits"]);
+	const pair = await random.ecdhKeyPair();
 	const publicKey = toBase64(
 		new Uint8Array(await crypto.subtle.exportKey("spki", pair.publicKey)),
 	);
@@ -231,7 +233,7 @@ export async function wrapKeyFor(
 	recipientPublicKey: string,
 	key: CryptoKey,
 ): Promise<string> {
-	const ephemeral = await crypto.subtle.generateKey(ECDH, true, ["deriveBits"]);
+	const ephemeral = await random.ecdhKeyPair();
 	const ephemeralPublic = new Uint8Array(
 		await crypto.subtle.exportKey("spki", ephemeral.publicKey),
 	);
