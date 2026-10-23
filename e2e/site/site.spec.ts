@@ -122,6 +122,16 @@ test("agents find the docs as Markdown, listed in llms.txt", async ({
 	).toHaveAttribute("href", "/docs/self-hosting.md");
 });
 
+test("the CLI installs from the site, checked against its release", async ({
+	page,
+}) => {
+	const script = await (await page.request.get("/install.sh")).text();
+	expect(script.startsWith("#!/bin/sh\n")).toBe(true);
+	expect(script).toContain("https://github.com/jotyy/vauly/releases");
+	expect(script).toContain("SHA256SUMS");
+	expect(script).toContain("doesn't match the release's checksum");
+});
+
 test("crawlers are welcome, and told where everything is", async ({ page }) => {
 	const robots = await (await page.request.get("/robots.txt")).text();
 	expect(robots).toContain("User-agent: *\n");

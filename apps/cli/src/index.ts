@@ -12,6 +12,7 @@ import {
 } from "./agent";
 import { serve } from "./mcp";
 import { createMasker, findReferences, parseEnvFile } from "./references";
+import { versionLine } from "./version";
 
 // vauly run -- <command>: resolves vauly:// references in the environment, waits for a
 // person to approve new items, and starts the command with the values injected. The
@@ -23,6 +24,7 @@ Usage:
   vauly run [--env-file <path>] -- <command> [args...]
   vauly mcp        an MCP server for coding agents, on stdin and stdout
   vauly whoami
+  vauly --version
   vauly help
 
 Environment:
@@ -103,6 +105,10 @@ async function main() {
 		command === "-h"
 	) {
 		console.log(HELP);
+		return;
+	}
+	if (command === "--version" || command === "-v" || command === "version") {
+		console.log(versionLine);
 		return;
 	}
 	if (command === "whoami") {

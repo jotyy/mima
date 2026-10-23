@@ -29,12 +29,23 @@ Put them in the environment where the agent or script runs. The token holds the 
 
 ## 2. Install the CLI
 
-The CLI is a single file built with Bun:
+On macOS or Linux:
+
+```sh
+curl -fsSL https://vauly.app/install.sh | sh
+vauly --version
+vauly whoami                       # checks VAULY_SERVER and VAULY_TOKEN
+```
+
+The script downloads the build for your machine from the [latest release](https://github.com/jotyy/vauly/releases/latest), checks it against the release's `SHA256SUMS`, and installs it as `/usr/local/bin/vauly`, or `~/.local/bin/vauly` when `/usr/local/bin` isn't writable. Set `VAULY_VERSION=0.1.0` for a given release, or `VAULY_INSTALL_DIR` for another directory. To read the script before running it, download it first: `curl -fsSL https://vauly.app/install.sh -o install.sh`.
+
+On Windows, download `vauly-windows-x64.exe` from the release and check it with `certutil -hashfile vauly-windows-x64.exe SHA256` against `SHA256SUMS`.
+
+The CLI is a single file built with Bun, so you can also build it yourself:
 
 ```sh
 bun run --cwd apps/cli build      # writes apps/cli/dist/vauly
 cp apps/cli/dist/vauly /usr/local/bin/vauly
-vauly whoami                       # checks VAULY_SERVER and VAULY_TOKEN
 ```
 
 ## 3. Reference an item

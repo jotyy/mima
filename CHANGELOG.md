@@ -25,6 +25,7 @@ The first public version.
 - Recently deleted: deleted items can be restored for 30 days, and the deletion can be undone from its notification.
 - Earlier passwords: a changed password or value stays on the item, encrypted, with when it was replaced and by whom.
 - Agents and `vauly run`, which hands an item's value to a command without showing it to the caller, with approvals in the web app.
+- Prebuilt CLI for macOS, Linux and Windows on GitHub releases, installed with `curl -fsSL https://vauly.app/install.sh | sh`, which checks it against the release's SHA256SUMS. `vauly --version` says which build it is.
 - `vauly mcp`: an MCP server for coding agents, with tools that list what a project can use, run a command with the values masked in its output, and ask a person for access. No tool returns a value.
 - A browser extension for Chromium browsers that lists the items for the current site, fills login forms and copies usernames, passwords and one-time codes. After you sign in on a site, it offers to save the new login or update a changed password.
 - Brand logos for logins and well-known services, in the web app and the extension, from Brandfetch. Only a brand's own domain is looked up, never a subdomain or a private address, and logos can be turned off per device or per instance.

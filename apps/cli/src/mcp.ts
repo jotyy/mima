@@ -2,7 +2,6 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve as resolvePath } from "node:path";
 import { createInterface } from "node:readline";
 
-import { version } from "../package.json";
 import {
 	ApprovalPending,
 	CliError,
@@ -19,6 +18,7 @@ import {
 	parseReference,
 	type Reference,
 } from "./references";
+import { version } from "./version";
 
 // vauly mcp: a Model Context Protocol server on stdin and stdout, for coding agents. It is
 // the same agent as `vauly run`, with the same token, grants and approvals. No tool hands

@@ -68,6 +68,14 @@ bun run dev
 
 Open <http://localhost:3001>. The first person to visit creates the workspace and becomes its owner; everyone else joins with an invite link.
 
+For `vauly run` and `vauly mcp`, install the CLI on macOS or Linux:
+
+```sh
+curl -fsSL https://vauly.app/install.sh | sh
+```
+
+It checks the download against the release's checksums. Windows builds and the steps to build it yourself are in [Agents and scripts](docs/agents.md#2-install-the-cli).
+
 `bun run dev` runs the whole stack locally (web app on port 3001, API on 3000, a local D1 database) and needs no Cloudflare account.
 
 ## Self-hosting

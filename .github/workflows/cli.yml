@@ -1,0 +1,160 @@
+name: CLI
+
+# Builds the vauly CLI for every platform, on that platform where it can, and checks that
+# each binary runs and that install.sh installs it.
+#
+# - A change to the CLI only builds and checks.
+# - A pushed version tag (v0.1.0) also attaches the binaries and SHA256SUMS to a DRAFT
+#   GitHub release. A maintainer reads it over and publishes it by hand; until then
+#   install.sh doesn't see it.
+# - Run by hand (Actions → CLI → Run workflow), it uploads the binaries as an artifact,
+#   and makes no release.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths:
+      - "apps/cli/**"
+      - "packages/crypto/**"
+      - "apps/site/public/install.sh"
+      - ".github/workflows/cli.yml"
+      - "bun.lock"
+  pull_request:
+    paths:
+      - "apps/cli/**"
+      - "packages/crypto/**"
+      - "apps/site/public/install.sh"
+      - ".github/workflows/cli.yml"
+      - "bun.lock"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cli-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform }})
+    # Copies made by the Deploy to Cloudflare button get this file too; they don't need it.
+    if: github.repository == 'jotyy/vauly'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { platform: linux-x64, runner: ubuntu-24.04, install: true }
+          - { platform: linux-arm64, runner: ubuntu-24.04-arm, install: true }
+          # Built on a Mac, which signs them; Apple silicon won't run an unsigned binary.
+          - { platform: darwin-arm64, runner: macos-15, install: true }
+          - { platform: darwin-x64, runner: macos-15, rosetta: true }
+          - { platform: windows-x64, runner: windows-2025 }
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/cli
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+        working-directory: .
+
+      - name: Build
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="0.0.0-${GITHUB_SHA::7}"
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          bun scripts/release.ts build --version "$version" --commit "${GITHUB_SHA::7}" ${{ matrix.platform }}
+
+      - name: Sign
+        if: runner.os == 'macOS'
+        run: |
+          codesign --force --sign - dist/vauly-${{ matrix.platform }}
+          codesign --verify dist/vauly-${{ matrix.platform }}
+
+      - name: Install Rosetta
+        if: matrix.rosetta
+        run: softwareupdate --install-rosetta --agree-to-license
+
+      - name: Check that it runs
+        run: |
+          binary="dist/vauly-${{ matrix.platform }}"
+          [[ "${{ matrix.platform }}" == windows-* ]] && binary="$binary.exe"
+          run() { if [[ -n "${{ matrix.rosetta }}" ]]; then arch -x86_64 "$@"; else "$@"; fi; }
+          run "$binary" --version | tee version.txt
+          grep -q "vauly $VERSION (${GITHUB_SHA::7})" version.txt
+          run "$binary" help | grep -q "vauly run"
+          # The MCP server answers a handshake on stdin and stdout.
+          echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}' \
+            | run "$binary" mcp | grep -q '"serverInfo":{"name":"vauly"'
+
+      - name: Check install.sh
+        if: matrix.install
+        run: |
+          bun scripts/release.ts checksums
+          (cd dist && python3 -m http.server 8765 --bind 127.0.0.1 >/dev/null 2>&1 &)
+          sleep 1
+          VAULY_DOWNLOAD_URL=http://127.0.0.1:8765 VAULY_INSTALL_DIR="$RUNNER_TEMP/bin" \
+            sh ../site/public/install.sh
+          "$RUNNER_TEMP/bin/vauly" --version | grep -q "vauly $VERSION"
+          rm dist/SHA256SUMS
+
+      - uses: actions/upload-artifact@v7
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        with:
+          name: vauly-${{ matrix.platform }}
+          path: apps/cli/dist/vauly-*
+          retention-days: 7
+
+  # Run by hand: the binaries and their checksums in one artifact, and nothing published.
+  artifact:
+    name: Binaries
+    needs: build
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: vauly-*
+          path: dist
+          merge-multiple: true
+      - run: cd dist && sha256sum vauly-* > SHA256SUMS && cat SHA256SUMS
+      - uses: actions/upload-artifact@v7
+        with:
+          name: vauly-cli
+          path: dist
+          retention-days: 7
+
+  release:
+    name: Draft release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: vauly-*
+          path: dist
+          merge-multiple: true
+      - run: cd dist && sha256sum vauly-* > SHA256SUMS && cat SHA256SUMS
+      # A draft only: someone reads it over and publishes it.
+      - run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft \
+            --verify-tag \
+            --title "vauly $GITHUB_REF_NAME" \
+            --notes "The vauly CLI for macOS, Linux and Windows, with SHA256SUMS. Add the notes for this version from CHANGELOG.md, check the binaries, then publish."
+        env:
+          GH_TOKEN: ${{ github.token }}

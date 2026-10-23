@@ -7,3 +7,7 @@
   Content-Type: text/markdown; charset=utf-8
 /*.txt
   Content-Type: text/plain; charset=utf-8
+
+# The CLI's installer reads as text in a browser, for anyone who looks before piping it.
+/install.sh
+  Content-Type: text/plain; charset=utf-8
