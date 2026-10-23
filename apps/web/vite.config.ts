@@ -1,5 +1,6 @@
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
+import { securityTxt } from "@vauly/ui/lib/security-txt";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin, type ResolvedConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
@@ -66,6 +67,26 @@ function securityHeaders(): Plugin {
 	};
 }
 
+/** Serves /.well-known/security.txt, which tells researchers where to report a problem. */
+function securityTxtFile(): Plugin {
+	return {
+		name: "vauly-security-txt",
+		configureServer(dev) {
+			dev.middlewares.use("/.well-known/security.txt", (_request, response) => {
+				response.setHeader("content-type", "text/plain; charset=utf-8");
+				response.end(securityTxt());
+			});
+		},
+		generateBundle() {
+			this.emitFile({
+				type: "asset",
+				fileName: ".well-known/security.txt",
+				source: securityTxt(),
+			});
+		},
+	};
+}
+
 export default defineConfig(() => {
 	return {
 		server: {
@@ -83,6 +104,7 @@ export default defineConfig(() => {
 			react(),
 			vaulyJson(),
 			securityHeaders(),
+			securityTxtFile(),
 			VitePWA({
 				registerType: "autoUpdate",
 				workbox: {

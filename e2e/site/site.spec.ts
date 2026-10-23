@@ -8,6 +8,7 @@ const docs = [
 	"/docs/security/",
 	"/docs/compare/",
 	"/docs/import/",
+	"/docs/security-policy/",
 ];
 
 /** Fails on any page asset that doesn't load, such as a stylesheet with a stale name. */
@@ -126,6 +127,21 @@ test("crawlers are welcome, and told where everything is", async ({ page }) => {
 	expect(robots).toContain("User-agent: *\n");
 	expect(robots).not.toMatch(/^Disallow: \/$/m);
 	expect(robots).toContain("Sitemap: https://vauly.app/sitemap-index.xml");
+
+	// Researchers find where to report a problem, and the policy it points to.
+	const security = await (
+		await page.request.get("/.well-known/security.txt")
+	).text();
+	expect(security).toContain(
+		"Contact: https://github.com/jotyy/vauly/security/advisories/new",
+	);
+	expect(security).toContain(
+		"Canonical: https://vauly.app/.well-known/security.txt",
+	);
+	expect(
+		new Date(/^Expires: (.+)$/m.exec(security)?.[1] ?? "") > new Date(),
+	).toBe(true);
+	expect(security).toContain("Policy: https://vauly.app/docs/security-policy/");
 
 	// The structured data repeats the questions the page shows.
 	await page.goto("/");

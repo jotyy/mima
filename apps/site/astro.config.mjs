@@ -48,7 +48,10 @@ export default defineConfig({
 				},
 				{
 					label: "Trust",
-					items: [{ label: "Security", slug: "docs/security" }],
+					items: [
+						{ label: "Security", slug: "docs/security" },
+						{ label: "Security policy", slug: "docs/security-policy" },
+					],
 				},
 			],
 			customCss: ["./src/styles/docs.css"],
