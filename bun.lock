@@ -86,9 +86,7 @@
         "@fontsource-variable/bricolage-grotesque": "5.3.0",
         "@fontsource-variable/geist": "5.3.0",
         "@fontsource-variable/geist-mono": "5.3.0",
-        "@fontsource-variable/jetbrains-mono": "5.3.0",
         "@fontsource-variable/onest": "5.3.1",
-        "@fontsource-variable/plus-jakarta-sans": "5.3.0",
         "@fontsource-variable/spline-sans": "5.3.0",
         "@fontsource-variable/spline-sans-mono": "5.3.0",
         "@fontsource/fragment-mono": "5.3.0",
@@ -689,11 +687,7 @@
 
     "@fontsource-variable/ibm-plex-sans": ["@fontsource-variable/ibm-plex-sans@5.3.0", "", {}, "sha512-agG8tXFEo0hD9+J7npa4vbbWult52eMLVaQ6WQRlhs/iCAojrMAoejru85W9HTVXHfyUj96KM7gp/KGAS87XaQ=="],
 
-    "@fontsource-variable/jetbrains-mono": ["@fontsource-variable/jetbrains-mono@5.3.0", "", {}, "sha512-F32xpS2NsGYoQi2ADSkKTgpJj7ozajsGgDJ8woTnqjmIB+dxDIqImjl4pXZVEExu8UFZ2ndhmX18EBS/hdz3Lw=="],
-
     "@fontsource-variable/onest": ["@fontsource-variable/onest@5.3.1", "", {}, "sha512-xaaw6G4HDB2/RczsWLD/2bnib4ykmQlTlBUN3GOEOiyErilZukQWVJG95h9zwAy0i8KY+QzDa+COPfqhI72Acw=="],
-
-    "@fontsource-variable/plus-jakarta-sans": ["@fontsource-variable/plus-jakarta-sans@5.3.0", "", {}, "sha512-/l/4r0yyWK9JzAlmA0LiYgGgmJe/Gswt4jTJEzr5QhJfwMbvJZDmYWyW0M4X7yCK69BajMVlV/Lx8g7WDc1+sw=="],
 
     "@fontsource-variable/spline-sans": ["@fontsource-variable/spline-sans@5.3.0", "", {}, "sha512-a0EVY1u6qvI5uk66ImOKbh3QD8y3LtMpuqMMyN4OB9eJwivKPXNTn8rJUB+YLrJ5LxS85vqSmG1xeYG/mF8MDw=="],
 

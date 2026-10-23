@@ -348,7 +348,7 @@ function EmptyVault({
 		>
 			<div
 				aria-hidden
-				className="animate-in fade-in fill-mode-both mb-2 flex w-full max-w-md flex-col gap-2 duration-700"
+				className="animate-in fade-in fill-mode-both mb-6 flex w-full max-w-md flex-col gap-2 duration-700"
 			>
 				{examples.map((row, index) => (
 					<div key={row[0]?.name} data-slot="marquee">

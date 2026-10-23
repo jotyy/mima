@@ -1,5 +1,3 @@
-@import "@fontsource-variable/plus-jakarta-sans";
-@import "@fontsource-variable/jetbrains-mono";
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/geist-mono";
 @import "@fontsource-variable/spline-sans";
@@ -19,8 +17,6 @@
    generous radii and cool, lifted cards. ─────────────────────────────────────────────── */
 
 html[data-style="frost"] {
-	--font-text: "Plus Jakarta Sans Variable", system-ui, sans-serif;
-	--font-code: "JetBrains Mono Variable", ui-monospace, monospace;
 	--frame: #f5f7fc;
 	--canvas: #f7f8fc;
 	--surface: #ffffff;
@@ -451,9 +447,4 @@ html[data-style="lift"] [data-slot="item-tile"] {
 /* Page titles use the style's display face (the text face unless a style sets one). */
 [data-slot="page-header"] h1 {
 	font-family: var(--font-display);
-}
-
-/* Plus Jakarta Sans sets tight at small sizes; give Frost's text a little air. */
-html[data-style="frost"] body {
-	letter-spacing: 0.01em;
 }
