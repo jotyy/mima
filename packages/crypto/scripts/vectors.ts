@@ -54,8 +54,12 @@ async function pbkdf2(password: string, salt: Uint8Array, iterations: number) {
 	);
 }
 
-/** HKDF-SHA-256 with 32 zero bytes of salt, 32 bytes out. */
-async function hkdf(secret: Uint8Array, info: string) {
+/** HKDF-SHA-256, 32 bytes out; the salt is 32 zero bytes unless given. */
+async function hkdf(
+	secret: Uint8Array,
+	info: string,
+	salt = new Uint8Array(32),
+) {
 	const key = await crypto.subtle.importKey("raw", secret, "HKDF", false, [
 		"deriveBits",
 	]);
@@ -64,7 +68,7 @@ async function hkdf(secret: Uint8Array, info: string) {
 			{
 				name: "HKDF",
 				hash: "SHA-256",
-				salt: new Uint8Array(32),
+				salt,
 				info: encoder.encode(info),
 			},
 			key,
@@ -78,12 +82,17 @@ async function seal(
 	keyBytes: Uint8Array,
 	ivBytes: Uint8Array,
 	data: Uint8Array,
+	additionalData?: Uint8Array,
 ) {
 	const key = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, [
 		"encrypt",
 	]);
 	const ciphertext = await crypto.subtle.encrypt(
-		{ name: "AES-GCM", iv: ivBytes },
+		{
+			name: "AES-GCM",
+			iv: ivBytes,
+			...(additionalData && { additionalData }),
+		},
 		key,
 		data,
 	);
@@ -302,7 +311,14 @@ for (const [time, ...codes] of rfcCodes) {
 }
 
 const prfOutput = run(0xd0, 32);
-const device = await hkdf(prfOutput, "vauly/device");
+const pepper = run(0xf0, 32);
+const device = await hkdf(prfOutput, "vauly/device", pepper);
+const deviceCopy = {
+	accountId: "user_0123456789",
+	credentialId: base64Url(run(0x30, 16)).replace(/=+$/, ""),
+	publicKey: account.publicKey,
+};
+const deviceData = `vauly/device\n${deviceCopy.accountId}\n${deviceCopy.credentialId}\n${deviceCopy.publicKey}`;
 
 const vectors = {
 	about:
@@ -379,11 +395,19 @@ const vectors = {
 	deviceKey: [
 		{
 			prfOutput: b64(prfOutput),
+			pepper: b64(pepper),
 			info: "vauly/device",
 			deviceKey: hex(device),
+			...deviceCopy,
+			additionalData: deviceData,
 			privateKey: keyPairs.account,
 			iv: b64(iv(10)),
-			sealedPrivateKey: await seal(device, iv(10), fromB64(keyPairs.account)),
+			sealed: await seal(
+				device,
+				iv(10),
+				fromB64(keyPairs.account),
+				encoder.encode(deviceData),
+			),
 		},
 	],
 	agentToken: [

@@ -134,11 +134,16 @@
 	"deviceKey": [
 		{
 			"prfOutput": "0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u8=",
+			"pepper": "8PHy8/T19vf4+fr7/P3+/wABAgMEBQYHCAkKCwwNDg8=",
 			"info": "vauly/device",
-			"deviceKey": "8437cc9bec09dd1c55bd8371272434e56a6e5589592dc2b4ba8a168e756a63d0",
+			"deviceKey": "a3a88cbecd1bb540bcf04be542a0a45c1dcdf129308d3f35dc7c21c8e9cb3197",
+			"accountId": "user_0123456789",
+			"credentialId": "MDEyMzQ1Njc4OTo7PD0-Pw",
+			"publicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2H/Jc9cHHNyX+72wjj166QX4dNT6gsSIGJ5517qLP2bVQbcbnFsuLNUKzkZ0yfUwUFgPnPXwhfRGdqbX8vORAA==",
+			"additionalData": "vauly/device\nuser_0123456789\nMDEyMzQ1Njc4OTo7PD0-Pw\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2H/Jc9cHHNyX+72wjj166QX4dNT6gsSIGJ5517qLP2bVQbcbnFsuLNUKzkZ0yfUwUFgPnPXwhfRGdqbX8vORAA==",
 			"privateKey": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg39xIWH6p27YIMw3m4kGCDMC3dOnRc2F6c1sPBxfPy/uhRANCAATYf8lz1wcc3Jf7vbCOPXrpBfh01PqCxIgYnnnXuos/ZtVBtxucWy4s1QrORnTJ9TBQWA+c9fCF9EZ2ptfy85EA",
 			"iv": "QEFCQ0RFRkdISUpL",
-			"sealedPrivateKey": "QEFCQ0RFRkdISUpL.vdztpIOZuXrnLZpNFR+el0wWaNFx59iEY8atzc2l2Go8DP2UC/xKoUVSDQRnGdagNxtWvMtHEnJeZWj9Bk5u4fq721+iQEw7qXOzoQp7MiXtPw8N49Bi+V694PxTwZet9Y9v4O4P6PIDFGcO4Td0chhvNvy21vwxeSpu1akmex9IoTGilhfd5Ggn3KSCO9uRmWMfk92qbeSvkQ=="
+			"sealed": "QEFCQ0RFRkdISUpL.WqLEHyo/VaF4gKibl2J2oDn4e3IOENFocROR2sm4L8/tPpW68Ya9ROXC+1go1/gDccduttn06kNmYBhI9AGkQvGc056VT8VFwpwIctP9F0769TvcetmJr4eSj+y2KwY/x0QMND9U07CPrRoU9WaRWLWzmyJ4V4foZSCsAv0qroRbY2ntjWnEdmEyk+OW/yrL+H9hloT/TlvuaA=="
 		}
 	],
 	"agentToken": [

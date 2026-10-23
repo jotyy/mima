@@ -1,33 +1,33 @@
 import {
+	type DeviceCopyContext,
 	deviceKey,
 	fromBase64,
-	openPrivateKey,
+	openDeviceCopy,
 	randomBytes,
-	sealPrivateKey,
+	sealDeviceCopy,
 	toBase64,
 } from "@vauly/crypto";
 
+import { client } from "@/utils/orpc";
+
 // Unlocking with a passkey on this device: Face ID, Touch ID, Windows Hello or the
 // device's PIN instead of the master password. Turning it on creates a passkey with the
-// WebAuthn PRF extension; its PRF output derives a key that seals a copy of the account's
-// private key, kept here in IndexedDB. The server never sees any of it, not even the
-// passkey's ID, and unlocking only ever happens inside a session it still accepts.
+// WebAuthn PRF extension. Its PRF output and a pepper the server derives for this session
+// together make the key that seals a copy of the account's private key, kept here in
+// IndexedDB. The server never sees the PRF output or the passkey; once the session ends,
+// or after DEVICE_UNLOCK_DAYS, it stops handing out the pepper and the copy can't open.
 
-/** What this device keeps for one account. Everything but `sealedPrivateKey` is public. */
-export type DeviceUnlock = {
-	accountId: string;
-	credentialId: string;
+/** The server refuses the pepper for older copies; this only stops offering them. */
+export const DEVICE_UNLOCK_DAYS = 14;
+
+/** What this device keeps for one account. Only `sealedPrivateKey` is secret, and it's sealed. */
+export type DeviceUnlock = DeviceCopyContext & {
 	/** The PRF input; the output depends on it and on the passkey's own secret. */
 	prfSalt: string;
 	sealedPrivateKey: string;
-	/** The account's public key, to notice a copy that no longer belongs to it. */
-	publicKey: string;
-	/**
-	 * The session it was made in. A new sign-in starts without it, so a sign-out that never
-	 * finished deleting it, or one that happened while this device was offline, still counts.
-	 */
+	/** The session the copy was made in, and when; both go into the server's pepper. */
 	sessionId: string;
-	createdAt: string;
+	issuedAt: number;
 };
 
 /** The browser or the passkey can't give a PRF output, so this device can't do it. */
@@ -36,6 +36,13 @@ export class DeviceUnlockUnavailable extends Error {
 		super("This browser can't unlock vauly with a passkey.");
 	}
 }
+
+export const isCancel = (err: unknown) =>
+	err instanceof DOMException &&
+	(err.name === "NotAllowedError" || err.name === "AbortError");
+
+export const expiresAt = (record: DeviceUnlock) =>
+	new Date(record.issuedAt + DEVICE_UNLOCK_DAYS * 24 * 60 * 60_000);
 
 /** Whether to offer it: a platform authenticator that verifies the person, and PRF. */
 export async function deviceUnlockSupported() {
@@ -66,80 +73,160 @@ export async function readDeviceUnlock(
 	}
 }
 
-/** Deletes this device's copy, and tells the passkey provider the passkey is no longer used. */
-export async function forgetDeviceUnlock(accountId: string) {
-	const record = await readDeviceUnlock(accountId);
-	if (!record) return;
-	await request("readwrite", (store) => store.delete(accountId)).catch(
-		() => undefined,
-	);
-	signalUnused(record.credentialId);
-}
-
-/** Creates the passkey, then seals the private key with what its PRF gives. */
-export async function turnOnDeviceUnlock(account: {
-	id: string;
-	email: string;
-	name: string;
-	publicKey: string;
-	privateKey: CryptoKey;
-	sessionId: string;
-}) {
-	const prfSalt = randomBytes(32);
-	const created = (await navigator.credentials.create({
-		publicKey: {
-			rp: { id: location.hostname, name: "vauly" },
-			user: {
-				id: new TextEncoder().encode(account.id),
-				name: account.email,
-				displayName: account.name,
-			},
-			challenge: randomBytes(32),
-			pubKeyCredParams: [
-				{ type: "public-key", alg: -7 },
-				{ type: "public-key", alg: -257 },
-			],
-			authenticatorSelection: {
-				authenticatorAttachment: "platform",
-				residentKey: "preferred",
-				userVerification: "required",
-			},
-			extensions: { prf: { eval: { first: prfSalt } } },
-		},
-	})) as PublicKeyCredential | null;
-	if (!created) throw new DeviceUnlockUnavailable();
-	const credentialId = toBase64Url(new Uint8Array(created.rawId));
-	const prf = created.getClientExtensionResults().prf;
-	if (!prf?.enabled && !prf?.results) {
-		signalUnused(credentialId);
-		throw new DeviceUnlockUnavailable();
+/**
+ * Deletes this device's copies, every one or those `which` picks, and tells the passkey
+ * provider their passkeys are no longer used.
+ */
+export async function forgetDeviceUnlocks(
+	which: (record: DeviceUnlock) => boolean = () => true,
+) {
+	try {
+		const records = await request<DeviceUnlock[]>("readonly", (store) =>
+			store.getAll(),
+		);
+		for (const record of records.filter(which)) {
+			await request("readwrite", (store) => store.delete(record.accountId));
+			signalUnused(record.credentialId);
+		}
+	} catch {
+		// No IndexedDB here (a private window, say): then there's nothing kept either.
 	}
-	// Some authenticators only answer PRF when the passkey is used, not when it's made.
-	const output = prf.results?.first
-		? bytes(prf.results.first)
-		: await prfOutput(credentialId, prfSalt);
-	const record: DeviceUnlock = {
-		accountId: account.id,
-		credentialId,
-		prfSalt: toBase64(prfSalt),
-		sealedPrivateKey: await sealPrivateKey(
-			await deviceKey(output),
-			account.privateKey,
-		),
-		publicKey: account.publicKey,
-		sessionId: account.sessionId,
-		createdAt: new Date().toISOString(),
-	};
-	await request("readwrite", (store) => store.put(record));
 }
 
-/** Asks for the passkey and opens the private key. Rejects if the person cancels. */
-export async function unlockWithDevice(record: DeviceUnlock) {
+/**
+ * Turning it on takes a tap per WebAuthn call, after the master password: Safari refuses
+ * a passkey prompt that doesn't start right in a tap, and checking the master password
+ * takes too long for that.
+ */
+export type Enrolment = {
+	/** Creates the passkey: "done", or "confirm" if it answers PRF only when it's used. */
+	create: () => Promise<"done" | "confirm">;
+	/** Uses the new passkey once, for its PRF output. */
+	confirm: () => Promise<void>;
+	/** Gives up; a passkey already made is reported as unused. */
+	cancel: () => void;
+};
+
+export function startEnrolment(
+	account: {
+		id: string;
+		email: string;
+		name: string;
+		publicKey: string;
+		sessionId: string;
+	},
+	privateKeyPkcs8: Uint8Array,
+): Enrolment {
+	// A fresh user handle each time, so passkeys from two devices never replace each other.
+	const userHandle = randomBytes(16);
+	const prfSalt = randomBytes(32);
+	let credentialId = "";
+	let saved = false;
+	let pepper: Promise<{ issuedAt: number; pepper: string }> | null = null;
+
+	const abandon = () => {
+		privateKeyPkcs8.fill(0);
+		if (credentialId && !saved) signalUnused(credentialId);
+	};
+
+	const save = async (output: Uint8Array) => {
+		if (!pepper) throw new DeviceUnlockUnavailable();
+		const { issuedAt, pepper: serverPepper } = await pepper;
+		const context = {
+			accountId: account.id,
+			credentialId,
+			publicKey: account.publicKey,
+		};
+		const key = await deviceKey(output, fromBase64(serverPepper));
+		const record: DeviceUnlock = {
+			...context,
+			prfSalt: toBase64(prfSalt),
+			sealedPrivateKey: await sealDeviceCopy(key, privateKeyPkcs8, context),
+			sessionId: account.sessionId,
+			issuedAt,
+		};
+		await request("readwrite", (store) => store.put(record));
+		saved = true;
+		privateKeyPkcs8.fill(0);
+	};
+
+	return {
+		async create() {
+			// Nothing is awaited before this, so it starts right in the tap.
+			const created = (await navigator.credentials.create({
+				publicKey: {
+					rp: { id: location.hostname, name: "vauly" },
+					user: {
+						id: userHandle,
+						name: account.email,
+						displayName: account.name,
+					},
+					challenge: randomBytes(32),
+					pubKeyCredParams: [
+						{ type: "public-key", alg: -7 },
+						{ type: "public-key", alg: -257 },
+					],
+					authenticatorSelection: {
+						authenticatorAttachment: "platform",
+						residentKey: "discouraged",
+						userVerification: "required",
+					},
+					extensions: { prf: { eval: { first: prfSalt } } },
+				},
+			})) as PublicKeyCredential | null;
+			if (!created) throw new DeviceUnlockUnavailable();
+			credentialId = toBase64Url(new Uint8Array(created.rawId));
+			try {
+				const prf = created.getClientExtensionResults().prf;
+				if (!prf?.enabled && !prf?.results) throw new DeviceUnlockUnavailable();
+				pepper = client.account.devicePepper({});
+				await pepper;
+				if (!prf.results?.first) return "confirm";
+				await save(bytes(prf.results.first));
+				return "done";
+			} catch (err) {
+				abandon();
+				throw err;
+			}
+		},
+		async confirm() {
+			try {
+				await save(await prfOutput(credentialId, prfSalt));
+			} catch (err) {
+				// A cancel can be tried again; anything else ends this attempt.
+				if (!isCancel(err)) abandon();
+				throw err;
+			}
+		},
+		cancel: abandon,
+	};
+}
+
+/**
+ * Asks for the passkey, then the server's pepper, and opens the private key. The account
+ * comes from the server, not from this device's storage, so a copy only opens for it.
+ */
+export async function unlockWithDevice(
+	record: DeviceUnlock,
+	account: { id: string; publicKey: string },
+) {
+	// The passkey first, so its prompt starts right in the tap.
 	const output = await prfOutput(
 		record.credentialId,
 		fromBase64(record.prfSalt),
 	);
-	return openPrivateKey(await deviceKey(output), record.sealedPrivateKey);
+	const { pepper } = await client.account.devicePepper({
+		issuedAt: record.issuedAt,
+	});
+	return openDeviceCopy(
+		await deviceKey(output, fromBase64(pepper)),
+		record.sealedPrivateKey,
+		{
+			accountId: account.id,
+			credentialId: record.credentialId,
+			publicKey: account.publicKey,
+		},
+	);
 }
 
 async function prfOutput(credentialId: string, salt: Uint8Array) {

@@ -38,7 +38,7 @@ import {
 import { describeDevice } from "@/lib/device";
 import { deviceUnlockSupported } from "@/lib/device-unlock";
 import { openEmergencyKit } from "@/lib/emergency-kit";
-import { ago, plural } from "@/lib/format";
+import { ago, plural, timeLeft } from "@/lib/format";
 import {
 	AUTO_LOCK_CHOICES,
 	type AutoLockMinutes,
@@ -159,7 +159,11 @@ function Settings() {
 				{(passkeySupported || keyring.deviceUnlock) && (
 					<Row
 						label="Unlock with this device"
-						hint="Face ID, Touch ID, Windows Hello or this device's PIN instead of the master password, here only. Signing in still needs the master password."
+						hint={
+							keyring.deviceUnlockUntil
+								? `Face ID, Touch ID, Windows Hello or this device's PIN instead of the master password, here only. It asks for the master password again ${timeLeft(keyring.deviceUnlockUntil)}.`
+								: "Face ID, Touch ID, Windows Hello or this device's PIN instead of the master password, here only, for 14 days at a time. Signing in still needs the master password."
+						}
 					>
 						<Switch
 							aria-label="Unlock with this device"

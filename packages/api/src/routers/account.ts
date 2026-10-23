@@ -27,8 +27,7 @@ const accountKeys = z.object({
 	encryptedPrivateKey: z.string().min(40).max(1_000),
 });
 
-/** Same salt every time for the same unknown email, so probing reveals nothing. */
-async function decoySalt(secret: string, email: string) {
+async function hmac(secret: string, message: string) {
 	const key = await crypto.subtle.importKey(
 		"raw",
 		new TextEncoder().encode(secret),
@@ -36,15 +35,19 @@ async function decoySalt(secret: string, email: string) {
 		false,
 		["sign"],
 	);
-	const mac = new Uint8Array(
-		await crypto.subtle.sign(
-			"HMAC",
-			key,
-			new TextEncoder().encode(`salt:${email}`),
-		),
+	return new Uint8Array(
+		await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message)),
 	);
+}
+
+/** Same salt every time for the same unknown email, so probing reveals nothing. */
+async function decoySalt(secret: string, email: string) {
+	const mac = await hmac(secret, `salt:${email}`);
 	return btoa(String.fromCharCode(...mac.slice(0, 16)));
 }
+
+/** How long a device unlocks with a passkey before it needs the master password again. */
+const DEVICE_UNLOCK_DAYS = 14;
 
 export const accountRouter = {
 	/** Whether the workspace has an owner yet; the first person to register becomes it. */
@@ -220,6 +223,30 @@ export const accountRouter = {
 				throw error;
 			}
 			return { userId, role };
+		}),
+
+	/**
+	 * The server's half of the key that seals a device's passkey copy of the private key:
+	 * an HMAC of this session and of when the copy was made. Once the session ends, or the
+	 * copy is older than DEVICE_UNLOCK_DAYS, nobody can get it, so the copy no longer
+	 * opens. Without `issuedAt`, a new copy starts now.
+	 */
+	devicePepper: memberProcedure
+		.input(z.object({ issuedAt: z.number().int().positive().optional() }))
+		.handler(async ({ context, input }) => {
+			const now = Date.now();
+			const issuedAt = input.issuedAt ?? now;
+			const age = now - issuedAt;
+			if (age < -60_000 || age > DEVICE_UNLOCK_DAYS * 24 * 60 * 60_000) {
+				throw new ORPCError("FORBIDDEN", {
+					message: `Unlocking with a passkey lasts ${DEVICE_UNLOCK_DAYS} days. Use your master password.`,
+				});
+			}
+			const pepper = await hmac(
+				context.secret,
+				`device:${context.session.session.id}:${issuedAt}`,
+			);
+			return { issuedAt, pepper: btoa(String.fromCharCode(...pepper)) };
 		}),
 
 	me: memberProcedure.handler(async ({ context }) => {

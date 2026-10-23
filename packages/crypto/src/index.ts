@@ -99,24 +99,46 @@ export const newSalt = () => toBase64(randomBytes(16));
 /** `base64(iv) . base64(ciphertext)`: the only ciphertext format vauly stores. */
 export type Sealed = string;
 
-export async function seal(
+export function seal(key: CryptoKey, plaintext: Uint8Array): Promise<Sealed> {
+	return sealWith(key, plaintext);
+}
+
+export function open(key: CryptoKey, sealed: Sealed): Promise<Bytes> {
+	return openWith(key, sealed);
+}
+
+/** AES-GCM with additional data: the ciphertext only opens in the same context. */
+async function sealWith(
 	key: CryptoKey,
 	plaintext: Uint8Array,
+	additionalData?: Uint8Array,
 ): Promise<Sealed> {
 	const iv = randomBytes(12);
 	const ciphertext = await crypto.subtle.encrypt(
-		{ name: "AES-GCM", iv },
+		{
+			name: "AES-GCM",
+			iv,
+			...(additionalData && { additionalData: additionalData as Bytes }),
+		},
 		key,
 		plaintext as Bytes,
 	);
 	return `${toBase64(iv)}.${toBase64(new Uint8Array(ciphertext))}`;
 }
 
-export async function open(key: CryptoKey, sealed: Sealed): Promise<Bytes> {
+async function openWith(
+	key: CryptoKey,
+	sealed: Sealed,
+	additionalData?: Uint8Array,
+): Promise<Bytes> {
 	const [iv, ciphertext] = sealed.split(".");
 	if (!iv || !ciphertext) throw new Error("Malformed ciphertext");
 	const plaintext = await crypto.subtle.decrypt(
-		{ name: "AES-GCM", iv: fromBase64(iv) },
+		{
+			name: "AES-GCM",
+			iv: fromBase64(iv),
+			...(additionalData && { additionalData: additionalData as Bytes }),
+		},
 		key,
 		fromBase64(ciphertext),
 	);
@@ -195,8 +217,31 @@ export async function newKeypair(): Promise<
 	return { publicKey, privateKey: pair.privateKey, privateKeyRaw };
 }
 
+/** Not extractable: once unlocked, the private key can be used but not read back out. */
 export const importPrivateKey = (pkcs8: Uint8Array) =>
-	crypto.subtle.importKey("pkcs8", pkcs8 as Bytes, ECDH, true, ["deriveBits"]);
+	crypto.subtle.importKey("pkcs8", pkcs8 as Bytes, ECDH, false, ["deriveBits"]);
+
+/** The public key (SPKI, base64) that belongs to a PKCS#8 private key. */
+export async function publicKeyOf(pkcs8: Uint8Array): Promise<string> {
+	const privateKey = await crypto.subtle.importKey(
+		"pkcs8",
+		pkcs8 as Bytes,
+		ECDH,
+		true,
+		["deriveBits"],
+	);
+	const { kty, crv, x, y } = await crypto.subtle.exportKey("jwk", privateKey);
+	const publicKey = await crypto.subtle.importKey(
+		"jwk",
+		{ kty, crv, x, y },
+		ECDH,
+		true,
+		[],
+	);
+	return toBase64(
+		new Uint8Array(await crypto.subtle.exportKey("spki", publicKey)),
+	);
+}
 
 const importPublicKey = (spki: string) =>
 	crypto.subtle.importKey("spki", fromBase64(spki), ECDH, true, []);
@@ -338,12 +383,23 @@ export async function changeMasterPassword(
 
 // --- Unlocking with a passkey ----------------------------------------------------
 
+/** What a device's copy of the private key belongs to; it opens for nothing else. */
+export type DeviceCopyContext = {
+	accountId: string;
+	credentialId: string;
+	publicKey: string;
+};
+
 /**
- * The key that seals this device's copy of the private key, from a passkey's PRF output.
- * Only the authenticator can produce that output, and only after Face ID, Touch ID or a
- * PIN, so the copy is useless to anyone holding just the device's storage.
+ * The key that seals a device's copy of the private key. It comes from a passkey's PRF
+ * output, which only the authenticator produces, after Face ID, Touch ID or a PIN, and
+ * from a pepper the server derives for one session, which it stops handing out when the
+ * session ends. Neither alone opens the copy.
  */
-export async function deviceKey(prfOutput: Uint8Array): Promise<CryptoKey> {
+export async function deviceKey(
+	prfOutput: Uint8Array,
+	pepper: Uint8Array,
+): Promise<CryptoKey> {
 	const secret = await crypto.subtle.importKey(
 		"raw",
 		prfOutput as Bytes,
@@ -355,7 +411,7 @@ export async function deviceKey(prfOutput: Uint8Array): Promise<CryptoKey> {
 		{
 			name: "HKDF",
 			hash: "SHA-256",
-			salt: new Uint8Array(32),
+			salt: pepper as Bytes,
 			info: encoder.encode("vauly/device"),
 		},
 		secret,
@@ -365,15 +421,38 @@ export async function deviceKey(prfOutput: Uint8Array): Promise<CryptoKey> {
 	);
 }
 
-/** Seals the account's private key (PKCS#8) with another key; `openPrivateKey` opens it. */
-export async function sealPrivateKey(
+/** Additional data that binds a device copy to its account, passkey and key pair. */
+const deviceCopyData = ({
+	accountId,
+	credentialId,
+	publicKey,
+}: DeviceCopyContext) =>
+	encoder.encode(`vauly/device\n${accountId}\n${credentialId}\n${publicKey}`);
+
+/** Seals the account's private key (its PKCS#8 bytes) for one device. */
+export function sealDeviceCopy(
 	key: CryptoKey,
-	privateKey: CryptoKey,
+	privateKeyPkcs8: Uint8Array,
+	context: DeviceCopyContext,
 ): Promise<Sealed> {
-	return seal(
-		key,
-		new Uint8Array(await crypto.subtle.exportKey("pkcs8", privateKey)),
-	);
+	return sealWith(key, privateKeyPkcs8, deviceCopyData(context));
+}
+
+/**
+ * Opens a device copy, and checks that the key inside is the account's: a copy from
+ * another account, passkey or key pair doesn't open, and a key that doesn't match its
+ * public key is refused.
+ */
+export async function openDeviceCopy(
+	key: CryptoKey,
+	sealed: Sealed,
+	context: DeviceCopyContext,
+): Promise<CryptoKey> {
+	const pkcs8 = await openWith(key, sealed, deviceCopyData(context));
+	if ((await publicKeyOf(pkcs8)) !== context.publicKey) {
+		throw new Error("This copy holds another key");
+	}
+	return importPrivateKey(pkcs8);
 }
 
 // --- Agent tokens ----------------------------------------------------------------

@@ -1,4 +1,4 @@
-import { WarningIcon } from "@phosphor-icons/react";
+import { FingerprintIcon, WarningIcon } from "@phosphor-icons/react";
 import { Button } from "@vauly/ui/components/button";
 import {
 	Dialog,
@@ -8,10 +8,20 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@vauly/ui/components/dialog";
-import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import {
+	type FormEvent,
+	type ReactNode,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 
 import { backupFileName, toBackupCsv } from "@/lib/backup";
-import { DeviceUnlockUnavailable } from "@/lib/device-unlock";
+import {
+	DeviceUnlockUnavailable,
+	type Enrolment,
+	isCancel,
+} from "@/lib/device-unlock";
 import { useKeyring, WrongPasswordError } from "@/lib/keyring";
 import { newMasterPasswordProblem } from "@/lib/secrets";
 import { errorMessage, useItems, useVaults } from "@/lib/vault-data";
@@ -124,7 +134,11 @@ export function ChangePasswordDialog({
 	);
 }
 
-/** Turns on unlocking with a passkey on this device, after the master password. */
+/**
+ * Turns on unlocking with a passkey on this device: the master password, then a tap to
+ * create the passkey, and on some devices one more to use it once. Each passkey prompt
+ * starts right in its tap, which Safari insists on.
+ */
 export function DeviceUnlockDialog({
 	open,
 	onOpenChange,
@@ -133,74 +147,146 @@ export function DeviceUnlockDialog({
 	onOpenChange: (open: boolean) => void;
 }) {
 	const keyring = useKeyring();
+	const [step, setStep] = useState<"password" | "create" | "confirm">(
+		"password",
+	);
+	const enrolment = useRef<Enrolment | null>(null);
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState("");
 	const [busy, setBusy] = useState(false);
 
 	useEffect(() => {
 		if (open) {
+			setStep("password");
 			setPassword("");
 			setError("");
+		} else {
+			enrolment.current?.cancel();
+			enrolment.current = null;
 		}
 	}, [open]);
+
+	const done = () => {
+		notify.success(
+			"This device unlocks with a passkey now",
+			"For 14 days at a time. Signing in still needs your master password.",
+		);
+		onOpenChange(false);
+	};
+
+	const failed = (err: unknown) => {
+		if (isCancel(err)) {
+			setError(
+				"The passkey didn't go through. Try again, and confirm with Face ID, Touch ID, Windows Hello or your device's PIN.",
+			);
+			return;
+		}
+		// Anything else ends this attempt; it starts again from the master password.
+		enrolment.current = null;
+		setStep("password");
+		setPassword("");
+		setError(
+			err instanceof DeviceUnlockUnavailable ? err.message : errorMessage(err),
+		);
+	};
+
+	/** Runs `work` straight from the tap, so its passkey prompt counts as the tap's. */
+	const act = (work: () => Promise<void>) => {
+		setBusy(true);
+		setError("");
+		work()
+			.catch(failed)
+			.finally(() => setBusy(false));
+	};
 
 	const submit = async (event: FormEvent) => {
 		event.preventDefault();
 		setError("");
 		setBusy(true);
 		try {
-			await keyring.turnOnDeviceUnlock(password);
-			notify.success(
-				"This device unlocks with a passkey now",
-				"Signing in on another device still needs your master password.",
-			);
-			onOpenChange(false);
+			enrolment.current = await keyring.startDeviceUnlock(password);
+			setPassword("");
+			setStep("create");
 		} catch (err) {
 			setError(
 				err instanceof WrongPasswordError
 					? "That's not your master password."
-					: err instanceof DeviceUnlockUnavailable
-						? err.message
-						: err instanceof DOMException && err.name === "NotAllowedError"
-							? "No passkey was saved. Try again, and confirm with Face ID, Touch ID, Windows Hello or your device's PIN."
-							: errorMessage(err),
+					: errorMessage(err),
 			);
 		} finally {
 			setBusy(false);
 		}
 	};
 
+	const close = (
+		<Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+			Cancel
+		</Button>
+	);
+
 	return (
 		<FormDialog
 			open={open}
 			onOpenChange={(next) => !busy && onOpenChange(next)}
 			title="Unlock with this device"
-			description="Enter your master password, then confirm with Face ID, Touch ID, Windows Hello or your device's PIN. vauly keeps a copy of your keys on this device that only this passkey opens."
+			description={
+				step === "password"
+					? "Enter your master password. Then your device asks for Face ID, Touch ID, Windows Hello or its PIN."
+					: step === "create"
+						? "Now create the passkey. vauly keeps a copy of your keys on this device that only it opens, for 14 days at a time."
+						: "Use the new passkey once, so vauly can seal the copy of your keys with it."
+			}
 			onSubmit={submit}
 			footer={
-				<>
-					<Button
-						type="button"
-						variant="ghost"
-						onClick={() => onOpenChange(false)}
-					>
-						Cancel
-					</Button>
-					<Button type="submit" disabled={busy}>
-						{busy ? "Waiting for your passkey…" : "Turn on"}
-					</Button>
-				</>
+				step === "password" ? (
+					<>
+						{close}
+						<Button type="submit" disabled={busy}>
+							{busy ? "Checking…" : "Continue"}
+						</Button>
+					</>
+				) : (
+					<>
+						{close}
+						<Button
+							type="button"
+							disabled={busy}
+							onClick={() =>
+								act(async () => {
+									const current = enrolment.current;
+									if (!current) return;
+									if (step === "confirm") {
+										await current.confirm();
+										return done();
+									}
+									const next = await current.create();
+									if (next === "done") done();
+									else setStep("confirm");
+								})
+							}
+						>
+							<FingerprintIcon data-icon="inline-start" />
+							{busy
+								? "Waiting for your passkey…"
+								: step === "create"
+									? "Create passkey"
+									: "Confirm with passkey"}
+						</Button>
+					</>
+				)
 			}
 		>
-			<Field label="Master password">
-				<PasswordInput
-					required
-					autoFocus
-					autoComplete="current-password"
-					value={password}
-					onChange={(event) => setPassword(event.target.value)}
-				/>
-			</Field>
+			{step === "password" && (
+				<Field label="Master password">
+					<PasswordInput
+						required
+						autoFocus
+						autoComplete="current-password"
+						value={password}
+						onChange={(event) => setPassword(event.target.value)}
+					/>
+				</Field>
+			)}
 			<FormError>{error}</FormError>
 		</FormDialog>
 	);

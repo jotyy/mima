@@ -1,3 +1,4 @@
+import { ORPCError } from "@orpc/client";
 import { useQueryClient } from "@tanstack/react-query";
 import {
 	type AccountKeys,
@@ -6,6 +7,7 @@ import {
 	deriveMasterKeys,
 	newDataKey,
 	openPrivateKey,
+	open as openSealed,
 	sealJson,
 	unwrapKeyFrom,
 	wrapKeyFor,
@@ -20,13 +22,16 @@ import {
 	useRef,
 	useState,
 } from "react";
-
 import { notify } from "@/components/notify";
 import { authClient } from "@/lib/auth-client";
 import {
-	forgetDeviceUnlock,
+	type DeviceUnlock,
+	type Enrolment,
+	expiresAt,
+	forgetDeviceUnlocks,
+	isCancel,
 	readDeviceUnlock,
-	turnOnDeviceUnlock,
+	startEnrolment,
 	unlockWithDevice,
 } from "@/lib/device-unlock";
 import { client, SESSION_ENDED } from "@/utils/orpc";
@@ -71,10 +76,14 @@ type Keyring = {
 	unlock: (password: string) => Promise<void>;
 	/** Whether this device keeps a passkey-sealed copy of the private key for this account. */
 	deviceUnlock: boolean;
-	/** Unlocks with that passkey. Rejects with a NotAllowedError if the person cancels. */
+	/** When that copy stops working and the master password is needed again. */
+	deviceUnlockUntil: Date | null;
+	/** Whether a copy just ran out, so the unlock screen can say why the passkey is gone. */
+	deviceUnlockExpired: boolean;
+	/** Unlocks with that passkey. Rejects with a PasskeyUnlockError. */
 	unlockWithPasskey: () => Promise<void>;
-	/** Turns on unlocking with a passkey here, after checking the master password. */
-	turnOnDeviceUnlock: (password: string) => Promise<void>;
+	/** Checks the master password, then hands over the steps that make the passkey. */
+	startDeviceUnlock: (password: string) => Promise<Enrolment>;
 	turnOffDeviceUnlock: () => Promise<void>;
 	register: (input: {
 		email: string;
@@ -111,6 +120,13 @@ export class WrongPasswordError extends Error {
 	}
 }
 
+/** Why a passkey didn't unlock: only "expired" and "broken" mean the copy is gone. */
+export class PasskeyUnlockError extends Error {
+	constructor(readonly reason: "cancelled" | "expired" | "offline" | "broken") {
+		super(`Passkey unlock ${reason}`);
+	}
+}
+
 /** The password was right, and the account asks for a code too: none yet, or a wrong one. */
 export class TwoStepError extends Error {
 	constructor(readonly wrongCode: boolean) {
@@ -138,33 +154,65 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 	const autoLockMs = autoLockMinutes * 60_000;
 	const privateKey = useRef<CryptoKey | null>(null);
 	const vaultKeys = useRef(new Map<string, Promise<CryptoKey>>());
-	const [deviceUnlock, setDeviceUnlock] = useState(false);
-	const meRef = useRef(me);
-	meRef.current = me;
+	const [deviceRecord, setDeviceRecord] = useState<DeviceUnlock | null>(null);
+	const [deviceExpired, setDeviceExpired] = useState(false);
+	/** The current session's ID; undefined while it couldn't be checked. */
+	const sessionId = useRef<string | null | undefined>(undefined);
 
-	// This device's passkey copy, if there is one and it still belongs to this account and
-	// this session.
+	/**
+	 * Looks the session up, and drops passkey copies made in any other: their sessions are
+	 * over, from a sign-out here or elsewhere, an expiry, or a removal. If the session
+	 * can't be checked (no network), nothing is dropped.
+	 */
+	const adoptSession = useCallback(async () => {
+		const session = await authClient.getSession();
+		if (session.error) {
+			sessionId.current = undefined;
+			return session;
+		}
+		const current = session.data?.session.id ?? null;
+		sessionId.current = current;
+		await forgetDeviceUnlocks((record) => record.sessionId !== current);
+		return session;
+	}, []);
+
+	// This account's passkey copy on this device, if it belongs to this session, to this
+	// key pair, and hasn't run out.
 	useEffect(() => {
-		if (!me) return setDeviceUnlock(false);
+		if (!me) {
+			setDeviceRecord(null);
+			return;
+		}
 		let cancelled = false;
 		(async () => {
 			const record = await readDeviceUnlock(me.id);
-			const session = record ? await authClient.getSession() : null;
-			const current =
-				record?.publicKey === me.keys.publicKey &&
-				record.sessionId === session?.data?.session.id;
-			if (record && !current) await forgetDeviceUnlock(me.id);
-			if (!cancelled) setDeviceUnlock(current);
+			if (!record || sessionId.current === undefined) {
+				if (!cancelled) setDeviceRecord(null);
+				return;
+			}
+			const expired = Date.now() >= expiresAt(record).getTime();
+			const valid =
+				!expired &&
+				record.sessionId === sessionId.current &&
+				record.publicKey === me.keys.publicKey;
+			if (!valid) {
+				await forgetDeviceUnlocks((stale) => stale.accountId === me.id);
+			}
+			if (cancelled) return;
+			setDeviceRecord(valid ? record : null);
+			if (expired) setDeviceExpired(true);
 		})();
 		return () => {
 			cancelled = true;
 		};
 	}, [me]);
 
-	/** Drops this device's passkey copy, on sign-out and when the password changes. */
-	const forgetDevice = useCallback(async (accountId: string | undefined) => {
-		setDeviceUnlock(false);
-		if (accountId) await forgetDeviceUnlock(accountId);
+	/** Drops passkey copies: this account's, or every one on this device. */
+	const forgetDevice = useCallback(async (accountId?: string) => {
+		setDeviceRecord(null);
+		await forgetDeviceUnlocks((record) =>
+			accountId ? record.accountId === accountId : true,
+		);
 	}, []);
 
 	const loadMe = useCallback(async () => {
@@ -176,7 +224,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		let cancelled = false;
 		(async () => {
-			const session = await authClient.getSession();
+			const session = await adoptSession();
 			if (cancelled) return;
 			if (!session.data) return setStatus("signed-out");
 			try {
@@ -189,7 +237,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 		return () => {
 			cancelled = true;
 		};
-	}, [loadMe]);
+	}, [loadMe, adoptSession]);
 
 	const open = useCallback((key: CryptoKey) => {
 		privateKey.current = key;
@@ -225,10 +273,11 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			if (result.error?.code === "TWO_FACTOR_WRONG")
 				throw new TwoStepError(true);
 			if (result.error) throw new WrongPasswordError();
+			await adoptSession();
 			const profile = await loadMe();
 			open(await openPrivateKey(wrapKey, profile.keys.encryptedPrivateKey));
 		},
-		[loadMe, open],
+		[loadMe, open, adoptSession],
 	);
 
 	const unlock = useCallback(
@@ -249,25 +298,32 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 	);
 
 	const unlockWithPasskey = useCallback(async () => {
-		if (!me) throw new Error("Sign in first");
-		const record = await readDeviceUnlock(me.id);
-		if (!record) {
-			setDeviceUnlock(false);
-			throw new Error("This device has no passkey for vauly any more.");
-		}
+		const record = deviceRecord;
+		if (!me || !record) throw new PasskeyUnlockError("broken");
 		let key: CryptoKey;
 		try {
-			key = await unlockWithDevice(record);
+			key = await unlockWithDevice(record, {
+				id: me.id,
+				publicKey: me.keys.publicKey,
+			});
 		} catch (err) {
-			// A cancel leaves everything as it was; anything else means the copy is no good.
-			const cancelled =
-				err instanceof DOMException &&
-				(err.name === "NotAllowedError" || err.name === "AbortError");
-			if (!cancelled) await forgetDevice(me.id);
-			throw err;
+			// A cancel, a passkey that's gone (browsers report both the same way) or no
+			// network leave the copy; a server that refuses it, or a copy that won't open,
+			// end it.
+			if (isCancel(err)) throw new PasskeyUnlockError("cancelled");
+			if (err instanceof ORPCError && err.code === "FORBIDDEN") {
+				await forgetDevice(me.id);
+				setDeviceExpired(true);
+				throw new PasskeyUnlockError("expired");
+			}
+			if (err instanceof ORPCError || err instanceof TypeError) {
+				throw new PasskeyUnlockError("offline");
+			}
+			await forgetDevice(me.id);
+			throw new PasskeyUnlockError("broken");
 		}
 		open(key);
-	}, [me, open, forgetDevice]);
+	}, [me, deviceRecord, open, forgetDevice]);
 
 	const register = useCallback<Keyring["register"]>(
 		async ({
@@ -299,10 +355,11 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			});
 			if (result.error)
 				throw new Error(result.error.message ?? "Couldn't sign in");
+			await adoptSession();
 			await loadMe();
 			open(account.privateKey);
 		},
-		[loadMe, open],
+		[loadMe, open, adoptSession],
 	);
 
 	// Another device signed this one out, or an admin removed the person: start over.
@@ -312,7 +369,8 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 		const ended = () => {
 			if (statusRef.current !== "locked" && statusRef.current !== "unlocked")
 				return;
-			forgetDevice(meRef.current?.id);
+			sessionId.current = null;
+			forgetDevice();
 			lock();
 			setMe(null);
 			setStatus("signed-out");
@@ -324,7 +382,8 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 
 	const signOut = useCallback(async () => {
 		lock();
-		await Promise.all([forgetDevice(meRef.current?.id), authClient.signOut()]);
+		sessionId.current = null;
+		await Promise.all([forgetDevice(), authClient.signOut()]);
 		setMe(null);
 		setStatus("signed-out");
 	}, [lock, forgetDevice]);
@@ -366,30 +425,63 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 				},
 			});
 			// The key pair stays the same, so a passkey copy would outlive the old password.
-			await forgetDevice(me.id);
+			await forgetDevice();
 			await loadMe();
 		},
 		[me, loadMe, forgetDevice],
 	);
 
-	const turnOnPasskey = useCallback(
-		async (password: string) => {
-			const key = privateKey.current;
-			if (!me || !key) throw new Error("Unlock vauly first");
-			if (!(await verifyPassword(password))) throw new WrongPasswordError();
-			const session = await authClient.getSession();
-			if (!session.data) throw new Error("Sign in again first");
-			await turnOnDeviceUnlock({
-				sessionId: session.data.session.id,
-				id: me.id,
-				email: me.email,
-				name: me.name,
-				publicKey: me.keys.publicKey,
-				privateKey: key,
-			});
-			setDeviceUnlock(true);
+	const startDeviceUnlock = useCallback(
+		async (password: string): Promise<Enrolment> => {
+			if (!me) throw new Error("Sign in first");
+			const session = sessionId.current;
+			if (!session) {
+				throw new Error(
+					"vauly couldn't check this session. Reload the page and try again.",
+				);
+			}
+			const { wrapKey } = await deriveMasterKeys(
+				password,
+				me.keys.kdfSalt,
+				me.keys.kdfIterations,
+			);
+			let privateKeyPkcs8: Uint8Array;
+			try {
+				privateKeyPkcs8 = await openSealed(
+					wrapKey,
+					me.keys.encryptedPrivateKey,
+				);
+			} catch {
+				throw new WrongPasswordError();
+			}
+			const enrolment = startEnrolment(
+				{
+					id: me.id,
+					email: me.email,
+					name: me.name,
+					publicKey: me.keys.publicKey,
+					sessionId: session,
+				},
+				privateKeyPkcs8,
+			);
+			const saved = async () => {
+				setDeviceRecord(await readDeviceUnlock(me.id));
+				setDeviceExpired(false);
+			};
+			return {
+				create: async () => {
+					const step = await enrolment.create();
+					if (step === "done") await saved();
+					return step;
+				},
+				confirm: async () => {
+					await enrolment.confirm();
+					await saved();
+				},
+				cancel: enrolment.cancel,
+			};
 		},
-		[me, verifyPassword],
+		[me],
 	);
 
 	const turnOffPasskey = useCallback(
@@ -465,9 +557,11 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			locksAt: status === "unlocked" ? lastActive + autoLockMs : null,
 			signIn,
 			unlock,
-			deviceUnlock,
+			deviceUnlock: deviceRecord !== null,
+			deviceUnlockUntil: deviceRecord ? expiresAt(deviceRecord) : null,
+			deviceUnlockExpired: deviceExpired,
 			unlockWithPasskey,
-			turnOnDeviceUnlock: turnOnPasskey,
+			startDeviceUnlock,
 			turnOffDeviceUnlock: turnOffPasskey,
 			register,
 			lock,
@@ -494,9 +588,10 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			lastActive,
 			signIn,
 			unlock,
-			deviceUnlock,
+			deviceRecord,
+			deviceExpired,
 			unlockWithPasskey,
-			turnOnPasskey,
+			startDeviceUnlock,
 			turnOffPasskey,
 			register,
 			lock,

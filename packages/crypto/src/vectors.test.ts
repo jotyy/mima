@@ -14,12 +14,12 @@ import {
 	keyFromText,
 	keyToText,
 	open,
+	openDeviceCopy,
 	openJson,
-	openPrivateKey,
 	parseTotp,
 	seal,
+	sealDeviceCopy,
 	sealJson,
-	sealPrivateKey,
 	sha256Hex,
 	type TotpConfig,
 	toBase64,
@@ -79,9 +79,13 @@ type Vectors = {
 	}[];
 	deviceKey: {
 		prfOutput: string;
+		pepper: string;
+		accountId: string;
+		credentialId: string;
+		publicKey: string;
 		privateKey: string;
 		iv: string;
-		sealedPrivateKey: string;
+		sealed: string;
 	}[];
 	agentToken: {
 		agentId: string;
@@ -238,8 +242,15 @@ describe("accounts", () => {
 
 			const unlocked = await unlockAccount(vector.password, vector.keys);
 			expect(unlocked.authKey).toBe(vector.authKey);
-			const pkcs8 = await crypto.subtle.exportKey("pkcs8", unlocked.privateKey);
-			expect(toBase64(new Uint8Array(pkcs8))).toBe(vector.privateKey);
+			// The unlocked key can't be exported; it opens what's wrapped to its public key.
+			const key = await aesKey(vectors.seal[0]?.key ?? "");
+			const wrapped = await wrapKeyFor(vector.keys.publicKey, key);
+			const opened = await unwrapKeyFrom(
+				unlocked.privateKey,
+				vector.keys.publicKey,
+				wrapped,
+			);
+			expect(await exportRaw(opened)).toBe(await exportRaw(key));
 		}
 	});
 
@@ -268,17 +279,70 @@ describe("accounts", () => {
 	});
 });
 
-test("unlocking with a passkey: the device key and the private key it seals", async () => {
+describe("unlocking with a passkey", () => {
 	for (const vector of vectors.deviceKey) {
-		const key = await deviceKey(fromBase64(vector.prfOutput));
-		const privateKey = await importPrivateKey(fromBase64(vector.privateKey));
-		const made = await withFixedRandom({ bytes: [fromBase64(vector.iv)] }, () =>
-			sealPrivateKey(key, privateKey),
-		);
-		expect(made).toBe(vector.sealedPrivateKey);
-		const opened = await openPrivateKey(key, vector.sealedPrivateKey);
-		const pkcs8 = await crypto.subtle.exportKey("pkcs8", opened);
-		expect(toBase64(new Uint8Array(pkcs8))).toBe(vector.privateKey);
+		const context = {
+			accountId: vector.accountId,
+			credentialId: vector.credentialId,
+			publicKey: vector.publicKey,
+		};
+		const key = () =>
+			deviceKey(fromBase64(vector.prfOutput), fromBase64(vector.pepper));
+
+		test("the device key seals the private key, bound to its context", async () => {
+			const made = await withFixedRandom(
+				{ bytes: [fromBase64(vector.iv)] },
+				async () =>
+					sealDeviceCopy(await key(), fromBase64(vector.privateKey), context),
+			);
+			expect(made).toBe(vector.sealed);
+			const opened = await openDeviceCopy(await key(), vector.sealed, context);
+			expect(opened.extractable).toBe(false);
+		});
+
+		test("another PRF output or another session's pepper doesn't open it", async () => {
+			const otherPrf = await deviceKey(
+				new Uint8Array(32),
+				fromBase64(vector.pepper),
+			);
+			const otherPepper = await deviceKey(
+				fromBase64(vector.prfOutput),
+				new Uint8Array(32),
+			);
+			for (const wrong of [otherPrf, otherPepper]) {
+				await expect(
+					openDeviceCopy(wrong, vector.sealed, context),
+				).rejects.toThrow();
+			}
+		});
+
+		test("it opens only for its account, passkey and public key", async () => {
+			for (const other of [
+				{ ...context, accountId: "user_someone_else" },
+				{ ...context, credentialId: "another-passkey" },
+				{
+					...context,
+					publicKey: vectors.wrapKeyFor[0]?.recipientPublicKey ?? "",
+				},
+			]) {
+				await expect(
+					openDeviceCopy(await key(), vector.sealed, other),
+				).rejects.toThrow();
+			}
+		});
+
+		test("a copy holding another key is refused", async () => {
+			// Sealed for this context, but with someone else's private key inside.
+			const stranger = vectors.wrapKeyFor[0]?.recipientPrivateKey ?? "";
+			const sealed = await sealDeviceCopy(
+				await key(),
+				fromBase64(stranger),
+				context,
+			);
+			await expect(
+				openDeviceCopy(await key(), sealed, context),
+			).rejects.toThrow("another key");
+		});
 	}
 });
 

@@ -5,7 +5,11 @@ import { useState } from "react";
 
 import { demoAccount } from "@/env.public";
 import { initials } from "@/lib/format";
-import { useKeyring, WrongPasswordError } from "@/lib/keyring";
+import {
+	PasskeyUnlockError,
+	useKeyring,
+	WrongPasswordError,
+} from "@/lib/keyring";
 import { errorMessage, useWorkspace } from "@/lib/vault-data";
 
 import {
@@ -15,6 +19,16 @@ import {
 	PasswordInput,
 	SubmitButton,
 } from "./auth-layout";
+
+const passkeyErrors: Record<PasskeyUnlockError["reason"], string> = {
+	cancelled:
+		"The passkey didn't unlock vauly. Try again, or use your master password. If you removed the passkey, turn passkey unlock off in Settings.",
+	expired:
+		"Unlocking with a passkey lasts 14 days at a time. Use your master password, then turn it on again in Settings.",
+	offline: "Couldn't reach vauly. Check your connection and try again.",
+	broken:
+		"The passkey copy on this device didn't open, so vauly removed it. Use your master password, and turn passkey unlock on again in Settings.",
+};
 
 export function UnlockScreen() {
 	const keyring = useKeyring();
@@ -30,14 +44,8 @@ export function UnlockScreen() {
 		try {
 			await keyring.unlockWithPasskey();
 		} catch (err) {
-			const cancelled =
-				err instanceof DOMException &&
-				(err.name === "NotAllowedError" || err.name === "AbortError");
-			if (!cancelled) {
-				setError(
-					"The passkey didn't unlock vauly, so this device won't offer it again. Use your master password, and turn it back on in Settings.",
-				);
-			}
+			const reason = err instanceof PasskeyUnlockError ? err.reason : "broken";
+			setError(passkeyErrors[reason]);
 		} finally {
 			setWaiting(false);
 		}
@@ -125,6 +133,12 @@ export function UnlockScreen() {
 						onChange={(event) => setPassword(event.target.value)}
 					/>
 				</Field>
+				{keyring.deviceUnlockExpired && !keyring.deviceUnlock && !error && (
+					<p className="text-caption text-fg-muted text-pretty">
+						Unlocking with a passkey lasts 14 days at a time. Use your master
+						password, then turn it on again in Settings.
+					</p>
+				)}
 				<FormError>{error}</FormError>
 				<SubmitButton
 					busy={busy}
