@@ -6,9 +6,13 @@ import { defineConfig, devices } from "@playwright/test";
 // With VAULY_E2E_ONE_WORKER set it runs against vauly as the Deploy to Cloudflare button
 // deploys it instead: one Worker for the app and the API, from the root wrangler.jsonc,
 // under `wrangler dev` on port 3102 with its own local D1.
+//
+// VAULY_E2E_PORT moves all three ports up together (the API on it, the app on the next,
+// one Worker on the one after), so checkouts side by side can each run their own suite.
 const oneWorker = Boolean(process.env.VAULY_E2E_ONE_WORKER);
-export const API_PORT = oneWorker ? 3102 : 3100;
-export const WEB_PORT = oneWorker ? 3102 : 3101;
+const base = Number(process.env.VAULY_E2E_PORT ?? 3100);
+export const API_PORT = oneWorker ? base + 2 : base;
+export const WEB_PORT = oneWorker ? base + 2 : base + 1;
 export const RESET_TOKEN =
 	process.env.VAULY_E2E_RESET_TOKEN ?? "vauly-e2e-local";
 export const API_URL = `http://localhost:${API_PORT}`;

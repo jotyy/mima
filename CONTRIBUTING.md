@@ -32,7 +32,7 @@ bun run test            # unit tests: crypto, CLI, import and backup
 bun run test:e2e        # end-to-end tests in a real browser
 ```
 
-The end-to-end suite starts its own stack (stage `e2e`, web on port 3101, API on 3100, its own database) next to your dev stack, so it never touches your local data. If it's already running from an earlier run, it's reused. The first time, install the browser with `bunx playwright install chromium` from `e2e/`.
+The end-to-end suite starts its own stack (stage `e2e`, web on port 3101, API on 3100, its own database) next to your dev stack, so it never touches your local data. If it's already running from an earlier run, it's reused. To run a second suite from another checkout at the same time, give it other ports with `VAULY_E2E_PORT`, such as `VAULY_E2E_PORT=3200 bun run test:e2e`. The first time, install the browser with `bunx playwright install chromium` from `e2e/`.
 
 ## Where things go
 
