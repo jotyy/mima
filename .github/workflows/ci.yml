@@ -20,6 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Astro needs a newer Node 22 than the runner image ships.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
@@ -35,6 +39,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      # Astro needs a newer Node 22 than the runner image ships.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
@@ -47,7 +55,8 @@ jobs:
     name: End-to-end tests
     if: github.repository == 'jotyy/vauly'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The Alchemy stack can take minutes to start on a runner.
+    timeout-minutes: 35
     env:
       # Throwaway values for the local test stack only.
       BETTER_AUTH_SECRET: ci-only-secret-that-is-at-least-32-characters

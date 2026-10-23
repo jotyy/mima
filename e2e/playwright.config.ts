@@ -48,7 +48,7 @@ export default defineConfig({
 					VAULY_E2E_RESET_TOKEN: RESET_TOKEN,
 				},
 				reuseExistingServer: !process.env.CI,
-				timeout: 180_000,
+				timeout: 360_000,
 				stdout: "ignore",
 				stderr: "pipe",
 			},
