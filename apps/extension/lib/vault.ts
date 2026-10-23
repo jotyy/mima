@@ -15,6 +15,7 @@ import {
 	wrapKey,
 } from "@vauly/crypto";
 
+import { readPasskey, type StoredPasskey } from "./passkey";
 import type { Connection, Unlocked } from "./storage";
 
 // Talks to the vauly API and decrypts on this device, like the web app does.
@@ -33,6 +34,8 @@ export type Entry = {
 	/** Every website, the first one first: the entry fills on any of them. */
 	urls: string[];
 	totp?: string;
+	/** A passkey vauly made for the site, which signs in instead of the password. */
+	passkey?: StoredPasskey;
 	favorite: boolean;
 };
 
@@ -240,6 +243,7 @@ export async function loadVault(
 						(url): url is string => typeof url === "string" && url !== "",
 					),
 					totp: fields.totp as string | undefined,
+					passkey: readPasskey(fields.passkey) ?? undefined,
 				};
 			}),
 	);
@@ -271,6 +275,44 @@ export async function saveLogin(
 			secret: login.password,
 			url: login.url,
 		}),
+	});
+}
+
+/** Adds a login that holds only a new passkey. */
+export async function savePasskeyLogin(
+	client: AppRouterClient,
+	vault: VaultInfo,
+	login: {
+		name: string;
+		username?: string;
+		url: string;
+		passkey: StoredPasskey;
+	},
+) {
+	const key = await newDataKey();
+	return client.items.create({
+		vaultId: vault.id,
+		wrappedKey: await wrapKey(vault.key, key),
+		data: await sealJson(key, {
+			kind: "login",
+			name: login.name,
+			username: login.username || undefined,
+			url: login.url,
+			passkey: login.passkey,
+		}),
+	});
+}
+
+/** Puts a new passkey into a login that's saved already. */
+export async function addPasskey(
+	client: AppRouterClient,
+	entry: EditableEntry,
+	passkey: StoredPasskey,
+) {
+	return client.items.update({
+		id: entry.id,
+		revision: entry.revision,
+		data: await sealJson(entry.key, { ...entry.fields, passkey }),
 	});
 }
 

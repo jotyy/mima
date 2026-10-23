@@ -102,20 +102,7 @@ export function SaveOffer({
 					/>
 				</Field>
 				<Field label="Vault">
-					<span className="relative flex">
-						<select
-							value={vaultId}
-							onChange={(event) => setVaultId(event.target.value)}
-							className="border-line bg-surface text-body-sm text-fg focus-visible:border-brand h-8 w-full appearance-none rounded-lg border pr-7 pl-2.5 outline-none"
-						>
-							{vaults.map((vault) => (
-								<option key={vault.id} value={vault.id}>
-									{vault.name}
-								</option>
-							))}
-						</select>
-						<CaretDownIcon className="text-fg-subtle pointer-events-none absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2" />
-					</span>
+					<VaultSelect vaults={vaults} value={vaultId} onChange={setVaultId} />
 				</Field>
 				<div className="col-span-2">
 					<Field label="Username">
@@ -145,6 +132,34 @@ export function SaveOffer({
 				</Button>
 			</div>
 		</section>
+	);
+}
+
+/** The vaults this person can add to, for a new login or passkey. */
+export function VaultSelect({
+	vaults,
+	value,
+	onChange,
+}: {
+	vaults: { id: string; name: string }[];
+	value: string;
+	onChange: (id: string) => void;
+}) {
+	return (
+		<span className="relative flex">
+			<select
+				value={value}
+				onChange={(event) => onChange(event.target.value)}
+				className="border-line bg-surface text-body-sm text-fg focus-visible:border-brand h-8 w-full appearance-none rounded-lg border pr-7 pl-2.5 outline-none"
+			>
+				{vaults.map((vault) => (
+					<option key={vault.id} value={vault.id}>
+						{vault.name}
+					</option>
+				))}
+			</select>
+			<CaretDownIcon className="text-fg-subtle pointer-events-none absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2" />
+		</span>
 	);
 }
 

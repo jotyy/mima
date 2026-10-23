@@ -1,10 +1,17 @@
 // vauly inside a page: a small button in a focused login field, the fill menu it opens,
-// and the save prompt in the top corner. The menu and the prompt are iframes of the
-// extension's own page, so the site can't read what's in them; the page script only
-// places and sizes them. The menu waits for the button rather than opening on focus:
-// the browser draws its own suggestions under the field, above anything a page can show.
+// and the save and passkey prompts in the top corner. The menu and the prompts are
+// iframes of the extension's own page, so the site can't read what's in them; the page
+// script only places and sizes them. The menu waits for the button rather than opening on
+// focus: the browser draws its own suggestions under the field, above anything a page
+// can show.
 
-export type View = "menu" | "save";
+export type View = "menu" | "save" | "passkey";
+
+const titles: Record<View, string> = {
+	menu: "vauly: fill a login",
+	save: "vauly: save a login",
+	passkey: "vauly: passkey",
+};
 
 /** Room around the card inside the frame, for its shadow. */
 const PAD = 12;
@@ -97,7 +104,7 @@ export function mountFrames() {
 		const mounted = open.get(view);
 		if (!mounted) return;
 		const { host, frame, anchor } = mounted;
-		if (view === "save") {
+		if (view !== "menu") {
 			Object.assign(host.style, { top: "4px", right: "4px" });
 			frame.style.width = `${SAVE_WIDTH + PAD * 2}px`;
 			return;
@@ -136,8 +143,7 @@ export function mountFrames() {
 		const shadow = host.attachShadow({ mode: "open" });
 		const frame = document.createElement("iframe");
 		frame.src = `${browser.runtime.getURL("/inline.html")}#${view}`;
-		frame.title =
-			view === "menu" ? "vauly: fill a login" : "vauly: save a login";
+		frame.title = titles[view];
 		// The frame copies a one-time code after filling.
 		frame.allow = "clipboard-write";
 		frame.style.cssText =

@@ -13,7 +13,7 @@ vauly is for teams of two to a handful who want their passwords and keys on an a
 | Encrypted on your device       | Yes: PBKDF2 and AES-256-GCM                                                                          | Yes: your account password and a Secret Key, and AES-256                            | Yes: PBKDF2 or Argon2id, and AES-256                                                                               |
 | Secrets for scripts and agents | `vauly run`, included; a person approves each item once                                              | `op run` and service accounts, included                                             | `bws run`, part of Secrets Manager, a separate product                                                             |
 | Apps                           | A web app that works on phones and installs as an app, an extension for Chromium browsers, and a CLI | Apps for Mac, Windows, Linux, iOS and Android, and extensions for the main browsers | Apps for Mac, Windows, Linux, iOS and Android, extensions for nine browsers, and a CLI                             |
-| Passkeys                       | No                                                                                                   | Yes                                                                                 | Yes                                                                                                                |
+| Passkeys                       | Saved and used by the extension, in Chromium browsers                                                | Yes                                                                                 | Yes                                                                                                                |
 | Independent security audits    | Not yet                                                                                              | Yes                                                                                 | Yes, by several firms since 2018, and SOC 2 Type 2                                                                 |
 
 ## Choose vauly if
@@ -25,7 +25,7 @@ vauly is for teams of two to a handful who want their passwords and keys on an a
 
 ## Choose 1Password or Bitwarden if
 
-- You want native apps on phones and computers, or passkeys.
+- You want native apps on phones and computers, or your passkeys on your phone.
 - You need SSO, SCIM, or an audited product to pass a compliance review.
 - Your team is more than a handful of people.
 

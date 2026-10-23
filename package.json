@@ -45,7 +45,7 @@
 		"env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/",
 		"postinstall": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./packages/db/",
 		"check": "biome check --write .",
-		"test": "bun test --cwd packages/crypto && bun test --cwd packages/db && bun test --cwd apps/cli && bun test --cwd apps/web",
+		"test": "bun test --cwd packages/crypto && bun test --cwd packages/db && bun test --cwd apps/cli && bun test --cwd apps/web && bun test --cwd apps/extension",
 		"test:e2e": "bun run --cwd e2e test",
 		"test:e2e:one-worker": "bun run --cwd e2e test:one-worker",
 		"test:site": "bun run --cwd e2e test:site",

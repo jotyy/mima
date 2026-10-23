@@ -197,6 +197,8 @@ export function ItemDialog({
 				.map((tag) => tag.trim())
 				.filter(Boolean),
 			...(custom.length > 0 && { fields: custom }),
+			// The form doesn't show a passkey, and saving keeps it whatever else changed.
+			...(item?.passkey && { passkey: item.passkey }),
 		};
 		setBusy(true);
 		try {

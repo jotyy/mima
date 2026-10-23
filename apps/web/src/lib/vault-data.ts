@@ -45,10 +45,29 @@ export type ItemFields = {
 	fields?: CustomField[];
 	/** Earlier passwords or values, newest first. Kept inside the encrypted item. */
 	history?: PreviousSecret[];
+	/** A passkey the browser extension saved for the site; only the extension uses it. */
+	passkey?: Passkey;
 };
 
 /** A labelled value on an item. Hidden ones are masked like the password. */
 export type CustomField = { label: string; value: string; hidden?: boolean };
+
+/**
+ * A passkey, as the browser extension made it (apps/extension/lib/passkey.ts). The app
+ * only shows it and keeps it when the item is saved; signing in with it is the extension's.
+ */
+export type Passkey = {
+	credentialId: string;
+	/** The site it belongs to, such as acme.test. */
+	rpId: string;
+	rpName?: string;
+	userHandle: string;
+	userName?: string;
+	userDisplayName?: string;
+	/** PKCS#8, base64url. */
+	privateKey: string;
+	createdAt: string;
+};
 
 const knownKeys = new Set<string>([
 	"kind",
@@ -62,6 +81,7 @@ const knownKeys = new Set<string>([
 	"tags",
 	"fields",
 	"history",
+	"passkey",
 ]);
 
 /** Every website a login is used on, the first one first. */
@@ -85,6 +105,7 @@ export function fieldsOf(item: Item): ItemFields {
 		notes,
 		tags,
 		fields: item.fields,
+		passkey: item.passkey,
 	};
 }
 

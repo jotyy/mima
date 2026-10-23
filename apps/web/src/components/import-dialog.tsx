@@ -480,7 +480,8 @@ const leftoverText: Record<Leftover, (n: number) => string> = {
 		`${plural(n, "other record")}, like bank accounts and IDs: vauly doesn't store those.`,
 	alias: (n) =>
 		`${n} email ${n === 1 ? "alias" : "aliases"}: they stay in Proton Pass.`,
-	passkey: (n) => `${plural(n, "passkey")}: vauly doesn't store passkeys yet.`,
+	passkey: (n) =>
+		`${plural(n, "passkey")}: ${n === 1 ? "it stays" : "they stay"} in the old app. vauly's browser extension saves new ones.`,
 	attachment: (n) =>
 		`${plural(n, "attached file")}: save ${n === 1 ? "it" : "them"} from the old app if you need ${n === 1 ? "it" : "them"}.`,
 	trashed: (n) => `${plural(n, "item")} in the trash.`,

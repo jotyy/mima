@@ -27,7 +27,7 @@ Each app exports in its own way, so use the richest format it offers. The sectio
 | More websites, custom fields, security questions           | Lines in the notes                    |
 | Earlier passwords (1Password, Bitwarden, KeePass)          | Earlier passwords                     |
 
-vauly doesn't store payment cards, identities, bank accounts, passports or other personal documents, so those stay behind. So do attachments, passkeys, Proton Pass email aliases and items in the trash. Before you import, the review lists everything that stays behind.
+vauly doesn't store payment cards, identities, bank accounts, passports or other personal documents, so those stay behind. So do attachments, passkeys (vauly's browser extension makes new ones), Proton Pass email aliases and items in the trash. Before you import, the review lists everything that stays behind.
 
 Favorites, sharing and permissions don't come over either. Share vaults with your team in vauly once your items are in.
 

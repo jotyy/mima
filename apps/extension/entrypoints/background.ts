@@ -17,8 +17,25 @@ import type {
 	MenuState,
 	OfferState,
 	PageMessage,
+	PasskeyOutcome,
+	PasskeyState,
 	Request,
 } from "@/lib/messages";
+import {
+	canCreate,
+	createPasskey,
+	readCreateRequest,
+	readGetRequest,
+	rpProblem,
+	signIn,
+	usable,
+} from "@/lib/passkey";
+import {
+	dropPending,
+	getPending,
+	type Pending,
+	savePending,
+} from "@/lib/passkey-requests";
 import {
 	type Connection,
 	getConnection,
@@ -26,12 +43,14 @@ import {
 	touch,
 } from "@/lib/storage";
 import {
+	addPasskey,
 	apiClient,
 	type EditableEntry,
 	hostOf,
 	loadVault,
 	matchesPage,
 	saveLogin,
+	savePasskeyLogin,
 	updatePassword,
 	type VaultInfo,
 } from "@/lib/vault";
@@ -55,6 +74,7 @@ export default defineBackground(() => {
 			fromFrame: Boolean(sender.url?.startsWith(browser.runtime.getURL("/"))),
 			topFrame: sender.frameId === 0,
 			url: sender.url ?? tab.url,
+			documentId: sender.documentId,
 		}).then(reply, () => reply(null));
 		return true;
 	});
@@ -66,7 +86,10 @@ export default defineBackground(() => {
 			if (capture) void saveCapture(tabId, capture);
 		});
 	});
-	browser.tabs.onRemoved.addListener((tabId) => void dropCapture(tabId));
+	browser.tabs.onRemoved.addListener((tabId) => {
+		void dropCapture(tabId);
+		void dropPending(tabId);
+	});
 });
 
 function isRequest(message: unknown): message is Request {
@@ -74,10 +97,17 @@ function isRequest(message: unknown): message is Request {
 	return typeof type === "string" && type.startsWith("vauly:");
 }
 
+type Sender = {
+	fromFrame: boolean;
+	topFrame: boolean;
+	url: string;
+	documentId?: string;
+};
+
 async function answer(
 	request: Request,
 	tab: Tab,
-	sender: { fromFrame: boolean; topFrame: boolean; url: string },
+	sender: Sender,
 ): Promise<unknown> {
 	switch (request.type) {
 		case "vauly:login":
@@ -88,6 +118,18 @@ async function answer(
 			return { show: await wantsMenu(tab.url) };
 		case "vauly:offer?":
 			return { show: (await offerState(tab)).status !== "none" };
+		case "vauly:passkey":
+			return passkeyAsked(tab, request, sender);
+		case "vauly:passkey-abort": {
+			const pending = await getPending(tab.id);
+			if (sender.topFrame && !sender.fromFrame && pending?.id === request.id)
+				await dropPending(tab.id);
+			return null;
+		}
+		case "vauly:passkey-available":
+			return {
+				available: sender.topFrame && (await siteStatus(sender.url)) === "on",
+			};
 	}
 	if (!sender.fromFrame) return null;
 	switch (request.type) {
@@ -104,6 +146,14 @@ async function answer(
 		case "vauly:dismiss":
 			await dropCapture(tab.id);
 			return { ok: true } satisfies Done;
+		case "vauly:passkey-state":
+			return passkeyState(tab);
+		case "vauly:passkey-save":
+			return passkeySave(tab, request.vaultId);
+		case "vauly:passkey-use":
+			return passkeyUse(tab, request.itemId);
+		case "vauly:passkey-decline":
+			return passkeyDecline(tab, request.another);
 	}
 }
 
@@ -309,5 +359,267 @@ async function update(tab: Tab): Promise<Done> {
 		return { ok: true, message: "Password updated" };
 	} catch (err) {
 		return { ok: false, error: (err as Error).message || "That didn't work" };
+	}
+}
+
+// ── Passkeys ────────────────────────────────────────────────────────────────────────
+
+// A site asks for a passkey through the script vauly adds to its page. Which site asked
+// comes from the browser (the sender's URL), never from the page, and the answer goes back
+// to the document that asked. Anything vauly can't or shouldn't do, it hands to the
+// browser's own passkeys, so a site never ends up with less than it had without vauly.
+
+const toBrowser: PasskeyOutcome = { next: "browser" };
+const gone: Done = {
+	ok: false,
+	error: "The site isn't waiting for a passkey any more.",
+};
+
+async function passkeyAsked(
+	tab: Tab,
+	asked: { id: string; kind: "create" | "get"; request: unknown },
+	sender: Sender,
+): Promise<PasskeyOutcome> {
+	// Only a page's own top frame, never vauly's frame or an embedded site.
+	if (!sender.topFrame || sender.fromFrame) return toBrowser;
+	if ((await siteStatus(sender.url)) !== "on") return toBrowser;
+	const page = new URL(sender.url);
+	const base = {
+		id: asked.id,
+		origin: page.origin,
+		documentId: sender.documentId,
+		at: Date.now(),
+	};
+	let pending: Pending;
+	if (asked.kind === "create") {
+		const request = readCreateRequest(asked.request);
+		if (!request || !canCreate(request)) return toBrowser;
+		pending = {
+			...base,
+			kind: "create",
+			request,
+			rpId: request.rp.id ?? page.hostname,
+		};
+	} else {
+		const request = readGetRequest(asked.request);
+		if (!request) return toBrowser;
+		pending = {
+			...base,
+			kind: "get",
+			request,
+			rpId: request.rpId ?? page.hostname,
+		};
+	}
+	// The browser refuses a site that asks for another site's passkeys, and so does vauly.
+	if (rpProblem(page.origin, pending.rpId)) return toBrowser;
+	if (pending.kind === "get") {
+		// Unlocked, vauly knows whether it has a passkey here; locked, it asks to unlock.
+		const open = await openVault().catch(() => null);
+		if (open && passkeysFor(open.entries, pending).length === 0)
+			return toBrowser;
+	}
+	await savePending(tab.id, pending);
+	return { next: "prompt" };
+}
+
+/** The tab's waiting request, while the tab is still on the page that asked. */
+async function pendingFor(tab: Tab) {
+	const pending = await getPending(tab.id);
+	if (!pending) return null;
+	try {
+		return new URL(tab.url).origin === pending.origin ? pending : null;
+	} catch {
+		return null;
+	}
+}
+
+/** The items whose passkey can answer a sign-in request; viewers can use them too. */
+function passkeysFor(
+	entries: EditableEntry[],
+	pending: Pending & { kind: "get" },
+) {
+	return entries.filter(
+		(entry) =>
+			entry.passkey &&
+			usable([entry.passkey], pending.request, pending.rpId).length > 0,
+	);
+}
+
+/** A passkey vauly has that the site asked not to make again. */
+function excluded(entries: EditableEntry[], pending: Pending) {
+	if (pending.kind !== "create") return undefined;
+	const ids = (pending.request.excludeCredentials ?? []).map(
+		(credential) => credential.id,
+	);
+	return entries.find(
+		(entry) =>
+			entry.passkey?.rpId === pending.rpId &&
+			ids.includes(entry.passkey.credentialId),
+	);
+}
+
+/** The saved login for this account that a new passkey joins, rather than a new item. */
+function loginFor(
+	entries: EditableEntry[],
+	pending: Pending & { kind: "create" },
+) {
+	const name = pending.request.user.name?.toLowerCase();
+	if (!name) return undefined;
+	return entries.find(
+		(entry) =>
+			entry.kind === "login" &&
+			entry.editable &&
+			!entry.passkey &&
+			(entry.username ?? "").toLowerCase() === name &&
+			matchesPage(entry, pending.origin),
+	);
+}
+
+async function passkeyState(tab: Tab): Promise<PasskeyState> {
+	const pending = await pendingFor(tab);
+	if (!pending) return { status: "none" };
+	const open = await openVault().catch(() => null);
+	if (!open)
+		return { status: "locked", kind: pending.kind, rpId: pending.rpId };
+	if (pending.kind === "get") {
+		const passkeys = passkeysFor(open.entries, pending);
+		// Unlocked just now, and there's none for this site after all.
+		if (passkeys.length === 0) {
+			await finish(tab, pending, toBrowser);
+			return { status: "none" };
+		}
+		return {
+			status: "get",
+			rpId: pending.rpId,
+			passkeys: passkeys.map((entry) => ({
+				itemId: entry.id,
+				name: entry.name,
+				userName: entry.passkey?.userName ?? entry.username,
+				logo: logoDomain(entry),
+			})),
+		};
+	}
+	const existing = excluded(open.entries, pending);
+	if (existing)
+		return { status: "exists", rpId: pending.rpId, name: existing.name };
+	const into = loginFor(open.entries, pending);
+	return {
+		status: "create",
+		rpId: pending.rpId,
+		userName: pending.request.user.name ?? "",
+		...(into && { into: { name: into.name, vault: into.vault } }),
+		vaults: open.vaults
+			.filter((vault) => vault.editable)
+			.map(({ id, name }) => ({ id, name })),
+	};
+}
+
+async function passkeySave(tab: Tab, vaultId: string): Promise<Done> {
+	const pending = await pendingFor(tab);
+	const open = await openVault();
+	if (pending?.kind !== "create" || !open) return gone;
+	if (excluded(open.entries, pending)) return gone;
+	const into = loginFor(open.entries, pending);
+	const vault = into
+		? open.vaults.find((v) => v.id === into.vaultId)
+		: open.vaults.find((v) => v.id === vaultId && v.editable);
+	if (!vault) return { ok: false, error: "Pick a vault you can add to." };
+	try {
+		await touch();
+		const { passkey, credential } = await createPasskey(
+			pending.request,
+			pending.origin,
+		);
+		// Kept in the vault before the site hears of it, so a site never has a passkey
+		// vauly lost.
+		if (into) {
+			await addPasskey(open.client, into, passkey);
+		} else {
+			const page = new URL(pending.origin);
+			await savePasskeyLogin(open.client, vault, {
+				name: pending.rpId,
+				username: pending.request.user.name,
+				url:
+					pending.rpId === page.hostname
+						? page.origin
+						: `https://${pending.rpId}`,
+				passkey,
+			});
+		}
+		recent = null;
+		if (!(await finish(tab, pending, { next: "credential", credential })))
+			return { ok: false, error: "The page closed before it got the passkey." };
+		return { ok: true, message: `Passkey saved to ${vault.name}` };
+	} catch (err) {
+		return { ok: false, error: (err as Error).message || "That didn't work" };
+	}
+}
+
+async function passkeyUse(tab: Tab, itemId: string): Promise<Done> {
+	const pending = await pendingFor(tab);
+	const open = await openVault();
+	if (pending?.kind !== "get" || !open) return gone;
+	const entry = passkeysFor(open.entries, pending).find(
+		(candidate) => candidate.id === itemId,
+	);
+	if (!entry?.passkey) return gone;
+	await touch();
+	const credential = await signIn(
+		entry.passkey,
+		pending.request,
+		pending.origin,
+	);
+	if (!(await finish(tab, pending, { next: "credential", credential })))
+		return { ok: false, error: "The page closed before it got the passkey." };
+	void open.client.items
+		.log({ id: entry.id, action: "filled", field: "passkey" })
+		.catch(() => {});
+	return { ok: true, message: "Signed in with vauly" };
+}
+
+async function passkeyDecline(tab: Tab, another: boolean): Promise<Done> {
+	const pending = await getPending(tab.id);
+	if (!pending) return { ok: true };
+	if (another) {
+		await finish(tab, pending, toBrowser);
+		return { ok: true };
+	}
+	// Turning down a passkey vauly has already is what the site's exclude list asks for.
+	const open = await openVault().catch(() => null);
+	await finish(
+		tab,
+		pending,
+		open && excluded(open.entries, pending)
+			? {
+					next: "error",
+					name: "InvalidStateError",
+					message: "vauly has a passkey for this account already.",
+				}
+			: {
+					next: "error",
+					name: "NotAllowedError",
+					message: "The request was turned down in vauly.",
+				},
+	);
+	return { ok: true };
+}
+
+/** Answers the page that asked, and only it; false when that page is gone. */
+async function finish(tab: Tab, pending: Pending, outcome: PasskeyOutcome) {
+	await dropPending(tab.id);
+	const message: PageMessage = {
+		type: "vauly:passkey-done",
+		id: pending.id,
+		outcome,
+	};
+	try {
+		const answered = await browser.tabs.sendMessage(
+			tab.id,
+			message,
+			pending.documentId ? { documentId: pending.documentId } : { frameId: 0 },
+		);
+		return answered === true;
+	} catch {
+		return false;
 	}
 }

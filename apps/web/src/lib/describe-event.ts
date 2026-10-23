@@ -68,6 +68,8 @@ export function describeEvent(
 		case "copied":
 			return parts(`copied the ${field(event.detail)} of`, itemName);
 		case "filled":
+			if (event.detail === "passkey")
+				return parts("signed in with the passkey of", itemName);
 			return parts("filled in", itemName, "from the browser extension");
 		case "injected":
 			return parts(

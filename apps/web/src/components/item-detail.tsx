@@ -407,6 +407,21 @@ export function ItemDetail({ item }: { item: Item }) {
 						</a>
 					</Field>
 				))}
+				{item.passkey && (
+					<Field label="Passkey">
+						<span className="flex min-w-0 flex-1 flex-col py-0.5">
+							<span className="text-body-sm text-fg truncate">
+								{item.passkey.userName || item.passkey.userDisplayName
+									? `${item.passkey.userName || item.passkey.userDisplayName} on ${item.passkey.rpId}`
+									: item.passkey.rpId}
+							</span>
+							<span className="text-caption text-fg-subtle">
+								Saved {ago(item.passkey.createdAt)}. vauly's browser extension
+								signs in with it.
+							</span>
+						</span>
+					</Field>
+				)}
 				{item.fields?.map((field) => (
 					<Field key={`${field.label}:${field.value}`} label={field.label}>
 						{field.hidden ? (

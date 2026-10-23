@@ -1,6 +1,6 @@
 # Browser extension
 
-The extension shows the items for the site you're on, fills the login form with one click, copies usernames and passwords, and offers to save the logins you type. It decrypts on your computer, like the web app, and works in Chrome, Edge, Brave, Arc and other Chromium browsers.
+The extension shows the items for the site you're on, fills the login form with one click, copies usernames and passwords, offers to save the logins you type, and keeps your passkeys. It decrypts on your computer, like the web app, and works in Chrome, Edge, Brave, Arc and other Chromium browsers.
 
 ## Install
 
@@ -26,21 +26,27 @@ Open the extension and enter the address you open vauly at, such as `vauly.examp
 - **On a login page**, click into the email or password field and vauly's mark shows up inside it. Choose it to open the menu with the logins saved for that site, then choose one to fill the form. The menu waits for the mark, so it never fights with the browser's own suggestions under the field. If the login has a one-time code, filling also copies the current code, ready to paste on the next step. Typing, Escape or a click elsewhere closes the menu. When the extension is locked or not signed in yet, the menu offers to do that first.
 - **In the extension**, the items saved for the site you're on come first, with a **Fill** button. A login with more than one website shows up, and fills, on each of them.
 - **After you sign in somewhere new**, vauly asks in the top corner of the page whether to save the login, and to which vault; the vauly icon shows a badge too, and the extension offers the same. Choose **Not now** to let it go. If you signed in to a saved login with a different password, it offers to update the password instead, and the old one stays under Earlier passwords. Logins you already saved, and anything typed into vauly itself, are never offered.
+- **When a site offers to create a passkey**, vauly asks in the top corner of the page whether to save it, and to which vault. If a login for that account is saved already, the passkey goes into it. When the site asks for a passkey to sign in, vauly lists the ones it has for that site; choose the account. **Use another way** hands the request to the browser instead, for a passkey on your phone, a security key or the device, and closing the prompt turns the request down. While vauly is locked, the prompt offers to unlock it. Anyone who can open a vault can sign in with a passkey in it; saving one needs a vault you can edit. The web app shows a passkey on its item, but making and using one happen in the extension.
 - **Search** to find any item; the buttons copy its username, password or one-time code.
 - **Lock** forgets the key. The extension also locks itself after 15 idle minutes, and whenever the browser closes.
 
-Fills and copies appear in **Activity**, like everything else.
+Fills, copies and passkey sign-ins appear in **Activity**, like everything else.
+
+Passkeys from other password managers can't be imported yet, and the decrypted backup leaves them out; make new ones at each site with the extension. Passkey sign-in from the suggestions under a username field, and inside a frame embedded in another site, go to the browser for now.
 
 ## What it can access
 
 The extension asks to read and change data on all sites. It needs that to fill forms on whatever site you're on, to notice a login being submitted so it can offer to save it, and to reach your vauly server, whose address is different for every team. On each page, a small script watches for a sign-in form being sent and passes the username and password to the extension. The menu and the save prompt it adds to a page are frames of the extension's own page, so the site can't read the logins listed in them, and they never hold a password: filling and saving happen in the extension itself. The script changes the page's fields only when you choose a login to fill.
 
+For passkeys, another small script starts with every secure page and passes the site's passkey requests to the extension, which asks you in its own frame and hands back the answer; the script holds no keys. The extension takes the site's address from the browser, not from the page, so a site can only get the passkeys made for it.
+
 What it stores:
 
-| Where                                                          | What                                                 |
-| -------------------------------------------------------------- | ---------------------------------------------------- |
-| Extension storage (on disk)                                    | Your vauly address, your email and the session token |
-| Session storage (memory only, cleared when the browser closes) | Your unlocked private key and when you last used it  |
-| Session storage, per tab, for 5 minutes                        | A login you just typed, until you save or dismiss it |
+| Where                                                          | What                                                               |
+| -------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Extension storage (on disk)                                    | Your vauly address, your email and the session token               |
+| Session storage (memory only, cleared when the browser closes) | Your unlocked private key and when you last used it                |
+| Session storage, per tab, for 5 minutes                        | A login you just typed, until you save or dismiss it               |
+| Session storage, per tab, for 5 minutes                        | A site's passkey request while vauly's prompt is open; never a key |
 
 Your master password is never stored. Pages and other extensions can't read the extension's storage.
