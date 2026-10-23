@@ -169,15 +169,10 @@ test.describe("accessibility", () => {
 	for (const path of ["/", "/docs/", "/docs/security/", "/docs/agents/"]) {
 		test(`${path} has no serious accessibility problems`, async ({ page }) => {
 			const { default: AxeBuilder } = await import("@axe-core/playwright");
+			// With less motion, everything that eases in on scroll is shown as it ends up;
+			// otherwise a slow run can catch text halfway faded in and fail its contrast.
+			await page.emulateMedia({ reducedMotion: "reduce" });
 			await page.goto(path);
-			// Let everything that eases in on scroll show first.
-			await page.evaluate(async () => {
-				for (let y = 0; y < document.documentElement.scrollHeight; y += 600) {
-					window.scrollTo(0, y);
-					await new Promise((resolve) => setTimeout(resolve, 60));
-				}
-			});
-			await page.waitForTimeout(900);
 			const { violations } = await new AxeBuilder({ page })
 				.withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
 				.analyze();
