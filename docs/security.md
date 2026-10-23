@@ -13,6 +13,8 @@ mima is built so that the server holding your data can't read it. This page desc
 
 All cryptography is WebCrypto, implemented once in [`packages/crypto`](../packages/crypto/src/index.ts) and used by the web app and the CLI.
 
+<!-- diagram: KeyChain -->
+
 ```
 master password ──PBKDF2-SHA256, 600,000 rounds, 16-byte salt──▶ master key
 master key ──HKDF-SHA256 "mima/auth"──▶ auth key  (256 bits, sent to sign in)

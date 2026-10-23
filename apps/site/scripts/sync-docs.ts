@@ -50,6 +50,22 @@ function summary(body: string) {
 	return kept.trim();
 }
 
+/**
+ * On GitHub a diagram is the plain-text block after a `<!-- diagram: Name -->` comment;
+ * on the site it's the component of that name, drawn properly, and the page becomes MDX.
+ */
+function drawDiagrams(body: string) {
+	const used = new Set<string>();
+	const mdx = body.replace(
+		/<!-- diagram: (\w+) -->\s*```[^\n]*\n[\s\S]*?\n```/g,
+		(_, name: string) => {
+			used.add(name);
+			return `<${name} />`;
+		},
+	);
+	return { mdx, used: [...used] };
+}
+
 function rewriteLinks(body: string) {
 	return body.replace(
 		/(!?)\[([^\]]*)\]\(([^)\s]+)\)/g,
@@ -88,7 +104,19 @@ for (const file of readdirSync(source)) {
 		"",
 	].join("\n");
 	const slug = slugOf(file) || "index";
-	writeFileSync(path.join(pages, `${slug}.md`), `${frontmatter}${body}\n`);
+	const { mdx, used } = drawDiagrams(body);
+	const imports = used
+		.map(
+			(name) =>
+				`import ${name} from "@/components/docs/diagrams/${name}.astro";`,
+		)
+		.join("\n");
+	if (used.length)
+		writeFileSync(
+			path.join(pages, `${slug}.mdx`),
+			`${frontmatter}${imports}\n\n${mdx}\n`,
+		);
+	else writeFileSync(path.join(pages, `${slug}.md`), `${frontmatter}${body}\n`);
 }
 
 for (const file of readdirSync(path.join(source, "images"))) {

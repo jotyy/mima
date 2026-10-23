@@ -1,0 +1,99 @@
+---
+import { DesktopIcon, MoonIcon, SunIcon } from "@phosphor-icons/react";
+
+// Light, the system's, or dark: the same setting on the landing page and in the docs,
+// kept where Starlight keeps it.
+const themes = [
+	{ value: "light", label: "Light", icon: SunIcon },
+	{ value: "auto", label: "System", icon: DesktopIcon },
+	{ value: "dark", label: "Dark", icon: MoonIcon },
+];
+---
+
+<div role="radiogroup" aria-label="Theme" data-theme-switch class="mima-theme-switch">
+	{
+		themes.map((theme) => (
+			<button type="button" role="radio" aria-checked="false" aria-label={theme.label} title={theme.label} data-value={theme.value}>
+				<theme.icon />
+			</button>
+		))
+	}
+</div>
+
+<style>
+	.mima-theme-switch {
+		display: flex;
+		align-items: center;
+		gap: 0.125rem;
+		padding: 0.125rem;
+		border-radius: 999px;
+		background: var(--surface-sunken);
+	}
+
+	.mima-theme-switch button {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.75rem;
+		height: 1.75rem;
+		border: 0;
+		border-radius: 999px;
+		background: transparent;
+		color: var(--fg-subtle);
+		cursor: pointer;
+		transition: color 150ms;
+	}
+
+	.mima-theme-switch button:hover {
+		color: var(--fg);
+	}
+
+	.mima-theme-switch button[aria-checked="true"] {
+		background: var(--surface);
+		color: var(--fg);
+		box-shadow: var(--elevation-pill);
+	}
+
+	.mima-theme-switch button:focus-visible {
+		outline: 2px solid #1f5bf9;
+		outline-offset: 1px;
+	}
+
+	.mima-theme-switch :global(svg) {
+		width: 0.875rem;
+		height: 0.875rem;
+	}
+</style>
+
+<script>
+	const KEY = "starlight-theme";
+	const system = matchMedia("(prefers-color-scheme: dark)");
+	const stored = () => {
+		try {
+			return localStorage.getItem(KEY) || "auto";
+		} catch {
+			return "auto";
+		}
+	};
+	const apply = () => {
+		const choice = stored();
+		const dark = choice === "dark" || (choice === "auto" && system.matches);
+		document.documentElement.classList.toggle("dark", dark);
+		document.documentElement.dataset.theme = dark ? "dark" : "light";
+		for (const button of document.querySelectorAll<HTMLElement>("[data-theme-switch] [data-value]"))
+			button.setAttribute("aria-checked", String(button.dataset.value === choice));
+	};
+	for (const button of document.querySelectorAll<HTMLElement>("[data-theme-switch] [data-value]")) {
+		button.addEventListener("click", () => {
+			try {
+				if (button.dataset.value === "auto") localStorage.setItem(KEY, "");
+				else localStorage.setItem(KEY, button.dataset.value ?? "");
+			} catch {
+				// Storage can be off in a private window; the choice still applies here.
+			}
+			apply();
+		});
+	}
+	system.addEventListener("change", apply);
+	apply();
+</script>

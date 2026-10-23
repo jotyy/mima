@@ -45,7 +45,7 @@ const steps: Step[] = [
 		approval: "asking",
 		line: (
 			<span className="text-terminal-dim">
-				<Tag /> Waiting for someone to approve it in mima…
+				<Tag /> Waiting for someone to allow it in mima…
 			</span>
 		),
 	},
@@ -54,7 +54,7 @@ const steps: Step[] = [
 		at: 4700,
 		line: (
 			<span>
-				<Tag /> Approved by Alex Kim. Starting bun test api
+				<Tag /> Allowed by Alex Kim. Starting bun test api
 			</span>
 		),
 	},
@@ -173,7 +173,7 @@ export default function AgentsDemo() {
 			{/* The request, as a person sees it in mima */}
 			<div
 				className={cn(
-					"bg-surface shadow-popover ring-line-subtle ease-emphasized absolute right-3 bottom-0 left-10 rounded-2xl p-4 ring-1 transition-all duration-500 sm:left-auto sm:w-80 lg:-right-8",
+					"bg-surface shadow-popover ring-line-subtle ease-emphasized absolute right-3 bottom-0 left-10 rounded-2xl p-4 ring-1 transition-all duration-500 sm:left-auto sm:w-88 lg:-right-8",
 					approval
 						? "translate-y-0 opacity-100"
 						: "pointer-events-none translate-y-3 opacity-0",
@@ -196,16 +196,19 @@ export default function AgentsDemo() {
 					{approval === "approved" ? (
 						<span className="text-label text-success flex items-center gap-1.5">
 							<CheckCircleIcon weight="fill" className="size-4" />
-							Approved by you
+							Allowed by you
 						</span>
 					) : (
 						<>
 							<span className="text-label text-fg-muted rounded-full px-3 py-1.5">
 								Deny
 							</span>
+							<span className="text-label text-fg-muted bg-surface-sunken rounded-full px-3 py-1.5">
+								For 1 hour
+							</span>
 							<span className="text-label bg-brand text-brand-fg shadow-sheen flex items-center gap-1.5 rounded-full px-3 py-1.5">
 								<ShieldCheckIcon className="size-3.5" />
-								Approve
+								Allow once
 							</span>
 						</>
 					)}

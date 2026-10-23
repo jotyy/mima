@@ -43,6 +43,10 @@ export default defineConfig({
 				},
 			],
 			customCss: ["./src/styles/docs.css"],
+			components: {
+				SocialIcons: "./src/components/docs/HeaderLinks.astro",
+				ThemeSelect: "./src/components/docs/ThemeSelect.astro",
+			},
 			head: [
 				{
 					// Pure's tokens switch on data-style and on the .dark class; Starlight

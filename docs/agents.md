@@ -6,6 +6,16 @@ Some commands need a secret: a deploy script needs a database URL, a coding agen
 
 You don't need any of this to use mima as a password manager. It's there for when you do.
 
+<!-- diagram: AgentFlow -->
+
+```
+1. the agent runs    mima run -- npm test        (.env holds mima:// references)
+2. mima asks         your server for the item
+3. a person allows   it in mima: once, or for an hour
+4. mima run          decrypts it on that machine and starts the command with it;
+                     the value is <hidden> in the output
+```
+
 ## 1. Create an agent
 
 In mima, open **Agents** (under **Workspace**) and choose **New agent**. Give it a name you'll recognise in approvals, such as "Claude Code on Alex's laptop" or "CI deploy". mima shows two lines once:

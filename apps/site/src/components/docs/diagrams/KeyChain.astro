@@ -1,0 +1,365 @@
+---
+import {
+	CloudIcon,
+	FileTextIcon,
+	KeyIcon,
+	LaptopIcon,
+	LockKeyIcon,
+	LockSimpleIcon,
+	PasswordIcon,
+	ShieldCheckIcon,
+	UserCircleIcon,
+	VaultIcon,
+} from "@phosphor-icons/react";
+
+// From the master password to one item: on the left, the keys as they exist on your
+// device, each opening the next; across the lock line on the right, what the server keeps
+// of each. It's the diagram in docs/README.md and docs/security.md, drawn.
+
+const rows = [
+	{
+		icon: PasswordIcon,
+		name: "Master password",
+		spec: "Only in your head",
+		next: "PBKDF2-SHA256 · 600,000 rounds",
+		server: null,
+	},
+	{
+		icon: KeyIcon,
+		name: "Master key",
+		spec: "Split in two by HKDF",
+		next: "HKDF",
+		server: null,
+	},
+	{
+		icon: ShieldCheckIcon,
+		name: "Auth key",
+		spec: "Signs you in",
+		via: "hashed with scrypt",
+		server: "A hash of it",
+		next: null,
+		branch: true,
+	},
+	{
+		icon: LockKeyIcon,
+		name: "Wrap key",
+		spec: "Opens your private key",
+		next: "opens",
+		server: null,
+		branch: true,
+	},
+	{
+		icon: UserCircleIcon,
+		name: "Your private key",
+		spec: "ECDH P-256",
+		via: "sealed with the wrap key",
+		server: "Sealed private key",
+		next: "opens",
+	},
+	{
+		icon: VaultIcon,
+		name: "Vault key",
+		spec: "AES-256-GCM, one per vault",
+		via: "wrapped to each member",
+		server: "A wrapped copy per member",
+		next: "opens",
+	},
+	{
+		icon: KeyIcon,
+		name: "Item key",
+		spec: "AES-256-GCM, one per item",
+		via: "wrapped with the vault key",
+		server: "Wrapped item key",
+		next: "encrypts",
+	},
+	{
+		icon: FileTextIcon,
+		name: "Your item",
+		spec: "Name, username, password, notes",
+		via: "AES-256-GCM, fresh IV",
+		server: "Ciphertext",
+		next: null,
+	},
+];
+---
+
+<figure class="key-chain not-content" aria-label="How a master password becomes the key to one item">
+	<div class="lanes" aria-hidden="true">
+		<span><LaptopIcon /> On your device</span>
+		<span><CloudIcon /> On your server</span>
+	</div>
+	<ol>
+		{
+			rows.map((row) => (
+				<li class:list={[row.branch && "branch"]}>
+					<div class="key">
+						<span class="tile"><row.icon /></span>
+						<span class="text">
+							<strong>{row.name}</strong>
+							<span>{row.spec}</span>
+						</span>
+					</div>
+					<div class:list={["cross", !row.server && "none"]}>
+						<span class="seal"><LockSimpleIcon weight="bold" /></span>
+					</div>
+					<div class:list={["stored", !row.server && "none"]}>
+						{row.server ? (
+							<>
+								<strong>{row.server}</strong>
+								<span>{row.via}</span>
+							</>
+						) : (
+							"Never sent"
+						)}
+					</div>
+					{row.next && <span class="next">{row.next}</span>}
+				</li>
+			))
+		}
+	</ol>
+	<figcaption>The server holds only the right-hand column. Without your master password, none of it opens.</figcaption>
+</figure>
+
+<style>
+	.key-chain {
+		--lock: #1f5bf9;
+		position: relative;
+		margin-block: 1.75rem;
+		padding: 1.25rem;
+		border: 1px solid var(--line);
+		border-radius: 0.875rem;
+		background:
+			linear-gradient(to right, transparent calc(50% + 2rem), var(--surface-sunken) calc(50% + 2rem)),
+			var(--surface);
+		font-size: 0.8125rem;
+		overflow: hidden;
+	}
+
+	/* The lock line, down the middle. */
+	.key-chain::before {
+		content: "";
+		position: absolute;
+		inset-block: 0;
+		left: calc(50% + 2rem);
+		border-left: 1px dashed color-mix(in srgb, var(--lock) 55%, transparent);
+	}
+
+	.lanes {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		margin-bottom: 0.75rem;
+		color: var(--fg-subtle);
+		font-size: 0.75rem;
+	}
+
+	.lanes span {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+	}
+
+	.lanes span:last-child {
+		padding-left: 3rem;
+	}
+
+	.lanes :global(svg),
+	.tile :global(svg) {
+		width: 0.9375rem;
+		height: 0.9375rem;
+	}
+
+	ol {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+	}
+
+	li {
+		position: relative;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 4rem minmax(0, 1fr);
+		align-items: center;
+		margin: 0;
+		padding-bottom: 1.75rem;
+	}
+
+	li:last-child {
+		padding-bottom: 0;
+	}
+
+	/* The auth and wrap keys hang off the master key, side by side in spirit. */
+	li.branch .key {
+		margin-left: 1.5rem;
+	}
+
+	li.branch + li.branch {
+		margin-top: -1rem;
+	}
+
+	.key {
+		position: relative;
+		z-index: 1;
+		display: flex;
+		align-items: center;
+		gap: 0.625rem;
+		padding: 0.5rem 0.75rem 0.5rem 0.5rem;
+		border: 1px solid var(--line);
+		border-radius: 0.625rem;
+		background: var(--surface);
+	}
+
+	.tile {
+		display: flex;
+		flex-shrink: 0;
+		align-items: center;
+		justify-content: center;
+		width: 2rem;
+		height: 2rem;
+		border-radius: 0.5rem;
+		background: color-mix(in srgb, var(--lock) 10%, var(--surface));
+		color: var(--lock);
+	}
+
+	.text {
+		display: flex;
+		min-width: 0;
+		flex-direction: column;
+		line-height: 1.35;
+	}
+
+	.text strong {
+		color: var(--fg);
+		font-weight: 500;
+	}
+
+	.text span {
+		overflow: hidden;
+		color: var(--fg-subtle);
+		font-size: 0.75rem;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	/* The arrow across the lock line, and what happens on the way. */
+	.cross {
+		position: relative;
+		height: 1px;
+		background: color-mix(in srgb, var(--lock) 45%, transparent);
+	}
+
+	/* Where the arrow crosses the lock line, it's sealed. */
+	.seal {
+		position: absolute;
+		top: 50%;
+		right: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.25rem;
+		height: 1.25rem;
+		border-radius: 999px;
+		background: var(--lock);
+		color: #fff;
+		translate: 50% -50%;
+		box-shadow: 0 0 0 3px var(--surface-sunken);
+	}
+
+	.seal :global(svg) {
+		width: 0.6875rem;
+		height: 0.6875rem;
+	}
+
+	.cross.none {
+		visibility: hidden;
+	}
+
+	.stored {
+		display: flex;
+		flex-direction: column;
+		margin-left: 1.5rem;
+		padding: 0.5rem 0.75rem;
+		border: 1px dashed var(--line-strong);
+		border-radius: 0.625rem;
+		line-height: 1.35;
+	}
+
+	.stored strong {
+		color: var(--fg-muted);
+		font-family: var(--font-code);
+		font-size: 0.75rem;
+		font-weight: 500;
+	}
+
+	.stored span {
+		color: var(--fg-faint);
+		font-size: 0.6875rem;
+	}
+
+	.stored.none {
+		border-color: transparent;
+		color: var(--fg-faint);
+		font-family: var(--font-text);
+		font-style: italic;
+	}
+
+	/* The step to the next key, down the left. */
+	.next {
+		position: absolute;
+		bottom: 0.25rem;
+		left: 1.5rem;
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding-left: 0.75rem;
+		border-left: 1px solid var(--line-strong);
+		height: 1.25rem;
+		color: var(--fg-faint);
+		font-family: var(--font-code);
+		font-size: 0.6875rem;
+	}
+
+	/* A strip of its own across both lanes, so the lock line ends above it. */
+	figcaption {
+		position: relative;
+		z-index: 1;
+		margin: 1.5rem -1.25rem -1.25rem;
+		padding: 0.875rem 1.25rem;
+		border-top: 1px solid var(--line-subtle);
+		background: var(--surface);
+		color: var(--fg-subtle);
+		font-size: 0.75rem;
+	}
+
+	/* Narrow: one lane, with what the server keeps under each key. */
+	@media (width < 40rem) {
+		.key-chain {
+			background: var(--surface);
+		}
+
+		.key-chain::before,
+		.lanes,
+		.cross {
+			display: none;
+		}
+
+		li {
+			grid-template-columns: 1fr;
+			gap: 0.375rem;
+		}
+
+		.stored {
+			margin-left: 2.75rem;
+			padding: 0;
+			border: 0;
+		}
+
+		.stored strong::before {
+			content: "Server keeps: ";
+			color: var(--fg-faint);
+			font-family: var(--font-text);
+			font-weight: 400;
+		}
+	}
+</style>

@@ -1,0 +1,59 @@
+---
+import { GithubLogoIcon } from "@phosphor-icons/react";
+
+import { REPOSITORY } from "@/lib/ui";
+
+// The right side of the docs header, in place of Starlight's social icons: the way back
+// to the landing page, the code, and the one thing to do next.
+---
+
+<nav aria-label="Site" class="mima-header-links">
+	<a href="/">Home</a>
+	<a href={REPOSITORY} aria-label="mima on GitHub" class="icon"><GithubLogoIcon weight="fill" /></a>
+	<a href="/docs/self-hosting/" class="cta">Get started</a>
+</nav>
+
+<style>
+	.mima-header-links {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+	}
+
+	.mima-header-links a {
+		display: flex;
+		align-items: center;
+		height: 2.25rem;
+		padding-inline: 0.75rem;
+		border-radius: 999px;
+		color: var(--fg-muted);
+		font-size: 0.8125rem;
+		text-decoration: none;
+		transition:
+			color 150ms,
+			background-color 150ms;
+	}
+
+	.mima-header-links a:hover {
+		background: var(--surface-sunken);
+		color: var(--fg);
+	}
+
+	.mima-header-links .icon :global(svg) {
+		width: 1rem;
+		height: 1rem;
+	}
+
+	.mima-header-links .cta {
+		margin-inline-start: 0.25rem;
+		background: #1f5bf9;
+		color: #fff;
+		font-weight: 500;
+		box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22);
+	}
+
+	.mima-header-links .cta:hover {
+		background: #1a4ce0;
+		color: #fff;
+	}
+</style>

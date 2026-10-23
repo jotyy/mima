@@ -5,6 +5,16 @@ mima runs on your own Cloudflare account. A deploy creates three things:
 - **web**, a Worker that serves the web app
 - **database**, a D1 database, with the migrations in `packages/db/src/migrations` applied
 
+<!-- diagram: Architecture -->
+
+```
+ your browser ──┐        ┌─ your Cloudflare account ──────────────────────┐
+ the extension ─┼─ HTTPS ─▶  web     Worker   serves the app               │
+ mima run ──────┘        │  server  Worker   the API ──▶ database  D1      │
+                         └────────────────────────────────────────────────┘
+ everything is encrypted on the left; the right only ever holds ciphertext
+```
+
 The deploy is described in [`packages/infra/alchemy.run.ts`](../packages/infra/alchemy.run.ts) and run by [Alchemy](https://alchemy.run).
 
 ## Before you start

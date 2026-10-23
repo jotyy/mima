@@ -11,6 +11,8 @@ mima is a password manager for small teams, from two people to a handful, who wa
 
 ## How your data is protected
 
+<!-- diagram: KeyChain -->
+
 ```
 master password ──PBKDF2 (600,000 rounds)──▶ master key ──HKDF──┬─▶ auth key   sent to the server to sign in
                                                                └─▶ wrap key   unlocks your private key
