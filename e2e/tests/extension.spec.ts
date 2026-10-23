@@ -211,6 +211,111 @@ test("Lock forgets the key until the master password is entered again", async ()
 	await popup.close();
 });
 
+async function badgeOf(tabId: number | undefined) {
+	type Action = { getBadgeText(details: { tabId?: number }): Promise<string> };
+	return worker?.evaluate(
+		(id) =>
+			(
+				globalThis as unknown as { chrome: { action: Action } }
+			).chrome.action.getBadgeText({ tabId: id }),
+		tabId,
+	);
+}
+
+/** Signs in on one of the made-up sites, the way a person would. */
+async function signInOnSite(url: string, username: string, password: string) {
+	const page = await context.newPage();
+	await page.goto(`${url}/`);
+	await page.getByLabel("Email").fill(username);
+	await page.getByLabel("Password").fill(password);
+	await page.getByRole("button", { name: "Sign in" }).click();
+	await page.waitForURL(/\?email=/);
+	return page;
+}
+
+test("a new login typed into a site is offered for saving", async () => {
+	const url = "https://new.example.test";
+	const page = await signInOnSite(url, "sam@example.test", "brand-new-pass-77");
+	const tabId = await tabIdOf(url);
+	await expect.poll(() => badgeOf(tabId)).toBe("1");
+
+	const popup = await openPopup(tabId);
+	const offer = popup.getByRole("region", { name: "Save login" });
+	await expect(
+		offer.getByText("You just signed in on new.example.test."),
+	).toBeVisible();
+	await expect(offer.getByLabel("Username")).toHaveValue("sam@example.test");
+	await offer.getByLabel("Name", { exact: true }).fill("New site");
+	await offer.getByRole("button", { name: "Save" }).click();
+	await expect(popup.getByText("Saved to Private")).toBeVisible();
+	await expect(offer).toHaveCount(0);
+	await expect(
+		popup
+			.getByRole("list", { name: "On new.example.test" })
+			.getByText("New site"),
+	).toBeVisible();
+	expect(await badgeOf(tabId)).toBe("");
+	await popup.close();
+	await page.close();
+});
+
+test("a login that's saved already isn't offered again", async () => {
+	const url = "https://new.example.test";
+	const page = await signInOnSite(url, "sam@example.test", "brand-new-pass-77");
+	const popup = await openPopup(await tabIdOf(url));
+	await expect(
+		popup
+			.getByRole("list", { name: "On new.example.test" })
+			.getByText("New site"),
+	).toBeVisible();
+	await expect(popup.getByRole("region", { name: "Save login" })).toHaveCount(
+		0,
+	);
+	await expect(
+		popup.getByRole("region", { name: "Update password" }),
+	).toHaveCount(0);
+	await popup.close();
+	await page.close();
+});
+
+test("a changed password is offered as an update", async () => {
+	const page = await signInOnSite(
+		site,
+		login.username,
+		"example-fill-password-43",
+	);
+	const tabId = await tabIdOf(site);
+	await expect.poll(() => badgeOf(tabId)).toBe("1");
+
+	const popup = await openPopup(tabId);
+	const offer = popup.getByRole("region", { name: "Update password" });
+	await expect(
+		offer.getByRole("heading", {
+			name: `Update the password for ${login.name}?`,
+		}),
+	).toBeVisible();
+	await offer.getByRole("button", { name: "Update" }).click();
+	await expect(popup.getByText("Password updated")).toBeVisible();
+	await popup.close();
+
+	// Signing in again with the new password offers nothing.
+	await page.close();
+	const again = await signInOnSite(
+		site,
+		login.username,
+		"example-fill-password-43",
+	);
+	const check = await openPopup(await tabIdOf(site));
+	await expect(
+		check.getByRole("list", { name: "On login.example.test" }),
+	).toBeVisible();
+	await expect(
+		check.getByRole("region", { name: "Update password" }),
+	).toHaveCount(0);
+	await check.close();
+	await again.close();
+});
+
 test("the activity log shows the fill", async () => {
 	const page = await context.newPage();
 	await page.goto("/");
@@ -223,5 +328,14 @@ test("the activity log shows the fill", async () => {
 	await expect(
 		page.getByRole("main").getByText("filled in").first(),
 	).toBeVisible();
+
+	// The master password typed into mima itself is never offered for saving.
+	await page.waitForTimeout(500);
+	const popup = await openPopup(await tabIdOf(`http://localhost:${WEB_PORT}`));
+	await expect(popup.getByRole("list", { name: "All items" })).toBeVisible();
+	await expect(popup.getByRole("region", { name: "Save login" })).toHaveCount(
+		0,
+	);
+	await popup.close();
 	await page.close();
 });

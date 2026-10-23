@@ -3,11 +3,14 @@ import {
 	deriveMasterKeys,
 	fromBase64,
 	importPrivateKey,
+	newDataKey,
 	open,
 	openJson,
+	sealJson,
 	toBase64,
 	unwrapKey,
 	unwrapKeyFrom,
+	wrapKey,
 } from "@mima/crypto";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
@@ -29,6 +32,25 @@ export type Entry = {
 	totp?: string;
 	favorite: boolean;
 };
+
+/** An entry with what it takes to change it: its key, revision and every field. */
+export type EditableEntry = Entry & {
+	vaultId: string;
+	revision: number;
+	key: CryptoKey;
+	fields: Record<string, unknown> & { history?: PreviousSecret[] };
+};
+
+type PreviousSecret = { secret: string; until: string; by?: string };
+
+export type VaultInfo = {
+	id: string;
+	name: string;
+	personal: boolean;
+	key: CryptoKey;
+};
+
+const HISTORY_LIMIT = 10;
 
 export class WrongPasswordError extends Error {}
 
@@ -127,55 +149,110 @@ async function signIn(server: string, email: string, authKey: string) {
 	return token;
 }
 
-/** Every item the person can open, decrypted, except those in Recently deleted. */
-export async function loadEntries(
+/** The vaults and every item the person can open, decrypted, except deleted ones. */
+export async function loadVault(
 	client: AppRouterClient,
 	unlocked: Unlocked,
-): Promise<Entry[]> {
+): Promise<{ vaults: VaultInfo[]; entries: EditableEntry[] }> {
 	const privateKey = await importPrivateKey(fromBase64(unlocked.privateKey));
-	const [vaults, rows] = await Promise.all([
+	const [vaultRows, rows] = await Promise.all([
 		client.vaults.list(),
 		client.items.list(),
 	]);
-	const keys = new Map<string, { key: CryptoKey; name: string }>();
-	await Promise.all(
-		vaults.map(async (vault) => {
+	const vaults = await Promise.all(
+		vaultRows.map(async (vault): Promise<VaultInfo> => {
 			const key = await unwrapKeyFrom(
 				privateKey,
 				unlocked.publicKey,
 				vault.wrappedKey,
 			);
 			const meta = await openJson<{ name: string }>(key, vault.encryptedMeta);
-			keys.set(vault.id, { key, name: meta.name });
+			return { id: vault.id, name: meta.name, personal: vault.personal, key };
 		}),
 	);
+	const byId = new Map(vaults.map((vault) => [vault.id, vault]));
 	const entries = await Promise.all(
 		rows
 			.filter((row) => !row.deletedAt)
-			.map(async (row): Promise<Entry | null> => {
-				const vault = keys.get(row.vaultId);
+			.map(async (row): Promise<EditableEntry | null> => {
+				const vault = byId.get(row.vaultId);
 				if (!vault) return null;
-				const itemKey = await unwrapKey(vault.key, row.wrappedKey);
-				const fields = await openJson<Omit<Entry, "id" | "vault" | "favorite">>(
-					itemKey,
-					row.data,
-				);
+				const key = await unwrapKey(vault.key, row.wrappedKey);
+				const fields = await openJson<EditableEntry["fields"]>(key, row.data);
 				return {
 					id: row.id,
 					vault: vault.name,
+					vaultId: vault.id,
+					revision: row.revision,
 					favorite: row.favorite,
-					kind: fields.kind,
-					name: fields.name,
-					username: fields.username,
-					secret: fields.secret,
-					url: fields.url,
-					totp: fields.totp,
+					key,
+					fields,
+					kind: fields.kind as ItemKind,
+					name: fields.name as string,
+					username: fields.username as string | undefined,
+					secret: fields.secret as string | undefined,
+					url: fields.url as string | undefined,
+					totp: fields.totp as string | undefined,
 				};
 			}),
 	);
-	return entries
-		.filter((entry) => entry !== null)
-		.sort((a, b) => a.name.localeCompare(b.name));
+	return {
+		vaults: vaults.sort(
+			(a, b) =>
+				Number(b.personal) - Number(a.personal) || a.name.localeCompare(b.name),
+		),
+		entries: entries
+			.filter((entry) => entry !== null)
+			.sort((a, b) => a.name.localeCompare(b.name)),
+	};
+}
+
+export async function loadEntries(client: AppRouterClient, unlocked: Unlocked) {
+	return (await loadVault(client, unlocked)).entries;
+}
+
+/** Encrypts a new login on this device and adds it to the vault. */
+export async function saveLogin(
+	client: AppRouterClient,
+	vault: VaultInfo,
+	login: { name: string; username: string; password: string; url: string },
+) {
+	const key = await newDataKey();
+	return client.items.create({
+		vaultId: vault.id,
+		wrappedKey: await wrapKey(vault.key, key),
+		data: await sealJson(key, {
+			kind: "login",
+			name: login.name,
+			username: login.username || undefined,
+			secret: login.password,
+			url: login.url,
+		}),
+	});
+}
+
+/** Replaces a login's password; the old one stays under Earlier passwords. */
+export async function updatePassword(
+	client: AppRouterClient,
+	entry: EditableEntry,
+	password: string,
+	by: string,
+) {
+	const history = [
+		...(entry.secret
+			? [{ secret: entry.secret, until: new Date().toISOString(), by }]
+			: []),
+		...(entry.fields.history ?? []),
+	].slice(0, HISTORY_LIMIT);
+	return client.items.update({
+		id: entry.id,
+		revision: entry.revision,
+		data: await sealJson(entry.key, {
+			...entry.fields,
+			secret: password,
+			...(history.length ? { history } : {}),
+		}),
+	});
 }
 
 /** True when the item belongs to the page: same host, or the page is on a subdomain of it. */

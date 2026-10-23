@@ -8,11 +8,12 @@ export default defineConfig({
 	}),
 	manifest: {
 		name: "mima",
-		description: "Fill and copy your mima items in the browser.",
+		description: "Fill, copy and save your mima logins in the browser.",
 		// storage: the server address and the unlocked key (in session memory only).
 		// scripting: fill a login form when you choose Fill. alarms: lock after idle time.
 		permissions: ["storage", "scripting", "alarms"],
-		// Filling works on any site, and each team's mima server has its own address.
+		// Filling and offering to save logins work on any site, and each team's mima server
+		// has its own address.
 		host_permissions: ["<all_urls>"],
 		action: { default_title: "mima" },
 	},

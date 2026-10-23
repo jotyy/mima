@@ -4,8 +4,11 @@ import { Input } from "@mima/ui/components/input";
 import { cn } from "@mima/ui/lib/utils";
 import {
 	ArrowSquareOutIcon,
+	ArrowsClockwiseIcon,
+	CaretDownIcon,
 	ClockCountdownIcon,
 	CopyIcon,
+	FloppyDiskIcon,
 	GlobeIcon,
 	KeyIcon,
 	LockSimpleIcon,
@@ -16,6 +19,13 @@ import {
 } from "@phosphor-icons/react";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 
+import {
+	dropCapture,
+	getCapture,
+	type Offer,
+	offerFor,
+	suggestedName,
+} from "@/lib/capture";
 import { fillLoginForm } from "@/lib/fill";
 import {
 	type Connection,
@@ -30,12 +40,16 @@ import {
 } from "@/lib/storage";
 import {
 	apiClient,
+	type EditableEntry,
 	type Entry,
 	findServer,
 	hostOf,
-	loadEntries,
+	loadVault,
 	matchesPage,
+	saveLogin,
 	unlock,
+	updatePassword,
+	type VaultInfo,
 	WrongPasswordError,
 } from "@/lib/vault";
 
@@ -248,23 +262,45 @@ function Items({
 	onLock: () => void;
 }) {
 	const [entries, setEntries] = useState<Entry[] | null>(null);
+	const [vaults, setVaults] = useState<VaultInfo[]>([]);
+	const [offer, setOffer] = useState<Offer | null>(null);
 	const [error, setError] = useState("");
 	const [query, setQuery] = useState("");
 	const [tab, setTab] = useState<{ id?: number; url?: string }>({});
 	const [status, setStatus] = useState("");
 	const client = apiClient(connection.server, connection.token);
 
+	const load = async (tabId?: number) => {
+		try {
+			const loaded = await loadVault(client, unlocked);
+			setEntries(loaded.entries);
+			setVaults(loaded.vaults);
+			const capture = tabId === undefined ? null : await getCapture(tabId);
+			const next = capture && offerFor(capture, loaded.entries);
+			setOffer(next ?? null);
+			if (capture && !next && tabId !== undefined) await dropCapture(tabId);
+		} catch {
+			setError("Couldn't load your items. Lock and unlock to try again.");
+		}
+	};
+
 	// biome-ignore lint/correctness/useExhaustiveDependencies: loads once per unlock
 	useEffect(() => {
 		(async () => {
-			setTab(await targetTab());
-			try {
-				setEntries(await loadEntries(client, unlocked));
-			} catch {
-				setError("Couldn't load your items. Lock and unlock to try again.");
-			}
+			const target = await targetTab();
+			setTab(target);
+			await load(target.id);
 		})();
 	}, [unlocked]);
+
+	const settle = async (message?: string) => {
+		if (tab.id !== undefined) await dropCapture(tab.id);
+		setOffer(null);
+		if (message) {
+			flash(message);
+			await load();
+		}
+	};
 
 	const host = hostOf(tab.url);
 	const here = (entries ?? []).filter((entry) => matchesPage(entry, tab.url));
@@ -354,6 +390,25 @@ function Items({
 				</Button>
 			</header>
 
+			{offer && (
+				<SaveOffer
+					offer={offer}
+					vaults={vaults}
+					onSave={async (vault, login) => {
+						await touch();
+						await saveLogin(client, vault, login);
+						await settle(`Saved to ${vault.name}`);
+					}}
+					onUpdate={async (entry, password) => {
+						await touch();
+						const me = await client.account.me();
+						await updatePassword(client, entry, password, me.name);
+						await settle("Password updated");
+					}}
+					onDismiss={() => settle()}
+				/>
+			)}
+
 			<div className="px-3 pt-3">
 				<div className="relative">
 					<MagnifyingGlassIcon className="text-fg-subtle absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
@@ -440,6 +495,160 @@ function Items({
 				{status}
 			</p>
 		</div>
+	);
+}
+
+const offerCard =
+	"bg-surface shadow-card mx-3 mt-3 flex flex-col gap-3 rounded-xl p-3";
+
+function OfferTitle({
+	icon: Icon,
+	title,
+	children,
+}: {
+	icon: typeof FloppyDiskIcon;
+	title: string;
+	children: ReactNode;
+}) {
+	return (
+		<div className="flex items-start gap-2.5">
+			<span className="bg-brand-soft text-brand flex size-7 shrink-0 items-center justify-center rounded-md">
+				<Icon className="size-4" />
+			</span>
+			<div className="flex min-w-0 flex-col gap-0.5">
+				<h2 className="text-body-sm text-fg font-medium">{title}</h2>
+				<p className="text-caption text-fg-muted">{children}</p>
+			</div>
+		</div>
+	);
+}
+
+/** Offers to keep a login the person just typed into the page. */
+function SaveOffer({
+	offer,
+	vaults,
+	onSave,
+	onUpdate,
+	onDismiss,
+}: {
+	offer: Offer;
+	vaults: VaultInfo[];
+	onSave: (
+		vault: VaultInfo,
+		login: { name: string; username: string; password: string; url: string },
+	) => Promise<void>;
+	onUpdate: (entry: EditableEntry, password: string) => Promise<void>;
+	onDismiss: () => void;
+}) {
+	const { capture } = offer;
+	const [name, setName] = useState(() => suggestedName(capture.url));
+	const [username, setUsername] = useState(capture.username);
+	const [vaultId, setVaultId] = useState(vaults[0]?.id ?? "");
+	const [busy, setBusy] = useState(false);
+	const [error, setError] = useState("");
+
+	const run = async (work: () => Promise<void>) => {
+		setBusy(true);
+		setError("");
+		try {
+			await work();
+		} catch (err) {
+			setError((err as Error).message || "That didn't work");
+			setBusy(false);
+		}
+	};
+
+	if (offer.kind === "update") {
+		return (
+			<section aria-label="Update password" className={offerCard}>
+				<OfferTitle
+					icon={ArrowsClockwiseIcon}
+					title={`Update the password for ${offer.entry.name}?`}
+				>
+					You signed in as {capture.username || "this account"} with a new
+					password. The old one stays under Earlier passwords.
+				</OfferTitle>
+				<FormError>{error}</FormError>
+				<div className="flex justify-end gap-2">
+					<Button variant="ghost" size="sm" onClick={onDismiss}>
+						Not now
+					</Button>
+					<Button
+						variant="brand"
+						size="sm"
+						disabled={busy}
+						onClick={() => run(() => onUpdate(offer.entry, capture.password))}
+					>
+						{busy ? "Encrypting…" : "Update"}
+					</Button>
+				</div>
+			</section>
+		);
+	}
+
+	return (
+		<section aria-label="Save login" className={offerCard}>
+			<OfferTitle icon={FloppyDiskIcon} title="Save this login to mima?">
+				You just signed in on {hostOf(capture.url)}.
+			</OfferTitle>
+			<div className="grid grid-cols-2 gap-2">
+				<Field label="Name">
+					<Input
+						value={name}
+						onChange={(event) => setName(event.target.value)}
+					/>
+				</Field>
+				<Field label="Vault">
+					<span className="relative flex">
+						<select
+							value={vaultId}
+							onChange={(event) => setVaultId(event.target.value)}
+							className="border-line bg-surface text-body-sm text-fg focus-visible:border-brand h-8 w-full appearance-none rounded-lg border pr-7 pl-2.5 outline-none"
+						>
+							{vaults.map((vault) => (
+								<option key={vault.id} value={vault.id}>
+									{vault.name}
+								</option>
+							))}
+						</select>
+						<CaretDownIcon className="text-fg-subtle pointer-events-none absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2" />
+					</span>
+				</Field>
+				<div className="col-span-2">
+					<Field label="Username">
+						<Input
+							value={username}
+							onChange={(event) => setUsername(event.target.value)}
+						/>
+					</Field>
+				</div>
+			</div>
+			<FormError>{error}</FormError>
+			<div className="flex justify-end gap-2">
+				<Button variant="ghost" size="sm" onClick={onDismiss}>
+					Not now
+				</Button>
+				<Button
+					variant="brand"
+					size="sm"
+					disabled={busy || !name.trim() || !vaultId}
+					onClick={() => {
+						const vault = vaults.find((v) => v.id === vaultId);
+						if (!vault) return;
+						void run(() =>
+							onSave(vault, {
+								name: name.trim(),
+								username: username.trim(),
+								password: capture.password,
+								url: capture.url,
+							}),
+						);
+					}}
+				>
+					{busy ? "Encrypting…" : "Save"}
+				</Button>
+			</div>
+		</section>
 	);
 }
 

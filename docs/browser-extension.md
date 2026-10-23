@@ -1,6 +1,6 @@
 # Browser extension
 
-The extension shows the items for the site you're on, fills the login form with one click, and copies usernames and passwords. It decrypts on your computer, like the web app, and works in Chrome, Edge, Brave, Arc and other Chromium browsers.
+The extension shows the items for the site you're on, fills the login form with one click, copies usernames and passwords, and offers to save the logins you type. It decrypts on your computer, like the web app, and works in Chrome, Edge, Brave, Arc and other Chromium browsers.
 
 ## Install
 
@@ -24,6 +24,7 @@ Open the extension and enter the address you open mima at, such as `mima.example
 ## Use it
 
 - **On a login page**, the items saved for that site come first. Choose **Fill** to put the username and password into the form. If the login has a one-time code, Fill also copies the current code, ready to paste on the next step.
+- **After you sign in somewhere new**, the mima icon shows a badge. Open the extension to save the login to one of your vaults, or choose **Not now**. If you signed in to a saved login with a different password, it offers to update the password instead, and the old one stays under Earlier passwords. Logins you already saved, and anything typed into mima itself, are never offered.
 - **Search** to find any item; the buttons copy its username, password or one-time code.
 - **Lock** forgets the key. The extension also locks itself after 15 idle minutes, and whenever the browser closes.
 
@@ -31,13 +32,14 @@ Fills and copies appear in **Activity**, like everything else.
 
 ## What it can access
 
-The extension asks to read and change data on all sites. It needs that to fill forms on whatever site you're on, and to reach your mima server, whose address is different for every team. It only touches a page when you choose **Fill**.
+The extension asks to read and change data on all sites. It needs that to fill forms on whatever site you're on, to notice a login being submitted so it can offer to save it, and to reach your mima server, whose address is different for every team. On each page, a small script watches for a sign-in form being sent and passes the username and password to the extension; it changes the page only when you choose **Fill**.
 
 What it stores:
 
-| Where                                                          | What                                                |
-| -------------------------------------------------------------- | --------------------------------------------------- |
-| Extension storage (on disk)                                    | Your mima address, your email and the session token |
-| Session storage (memory only, cleared when the browser closes) | Your unlocked private key and when you last used it |
+| Where                                                          | What                                                 |
+| -------------------------------------------------------------- | ---------------------------------------------------- |
+| Extension storage (on disk)                                    | Your mima address, your email and the session token  |
+| Session storage (memory only, cleared when the browser closes) | Your unlocked private key and when you last used it  |
+| Session storage, per tab, for 5 minutes                        | A login you just typed, until you save or dismiss it |
 
 Your master password is never stored. Pages and other extensions can't read the extension's storage.

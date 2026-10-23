@@ -51,7 +51,7 @@ Anyone who holds an agent token can use whatever that agent has been allowed to 
 
 ## Browser extension
 
-The extension signs in with the same auth key as the web app and keeps the session token in its own storage, sending it as a bearer token. The API accepts sign-ins from `chrome-extension://` and `moz-extension://` origins for this, since each install has its own ID. The unlocked private key is kept only in the extension's session storage, which lives in memory, can't be read by pages or content scripts, and is cleared when the browser closes or after 15 idle minutes. Filling runs a small script in the page only when you choose **Fill**. See [Browser extension](browser-extension.md).
+The extension signs in with the same auth key as the web app and keeps the session token in its own storage, sending it as a bearer token. The API accepts sign-ins from `chrome-extension://` and `moz-extension://` origins for this, since each install has its own ID. The unlocked private key is kept only in the extension's session storage, which lives in memory, can't be read by pages or content scripts, and is cleared when the browser closes or after 15 idle minutes. Filling runs a small script in the page only when you choose **Fill**. To offer saving new logins, a content script on each page reads the username and password of a sign-in form when it's submitted and hands them to the extension, which keeps them in session storage for that tab for five minutes at most. Submissions on your mima server's own pages are dropped, so the master password is never held. See [Browser extension](browser-extension.md).
 
 ## Share links
 
@@ -64,6 +64,7 @@ A link is a copy: changing the item later doesn't change what the link shows, an
 ## Limits
 
 These are the things mima does not protect against. Please read them before you rely on it.
+
 - **The server delivers the app.** mima runs in the browser, and the browser loads its code from your instance. Someone who controls the web app's hosting could ship code that captures your master password the next time you sign in. This holds for every web-based end-to-end encrypted app. Host mima yourself, keep your Cloudflare account secure, and limit who can deploy to it.
 - **Removing someone doesn't take back what they've seen.** Taking a person out of a vault deletes their copy of its key, so they can't open it through mima again. But they may have copied passwords, or the vault key, while they had access. Change the passwords that matter after someone leaves.
 - **Nobody can reset a master password.** It is the only key to your private key. If you forget it, your items can't be recovered by you, an admin or the server. An admin can invite you again so you start over.
