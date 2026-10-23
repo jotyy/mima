@@ -70,7 +70,7 @@ html[data-style="frost"] [data-slot="app-shell"] {
 		);
 }
 
-html[data-style="frost"] [data-slot="sidebar"] {
+html[data-style="frost"] [data-slot="app-shell"] [data-slot="sidebar"] {
 	margin: 0 0 0.75rem 0.75rem;
 	padding-top: 0.5rem;
 	border-radius: var(--round-shell);
@@ -81,14 +81,14 @@ html[data-style="frost"] [data-slot="sidebar"] {
 	backdrop-filter: blur(18px) saturate(1.4);
 }
 
-html.dark[data-style="frost"] [data-slot="sidebar"] {
+html.dark[data-style="frost"] [data-slot="app-shell"] [data-slot="sidebar"] {
 	background: rgb(22 27 48 / 55%);
 	box-shadow:
 		inset 0 0 0 1px rgb(255 255 255 / 6%),
 		0 10px 30px -14px rgb(0 0 0 / 60%);
 }
 
-html[data-style="frost"] [data-slot="sidebar"] > nav {
+html[data-style="frost"] [data-slot="app-shell"] [data-slot="sidebar"] > nav {
 	margin-top: 1rem;
 }
 
@@ -218,10 +218,10 @@ html[data-style="glass"] {
 	--elevation-pill: 0 0.5px 1.5px rgb(0 0 0 / 12%), 0 0 0 0.5px rgb(0 0 0 / 6%);
 	--elevation-popover:
 		0 0 0 0.5px rgb(0 0 0 / 10%), 0 1.25rem 2.5rem -0.75rem rgb(0 0 0 / 24%);
-	--radius: 0.6rem;
-	--round-window: 14px;
-	--round-shell: 16px;
-	--round-panel: 18px;
+	--radius: 0.45rem;
+	--round-window: 12px;
+	--round-shell: 14px;
+	--round-panel: 16px;
 }
 
 html.dark[data-style="glass"] {
@@ -344,8 +344,9 @@ html.dark[data-style="azure"] {
 }
 
 html[data-style="azure"] [data-slot="nav-label"] {
-	border-color: transparent;
-	background: var(--brand-soft);
+	border: 0;
+	background: none;
+	font-weight: 600;
 	color: var(--brand);
 }
 
@@ -447,4 +448,103 @@ html[data-style="lift"] [data-slot="item-tile"] {
 /* Page titles use the style's display face (the text face unless a style sets one). */
 [data-slot="page-header"] h1 {
 	font-family: var(--font-display);
+}
+
+/* ── Sidebars: each style dresses the same sidebar its own way (desktop only). ───── */
+
+/* Pure: a white column joined to the content by a hairline, like a sheet of paper. */
+html[data-style="pure"] [data-slot="app-shell"] [data-slot="sidebar"] {
+	padding-top: 0.25rem;
+	border-top: 1px solid var(--line);
+	border-right: 1px solid var(--line);
+	border-top-right-radius: var(--round-panel);
+	background: var(--surface);
+}
+
+html[data-style="pure"] [data-slot="app-shell"] [data-slot="sidebar"] > nav {
+	margin-top: 1.25rem;
+}
+
+html[data-style="pure"]
+	[data-slot="app-shell"]
+	[data-slot="nav-link"][data-status="active"] {
+	background: var(--surface-sunken);
+	box-shadow: none;
+	font-weight: 500;
+}
+
+/* Glass: a translucent strip the full height of the window, like a macOS sidebar. */
+html[data-style="glass"] [data-slot="app-shell"] [data-slot="sidebar"] {
+	padding-inline: 0.5rem;
+	border-right: 0.5px solid var(--line);
+	background: rgb(255 255 255 / 38%);
+	box-shadow: inset -1px 0 0 rgb(255 255 255 / 55%);
+	backdrop-filter: blur(24px) saturate(1.6);
+}
+
+html.dark[data-style="glass"] [data-slot="app-shell"] [data-slot="sidebar"] {
+	background: rgb(255 255 255 / 4%);
+	box-shadow: none;
+}
+
+/* Azure: the sidebar sits on the tinted page; the page you're on is a white chip. */
+html[data-style="azure"]
+	[data-slot="app-shell"]
+	[data-slot="nav-link"][data-status="active"] {
+	background: var(--surface);
+	box-shadow:
+		0 0 0 1px rgb(31 91 249 / 8%),
+		0 1px 3px rgb(16 40 120 / 10%);
+}
+
+html.dark[data-style="azure"]
+	[data-slot="app-shell"]
+	[data-slot="nav-link"][data-status="active"] {
+	background: rgb(255 255 255 / 7%);
+	box-shadow: none;
+}
+
+/* Lift: a solid white card standing off the page; the page you're on is pressed in. */
+html[data-style="lift"] [data-slot="app-shell"] [data-slot="sidebar"] {
+	margin: 0 0 0.75rem 0.75rem;
+	padding-top: 0.5rem;
+	border-radius: var(--round-shell);
+	background: var(--surface);
+	box-shadow: var(--elevation-card);
+}
+
+html[data-style="lift"] [data-slot="app-shell"] [data-slot="sidebar"] > nav {
+	margin-top: 1rem;
+}
+
+html[data-style="lift"]
+	[data-slot="app-shell"]
+	[data-slot="nav-link"][data-status="active"] {
+	background: var(--surface-sunken);
+	box-shadow:
+		inset 0 1px 2px rgb(14 14 16 / 9%),
+		inset 0 0 0 1px rgb(14 14 16 / 4%);
+}
+
+html.dark[data-style="lift"]
+	[data-slot="app-shell"]
+	[data-slot="nav-link"][data-status="active"] {
+	box-shadow:
+		inset 0 1px 2px rgb(0 0 0 / 50%),
+		inset 0 0 0 1px rgb(255 255 255 / 5%);
+}
+
+html[data-style="glass"] [data-slot="app-shell"] [data-slot="sidebar"] > nav {
+	margin-top: 1rem;
+}
+
+html[data-style="glass"] [data-slot="app-shell"] [data-slot="nav-label"] {
+	margin-left: 0;
+	padding-left: 0.75rem;
+}
+
+html[data-style="glass"] [data-slot="lock-box"] {
+	border-color: transparent;
+	background: none;
+	padding-inline: 0.75rem;
 }

@@ -4,11 +4,7 @@ import { Button } from "@mima/ui/components/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
-	DropdownMenuGroup,
 	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuRadioGroup,
-	DropdownMenuRadioItem,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@mima/ui/components/dropdown-menu";
@@ -27,16 +23,17 @@ import {
 import { cn } from "@mima/ui/lib/utils";
 import {
 	CaretUpDownIcon,
-	GearSixIcon,
+	DesktopIcon,
 	KeyIcon,
 	ListIcon,
 	LockSimpleIcon,
 	MagnifyingGlassIcon,
+	MoonIcon,
 	PulseIcon,
 	RobotIcon,
 	ShieldCheckIcon,
-	SignOutIcon,
 	SquaresFourIcon,
+	SunIcon,
 	TrashIcon,
 	UsersThreeIcon,
 	VaultIcon,
@@ -62,7 +59,6 @@ import {
 
 import { CommandPalette } from "./command-palette";
 import { MimaMark } from "./mima-mark";
-import { StylePicker } from "./style-picker";
 
 export function AppShell() {
 	const [searching, setSearching] = useState(false);
@@ -118,7 +114,6 @@ export function AppShell() {
 				</main>
 			</div>
 			<CommandPalette open={searching} onOpenChange={setSearching} />
-			{import.meta.env.DEV && <StylePicker />}
 		</div>
 	);
 }
@@ -422,36 +417,104 @@ function UserMenu() {
 				<span className="flex-1 truncate text-left">{me.name}</span>
 				<CaretUpDownIcon className="text-fg-subtle size-3.5" />
 			</DropdownMenuTrigger>
-			<DropdownMenuContent className="w-56" side="top" align="start">
-				<DropdownMenuGroup>
-					<DropdownMenuLabel>
-						{me.email} · {me.role}
-					</DropdownMenuLabel>
-				</DropdownMenuGroup>
+			<DropdownMenuContent className="w-64" side="top" align="start">
+				<div className="bg-surface-sunken mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5">
+					<Avatar>
+						<AvatarFallback>{initials(me.name)}</AvatarFallback>
+					</Avatar>
+					<div className="flex min-w-0 flex-col">
+						<span className="text-body-sm text-fg truncate font-medium">
+							{me.name}
+						</span>
+						<span className="text-caption text-fg-subtle truncate">
+							{me.email}
+						</span>
+					</div>
+				</div>
 				<DropdownMenuSeparator />
 				<DropdownMenuItem render={<Link to="/settings" />}>
-					<GearSixIcon />
 					Settings
 				</DropdownMenuItem>
+				<DropdownMenuItem onClick={lock}>Lock</DropdownMenuItem>
 				<DropdownMenuSeparator />
-				<DropdownMenuGroup>
-					<DropdownMenuLabel>Theme</DropdownMenuLabel>
-					<DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
-						<DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
-						<DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
-						<DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
-					</DropdownMenuRadioGroup>
-				</DropdownMenuGroup>
-				<DropdownMenuSeparator />
-				<DropdownMenuItem onClick={lock}>
-					<LockSimpleIcon />
-					Lock
+				<DropdownMenuItem
+					render={
+						<a
+							href={`${REPOSITORY}/blob/main/CHANGELOG.md`}
+							target="_blank"
+							rel="noreferrer"
+						/>
+					}
+				>
+					What's new
 				</DropdownMenuItem>
-				<DropdownMenuItem onClick={() => signOut()}>
-					<SignOutIcon />
+				<DropdownMenuItem
+					render={
+						<a
+							href={`${REPOSITORY}/tree/main/docs`}
+							target="_blank"
+							rel="noreferrer"
+						/>
+					}
+				>
+					Help and docs
+				</DropdownMenuItem>
+				<DropdownMenuSeparator />
+				<div className="text-caption text-fg-muted flex items-center justify-between py-1 pr-1 pl-2">
+					Theme
+					<ThemeSwitch value={theme} onChange={setTheme} />
+				</div>
+				<DropdownMenuSeparator />
+				<DropdownMenuItem variant="destructive" onClick={() => signOut()}>
 					Sign out
 				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>
+	);
+}
+
+const REPOSITORY = "https://github.com/jotyy/mima";
+
+const themes = [
+	{ value: "light", label: "Light", icon: SunIcon },
+	{ value: "system", label: "System", icon: DesktopIcon },
+	{ value: "dark", label: "Dark", icon: MoonIcon },
+];
+
+/** Light, system or dark, as three icons in a row. */
+function ThemeSwitch({
+	value,
+	onChange,
+}: {
+	value: string;
+	onChange: (theme: string) => void;
+}) {
+	return (
+		<div
+			role="radiogroup"
+			aria-label="Theme"
+			className="border-line flex gap-0.5 rounded-lg border p-0.5"
+		>
+			{themes.map(({ value: option, label, icon: Icon }) => (
+				// biome-ignore lint/a11y/useSemanticElements: an icon toggle, like a segmented control
+				<button
+					key={option}
+					type="button"
+					role="radio"
+					aria-checked={value === option}
+					aria-label={label}
+					title={label}
+					onClick={() => onChange(option)}
+					className={cn(
+						"flex size-6 items-center justify-center rounded-md transition-colors",
+						value === option
+							? "bg-brand-soft text-brand"
+							: "text-fg-subtle hover:bg-tint/5 hover:text-fg",
+					)}
+				>
+					<Icon className="size-3.5" />
+				</button>
+			))}
+		</div>
 	);
 }

@@ -23,6 +23,7 @@ import {
 	ChangePasswordDialog,
 	ExportDialog,
 } from "@/components/settings-dialogs";
+import { StylePicker } from "@/components/style-picker";
 import {
 	TurnOffTwoStepDialog,
 	TurnOnTwoStepDialog,
@@ -192,6 +193,16 @@ function Settings() {
 						</TabsList>
 					</Tabs>
 				</Row>
+				<div className="flex flex-col gap-3 px-4 py-3.5">
+					<div className="flex flex-col gap-0.5">
+						<span className="text-body-sm text-fg">Style</span>
+						<span className="text-caption text-fg-muted">
+							How mima looks on this device: its colors, depth and typeface.
+							Everything stays in the same place.
+						</span>
+					</div>
+					<StylePicker />
+				</div>
 			</Card>
 
 			<SectionTitle>Where you're signed in</SectionTitle>
