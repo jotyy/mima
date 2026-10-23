@@ -234,10 +234,6 @@ export async function loadVault(
 	};
 }
 
-export async function loadEntries(client: AppRouterClient, unlocked: Unlocked) {
-	return (await loadVault(client, unlocked)).entries;
-}
-
 /** Encrypts a new login on this device and adds it to the vault. */
 export async function saveLogin(
 	client: AppRouterClient,
