@@ -1,0 +1,30 @@
+---
+// A brand's mark from Simple Icons, drawn inline so the page asks no one else for it.
+// Near-black marks take the text color, so they turn light in dark mode.
+import * as icons from "simple-icons";
+
+interface Props {
+	brand: string;
+	class?: string;
+}
+
+const { brand, class: className } = Astro.props;
+const icon = (
+	icons as unknown as Record<
+		string,
+		{ path: string; hex: string; title: string }
+	>
+)[`si${brand}`];
+if (!icon) throw new Error(`No Simple Icons mark for ${brand}`);
+const dark = Number.parseInt(icon.hex, 16) < 0x333333;
+---
+
+<svg
+	viewBox="0 0 24 24"
+	role="img"
+	aria-label={icon.title}
+	class={className}
+	fill={dark ? "currentColor" : `#${icon.hex}`}
+>
+	<path d={icon.path}></path>
+</svg>

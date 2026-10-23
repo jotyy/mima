@@ -1,0 +1,64 @@
+---
+import AgentsDemo from "./AgentsDemo";
+import Heading from "./Heading.astro";
+import Section from "./Section.astro";
+
+const steps = [
+	{
+		title: "Reference, don't paste",
+		text: "Your .env holds mima:// references. Nothing in it can leak.",
+		code: "DATABASE_URL=mima://itm_7Gk2qXb9",
+	},
+	{
+		title: "Run through mima",
+		text: "Values go straight into the process, masked in its output.",
+		code: "mima run -- bun test api",
+	},
+	{
+		title: "Approve once",
+		text: "A person approves each new item. Pause or expire an agent anytime.",
+		code: null,
+	},
+];
+---
+
+<Section index="03" id="agents">
+	<Heading
+		center
+		label="Agents and scripts"
+		title="Agents use your secrets."
+		quiet="They never see them."
+		lead="Coding agents, scripts and CI get values at runtime. Nothing sits in plain text."
+	/>
+
+	<div class="mt-16 grid items-start gap-14 sm:mt-20 lg:grid-cols-5 lg:gap-16">
+		<div data-reveal class="lg:col-span-3">
+			<AgentsDemo client:visible />
+		</div>
+		<ol class="flex flex-col gap-8 lg:col-span-2 lg:pt-4">
+			{
+				steps.map((step, index) => (
+					<li data-reveal style={`--reveal-delay: ${index * 90}ms`} class="flex gap-4">
+						<span class="text-micro text-fg-muted ring-line flex size-6 shrink-0 items-center justify-center rounded-full font-medium tabular-nums ring-1">
+							{index + 1}
+						</span>
+						<div class="flex min-w-0 flex-col gap-2">
+							<h3 class="text-copy text-fg font-medium">{step.title}</h3>
+							<p class="text-label text-fg-subtle text-pretty">{step.text}</p>
+							{step.code && (
+								<code class="text-micro bg-surface text-fg-muted shadow-pill w-fit rounded-md px-2.5 py-1.5 font-mono">
+									{step.code}
+								</code>
+							)}
+						</div>
+					</li>
+				))
+			}
+			<li data-reveal class="pl-10">
+				<a href="/docs/agents/" class="text-label text-link font-medium hover:underline underline-offset-4">
+					How agents work →
+				</a>
+			</li>
+		</ol>
+	</div>
+</Section>

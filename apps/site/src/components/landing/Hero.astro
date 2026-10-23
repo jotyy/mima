@@ -1,0 +1,87 @@
+---
+import { ArrowRightIcon, GithubLogoIcon } from "@phosphor-icons/react";
+
+import EncryptDemo from "@/components/landing/EncryptDemo";
+import SideStreams from "@/components/landing/SideStreams.astro";
+import { button, REPOSITORY } from "@/lib/ui";
+---
+
+<section class="relative pt-14 sm:pt-24">
+	<div class="relative">
+	<SideStreams />
+	<div class="relative mx-auto max-w-6xl px-6 text-center">
+		<a
+			href={REPOSITORY}
+			data-reveal
+			class="text-label bg-surface text-fg-muted shadow-pill hover:shadow-float hover:text-fg group inline-flex items-center gap-2 rounded-full py-1 pr-3 pl-1 transition"
+		>
+			<span class="bg-brand-soft text-link flex items-center gap-1 rounded-full px-2 py-0.5 font-medium">
+				<GithubLogoIcon weight="fill" className="size-3.5" />
+				Open source
+			</span>
+			AGPL-3.0
+			<ArrowRightIcon className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+		</a>
+
+		<h1
+			data-reveal
+			style="--reveal-delay: 60ms"
+			class="text-display-sm sm:text-display text-fg mx-auto mt-7 max-w-4xl text-balance"
+		>
+			The password manager your&nbsp;team&nbsp;owns.
+		</h1>
+
+		<p
+			data-reveal
+			style="--reveal-delay: 120ms"
+			class="text-lead-sm sm:text-lead text-fg-muted mx-auto mt-6 max-w-2xl text-pretty"
+		>
+			End-to-end encrypted passwords and keys for small teams and their agents.
+			Self-hosted on your own Cloudflare.
+		</p>
+
+		<div
+			data-reveal
+			style="--reveal-delay: 180ms"
+			class="mt-9 flex flex-wrap items-center justify-center gap-3"
+		>
+			<a href="/docs/self-hosting/" class={button("brand", "lg", "group")}>
+				Deploy mima
+				<ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
+			</a>
+			<a href="/docs/" class={button("outline", "lg")}>Read the docs</a>
+		</div>
+		<p data-reveal style="--reveal-delay: 220ms" class="text-label text-fg-subtle mt-5">
+			Free and open source. Nothing we can read.
+		</p>
+	</div>
+	</div>
+
+	<!-- The demo is the body of a lock: a blue panel, with a frosted shackle above it. -->
+	<div data-reveal style="--reveal-delay: 280ms" class="mx-auto mt-16 max-w-6xl px-3 sm:mt-20 sm:px-6">
+		<div data-slot="brand-panel" class="rounded-panel p-2 pt-20 sm:p-10 sm:pt-28">
+			<svg
+				aria-hidden="true"
+				viewBox="0 0 200 170"
+				class="absolute top-6 left-1/2 w-44 -translate-x-1/2 sm:top-8 sm:w-56"
+			>
+				<defs>
+					<linearGradient id="hero-shackle" x1="0" x2="0" y1="0" y2="1">
+						<stop offset="0" stop-color="#fff" stop-opacity=".55"></stop>
+						<stop offset="1" stop-color="#fff" stop-opacity=".06"></stop>
+					</linearGradient>
+					<linearGradient id="hero-shackle-edge" x1="0" x2="0" y1="0" y2="1">
+						<stop offset="0" stop-color="#fff" stop-opacity=".9"></stop>
+						<stop offset=".6" stop-color="#fff" stop-opacity="0"></stop>
+					</linearGradient>
+				</defs>
+				<path d="M12 170V100a88 88 0 0 1 176 0v70" fill="none" stroke="url(#hero-shackle)" stroke-width="24"></path>
+				<path d="M.75 170V100a99.25 99.25 0 0 1 198.5 0v70" fill="none" stroke="url(#hero-shackle-edge)" stroke-width="1.5"></path>
+				<path d="M23.25 170V100a76.75 76.75 0 0 1 153.5 0v70" fill="none" stroke="url(#hero-shackle-edge)" stroke-opacity=".45" stroke-width="1.5"></path>
+			</svg>
+			<div class="relative rounded-shell bg-white/15 p-1.5 ring-1 ring-white/25 backdrop-blur-md">
+				<EncryptDemo client:visible />
+			</div>
+		</div>
+	</div>
+</section>

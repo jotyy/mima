@@ -1,0 +1,27 @@
+---
+import Agents from "@/components/landing/Agents.astro";
+import Footer from "@/components/landing/Footer.astro";
+import Guides from "@/components/landing/Guides.astro";
+import Hero from "@/components/landing/Hero.astro";
+import Nav from "@/components/landing/Nav.astro";
+import Product from "@/components/landing/Product.astro";
+import Sharing from "@/components/landing/Sharing.astro";
+import Landing from "@/layouts/Landing.astro";
+---
+
+<Landing
+	title="mima: the password manager your team owns"
+	description="End-to-end encrypted logins, API keys and SSH keys for small teams and their agents. Open source, and it runs on your own Cloudflare account."
+>
+	<div class="relative isolate">
+		<Guides />
+		<Nav />
+		<main>
+			<Hero />
+			<Product />
+			<Sharing />
+			<Agents />
+		</main>
+		<Footer />
+	</div>
+</Landing>

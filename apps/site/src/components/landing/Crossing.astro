@@ -1,0 +1,35 @@
+---
+// Where a band's top hairline crosses the two guide lines: a small keyhole, cut from
+// mima's mark, with a ring of page color so the lines stop short of it, like a lock set
+// into a panel. On wide screens the left one carries the band's number, like a box in a
+// vault.
+interface Props {
+	index?: string;
+}
+
+const { index } = Astro.props;
+---
+
+<div aria-hidden="true" class="pointer-events-none absolute inset-x-0 top-0 hidden sm:block">
+	<div class="mx-auto max-w-6xl px-6">
+		<div class="relative">
+			{
+				[ "-left-1", "-right-1" ].map((side) => (
+					<svg viewBox="0 0 8 13" class:list={["text-line-strong absolute -top-1 h-3.25 w-2 overflow-visible", side]}>
+						<g fill="currentColor" stroke="var(--frame)" stroke-width="2.5" paint-order="stroke">
+							<circle cx="4" cy="4" r="3.2" />
+							<path d="M2.5 6.4h3l.8 6.5H1.7z" />
+						</g>
+					</svg>
+				))
+			}
+			{
+				index && (
+					<span class="text-micro text-fg-faint absolute -top-2 right-full mr-5 hidden font-mono tabular-nums xl:block">
+						{index}
+					</span>
+				)
+			}
+		</div>
+	</div>
+</div>

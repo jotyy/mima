@@ -1,0 +1,74 @@
+---
+import Logo from "@/components/Logo.astro";
+import { REPOSITORY } from "@/lib/ui";
+import Crossing from "./Crossing.astro";
+
+const columns = [
+	{
+		title: "Product",
+		links: [
+			{ label: "Overview", href: "/#product" },
+			{ label: "Agents", href: "/#agents" },
+			{ label: "Browser extension", href: "/docs/browser-extension/" },
+			{ label: "Security", href: "/#security" },
+		],
+	},
+	{
+		title: "Docs",
+		links: [
+			{ label: "Introduction", href: "/docs/" },
+			{ label: "Self-hosting", href: "/docs/self-hosting/" },
+			{ label: "Agents and scripts", href: "/docs/agents/" },
+			{ label: "Security model", href: "/docs/security/" },
+		],
+	},
+	{
+		title: "Project",
+		links: [
+			{ label: "GitHub", href: REPOSITORY },
+			{ label: "Changelog", href: `${REPOSITORY}/blob/main/CHANGELOG.md` },
+			{
+				label: "Report a vulnerability",
+				href: `${REPOSITORY}/blob/main/SECURITY.md`,
+			},
+			{ label: "License (AGPL-3.0)", href: `${REPOSITORY}/blob/main/LICENSE` },
+		],
+	},
+];
+---
+
+<footer class="border-line-subtle relative border-t">
+	<Crossing />
+	<div class="mx-auto max-w-6xl px-6">
+		<div class="grid gap-12 py-16 sm:grid-cols-2 sm:px-10 lg:grid-cols-5">
+		<div class="flex flex-col gap-4 lg:col-span-2">
+			<a href="/" class="text-fg w-fit" aria-label="mima home"><Logo class="h-7 w-auto" /></a>
+			<p class="text-label text-fg-subtle max-w-xs text-pretty">
+				A self-hosted, end-to-end encrypted password manager for small teams and their
+				agents.
+			</p>
+		</div>
+		{
+			columns.map((column) => (
+				<nav aria-label={column.title} class="flex flex-col gap-3">
+					<h2 class="text-label text-fg font-medium">{column.title}</h2>
+					{column.links.map((link) => (
+						<a href={link.href} class="text-label text-fg-subtle hover:text-fg w-fit transition-colors">
+							{link.label}
+						</a>
+					))}
+				</nav>
+			))
+		}
+		</div>
+	</div>
+	<div class="border-line-subtle relative border-t">
+		<Crossing />
+		<div class="mx-auto max-w-6xl px-6">
+			<div class="text-micro text-fg-faint flex flex-wrap items-center justify-between gap-3 py-6 sm:px-10">
+				<span>Made for teams of a handful. Open source under AGPL-3.0.</span>
+				<span>Your keys, your server, your data.</span>
+			</div>
+		</div>
+	</div>
+</footer>

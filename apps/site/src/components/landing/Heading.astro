@@ -1,0 +1,31 @@
+---
+// A section's heading: a small label, the title with a quieter second half, and a lead.
+interface Props {
+	label: string;
+	title: string;
+	quiet?: string;
+	lead?: string;
+	center?: boolean;
+}
+
+const { label, title, quiet, lead, center = false } = Astro.props;
+---
+
+<div
+	data-reveal
+	class:list={[
+		"flex flex-col gap-5",
+		center ? "mx-auto max-w-3xl items-center text-center" : "max-w-2xl",
+	]}
+>
+	<span class="text-label text-link flex items-center gap-2 font-medium">
+		<span class="bg-brand size-1.5 rounded-full"></span>
+		{label}
+	</span>
+	<h2 class="text-title-sm sm:text-title text-fg text-balance">
+		{title}
+		{quiet && <span class="text-fg-faint"> {quiet}</span>}
+	</h2>
+	{lead && <p class="text-lead-sm text-fg-muted text-pretty">{lead}</p>}
+	<slot />
+</div>

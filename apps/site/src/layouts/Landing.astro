@@ -1,0 +1,56 @@
+---
+import "@/styles/site.css";
+
+interface Props {
+	title: string;
+	description: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" data-style="pure">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>{title}</title>
+		<meta name="description" content={description} />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:type" content="website" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+		<meta name="theme-color" content="#f9f9fa" media="(prefers-color-scheme: light)" />
+		<meta name="theme-color" content="#0c0c0e" media="(prefers-color-scheme: dark)" />
+		<script is:inline>
+			// The theme the docs remember (Starlight keeps it under this key), else the system's.
+			{
+				const stored = localStorage.getItem("starlight-theme");
+				const dark =
+					stored === "dark" ||
+					(stored !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+				document.documentElement.classList.toggle("dark", dark);
+				document.documentElement.dataset.theme = dark ? "dark" : "light";
+				document.documentElement.classList.add("js");
+			}
+		</script>
+	</head>
+	<body class="text-fg min-h-svh">
+		<slot />
+		<script>
+			// Sections ease in the first time they scroll into view.
+			const observer = new IntersectionObserver(
+				(entries) => {
+					for (const entry of entries) {
+						if (!entry.isIntersecting) continue;
+						entry.target.setAttribute("data-shown", "");
+						observer.unobserve(entry.target);
+					}
+				},
+				{ rootMargin: "0px 0px -8% 0px" },
+			);
+			for (const element of document.querySelectorAll("[data-reveal]")) observer.observe(element);
+		</script>
+	</body>
+</html>

@@ -1,0 +1,89 @@
+---
+import { GithubLogoIcon, ListIcon } from "@phosphor-icons/react";
+
+import Logo from "@/components/Logo.astro";
+import { button, REPOSITORY } from "@/lib/ui";
+
+const links = [
+	{ label: "Product", href: "/#product" },
+	{ label: "Agents", href: "/#agents" },
+	{ label: "Security", href: "/#security" },
+	{ label: "Self-host", href: "/#self-host" },
+	{ label: "Docs", href: "/docs/" },
+];
+---
+
+<!--
+	At the top it's a plain bar on the page; once the page scrolls, it draws in to a
+	floating pill, so it stays out of the way of what's being read.
+-->
+<header data-nav class="group/nav sticky top-0 z-50 px-3 sm:px-6">
+	<div
+		class="ease-emphasized mx-auto mt-0 flex h-16 max-w-6xl items-center gap-6 rounded-full px-3 transition-all duration-500 group-data-scrolled/nav:mt-4 group-data-scrolled/nav:h-13 group-data-scrolled/nav:max-w-3xl group-data-scrolled/nav:bg-surface/80 group-data-scrolled/nav:pr-1.5 group-data-scrolled/nav:pl-4 sm:group-data-scrolled/nav:pr-1.5 sm:group-data-scrolled/nav:pl-4 group-data-scrolled/nav:shadow-float group-data-scrolled/nav:backdrop-blur-xl sm:px-16"
+	>
+		<a href="/" class="text-fg flex shrink-0 items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-brand" aria-label="mima home">
+			<Logo class="h-6.5 w-auto" />
+		</a>
+
+		<nav aria-label="Main" class="hidden flex-1 items-center justify-center gap-1 md:flex">
+			{
+				links.map((link) => (
+					<a
+						href={link.href}
+						class="text-label text-fg-muted hover:text-fg rounded-full px-3 py-1.5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand"
+					>
+						{link.label}
+					</a>
+				))
+			}
+		</nav>
+
+		<div class="ml-auto flex items-center gap-1.5 md:ml-0">
+			<a
+				href={REPOSITORY}
+				class={button("ghost", "md", "hidden px-3 sm:inline-flex")}
+				aria-label="mima on GitHub"
+			>
+				<GithubLogoIcon weight="fill" />
+				<span class="hidden lg:inline">GitHub</span>
+			</a>
+			<a href="/docs/self-hosting/" class={button("brand", "md")}>
+				Get started
+			</a>
+			<details class="relative md:hidden" data-menu>
+				<summary
+					class={button("ghost", "md", "size-9 cursor-pointer list-none px-0 [&::-webkit-details-marker]:hidden")}
+					aria-label="Menu"
+				>
+					<ListIcon />
+				</summary>
+				<nav
+					aria-label="Main"
+					class="bg-surface shadow-popover rounded-window absolute top-full right-0 mt-2 flex w-56 flex-col p-1.5"
+				>
+					{
+						[...links, { label: "GitHub", href: REPOSITORY }].map((link) => (
+							<a
+								href={link.href}
+								class="text-copy text-fg-muted hover:bg-tint/4 hover:text-fg rounded-lg px-3 py-2"
+							>
+								{link.label}
+							</a>
+						))
+					}
+				</nav>
+			</details>
+		</div>
+	</div>
+</header>
+
+<script>
+	const header = document.querySelector<HTMLElement>("[data-nav]");
+	const update = () => header?.toggleAttribute("data-scrolled", window.scrollY > 12);
+	update();
+	window.addEventListener("scroll", update, { passive: true });
+	// Choosing a link closes the phone menu.
+	for (const link of document.querySelectorAll("[data-menu] a")) {
+		link.addEventListener("click", () => link.closest("details")?.removeAttribute("open"));
+	}
+</script>

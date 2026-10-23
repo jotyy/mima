@@ -1,0 +1,87 @@
+@import "@mima/ui/pure.css";
+
+/*
+ * Starlight, dressed in Pure. Starlight keeps its own styles in cascade layers, so these
+ * unlayered values win. Pure's tokens switch with the page's theme (a script in the head
+ * keeps them in step with Starlight's), so one set of mappings covers light and dark.
+ */
+
+:root {
+	--sl-font: var(--font-text);
+	--sl-font-mono: var(--font-code);
+
+	--sl-color-white: var(--fg);
+	--sl-color-gray-1: var(--fg-emphasis);
+	--sl-color-gray-2: var(--fg-muted);
+	--sl-color-gray-3: var(--fg-subtle);
+	--sl-color-gray-4: var(--fg-faint);
+	--sl-color-gray-5: var(--line);
+	--sl-color-gray-6: var(--surface-sunken);
+	--sl-color-gray-7: var(--canvas);
+	--sl-color-black: var(--surface);
+
+	--sl-color-accent-low: #ebf1ff;
+	--sl-color-accent: #1f5bf9;
+	--sl-color-accent-high: #163fbf;
+	--sl-color-text: var(--fg-emphasis);
+	--sl-color-text-accent: #1f5bf9;
+	--sl-color-text-invert: #ffffff;
+
+	--sl-color-bg: var(--surface);
+	--sl-color-bg-nav: color-mix(in srgb, var(--surface) 82%, transparent);
+	--sl-color-bg-sidebar: var(--surface);
+	--sl-color-bg-inline-code: var(--surface-sunken);
+	--sl-color-hairline: var(--line);
+	--sl-color-hairline-light: var(--line-subtle);
+	--sl-color-hairline-shade: var(--line-strong);
+
+	--sl-text-h1: 2.25rem;
+	--sl-text-h2: 1.5rem;
+	--sl-text-h3: 1.1875rem;
+	--sl-line-height-headings: 1.2;
+	--sl-nav-height: 3.75rem;
+}
+
+:root[data-theme="dark"] {
+	--sl-color-accent-low: #13224a;
+	--sl-color-accent: #3366f7;
+	--sl-color-accent-high: #8eaeff;
+	--sl-color-text-accent: #8eaeff;
+}
+
+.header {
+	backdrop-filter: blur(12px) saturate(1.4);
+	border-bottom: 1px solid var(--line);
+}
+
+.site-title img {
+	height: 1.625rem;
+}
+
+.sl-markdown-content :is(h1, h2, h3, h4) {
+	font-weight: 600;
+	letter-spacing: -0.015em;
+}
+
+h1#_top {
+	font-weight: 600;
+	letter-spacing: -0.025em;
+}
+
+.sl-markdown-content :not(pre) > code {
+	border: 1px solid var(--line-subtle);
+	border-radius: 0.375rem;
+	padding: 0.0625rem 0.3125rem;
+}
+
+.sl-markdown-content table {
+	font-size: var(--sl-text-sm);
+}
+
+/* The current page in the sidebar: a quiet fill, as in the app. */
+.sidebar-content a[aria-current="page"],
+.sidebar-content a[aria-current="page"]:hover {
+	background: var(--surface-sunken);
+	color: var(--fg);
+	font-weight: 500;
+}

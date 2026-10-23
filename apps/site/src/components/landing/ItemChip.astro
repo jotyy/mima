@@ -1,0 +1,37 @@
+---
+import { LockSimpleIcon } from "@phosphor-icons/react";
+
+import BrandIcon from "@/components/BrandIcon.astro";
+
+// An item as a small pill: plain, as it is on your device, or sealed, as the server
+// keeps it.
+interface Props {
+	brand: string;
+	name: string;
+	detail?: string;
+	cipher?: string;
+}
+
+const { brand, name, detail, cipher } = Astro.props;
+---
+
+{
+	cipher ? (
+		<span class="text-caption bg-brand-soft text-link inline-flex w-full shrink-0 items-center gap-2 rounded-full py-1 pr-3 pl-1 font-mono">
+			<span class="bg-surface text-link flex size-7 shrink-0 items-center justify-center rounded-full">
+				<LockSimpleIcon className="size-3.5" />
+			</span>
+			<span class="truncate">{cipher}</span>
+		</span>
+	) : (
+		<span class="text-caption bg-surface text-fg shadow-pill inline-flex w-full shrink-0 items-center gap-2 rounded-full py-1 pr-3 pl-1">
+			<span class="bg-surface-sunken text-fg flex size-7 shrink-0 items-center justify-center rounded-full">
+				<BrandIcon brand={brand} class="size-3.5" />
+			</span>
+			<span class="flex min-w-0 flex-col leading-tight">
+				<span class="truncate">{name}</span>
+				{detail && <span class="text-fg-subtle text-micro truncate">{detail}</span>}
+			</span>
+		</span>
+	)
+}

@@ -1,0 +1,99 @@
+---
+import ItemChip from "./ItemChip.astro";
+
+// Beside the hero's heading: items drifting up on the left as they are on your device,
+// and their ciphertext drifting down on the right, as the server keeps them.
+
+const items = [
+	{
+		brand: "Github",
+		name: "GitHub",
+		detail: "alex@acme.example",
+		cipher: "kX9fQ2Lq0vA7Tz",
+	},
+	{
+		brand: "Stripe",
+		name: "Stripe live key",
+		detail: "API key",
+		cipher: "U2Fs8dGVkX1eW4",
+	},
+	{
+		brand: "Figma",
+		name: "Figma",
+		detail: "design@acme.example",
+		cipher: "p0Rz8nWc4JdQ1m",
+	},
+	{
+		brand: "Cloudflare",
+		name: "Cloudflare token",
+		detail: "API key",
+		cipher: "f1Jw5uN9eL0oVx",
+	},
+	{
+		brand: "Linear",
+		name: "Linear",
+		detail: "alex@acme.example",
+		cipher: "Qw3oE7iU1yHs6b",
+	},
+	{
+		brand: "Postgresql",
+		name: "Postgres · staging",
+		detail: "app",
+		cipher: "m4Ls9Xa0Jf7TnR",
+	},
+	{
+		brand: "Vercel",
+		name: "Vercel",
+		detail: "ops@acme.example",
+		cipher: "Ze8cD1nR5qB2kP",
+	},
+	{
+		brand: "Notion",
+		name: "Notion",
+		detail: "team@acme.example",
+		cipher: "b6Nv2Kc8Ps4DwE",
+	},
+	{
+		brand: "Docker",
+		name: "Docker Hub",
+		detail: "acmebot",
+		cipher: "Yt2hG6vK4pWsL9",
+	},
+	{
+		brand: "Sentry",
+		name: "Sentry",
+		detail: "ops@acme.example",
+		cipher: "Gx5tR0wM3zLa8c",
+	},
+	{
+		brand: "Supabase",
+		name: "Supabase",
+		detail: "service key",
+		cipher: "Vn6sA0yP2gHkJ3",
+	},
+	{
+		brand: "Datadog",
+		name: "Datadog",
+		detail: "API key",
+		cipher: "Rk3bM8qZ7cXu1f",
+	},
+];
+---
+
+<!-- One column in each margin, outside the guide lines, where there's room for it. -->
+<div aria-hidden="true" class="wide:block pointer-events-none absolute inset-0 hidden">
+	<div class="mx-auto h-full max-w-6xl px-6">
+		<div class="relative h-full">
+			<div data-slot="stream" class="absolute inset-y-0 right-full mr-5 w-40">
+				<div data-slot="stream-track" style="--stream-duration: 60s">
+					{[...items, ...items].map((item) => <ItemChip brand={item.brand} name={item.name} detail={item.detail} />)}
+				</div>
+			</div>
+			<div data-slot="stream" class="absolute inset-y-0 left-full ml-5 w-40">
+				<div data-slot="stream-track" data-reverse style="--stream-duration: 60s; animation-delay: -7s">
+					{[...items, ...items].map((item) => <ItemChip brand={item.brand} name={item.name} cipher={item.cipher} />)}
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

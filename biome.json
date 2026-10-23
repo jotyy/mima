@@ -31,6 +31,9 @@
 			"!**/.source",
 			"!**/convex/_generated",
 			"!**/.wxt",
+			"!apps/site/public/docs",
+			"!apps/site/src/content/docs",
+			"!**/.astro",
 			"!apps/*/src/env.ts",
 			"!packages/*/src/env.ts"
 		]
@@ -39,7 +42,13 @@
 		"enabled": true,
 		"indentStyle": "tab"
 	},
-	"assist": { "actions": { "source": { "organizeImports": "on" } } },
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
+	},
 	"linter": {
 		"enabled": true,
 		"rules": {
@@ -76,5 +85,18 @@
 		"parser": {
 			"tailwindDirectives": true
 		}
-	}
+	},
+	"overrides": [
+		{
+			"includes": ["**/*.astro"],
+			"linter": {
+				"rules": {
+					"correctness": {
+						"noUnusedVariables": "off",
+						"noUnusedImports": "off"
+					}
+				}
+			}
+		}
+	]
 }

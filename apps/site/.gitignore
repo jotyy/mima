@@ -1,0 +1,5 @@
+dist/
+.astro/
+# Copied from the repository's docs/ by scripts/sync-docs.ts.
+src/content/docs/
+public/docs/
