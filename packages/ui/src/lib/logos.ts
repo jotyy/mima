@@ -5,6 +5,9 @@
 /** The vauly project's Brandfetch client ID; an instance can use its own. */
 export const BRANDFETCH_CLIENT_ID = "1idzU4xXvIcwxy_dNwT";
 
+/** Where the logos load from, which the web app's Content-Security-Policy allows. */
+export const LOGO_ORIGIN = "https://cdn.brandfetch.io";
+
 type Kind = "login" | "api-key" | "note" | "ssh-key";
 
 /** Well-known services, found by name for items without a website (API keys, mostly). */
@@ -118,5 +121,5 @@ export function logoUrl(
 	clientId = BRANDFETCH_CLIENT_ID,
 ) {
 	const px = size * 2;
-	return `https://cdn.brandfetch.io/${encodeURIComponent(domain)}/w/${px}/h/${px}/fallback/404/icon?c=${clientId}`;
+	return `${LOGO_ORIGIN}/${encodeURIComponent(domain)}/w/${px}/h/${px}/fallback/404/icon?c=${clientId}`;
 }

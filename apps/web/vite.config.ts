@@ -4,25 +4,29 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin, type ResolvedConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
+import { headersFile } from "./security-headers";
+
+/** A VITE_ setting: the stack passes them through `define`, a plain build reads the env. */
+function setting(config: ResolvedConfig | undefined, name: string) {
+	const defined = config?.define?.[`import.meta.env.${name}`];
+	if (typeof defined === "string") {
+		try {
+			return String(JSON.parse(defined));
+		} catch {
+			return defined;
+		}
+	}
+	return config?.env[name] ?? "";
+}
+
 /**
  * Serves /vauly.json with the API address, so the browser extension can connect from the
  * web app address people already know. Without an API address the app and the API share
  * one Worker, which answers /vauly.json itself.
  */
 function vaulyJson(): Plugin {
-	// The stack passes VITE_SERVER_URL through `define`; a plain build reads it from the env.
 	let config: ResolvedConfig | undefined;
-	const server = () => {
-		const defined = config?.define?.["import.meta.env.VITE_SERVER_URL"];
-		if (typeof defined === "string") {
-			try {
-				return String(JSON.parse(defined));
-			} catch {
-				return defined;
-			}
-		}
-		return config?.env.VITE_SERVER_URL ?? "";
-	};
+	const server = () => setting(config, "VITE_SERVER_URL");
 	const body = () => JSON.stringify({ server: server() });
 	return {
 		name: "vauly-json",
@@ -38,6 +42,25 @@ function vaulyJson(): Plugin {
 		generateBundle() {
 			if (!server()) return;
 			this.emitFile({ type: "asset", fileName: "vauly.json", source: body() });
+		},
+	};
+}
+
+/** Writes _headers: the Content-Security-Policy and the other headers the app needs. */
+function securityHeaders(): Plugin {
+	let config: ResolvedConfig | undefined;
+	return {
+		name: "vauly-security-headers",
+		apply: "build",
+		configResolved(resolved) {
+			config = resolved;
+		},
+		generateBundle() {
+			const source = headersFile({
+				server: setting(config, "VITE_SERVER_URL"),
+				logos: setting(config, "VITE_BRANDFETCH_CLIENT_ID") !== "off",
+			});
+			this.emitFile({ type: "asset", fileName: "_headers", source });
 		},
 	};
 }
@@ -58,6 +81,7 @@ export default defineConfig(() => {
 			}),
 			react(),
 			vaulyJson(),
+			securityHeaders(),
 			VitePWA({
 				registerType: "autoUpdate",
 				workbox: {

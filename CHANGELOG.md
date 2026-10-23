@@ -29,3 +29,4 @@ The first public version.
 - Brand logos for logins and well-known services, in the web app and the extension, from Brandfetch. Only a brand's own domain is looked up, never a subdomain or a private address, and logos can be turned off per device or per instance.
 - Layouts for phones, light and dark themes, and installing vauly as an app (PWA).
 - Self-hosting on Cloudflare Workers and D1 with Alchemy.
+- A strict Content-Security-Policy for the web app, which also keeps other sites from showing it in a frame, with the usual security headers alongside.

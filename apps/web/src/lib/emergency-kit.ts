@@ -62,7 +62,6 @@ export function emergencyKitHtml(kit: KitDetails, date = new Date()) {
 	</ul>
 	<footer>Printed from vauly. This page holds no secret until you write one on it.</footer>
 </main>
-<script>window.addEventListener("load", () => window.print());</script>
 </body>
 </html>`;
 }
@@ -83,6 +82,9 @@ export function openEmergencyKit(userId: string, kit: KitDetails) {
 	if (!page) return false;
 	page.document.write(emergencyKitHtml(kit));
 	page.document.close();
+	// The new window shares this page's Content-Security-Policy, which runs no inline
+	// script, so the print dialog opens from here.
+	page.addEventListener("load", () => page.print(), { once: true });
 	try {
 		localStorage.setItem(doneKey(userId), new Date().toISOString());
 	} catch {
