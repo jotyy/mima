@@ -1,4 +1,9 @@
-import { type APIRequestContext, expect, type Page } from "@playwright/test";
+import {
+	type APIRequestContext,
+	expect,
+	type Locator,
+	type Page,
+} from "@playwright/test";
 
 import { API_URL, RESET_TOKEN } from "../playwright.config";
 
@@ -100,4 +105,12 @@ export function sidebarLink(page: Page, name: string) {
 	return page
 		.getByRole("navigation")
 		.getByRole("link", { name: new RegExp(`^${label}( \\d+)?$`) });
+}
+
+/** Fails when something inside sticks out sideways, like a long link widening a dialog. */
+export async function expectNoSidewaysOverflow(locator: Locator) {
+	const overflow = await locator.evaluate(
+		(element) => element.scrollWidth - element.clientWidth,
+	);
+	expect(overflow, "content wider than its box").toBeLessThanOrEqual(1);
 }

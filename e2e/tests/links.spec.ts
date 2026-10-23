@@ -3,6 +3,7 @@ import { type Browser, expect, type Page, test } from "@playwright/test";
 import {
 	apiFromPage,
 	createWorkspace,
+	expectNoSidewaysOverflow,
 	openAllItems,
 	owner,
 	resetWorkspace,
@@ -48,6 +49,7 @@ async function createLink(page: Page, options: { once?: boolean } = {}) {
 	await expect(
 		dialog.getByRole("heading", { name: "Your link is ready" }),
 	).toBeVisible();
+	await expectNoSidewaysOverflow(dialog);
 	const url = ((await dialog.getByTestId("share-link").textContent()) ?? "")
 		.trim()
 		.replace(/^.*?\/s\//, "/s/");

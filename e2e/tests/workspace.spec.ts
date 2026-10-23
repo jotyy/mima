@@ -2,6 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 
 import {
 	createWorkspace,
+	expectNoSidewaysOverflow,
 	openUserMenu,
 	owner,
 	resetWorkspace,
@@ -21,6 +22,7 @@ async function invite(page: Page, email: string) {
 	await page.getByRole("button", { name: "Invite" }).click();
 	const link = page.getByTestId("invite-link");
 	await expect(link).toContainText("/join?token=");
+	await expectNoSidewaysOverflow(page.getByRole("dialog"));
 	const url = ((await link.textContent()) ?? "").trim();
 	await page.getByRole("button", { name: "Done" }).click();
 	return url;
