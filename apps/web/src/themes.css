@@ -1,7 +1,8 @@
 /*
- * Styles to choose from. Each keeps mima blue and the logo, and applies only inside the
- * app: the app shell sets data-style on <html> while it's open, so sign-in keeps its own
- * look. Without data-style, mima looks as it always has ("classic").
+ * Styles to choose from. Every one keeps mima's layout, mima blue, the logo and the
+ * sign-in page; they change only how things look: neutrals, surfaces, depth, radii,
+ * type and how a selection shows. The app shell sets data-style on <html> while it's
+ * open. Without it, mima looks as it always has ("classic").
  */
 
 /* ── Frost: light and airy. A soft blue morning light behind everything, a glass sidebar,
@@ -100,31 +101,31 @@ html[data-style="frost"] [data-slot="page-header"] h1 {
 	letter-spacing: -0.02em;
 }
 
-/* ── Pure: after Mercury, Attio and Linear's light theme. White paper, hairlines, room
-   to breathe and quiet type; color only where it means something. ─────────────────── */
+/* ── Pure: after Mercury and Attio. Near-white paper, cards drawn with a single hairline,
+   no drop shadows, quiet type; color only where it means something. ──────────────── */
 
 html[data-style="pure"] {
-	--frame: #fafafb;
-	--canvas: #ffffff;
+	--frame: #f9f9fa;
+	--canvas: #fbfbfc;
 	--surface: #ffffff;
-	--surface-sunken: #f7f7f8;
+	--surface-sunken: #f6f6f7;
 	--fg: #111113;
 	--fg-emphasis: #29292e;
 	--fg-muted: #55555c;
 	--fg-subtle: #75757e;
 	--fg-faint: #a6a6ae;
-	--line: #ebebee;
-	--line-subtle: #f3f3f5;
-	--line-strong: #dadade;
+	--line: #e9e9ec;
+	--line-subtle: #f1f1f3;
+	--line-strong: #d8d8dd;
 	--hairline: rgb(17 17 19 / 6%);
 	--tint: #111113;
-	--skeleton: #f0f0f2;
-	--elevation-card: 0 0 0 1px #ebebee;
-	--elevation-pill: 0 0 0 1px #e4e4e8, 0 1px 2px rgb(17 17 19 / 4%);
+	--skeleton: #efeff1;
+	--elevation-card: 0 0 0 1px #e9e9ec;
+	--elevation-pill: 0 0 0 1px #e2e2e6;
 	--elevation-popover:
-		0 0 0 1px #e4e4e8, 0 0.75rem 2rem -0.75rem rgb(17 17 19 / 18%);
+		0 0 0 1px #e2e2e6, 0 0.75rem 2rem -0.75rem rgb(17 17 19 / 16%);
 	--elevation-float:
-		0 0 0 1px #e4e4e8, 0 0.5rem 1.5rem -0.75rem rgb(17 17 19 / 14%);
+		0 0 0 1px #e2e2e6, 0 0.5rem 1.5rem -0.75rem rgb(17 17 19 / 12%);
 	--radius: 0.5rem;
 	--round-window: 10px;
 	--round-shell: 12px;
@@ -150,142 +151,68 @@ html.dark[data-style="pure"] {
 	--elevation-pill: 0 0 0 1px #2a2a2f;
 }
 
-html[data-style="pure"] [data-slot="app-shell"] {
-	background: var(--canvas);
-}
-
-html[data-style="pure"] [data-slot="topbar"] {
-	border-bottom: 1px solid var(--line);
-	background: var(--frame);
-}
-
-html[data-style="pure"] [data-slot="sidebar"] {
-	background: var(--frame);
-	border-right: 1px solid var(--line);
-}
-
-html[data-style="pure"] [data-slot="sidebar"] > nav {
-	margin-top: 1.25rem;
-}
-
-html[data-style="pure"] [data-slot="page-header"] {
-	align-items: flex-start;
-	text-align: left;
-	gap: 0.25rem;
-	padding-top: 0.5rem;
-}
-
 html[data-style="pure"] [data-slot="page-header"] h1 {
-	font-size: 24px;
 	font-weight: 600;
-	letter-spacing: -0.02em;
-}
-
-html[data-style="pure"] [data-slot="page-header"] p {
-	color: var(--fg-subtle);
+	letter-spacing: -0.015em;
 }
 
 html[data-style="pure"] [data-slot="section-title"] h2 {
 	font-weight: 600;
-	color: var(--fg);
 }
 
 html[data-style="pure"] [data-slot="nav-label"] {
 	border: 0;
 	background: none;
-	padding-left: 0.5rem;
 	font-weight: 500;
 	color: var(--fg-faint);
 }
 
 html[data-style="pure"] [data-slot="nav-link"][data-status="active"] {
-	background: color-mix(in oklab, var(--tint) 5%, transparent);
+	background: var(--surface);
+	box-shadow: var(--elevation-pill);
 	color: var(--fg);
 }
 
-html[data-style="pure"] [data-slot="lock-box"] {
-	border-color: transparent;
-	background: none;
-	padding-inline: 0.5rem;
-}
-
-html[data-style="pure"] [data-slot="search-card"] {
-	border: 0;
-	background: none;
-}
-
-html[data-style="pure"] [data-slot="search-hint"] {
-	display: none;
-}
-
-/* Filters read as plain tabs on a line, not buttons in a tray. */
-html[data-style="pure"] [data-slot="tabs-list"][data-variant="default"] {
-	gap: 1rem;
-	padding: 0;
-	border-radius: 0;
-	background: none;
-	box-shadow: inset 0 -1px 0 var(--line);
-}
-
-html[data-style="pure"]
-	[data-slot="tabs-list"][data-variant="default"]
-	> [data-slot="tabs-trigger"] {
-	padding-inline: 0;
-}
-
-html[data-style="pure"]
-	[data-slot="tabs-list"][data-variant="default"]
-	> [data-slot="tabs-indicator"] {
-	top: auto;
-	bottom: 0;
-	height: 2px;
-	border-radius: 0;
-	background: var(--fg);
-	box-shadow: none;
-}
-
-html[data-style="pure"] [data-slot="item-tile"] {
-	box-shadow: 0 0 0 1px var(--line);
-}
-
-/* ── Glass: after Apple's Passwords app and macOS Settings, and Raycast. A translucent
-   sidebar over a soft wash, the content as a window pane, grouped cards, and the accent
-   where the system would put it. ───────────────────────────────────────────────────── */
+/* ── Glass: after Apple's Passwords app and macOS. Frosted cards over a faint blue wash,
+   accent-tinted sidebar icons with a filled selection, and blue primary buttons. ──── */
 
 html[data-style="glass"] {
-	--frame: #eceff5;
-	--canvas: #f5f6f8;
-	--surface: #ffffff;
-	--surface-sunken: #f2f3f6;
+	--frame: #eef1f6;
+	--canvas: #f2f4f8;
+	--surface: rgb(255 255 255 / 78%);
+	--surface-sunken: rgb(255 255 255 / 55%);
 	--fg: #1d1d1f;
 	--fg-emphasis: #323236;
 	--fg-muted: #55565c;
-	--fg-subtle: #77787f;
+	--fg-subtle: #76777e;
 	--fg-faint: #a9a9af;
-	--line: rgb(0 0 0 / 9%);
+	--line: rgb(0 0 0 / 8%);
 	--line-subtle: rgb(0 0 0 / 5%);
-	--line-strong: rgb(0 0 0 / 15%);
+	--line-strong: rgb(0 0 0 / 14%);
 	--hairline: rgb(0 0 0 / 6%);
 	--tint: #1d1d1f;
 	--cta: var(--brand);
 	--cta-hover: var(--brand-hover);
-	--elevation-card: 0 0 0 0.5px rgb(0 0 0 / 7%), 0 1px 3px rgb(0 0 0 / 6%);
+	/* Dialogs and menus stay solid: only cards on the page are frosted. */
+	--popover: #ffffff;
+	--elevation-card:
+		inset 0 0 0 0.5px rgb(255 255 255 / 80%), 0 0 0 0.5px rgb(0 0 0 / 8%),
+		0 1px 3px rgb(0 0 0 / 5%), 0 8px 24px -12px rgb(31 60 150 / 18%);
 	--elevation-pill: 0 0.5px 1.5px rgb(0 0 0 / 12%), 0 0 0 0.5px rgb(0 0 0 / 6%);
 	--elevation-popover:
 		0 0 0 0.5px rgb(0 0 0 / 10%), 0 1.25rem 2.5rem -0.75rem rgb(0 0 0 / 24%);
-	--elevation-float:
-		0 0 0 0.5px rgb(0 0 0 / 8%), 0 0.75rem 2rem -0.75rem rgb(0 0 0 / 20%);
 	--radius: 0.6rem;
-	--round-window: 12px;
-	--round-shell: 14px;
-	--round-panel: 16px;
+	--round-window: 14px;
+	--round-shell: 16px;
+	--round-panel: 18px;
 }
 
 html.dark[data-style="glass"] {
-	--frame: #16171c;
-	--canvas: #1b1c20;
-	--surface: #232428;
-	--surface-sunken: #1e1f23;
+	--popover: #26272d;
+	--frame: #121318;
+	--canvas: #15161b;
+	--surface: rgb(40 41 48 / 72%);
+	--surface-sunken: rgb(255 255 255 / 4%);
 	--fg: #f5f5f7;
 	--fg-emphasis: #dcdce0;
 	--fg-muted: #aeaeb4;
@@ -296,66 +223,38 @@ html.dark[data-style="glass"] {
 	--line-strong: rgb(255 255 255 / 15%);
 	--tint: #ffffff;
 	--elevation-card:
-		0 0 0 0.5px rgb(255 255 255 / 8%), 0 1px 3px rgb(0 0 0 / 40%);
+		inset 0 0 0 0.5px rgb(255 255 255 / 8%), 0 1px 3px rgb(0 0 0 / 40%);
 }
 
 html[data-style="glass"] [data-slot="app-shell"] {
 	background:
-		radial-gradient(80% 60% at 0% 0%, rgb(31 91 249 / 0.12), transparent 70%),
+		radial-gradient(70% 55% at 0% 0%, rgb(31 91 249 / 0.1), transparent 70%),
+		radial-gradient(60% 50% at 100% 10%, rgb(54 177 254 / 0.1), transparent 70%),
 		radial-gradient(
-			70% 60% at 0% 100%,
-			rgb(128 141 254 / 0.12),
+			70% 60% at 50% 110%,
+			rgb(128 141 254 / 0.08),
 			transparent 70%
 		),
 		var(--frame);
 }
 
-html[data-style="glass"] :is([data-slot="sidebar"], [data-slot="topbar"]) {
-	background: rgb(255 255 255 / 35%);
-}
-
-html.dark[data-style="glass"] :is([data-slot="sidebar"], [data-slot="topbar"]) {
-	background: rgb(30 31 36 / 45%);
-}
-
-html[data-style="glass"] [data-slot="sidebar"] > nav {
-	margin-top: 1rem;
-}
-
-/* The content is a window pane set into the sidebar's glass. */
-html[data-style="glass"] [data-slot="app-main"] {
-	background: var(--canvas);
-	border-top-left-radius: var(--round-panel);
-	box-shadow:
-		0 0 0 0.5px rgb(0 0 0 / 10%),
-		-8px 0 24px -16px rgb(0 0 0 / 18%);
-}
-
-html.dark[data-style="glass"] [data-slot="app-main"] {
-	box-shadow: 0 0 0 0.5px rgb(255 255 255 / 8%);
-}
-
-html[data-style="glass"] [data-slot="page-header"] {
-	align-items: flex-start;
-	text-align: left;
-	gap: 0.25rem;
+/* Frosted: cards blur what's behind them, so the wash shows through softly. */
+html[data-style="glass"] .shadow-card {
+	backdrop-filter: blur(20px) saturate(1.6);
 }
 
 html[data-style="glass"] [data-slot="page-header"] h1 {
-	font-size: 26px;
-	font-weight: 700;
-	letter-spacing: -0.022em;
+	font-weight: 600;
+	letter-spacing: -0.02em;
 }
 
 html[data-style="glass"] [data-slot="section-title"] h2 {
 	font-weight: 600;
-	color: var(--fg);
 }
 
 html[data-style="glass"] [data-slot="nav-label"] {
 	border: 0;
 	background: none;
-	padding-left: 0.5rem;
 	font-weight: 600;
 	color: var(--fg-subtle);
 }
@@ -374,39 +273,151 @@ html[data-style="glass"] [data-slot="nav-link"][data-status="active"] {
 	}
 }
 
-html[data-style="glass"] [data-slot="lock-box"] {
+/* ── Azure: mima blue all the way through. Neutrals with a faint blue cast, soft blue
+   shadows, blue labels and a blue selection; calm, friendly and unmistakably ours. ── */
+
+html[data-style="azure"] {
+	--frame: #f2f5fc;
+	--canvas: #f5f7fd;
+	--surface: #ffffff;
+	--surface-sunken: #f3f6fd;
+	--fg: #0c1530;
+	--fg-emphasis: #26324f;
+	--fg-muted: #46526e;
+	--fg-subtle: #64708c;
+	--fg-faint: #9aa4bc;
+	--line: #e0e6f3;
+	--line-subtle: #ebeff8;
+	--line-strong: #cbd4e7;
+	--hairline: rgb(16 40 120 / 7%);
+	--tint: #1d3a8f;
+	--skeleton: #e8edf8;
+	--elevation-card:
+		0 0 0 1px rgb(31 91 249 / 8%), 0 1px 2px rgb(16 40 120 / 5%),
+		0 6px 18px -6px rgb(16 40 120 / 12%);
+	--elevation-pill:
+		0 1px 3px rgb(16 40 120 / 10%), 0 0 0 1px rgb(31 91 249 / 7%);
+	--elevation-popover:
+		0 0 0 1px rgb(31 91 249 / 9%), 0 0.75rem 2rem -0.75rem rgb(16 40 120 / 26%);
+	--radius: 0.55rem;
+	--round-window: 12px;
+	--round-shell: 14px;
+	--round-panel: 18px;
+}
+
+html.dark[data-style="azure"] {
+	--frame: #080d1c;
+	--canvas: #0b1122;
+	--surface: #111a30;
+	--surface-sunken: #0e162a;
+	--fg: #eef2fc;
+	--fg-emphasis: #cfd8ec;
+	--fg-muted: #a7b3cd;
+	--fg-subtle: #7c89a6;
+	--fg-faint: #56627e;
+	--line: #1f2b47;
+	--line-subtle: #172138;
+	--line-strong: #2b3a5e;
+	--tint: #c9d8ff;
+	--skeleton: #17213a;
+	--elevation-card: 0 0 0 1px #1f2b47, 0 6px 18px -8px rgb(0 0 0 / 60%);
+	--elevation-pill: 0 0 0 1px #2b3a5e;
+}
+
+html[data-style="azure"] [data-slot="nav-label"] {
 	border-color: transparent;
-	background: rgb(255 255 255 / 45%);
+	background: var(--brand-soft);
+	color: var(--brand);
 }
 
-html.dark[data-style="glass"] [data-slot="lock-box"] {
-	background: rgb(255 255 255 / 5%);
+html[data-style="azure"] [data-slot="nav-link"][data-status="active"] {
+	background: var(--brand-soft);
+	color: var(--brand);
+	font-weight: 500;
 }
 
-html[data-style="glass"] [data-slot="search-card"] {
-	border: 0;
-	background: none;
+html[data-style="azure"] [data-slot="page-header"] h1 {
+	font-weight: 600;
+	letter-spacing: -0.015em;
 }
 
-html[data-style="glass"] [data-slot="search-hint"] {
-	display: none;
+html[data-style="azure"] [data-slot="section-title"] h2 {
+	color: var(--brand-ink);
+	font-weight: 600;
 }
 
-html[data-style="glass"] [data-slot="item-tile"] {
-	border-radius: 8px;
+html.dark[data-style="azure"] [data-slot="section-title"] h2 {
+	color: var(--fg);
 }
 
-/* Frost, tidied like the others: no tray around the search, no card around the lock. */
-html[data-style="frost"] [data-slot="search-card"] {
-	border: 0;
-	background: none;
+/* ── Lift: depth done carefully. A slightly deeper frame, white cards with layered,
+   very soft shadows, rounder corners and firmer titles: tactile and premium. ────── */
+
+html[data-style="lift"] {
+	--frame: #eef0f3;
+	--canvas: #f1f2f5;
+	--surface: #ffffff;
+	--surface-sunken: #f5f6f8;
+	--fg: #0e0e10;
+	--fg-emphasis: #2a2a2f;
+	--fg-muted: #505058;
+	--fg-subtle: #71717b;
+	--fg-faint: #a3a3ab;
+	--line: #e3e4e9;
+	--line-subtle: #eeeff2;
+	--line-strong: #d2d3da;
+	--tint: #0e0e10;
+	--elevation-card:
+		0 0 0 1px rgb(14 14 16 / 5%), 0 1px 1px rgb(14 14 16 / 4%),
+		0 3px 6px -2px rgb(14 14 16 / 5%), 0 14px 32px -12px rgb(14 14 16 / 16%);
+	--elevation-pill:
+		0 0 0 1px rgb(14 14 16 / 6%), 0 1px 2px rgb(14 14 16 / 8%),
+		0 3px 8px -4px rgb(14 14 16 / 12%);
+	--elevation-popover:
+		0 0 0 1px rgb(14 14 16 / 6%), 0 1rem 2.5rem -0.75rem rgb(14 14 16 / 28%);
+	--radius: 0.6rem;
+	--round-window: 14px;
+	--round-shell: 16px;
+	--round-panel: 20px;
 }
 
-html[data-style="frost"] [data-slot="search-hint"] {
-	display: none;
+html.dark[data-style="lift"] {
+	--frame: #09090b;
+	--canvas: #0c0c0e;
+	--surface: #18181b;
+	--surface-sunken: #141417;
+	--fg: #f4f4f5;
+	--fg-emphasis: #d8d8dc;
+	--fg-muted: #aaaab2;
+	--fg-subtle: #82828b;
+	--fg-faint: #5b5b63;
+	--line: #26262b;
+	--line-subtle: #1d1d21;
+	--line-strong: #33333a;
+	--tint: #ffffff;
+	--elevation-card:
+		inset 0 1px 0 rgb(255 255 255 / 5%), 0 0 0 1px rgb(255 255 255 / 6%),
+		0 14px 32px -12px rgb(0 0 0 / 70%);
+	--elevation-pill: inset 0 1px 0 rgb(255 255 255 / 6%), 0 0 0 1px #2a2a30;
 }
 
-html[data-style="frost"] [data-slot="lock-box"] {
-	border-color: transparent;
-	background: none;
+html[data-style="lift"] [data-slot="page-header"] h1 {
+	font-size: 24px;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+}
+
+html[data-style="lift"] [data-slot="section-title"] h2 {
+	font-weight: 600;
+}
+
+html[data-style="lift"] [data-slot="nav-link"][data-status="active"] {
+	background: var(--surface);
+	box-shadow: var(--elevation-pill);
+	color: var(--fg);
+	font-weight: 500;
+}
+
+html[data-style="lift"] [data-slot="item-tile"] {
+	box-shadow: var(--elevation-pill);
 }
