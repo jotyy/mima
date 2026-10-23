@@ -91,3 +91,30 @@ test("every sign-in screen shows its whole card at every size", async ({
 	await expectWholeCard(guest, `Sign in to ${owner.workspace}`);
 	await guest.close();
 });
+
+test("the keyhole drifts over the ciphertext, reading the same rows", async ({
+	page,
+}) => {
+	await page.goto("/login");
+	const field = page.locator("[data-slot='cipher-field']");
+	const x = () =>
+		field.evaluate((element) => element.style.getPropertyValue("--x"));
+	const start = await x();
+	await expect.poll(x).not.toBe(start);
+
+	// The plain rows have their spaces where the ciphertext has them, and however far the
+	// keyhole has drifted, they sit exactly over it.
+	const [cipher, plain] = await field.locator("pre").allTextContents();
+	const shape = (text = "") => text.replace(/\S/g, "x");
+	expect(cipher?.length).toBeGreaterThan(1000);
+	expect(shape(plain)).toBe(shape(cipher));
+	const offset = await field.evaluate((element) => {
+		const [cipher, plain] = [...element.querySelectorAll("pre")].map((pre) =>
+			pre.getBoundingClientRect(),
+		);
+		return cipher && plain
+			? Math.hypot(plain.x - cipher.x, plain.y - cipher.y)
+			: Number.NaN;
+	});
+	expect(offset).toBeLessThan(0.5);
+});
