@@ -11,6 +11,7 @@ import {
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 
 import { backupFileName, toBackupCsv } from "@/lib/backup";
+import { DeviceUnlockUnavailable } from "@/lib/device-unlock";
 import { useKeyring, WrongPasswordError } from "@/lib/keyring";
 import { newMasterPasswordProblem } from "@/lib/secrets";
 import { errorMessage, useItems, useVaults } from "@/lib/vault-data";
@@ -116,6 +117,88 @@ export function ChangePasswordDialog({
 					autoComplete="new-password"
 					value={form.repeat}
 					onChange={set("repeat")}
+				/>
+			</Field>
+			<FormError>{error}</FormError>
+		</FormDialog>
+	);
+}
+
+/** Turns on unlocking with a passkey on this device, after the master password. */
+export function DeviceUnlockDialog({
+	open,
+	onOpenChange,
+}: {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+}) {
+	const keyring = useKeyring();
+	const [password, setPassword] = useState("");
+	const [error, setError] = useState("");
+	const [busy, setBusy] = useState(false);
+
+	useEffect(() => {
+		if (open) {
+			setPassword("");
+			setError("");
+		}
+	}, [open]);
+
+	const submit = async (event: FormEvent) => {
+		event.preventDefault();
+		setError("");
+		setBusy(true);
+		try {
+			await keyring.turnOnDeviceUnlock(password);
+			notify.success(
+				"This device unlocks with a passkey now",
+				"Signing in on another device still needs your master password.",
+			);
+			onOpenChange(false);
+		} catch (err) {
+			setError(
+				err instanceof WrongPasswordError
+					? "That's not your master password."
+					: err instanceof DeviceUnlockUnavailable
+						? err.message
+						: err instanceof DOMException && err.name === "NotAllowedError"
+							? "No passkey was saved. Try again, and confirm with Face ID, Touch ID, Windows Hello or your device's PIN."
+							: errorMessage(err),
+			);
+		} finally {
+			setBusy(false);
+		}
+	};
+
+	return (
+		<FormDialog
+			open={open}
+			onOpenChange={(next) => !busy && onOpenChange(next)}
+			title="Unlock with this device"
+			description="Enter your master password, then confirm with Face ID, Touch ID, Windows Hello or your device's PIN. vauly keeps a copy of your keys on this device that only this passkey opens."
+			onSubmit={submit}
+			footer={
+				<>
+					<Button
+						type="button"
+						variant="ghost"
+						onClick={() => onOpenChange(false)}
+					>
+						Cancel
+					</Button>
+					<Button type="submit" disabled={busy}>
+						{busy ? "Waiting for your passkey…" : "Turn on"}
+					</Button>
+				</>
+			}
+		>
+			<Field label="Master password">
+				<PasswordInput
+					required
+					autoFocus
+					autoComplete="current-password"
+					value={password}
+					onChange={(event) => setPassword(event.target.value)}
 				/>
 			</Field>
 			<FormError>{error}</FormError>

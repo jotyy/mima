@@ -131,6 +131,16 @@
 			}
 		}
 	],
+	"deviceKey": [
+		{
+			"prfOutput": "0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u8=",
+			"info": "vauly/device",
+			"deviceKey": "8437cc9bec09dd1c55bd8371272434e56a6e5589592dc2b4ba8a168e756a63d0",
+			"privateKey": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg39xIWH6p27YIMw3m4kGCDMC3dOnRc2F6c1sPBxfPy/uhRANCAATYf8lz1wcc3Jf7vbCOPXrpBfh01PqCxIgYnnnXuos/ZtVBtxucWy4s1QrORnTJ9TBQWA+c9fCF9EZ2ptfy85EA",
+			"iv": "QEFCQ0RFRkdISUpL",
+			"sealedPrivateKey": "QEFCQ0RFRkdISUpL.vdztpIOZuXrnLZpNFR+el0wWaNFx59iEY8atzc2l2Go8DP2UC/xKoUVSDQRnGdagNxtWvMtHEnJeZWj9Bk5u4fq721+iQEw7qXOzoQp7MiXtPw8N49Bi+V694PxTwZet9Y9v4O4P6PIDFGcO4Td0chhvNvy21vwxeSpu1akmex9IoTGilhfd5Ggn3KSCO9uRmWMfk92qbeSvkQ=="
+		}
+	],
 	"agentToken": [
 		{
 			"agentId": "agent_0123456789",

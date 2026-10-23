@@ -336,6 +336,46 @@ export async function changeMasterPassword(
 	};
 }
 
+// --- Unlocking with a passkey ----------------------------------------------------
+
+/**
+ * The key that seals this device's copy of the private key, from a passkey's PRF output.
+ * Only the authenticator can produce that output, and only after Face ID, Touch ID or a
+ * PIN, so the copy is useless to anyone holding just the device's storage.
+ */
+export async function deviceKey(prfOutput: Uint8Array): Promise<CryptoKey> {
+	const secret = await crypto.subtle.importKey(
+		"raw",
+		prfOutput as Bytes,
+		"HKDF",
+		false,
+		["deriveKey"],
+	);
+	return crypto.subtle.deriveKey(
+		{
+			name: "HKDF",
+			hash: "SHA-256",
+			salt: new Uint8Array(32),
+			info: encoder.encode("vauly/device"),
+		},
+		secret,
+		AES,
+		false,
+		["encrypt", "decrypt"],
+	);
+}
+
+/** Seals the account's private key (PKCS#8) with another key; `openPrivateKey` opens it. */
+export async function sealPrivateKey(
+	key: CryptoKey,
+	privateKey: CryptoKey,
+): Promise<Sealed> {
+	return seal(
+		key,
+		new Uint8Array(await crypto.subtle.exportKey("pkcs8", privateKey)),
+	);
+}
+
 // --- Agent tokens ----------------------------------------------------------------
 
 /** `vauly_agent_<id>.<secret>.<private key>`: everything an agent needs, shown once. */

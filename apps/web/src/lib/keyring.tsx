@@ -23,6 +23,12 @@ import {
 
 import { notify } from "@/components/notify";
 import { authClient } from "@/lib/auth-client";
+import {
+	forgetDeviceUnlock,
+	readDeviceUnlock,
+	turnOnDeviceUnlock,
+	unlockWithDevice,
+} from "@/lib/device-unlock";
 import { client, SESSION_ENDED } from "@/utils/orpc";
 
 // The keyring holds the unlocked private key and the vault keys in memory only. A reload,
@@ -63,6 +69,13 @@ type Keyring = {
 	/** With two-step login on, the second try carries the code. */
 	signIn: (email: string, password: string, code?: string) => Promise<void>;
 	unlock: (password: string) => Promise<void>;
+	/** Whether this device keeps a passkey-sealed copy of the private key for this account. */
+	deviceUnlock: boolean;
+	/** Unlocks with that passkey. Rejects with a NotAllowedError if the person cancels. */
+	unlockWithPasskey: () => Promise<void>;
+	/** Turns on unlocking with a passkey here, after checking the master password. */
+	turnOnDeviceUnlock: (password: string) => Promise<void>;
+	turnOffDeviceUnlock: () => Promise<void>;
 	register: (input: {
 		email: string;
 		name: string;
@@ -125,6 +138,34 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 	const autoLockMs = autoLockMinutes * 60_000;
 	const privateKey = useRef<CryptoKey | null>(null);
 	const vaultKeys = useRef(new Map<string, Promise<CryptoKey>>());
+	const [deviceUnlock, setDeviceUnlock] = useState(false);
+	const meRef = useRef(me);
+	meRef.current = me;
+
+	// This device's passkey copy, if there is one and it still belongs to this account and
+	// this session.
+	useEffect(() => {
+		if (!me) return setDeviceUnlock(false);
+		let cancelled = false;
+		(async () => {
+			const record = await readDeviceUnlock(me.id);
+			const session = record ? await authClient.getSession() : null;
+			const current =
+				record?.publicKey === me.keys.publicKey &&
+				record.sessionId === session?.data?.session.id;
+			if (record && !current) await forgetDeviceUnlock(me.id);
+			if (!cancelled) setDeviceUnlock(current);
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [me]);
+
+	/** Drops this device's passkey copy, on sign-out and when the password changes. */
+	const forgetDevice = useCallback(async (accountId: string | undefined) => {
+		setDeviceUnlock(false);
+		if (accountId) await forgetDeviceUnlock(accountId);
+	}, []);
 
 	const loadMe = useCallback(async () => {
 		const profile = (await client.account.me()) as Me;
@@ -207,6 +248,27 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 		[me, open],
 	);
 
+	const unlockWithPasskey = useCallback(async () => {
+		if (!me) throw new Error("Sign in first");
+		const record = await readDeviceUnlock(me.id);
+		if (!record) {
+			setDeviceUnlock(false);
+			throw new Error("This device has no passkey for vauly any more.");
+		}
+		let key: CryptoKey;
+		try {
+			key = await unlockWithDevice(record);
+		} catch (err) {
+			// A cancel leaves everything as it was; anything else means the copy is no good.
+			const cancelled =
+				err instanceof DOMException &&
+				(err.name === "NotAllowedError" || err.name === "AbortError");
+			if (!cancelled) await forgetDevice(me.id);
+			throw err;
+		}
+		open(key);
+	}, [me, open, forgetDevice]);
+
 	const register = useCallback<Keyring["register"]>(
 		async ({
 			email,
@@ -250,6 +312,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 		const ended = () => {
 			if (statusRef.current !== "locked" && statusRef.current !== "unlocked")
 				return;
+			forgetDevice(meRef.current?.id);
 			lock();
 			setMe(null);
 			setStatus("signed-out");
@@ -257,14 +320,14 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 		};
 		window.addEventListener(SESSION_ENDED, ended);
 		return () => window.removeEventListener(SESSION_ENDED, ended);
-	}, [lock]);
+	}, [lock, forgetDevice]);
 
 	const signOut = useCallback(async () => {
 		lock();
-		await authClient.signOut();
+		await Promise.all([forgetDevice(meRef.current?.id), authClient.signOut()]);
 		setMe(null);
 		setStatus("signed-out");
-	}, [lock]);
+	}, [lock, forgetDevice]);
 
 	const verifyPassword = useCallback(
 		async (password: string) => {
@@ -302,9 +365,36 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 					encryptedPrivateKey: changed.keys.encryptedPrivateKey,
 				},
 			});
+			// The key pair stays the same, so a passkey copy would outlive the old password.
+			await forgetDevice(me.id);
 			await loadMe();
 		},
-		[me, loadMe],
+		[me, loadMe, forgetDevice],
+	);
+
+	const turnOnPasskey = useCallback(
+		async (password: string) => {
+			const key = privateKey.current;
+			if (!me || !key) throw new Error("Unlock vauly first");
+			if (!(await verifyPassword(password))) throw new WrongPasswordError();
+			const session = await authClient.getSession();
+			if (!session.data) throw new Error("Sign in again first");
+			await turnOnDeviceUnlock({
+				sessionId: session.data.session.id,
+				id: me.id,
+				email: me.email,
+				name: me.name,
+				publicKey: me.keys.publicKey,
+				privateKey: key,
+			});
+			setDeviceUnlock(true);
+		},
+		[me, verifyPassword],
+	);
+
+	const turnOffPasskey = useCallback(
+		() => forgetDevice(me?.id),
+		[me, forgetDevice],
 	);
 
 	const rename = useCallback(
@@ -375,6 +465,10 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			locksAt: status === "unlocked" ? lastActive + autoLockMs : null,
 			signIn,
 			unlock,
+			deviceUnlock,
+			unlockWithPasskey,
+			turnOnDeviceUnlock: turnOnPasskey,
+			turnOffDeviceUnlock: turnOffPasskey,
 			register,
 			lock,
 			signOut,
@@ -400,6 +494,10 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			lastActive,
 			signIn,
 			unlock,
+			deviceUnlock,
+			unlockWithPasskey,
+			turnOnPasskey,
+			turnOffPasskey,
 			register,
 			lock,
 			signOut,

@@ -1,4 +1,6 @@
+import { FingerprintIcon } from "@phosphor-icons/react";
 import { Avatar, AvatarFallback } from "@vauly/ui/components/avatar";
+import { Button } from "@vauly/ui/components/button";
 import { useState } from "react";
 
 import { demoAccount } from "@/env.public";
@@ -20,6 +22,26 @@ export function UnlockScreen() {
 	const [password, setPassword] = useState(demoAccount?.password ?? "");
 	const [error, setError] = useState("");
 	const [busy, setBusy] = useState(false);
+	const [waiting, setWaiting] = useState(false);
+
+	const unlockWithPasskey = async () => {
+		setWaiting(true);
+		setError("");
+		try {
+			await keyring.unlockWithPasskey();
+		} catch (err) {
+			const cancelled =
+				err instanceof DOMException &&
+				(err.name === "NotAllowedError" || err.name === "AbortError");
+			if (!cancelled) {
+				setError(
+					"The passkey didn't unlock vauly, so this device won't offer it again. Use your master password, and turn it back on in Settings.",
+				);
+			}
+		} finally {
+			setWaiting(false);
+		}
+	};
 
 	return (
 		<AuthLayout
@@ -47,6 +69,26 @@ export function UnlockScreen() {
 				</p>
 			}
 		>
+			{keyring.deviceUnlock && (
+				<div className="mb-4 flex flex-col gap-4">
+					<Button
+						type="button"
+						variant="brand"
+						size="lg"
+						className="h-10 w-full rounded-full"
+						disabled={waiting}
+						onClick={unlockWithPasskey}
+					>
+						<FingerprintIcon data-icon="inline-start" />
+						{waiting ? "Waiting for your passkey…" : "Unlock with passkey"}
+					</Button>
+					<p className="text-caption text-fg-subtle flex items-center gap-3">
+						<span className="bg-line h-px flex-1" />
+						or with your master password
+						<span className="bg-line h-px flex-1" />
+					</p>
+				</div>
+			)}
 			<form
 				className="flex flex-col gap-4"
 				onSubmit={async (event) => {
@@ -76,7 +118,7 @@ export function UnlockScreen() {
 				>
 					<PasswordInput
 						className="h-10"
-						autoFocus
+						autoFocus={!keyring.deviceUnlock}
 						required
 						autoComplete="current-password"
 						value={password}
@@ -84,7 +126,11 @@ export function UnlockScreen() {
 					/>
 				</Field>
 				<FormError>{error}</FormError>
-				<SubmitButton busy={busy} busyLabel="Unlocking…">
+				<SubmitButton
+					busy={busy}
+					busyLabel="Unlocking…"
+					variant={keyring.deviceUnlock ? "outline" : "brand"}
+				>
 					Unlock
 				</SubmitButton>
 			</form>

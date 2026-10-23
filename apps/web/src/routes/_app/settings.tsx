@@ -15,12 +15,13 @@ import { Skeleton } from "@vauly/ui/components/skeleton";
 import { Switch } from "@vauly/ui/components/switch";
 import { Tabs, TabsList, TabsTrigger } from "@vauly/ui/components/tabs";
 import { useTheme } from "next-themes";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { notify } from "@/components/notify";
 import { Page, SectionTitle } from "@/components/page";
 import {
 	ChangePasswordDialog,
+	DeviceUnlockDialog,
 	ExportDialog,
 } from "@/components/settings-dialogs";
 import { StylePicker } from "@/components/style-picker";
@@ -35,6 +36,7 @@ import {
 	useBreachCheck,
 } from "@/lib/breaches";
 import { describeDevice } from "@/lib/device";
+import { deviceUnlockSupported } from "@/lib/device-unlock";
 import { openEmergencyKit } from "@/lib/emergency-kit";
 import { ago, plural } from "@/lib/format";
 import {
@@ -68,8 +70,14 @@ function Settings() {
 	const [changing, setChanging] = useState(false);
 	const [exporting, setExporting] = useState(false);
 	const [twoStep, setTwoStep] = useState<"on" | "off" | null>(null);
+	const [passkey, setPasskey] = useState(false);
+	const [passkeySupported, setPasskeySupported] = useState(false);
 	const logosShown = useLogosShown();
 	const breachCheck = useBreachCheck();
+
+	useEffect(() => {
+		deviceUnlockSupported().then(setPasskeySupported);
+	}, []);
 	const me = keyring.me;
 	if (!me) return null;
 	const isAdmin = me.role !== "member";
@@ -148,6 +156,25 @@ function Settings() {
 
 			<SectionTitle>This device</SectionTitle>
 			<Card>
+				{(passkeySupported || keyring.deviceUnlock) && (
+					<Row
+						label="Unlock with this device"
+						hint="Face ID, Touch ID, Windows Hello or this device's PIN instead of the master password, here only. Signing in still needs the master password."
+					>
+						<Switch
+							aria-label="Unlock with this device"
+							checked={keyring.deviceUnlock}
+							onCheckedChange={async (on) => {
+								if (on) return setPasskey(true);
+								await keyring.turnOffDeviceUnlock();
+								notify.success(
+									"Unlocking with a passkey is off",
+									"This device asks for the master password again.",
+								);
+							}}
+						/>
+					</Row>
+				)}
 				<Row
 					label="Lock after"
 					hint="Idle time before vauly forgets the keys and asks for the master password."
@@ -274,6 +301,7 @@ function Settings() {
 
 			<ChangePasswordDialog open={changing} onOpenChange={setChanging} />
 			<ExportDialog open={exporting} onOpenChange={setExporting} />
+			<DeviceUnlockDialog open={passkey} onOpenChange={setPasskey} />
 			<TurnOnTwoStepDialog
 				open={twoStep === "on"}
 				onOpenChange={(open) => !open && setTwoStep(null)}

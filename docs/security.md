@@ -26,7 +26,7 @@ item key           AES-256-GCM, one per item, wrapped with its vault key
 ```
 
 - **Signing in.** The browser asks for your salt, derives the auth key and uses it as the password for the session. The server stores only a hash of the auth key (Better Auth's default, scrypt). For an email it doesn't know, the server returns a stable made-up salt, so the sign-in page doesn't reveal who has an account.
-- **Unlocking.** The wrap key opens your private key. With it the browser unwraps the keys of your vaults, then the keys of their items. All of these stay in memory: reloading the page, choosing **Lock now** or staying idle (15 minutes by default, set per device) forgets them. The session cookie alone opens nothing.
+- **Unlocking.** The wrap key opens your private key. With it the browser unwraps the keys of your vaults, then the keys of their items. All of these stay in memory: reloading the page, choosing **Lock now** or staying idle (15 minutes by default, set per device) forgets them. The session cookie alone opens nothing. A device can also unlock with a passkey instead of the master password; see [Unlocking with a passkey](#unlocking-with-a-passkey).
 - **Encryption.** Every encrypted value is AES-256-GCM with a fresh random 12-byte IV, stored as `base64(iv).base64(ciphertext)`.
 - **Sharing.** To give someone a vault, the browser wraps the vault key to their public key: an ephemeral ECDH P-256 key pair, HKDF-SHA256 bound to the recipient's public key, then AES-256-GCM. Only their private key can open it.
 - **Roles in a vault.** Each person can view, edit or manage a shared vault. The server enforces the role: it refuses changes to items, share links and agent access from someone who can only view, and changes to who can open the vault from anyone but its managers. Cryptography can't make the difference, since reading a vault takes its key, and the key would let someone encrypt new items too. A viewer who wanted to could keep what they read, as anyone with access could.
@@ -60,6 +60,16 @@ Another implementation, such as a native app, must produce exactly these bytes. 
 |                                                                                                                 | The activity log: who did what to which item ID, and when                               |
 |                                                                                                                 | Agent names, their public keys, a hash of their token secret, and the commands they ran |
 |                                                                                                                 | Public keys of people and agents                                                        |
+
+## Unlocking with a passkey
+
+On a device where you turn on **Settings › Unlock with this device**, vauly unlocks with Face ID, Touch ID, Windows Hello or the device's PIN instead of the master password. It works only in browsers whose passkeys support the WebAuthn PRF extension, and vauly doesn't offer it anywhere else.
+- **Turning it on** asks for the master password first. Then the browser creates a passkey for your vauly's address, which needs the device to verify you. The passkey's PRF extension, given a random 32-byte salt, returns a secret that only that passkey can produce, and only after that check. HKDF-SHA256 (info `vauly/device`) turns the secret into an AES-256-GCM key, which seals a copy of your private key.
+- **This device keeps** the sealed copy, the passkey's ID, the salt and your public key, in IndexedDB. The PRF secret and the key made from it are never stored, and nothing of this reaches the server, not even the passkey's ID. The server learns nothing new.
+- **Unlocking** asks for the passkey, gets the same secret and opens the copy. It happens only on the unlock screen, inside a session the server still accepts, so the copy alone doesn't let anyone in. Signing in on a device still needs the master password.
+- **The copy belongs to the session it was made in.** A new sign-in on the device starts without it, after any sign-out, from this device or another, and after a session runs out. It's also deleted when you turn it off, change your master password on that device, or if it ever fails to open. To shut out a lost device, sign it out under **Settings › Where you're signed in**: without that session, the copy is useless.
+
+Someone needs both this device's storage and the passkey, with your face, fingerprint or device PIN, to use the copy. That's no weaker than holding the device unlocked. Passkeys that sync, such as in iCloud Keychain or Google Password Manager, reach your other devices too; someone who controls that account and also has a copy of this device's storage could unlock. Your key pair never changes, not even with a new master password, so a copy taken earlier stays useful to such a person until the session is signed out.
 
 ## Agents and scripts
 

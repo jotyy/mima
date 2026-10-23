@@ -7,6 +7,7 @@ import {
 	createAccount,
 	decodeAgentToken,
 	deriveMasterKeys,
+	deviceKey,
 	encodeAgentToken,
 	fromBase64,
 	importPrivateKey,
@@ -14,9 +15,11 @@ import {
 	keyToText,
 	open,
 	openJson,
+	openPrivateKey,
 	parseTotp,
 	seal,
 	sealJson,
+	sealPrivateKey,
 	sha256Hex,
 	type TotpConfig,
 	toBase64,
@@ -73,6 +76,12 @@ type Vectors = {
 		currentAuthKey: string;
 		authKey: string;
 		nextKeys: AccountKeys;
+	}[];
+	deviceKey: {
+		prfOutput: string;
+		privateKey: string;
+		iv: string;
+		sealedPrivateKey: string;
 	}[];
 	agentToken: {
 		agentId: string;
@@ -257,6 +266,20 @@ describe("accounts", () => {
 			).rejects.toThrow();
 		}
 	});
+});
+
+test("unlocking with a passkey: the device key and the private key it seals", async () => {
+	for (const vector of vectors.deviceKey) {
+		const key = await deviceKey(fromBase64(vector.prfOutput));
+		const privateKey = await importPrivateKey(fromBase64(vector.privateKey));
+		const made = await withFixedRandom({ bytes: [fromBase64(vector.iv)] }, () =>
+			sealPrivateKey(key, privateKey),
+		);
+		expect(made).toBe(vector.sealedPrivateKey);
+		const opened = await openPrivateKey(key, vector.sealedPrivateKey);
+		const pkcs8 = await crypto.subtle.exportKey("pkcs8", opened);
+		expect(toBase64(new Uint8Array(pkcs8))).toBe(vector.privateKey);
+	}
 });
 
 test("agent tokens", async () => {

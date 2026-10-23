@@ -301,6 +301,9 @@ for (const [time, ...codes] of rfcCodes) {
 	}
 }
 
+const prfOutput = run(0xd0, 32);
+const device = await hkdf(prfOutput, "vauly/device");
+
 const vectors = {
 	about:
 		"Test vectors for vauly's cryptography (packages/crypto). Every value is made up. Bytes are base64 (standard alphabet, padded) unless a field says hex. docs/security.md describes the formats; regenerate with `bun run vectors` in packages/crypto.",
@@ -371,6 +374,16 @@ const vectors = {
 					fromB64(keyPairs.account),
 				),
 			},
+		},
+	],
+	deviceKey: [
+		{
+			prfOutput: b64(prfOutput),
+			info: "vauly/device",
+			deviceKey: hex(device),
+			privateKey: keyPairs.account,
+			iv: b64(iv(10)),
+			sealedPrivateKey: await seal(device, iv(10), fromB64(keyPairs.account)),
 		},
 	],
 	agentToken: [

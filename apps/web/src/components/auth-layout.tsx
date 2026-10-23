@@ -148,20 +148,22 @@ export function PasswordInput({
 	);
 }
 
-/** The form's one big action: a full-width brand pill. */
+/** The form's one big action: a full-width brand pill, or an outlined one beside another. */
 export function SubmitButton({
 	busy,
 	busyLabel,
+	variant = "brand",
 	children,
 }: {
 	busy: boolean;
 	busyLabel: string;
+	variant?: "brand" | "outline";
 	children: ReactNode;
 }) {
 	return (
 		<Button
 			type="submit"
-			variant="brand"
+			variant={variant}
 			size="lg"
 			className="mt-2 h-10 w-full rounded-full"
 			disabled={busy}
