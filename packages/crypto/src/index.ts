@@ -158,6 +158,24 @@ export async function unwrapKey(
 	);
 }
 
+// --- Share links ----------------------------------------------------------------
+
+/** A data key as URL-safe base64, to travel in a share link's #fragment. */
+export async function keyToText(key: CryptoKey): Promise<string> {
+	const raw = new Uint8Array(await crypto.subtle.exportKey("raw", key));
+	return toBase64(raw)
+		.replace(/\+/g, "-")
+		.replace(/\//g, "_")
+		.replace(/=+$/, "");
+}
+
+export async function keyFromText(text: string): Promise<CryptoKey> {
+	const base64 = text.replace(/-/g, "+").replace(/_/g, "/");
+	const raw = fromBase64(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="));
+	if (raw.length !== 32) throw new Error("Not a link key");
+	return crypto.subtle.importKey("raw", raw, AES, false, ["decrypt"]);
+}
+
 // --- Keypairs (people and agents) ------------------------------------------------
 
 export type Keypair = { publicKey: string; privateKey: CryptoKey };

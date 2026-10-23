@@ -37,7 +37,8 @@ item key           AES-256-GCM, one per item, wrapped with its vault key
 | Vault names, descriptions and colors                                                                            | The workspace name                                                                      |
 | Your private key                                                                                                | Which vaults exist and who can open each one                                            |
 | Vault keys and item keys (wrapped)                                                                              | Item IDs, which vault they're in, ciphertext sizes, revision numbers, timestamps        |
-|                                                                                                                 | Favorites, and items in Recently deleted                                                |
+| Share links: the copy of the item they carry (the key is only in the link)                                      | Favorites, and items in Recently deleted                                                |
+|                                                                                                                 | Share links: which item, who made them, when they expire and how often they were opened |
 |                                                                                                                 | The activity log: who did what to which item ID, and when                               |
 |                                                                                                                 | Agent names, their public keys, a hash of their token secret, and the commands they ran |
 |                                                                                                                 | Public keys of people and agents                                                        |
@@ -51,6 +52,14 @@ Anyone who holds an agent token can use whatever that agent has been allowed to 
 ## Browser extension
 
 The extension signs in with the same auth key as the web app and keeps the session token in its own storage, sending it as a bearer token. The API accepts sign-ins from `chrome-extension://` and `moz-extension://` origins for this, since each install has its own ID. The unlocked private key is kept only in the extension's session storage, which lives in memory, can't be read by pages or content scripts, and is cleared when the browser closes or after 15 idle minutes. Filling runs a small script in the page only when you choose **Fill**. See [Browser extension](browser-extension.md).
+
+## Share links
+
+A share link shows one item to someone outside the workspace. The sender's browser copies the item's username, password or value, website, notes and, only if asked, its one-time code secret, then encrypts the copy with a new AES-256-GCM key. The server stores the ciphertext under a random link ID. The key goes into the link's `#fragment`, which browsers never send to a server, so the link ID alone opens nothing.
+
+The recipient's page asks the server for the ciphertext only after they choose **Show the item**, which keeps link previews in chat apps from using up a one-view link. The server counts each opening in the same statement that checks the link's limits, refuses links that expired, were used up, or whose item is in Recently deleted, and records each opening in the activity log. Anyone who can open the item can see its links and turn them off.
+
+A link is a copy: changing the item later doesn't change what the link shows, and anyone holding the full link can open it until it stops working. Send it the way you'd send the password itself.
 
 ## Limits
 

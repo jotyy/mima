@@ -7,6 +7,8 @@ import {
 	deriveMasterKeys,
 	encodeAgentToken,
 	importPrivateKey,
+	keyFromText,
+	keyToText,
 	newDataKey,
 	newKeypair,
 	newSalt,
@@ -107,6 +109,23 @@ describe("symmetric", () => {
 			"value",
 		);
 		await expect(unwrapKey(await newDataKey(), wrapped)).rejects.toThrow();
+	});
+});
+
+describe("share links", () => {
+	test("a link key survives the trip through a URL fragment", async () => {
+		const key = await newDataKey();
+		const sealed = await sealJson(key, { name: "Office Wi-Fi" });
+		const text = await keyToText(key);
+		expect(text).toMatch(/^[A-Za-z0-9_-]{43}$/);
+		expect(await openJson(await keyFromText(text), sealed)).toEqual({
+			name: "Office Wi-Fi",
+		});
+	});
+
+	test("a cut-off key is refused", async () => {
+		const text = await keyToText(await newDataKey());
+		await expect(keyFromText(text.slice(0, 20))).rejects.toThrow();
 	});
 });
 

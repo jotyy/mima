@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback } from "@mima/ui/components/avatar";
 import { cn } from "@mima/ui/lib/utils";
+import { LinkSimpleIcon } from "@phosphor-icons/react";
 
 import { describeEvent } from "@/lib/describe-event";
 import { ago, initials, toneDot } from "@/lib/format";
@@ -28,6 +29,10 @@ export function ActivityRow({
 		>
 			{event.actorType === "agent" ? (
 				<ItemTile kind="agent" />
+			) : event.actorType === "link" ? (
+				<span className="bg-surface-sunken text-fg-muted flex size-6 shrink-0 items-center justify-center rounded-full">
+					<LinkSimpleIcon className="size-3.5" />
+				</span>
 			) : (
 				<Avatar size="sm">
 					<AvatarFallback>{initials(event.actorName)}</AvatarFallback>

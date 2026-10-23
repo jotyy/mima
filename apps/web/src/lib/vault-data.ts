@@ -1,5 +1,6 @@
 import {
 	encodeAgentToken,
+	keyToText,
 	newDataKey,
 	newKeypair,
 	newSecret,
@@ -67,6 +68,13 @@ export type Agent = Rows<typeof client.agents.list>[number];
 export type AccessRequest = Rows<typeof client.requests.list>[number];
 export type VaultEvent = Rows<typeof client.events.list>[number];
 export type Duration = "once" | "hour" | "day" | "always";
+export type ShareLink = Rows<typeof client.links.list>[number];
+export type LinkDuration = "hour" | "day" | "week" | "month";
+/** What a share link carries: a copy of the item without its history or tags. */
+export type SharedItem = Pick<
+	ItemFields,
+	"kind" | "name" | "username" | "secret" | "url" | "totp" | "notes"
+>;
 
 export const itemReference = (item: { id: string }) => `mima://${item.id}`;
 
@@ -180,6 +188,16 @@ export function useMembers() {
 		queryKey: ["vault", "members"],
 		enabled: status === "unlocked",
 		queryFn: () => client.members.list(),
+	});
+}
+
+/** Share links to one item that still work. */
+export function useLinks(itemId: string) {
+	const { status } = useKeyring();
+	return useQuery({
+		queryKey: ["vault", "links", itemId],
+		enabled: status === "unlocked",
+		queryFn: () => client.links.list({ itemId }),
 	});
 }
 
@@ -313,6 +331,35 @@ export function useActions() {
 			deleteItem: (item: Item) => after(client.items.remove({ id: item.id })),
 			restoreItem: (item: Item) => after(client.items.restore({ id: item.id })),
 			purgeItem: (item: Item) => after(client.items.purge({ id: item.id })),
+
+			/** Seals a copy of the item with a new key that only the link itself carries. */
+			async createLink(
+				item: Item,
+				options: { expiresIn: LinkDuration; once: boolean; totp: boolean },
+			) {
+				const key = await newDataKey();
+				const shared: SharedItem = {
+					kind: item.kind,
+					name: item.name,
+					username: item.username,
+					secret: item.secret,
+					url: item.url,
+					notes: item.notes,
+					totp: options.totp ? item.totp : undefined,
+				};
+				const { id, expiresAt } = await after(
+					client.links.create({
+						itemId: item.id,
+						data: await sealJson(key, shared),
+						expiresIn: options.expiresIn,
+						once: options.once,
+					}),
+				);
+				const url = `${window.location.origin}/s/${id}#${await keyToText(key)}`;
+				return { url, expiresAt };
+			},
+
+			revokeLink: (id: string) => after(client.links.revoke({ id })),
 
 			toggleFavorite: (item: Item) =>
 				after(client.items.favorite({ id: item.id, value: !item.favorite })),

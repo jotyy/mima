@@ -82,7 +82,13 @@ export function describeEvent(
 				itemName,
 				durations[event.detail ?? ""],
 			);
+		case "linked":
+			return parts("shared a link to", itemName, linkDetail(event.detail));
+		case "opened":
+			return parts("opened", itemName, "from a share link");
 		case "revoked":
+			if (event.itemId && event.detail === "link")
+				return parts("turned off a link to", itemName);
 			if (event.itemId)
 				return parts(`revoked ${subject ?? "an agent"} from`, itemName);
 			if (event.vaultId)
@@ -124,6 +130,21 @@ export function describeEvent(
 		default:
 			return parts(event.action, itemName);
 	}
+}
+
+const linkDurations: Record<string, string> = {
+	hour: "1 hour",
+	day: "1 day",
+	week: "7 days",
+	month: "30 days",
+};
+
+/** "week once" → "for 7 days, one view" */
+function linkDetail(detail: string | null | undefined) {
+	const [duration = "", once] = (detail ?? "").split(" ");
+	const length = linkDurations[duration];
+	if (!length) return undefined;
+	return once ? `for ${length}, one view` : `for ${length}`;
 }
 
 function field(detail: string | null | undefined) {

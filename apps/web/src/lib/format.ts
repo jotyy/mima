@@ -33,3 +33,15 @@ export function ago(date: Date | string | null | undefined) {
 export function plural(n: number, noun: string) {
 	return `${n} ${noun}${n === 1 ? "" : "s"}`;
 }
+
+/** "in 23 hours", "in 6 days": how long until a date in the future. */
+export function timeLeft(date: Date | string) {
+	const minutes = Math.max(
+		0,
+		Math.round((new Date(date).getTime() - Date.now()) / 60_000),
+	);
+	if (minutes < 60) return `in ${plural(Math.max(minutes, 1), "minute")}`;
+	if (minutes < 60 * 24)
+		return `in ${plural(Math.round(minutes / 60), "hour")}`;
+	return `in ${plural(Math.round(minutes / 60 / 24), "day")}`;
+}

@@ -60,7 +60,10 @@ export const eventsRouter = {
 			);
 			return rows.map((row) => ({
 				...row,
-				actorName: names.get(row.actorId) ?? "Someone who left",
+				actorName:
+					row.actorType === "link"
+						? "Someone with a link"
+						: (names.get(row.actorId) ?? "Someone who left"),
 			}));
 		}),
 };

@@ -87,7 +87,7 @@ export async function accessibleItemIds(
 export function logEvent(
 	db: Database,
 	entry: {
-		actorType: "member" | "agent";
+		actorType: "member" | "agent" | "link";
 		actorId: string;
 		action: EventAction;
 		itemId?: string | null;

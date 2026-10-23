@@ -21,6 +21,7 @@ import {
 	CaretRightIcon,
 	CopySimpleIcon,
 	DotsThreeIcon,
+	LinkSimpleIcon,
 	PencilSimpleIcon,
 	PlusIcon,
 	RobotIcon,
@@ -30,13 +31,14 @@ import {
 import { Link, useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 
-import { ago, toneDot } from "@/lib/format";
+import { ago, plural, timeLeft, toneDot } from "@/lib/format";
 import { useLookup } from "@/lib/use-lookup";
 import {
 	errorMessage,
 	type Item,
 	useActions,
 	useAgents,
+	useLinks,
 	useMembers,
 	useVaults,
 } from "@/lib/vault-data";
@@ -48,6 +50,7 @@ import { ItemTile, kindLabel } from "./item-tile";
 import { notify } from "./notify";
 import { OneTimeCode } from "./one-time-code";
 import { SecretValue } from "./secret-value";
+import { ShareLinkDialog } from "./share-link-dialog";
 
 const secretLabel: Record<Item["kind"], string> = {
 	login: "Password",
@@ -69,8 +72,10 @@ export function ItemDetail({ item }: { item: Item }) {
 	const agents = useAgents();
 	const members = useMembers();
 	const lookup = useLookup();
+	const links = useLinks(item.id);
 	const [editing, setEditing] = useState(false);
 	const [granting, setGranting] = useState(false);
+	const [sharing, setSharing] = useState(false);
 
 	const vault = vaults.data?.find((v) => v.id === item.vaultId);
 	const editor = members.data?.members.find((m) => m.userId === item.updatedBy);
@@ -149,6 +154,21 @@ export function ItemDetail({ item }: { item: Item }) {
 						<TooltipContent>
 							{item.favorite ? "Favorite" : "Add to favorites"}
 						</TooltipContent>
+					</Tooltip>
+					<Tooltip>
+						<TooltipTrigger
+							render={
+								<Button
+									variant="ghost"
+									size="icon-sm"
+									aria-label="Share a link"
+									onClick={() => setSharing(true)}
+								/>
+							}
+						>
+							<LinkSimpleIcon />
+						</TooltipTrigger>
+						<TooltipContent>Share a link</TooltipContent>
 					</Tooltip>
 					<Button variant="outline" size="sm" onClick={() => setEditing(true)}>
 						<PencilSimpleIcon data-icon="inline-start" />
@@ -318,6 +338,56 @@ export function ItemDetail({ item }: { item: Item }) {
 				)}
 			</dl>
 
+			{links.data?.length ? (
+				<section
+					aria-label="Shared links"
+					className="border-line-subtle mt-2 flex flex-col gap-2 border-t p-4"
+				>
+					<div className="flex items-center justify-between">
+						<h3 className="text-body-sm text-fg">Shared links</h3>
+						<Button variant="ghost" size="xs" onClick={() => setSharing(true)}>
+							<PlusIcon data-icon="inline-start" />
+							New link
+						</Button>
+					</div>
+					<ul className="flex flex-col gap-1">
+						{links.data.map((link) => (
+							<li
+								key={link.id}
+								className="hover:bg-tint/3 flex items-center gap-2.5 rounded-lg px-2 py-1.5"
+							>
+								<span className="bg-surface shadow-pill text-fg-muted flex size-7 shrink-0 items-center justify-center rounded-md">
+									<LinkSimpleIcon className="size-4" />
+								</span>
+								<div className="flex min-w-0 flex-1 flex-col">
+									<span className="text-body-sm text-fg">
+										Expires {timeLeft(link.expiresAt)}
+									</span>
+									<span className="text-caption text-fg-subtle truncate">
+										{link.maxViews === 1
+											? "One view"
+											: link.views
+												? `Opened ${plural(link.views, "time")}`
+												: "Not opened yet"}
+										{" · "}
+										by {link.createdByName ?? "someone who left"}
+									</span>
+								</div>
+								<Button
+									variant="ghost"
+									size="xs"
+									onClick={() =>
+										run(actions.revokeLink(link.id), "Turned the link off")
+									}
+								>
+									Turn off
+								</Button>
+							</li>
+						))}
+					</ul>
+				</section>
+			) : null}
+
 			{withAccess.length > 0 && (
 				<div className="border-line-subtle mt-2 flex flex-col gap-2 border-t p-4">
 					<div className="flex items-center justify-between">
@@ -371,6 +441,7 @@ export function ItemDetail({ item }: { item: Item }) {
 
 			<ItemDialog open={editing} onOpenChange={setEditing} item={item} />
 			<GrantDialog item={item} open={granting} onOpenChange={setGranting} />
+			<ShareLinkDialog item={item} open={sharing} onOpenChange={setSharing} />
 		</section>
 	);
 }

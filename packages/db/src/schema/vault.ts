@@ -115,6 +115,29 @@ export const favorite = sqliteTable(
 	(table) => [primaryKey({ columns: [table.userId, table.itemId] })],
 );
 
+/**
+ * A link that shows one item to someone outside the workspace. `data` is a copy of the
+ * item sealed with a key that only travels in the link's #fragment, so it never reaches
+ * the server.
+ */
+export const shareLink = sqliteTable(
+	"share_link",
+	{
+		id: text("id").primaryKey(),
+		itemId: text("item_id")
+			.notNull()
+			.references(() => item.id, { onDelete: "cascade" }),
+		data: text("data").notNull(),
+		createdBy: text("created_by").notNull(),
+		expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+		/** Null when the link can be opened any number of times before it expires. */
+		maxViews: integer("max_views"),
+		views: integer("views").notNull().default(0),
+		createdAt: createdAt(),
+	},
+	(table) => [index("share_link_item_idx").on(table.itemId)],
+);
+
 export type AgentKind = "mcp" | "cli" | "ci";
 
 export const agent = sqliteTable("agent", {
@@ -193,14 +216,19 @@ export type EventAction =
 	| "imported"
 	| "exported"
 	| "restored"
-	| "filled";
+	| "filled"
+	| "linked"
+	| "opened";
 
 /** Append-only audit log. `detail` is plaintext: never put a secret in it. */
 export const event = sqliteTable(
 	"event",
 	{
 		id: text("id").primaryKey(),
-		actorType: text("actor_type").$type<"member" | "agent">().notNull(),
+		/** `link` is someone outside the workspace opening a share link; `actorId` is the link. */
+		actorType: text("actor_type")
+			.$type<"member" | "agent" | "link">()
+			.notNull(),
 		actorId: text("actor_id").notNull(),
 		action: text("action").$type<EventAction>().notNull(),
 		itemId: text("item_id"),

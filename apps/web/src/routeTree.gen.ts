@@ -21,6 +21,7 @@ import { Route as AppItemsRouteImport } from './routes/_app/items'
 import { Route as AppMembersRouteImport } from './routes/_app/members'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppVaultsRouteImport } from './routes/_app/vaults'
+import { Route as SIdRouteImport } from './routes/s.$id'
 
 const AppRouteRoute = AppRouteRouteImport.update({
   id: '/_app',
@@ -81,6 +82,11 @@ const AppVaultsRoute = AppVaultsRouteImport.update({
   path: '/vaults',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const SIdRoute = SIdRouteImport.update({
+  id: '/s/$id',
+  path: '/s/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/members': typeof AppMembersRoute
   '/settings': typeof AppSettingsRoute
   '/vaults': typeof AppVaultsRoute
+  '/s/$id': typeof SIdRoute
 }
 export interface FileRoutesByTo {
   '/join': typeof JoinRoute
@@ -106,6 +113,7 @@ export interface FileRoutesByTo {
   '/members': typeof AppMembersRoute
   '/settings': typeof AppSettingsRoute
   '/vaults': typeof AppVaultsRoute
+  '/s/$id': typeof SIdRoute
   '/': typeof AppIndexRoute
 }
 export interface FileRoutesById {
@@ -121,6 +129,7 @@ export interface FileRoutesById {
   '/_app/members': typeof AppMembersRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/vaults': typeof AppVaultsRoute
+  '/s/$id': typeof SIdRoute
   '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
@@ -137,6 +146,7 @@ export interface FileRouteTypes {
     | '/members'
     | '/settings'
     | '/vaults'
+    | '/s/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/join'
@@ -149,6 +159,7 @@ export interface FileRouteTypes {
     | '/members'
     | '/settings'
     | '/vaults'
+    | '/s/$id'
     | '/'
   id:
     | '__root__'
@@ -163,6 +174,7 @@ export interface FileRouteTypes {
     | '/_app/members'
     | '/_app/settings'
     | '/_app/vaults'
+    | '/s/$id'
     | '/_app/'
   fileRoutesById: FileRoutesById
 }
@@ -171,6 +183,7 @@ export interface RootRouteChildren {
   JoinRoute: typeof JoinRoute
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
+  SIdRoute: typeof SIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -259,6 +272,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVaultsRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/s/$id': {
+      id: '/s/$id'
+      path: '/s/$id'
+      fullPath: '/s/$id'
+      preLoaderRoute: typeof SIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -293,6 +313,7 @@ const rootRouteChildren: RootRouteChildren = {
   JoinRoute: JoinRoute,
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
+  SIdRoute: SIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
