@@ -1,3 +1,4 @@
+import type { OfferView } from "./messages";
 import { type EditableEntry, hostOf, matchesPage } from "./vault";
 
 // A login someone just typed into a page, held so the popup can offer to save it. It is
@@ -60,7 +61,11 @@ export function offerFor(
 	return { kind: "save", capture };
 }
 
-/** A first name for a new login: the site's host, such as github.com. */
-export function suggestedName(url: string) {
-	return hostOf(url) || "New login";
+/** An offer as it's shown, in the popup or on the page: everything but the password. */
+export function viewOf(offer: Offer): OfferView {
+	const host = hostOf(offer.capture.url);
+	const username = offer.capture.username;
+	return offer.kind === "update"
+		? { kind: "update", host, username, entryName: offer.entry.name }
+		: { kind: "save", host, username };
 }

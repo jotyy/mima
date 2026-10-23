@@ -120,6 +120,22 @@ async function tabIdOf(url: string) {
 	);
 }
 
+test("before it's signed in, a login field offers to sign in to mima", async () => {
+	const page = await context.newPage();
+	await page.goto(`${site}/`);
+	await page.getByLabel("Email").click();
+	await expect(fillMenu(page).getByText("Sign in to mima")).toBeVisible();
+	await page.keyboard.press("Escape");
+	await expect(page.locator("mima-frame")).toHaveCount(0);
+	await page.close();
+});
+
+/** mima's fill menu inside a site's page, and its save prompt. */
+const fillMenu = (page: Page) =>
+	page.frameLocator('iframe[title="mima: fill a login"]');
+const savePrompt = (page: Page) =>
+	page.frameLocator('iframe[title="mima: save a login"]');
+
 test("the extension connects from the web address and signs in", async () => {
 	const popup = await openPopup();
 	await expect(
@@ -163,6 +179,27 @@ test("Fill puts the username and password into the site's form", async () => {
 	// Fill leaves the one-time code on the clipboard for the next step.
 	const pasted = await page.evaluate(() => navigator.clipboard.readText());
 	expect(await validCodes()).toContain(pasted);
+	await page.close();
+});
+
+test("the menu under a login field fills the site's form", async () => {
+	const page = await context.newPage();
+	await page.goto(`${site}/`);
+	await page.getByLabel("Password").click();
+	const menu = fillMenu(page);
+	await menu
+		.getByRole("button", { name: `Fill ${login.name}, ${login.username}` })
+		.click();
+	await expect(page.getByLabel("Email")).toHaveValue(login.username);
+	await expect(page.getByLabel("Password")).toHaveValue(login.password);
+	await expect(menu.getByText("The one-time code is copied")).toBeVisible();
+	await expect(page.locator("mima-frame")).toHaveCount(0);
+
+	// Typing in by hand closes it.
+	await page.getByLabel("Email").click();
+	await expect(menu.getByRole("button", { name: /^Fill / })).toBeVisible();
+	await page.getByLabel("Email").pressSequentially("x");
+	await expect(page.locator("mima-frame")).toHaveCount(0);
 	await page.close();
 });
 
@@ -211,6 +248,24 @@ test("Lock forgets the key until the master password is entered again", async ()
 	await popup.close();
 });
 
+test("locked, the menu offers to unlock, and shows the logins once unlocked", async () => {
+	const popup = await openPopup();
+	await popup.getByRole("button", { name: "Lock" }).click();
+	const page = await context.newPage();
+	await page.goto(`${site}/`);
+	await page.getByLabel("Email").click();
+	const menu = fillMenu(page);
+	await expect(menu.getByText("mima is locked")).toBeVisible();
+
+	await popup.getByLabel("Master password").fill(owner.password);
+	await popup.getByRole("button", { name: "Unlock" }).click();
+	await expect(
+		menu.getByRole("button", { name: `Fill ${login.name}, ${login.username}` }),
+	).toBeVisible();
+	await popup.close();
+	await page.close();
+});
+
 async function badgeOf(tabId: number | undefined) {
 	type Action = { getBadgeText(details: { tabId?: number }): Promise<string> };
 	return worker?.evaluate(
@@ -256,6 +311,29 @@ test("a new login typed into a site is offered for saving", async () => {
 	).toBeVisible();
 	expect(await badgeOf(tabId)).toBe("");
 	await popup.close();
+	await page.close();
+});
+
+test("a new login is offered for saving right on the site", async () => {
+	const url = "https://shop.example.test";
+	const page = await signInOnSite(url, "kim@example.test", "shop-pass-2024");
+	const prompt = savePrompt(page);
+	const offer = prompt.getByRole("region", { name: "Save login" });
+	await expect(
+		offer.getByText("You just signed in on shop.example.test."),
+	).toBeVisible();
+	await expect(offer.getByLabel("Username")).toHaveValue("kim@example.test");
+	await offer.getByLabel("Name", { exact: true }).fill("Shop");
+	await offer.getByRole("button", { name: "Save" }).click();
+	await expect(prompt.getByText("Saved to Private")).toBeVisible();
+	await expect(page.locator("mima-frame")).toHaveCount(0);
+	expect(await badgeOf(await tabIdOf(url))).toBe("");
+
+	// Next time, the menu has it.
+	await page.getByLabel("Email").click();
+	await expect(
+		fillMenu(page).getByRole("button", { name: "Fill Shop, kim@example.test" }),
+	).toBeVisible();
 	await page.close();
 });
 
@@ -329,7 +407,9 @@ test("the activity log shows the fill", async () => {
 		page.getByRole("main").getByText("filled in").first(),
 	).toBeVisible();
 
-	// The master password typed into mima itself is never offered for saving.
+	// mima's own sign-in gets no menu, and the master password typed into it is never
+	// offered for saving.
+	await expect(page.locator("mima-frame")).toHaveCount(0);
 	await page.waitForTimeout(500);
 	const popup = await openPopup(await tabIdOf(`http://localhost:${WEB_PORT}`));
 	await expect(popup.getByRole("list", { name: "All items" })).toBeVisible();

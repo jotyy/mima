@@ -23,8 +23,9 @@ Open the extension and enter the address you open mima at, such as `mima.example
 
 ## Use it
 
-- **On a login page**, the items saved for that site come first. Choose **Fill** to put the username and password into the form. If the login has a one-time code, Fill also copies the current code, ready to paste on the next step.
-- **After you sign in somewhere new**, the mima icon shows a badge. Open the extension to save the login to one of your vaults, or choose **Not now**. If you signed in to a saved login with a different password, it offers to update the password instead, and the old one stays under Earlier passwords. Logins you already saved, and anything typed into mima itself, are never offered.
+- **On a login page**, click into the email or password field and mima's menu opens under it with the logins saved for that site. Choose one to fill the form. If the login has a one-time code, filling also copies the current code, ready to paste on the next step. Typing, Escape or a click elsewhere closes the menu. When the extension is locked or not signed in yet, the menu offers to do that first.
+- **In the extension**, the items saved for the site you're on come first, with a **Fill** button.
+- **After you sign in somewhere new**, mima asks in the top corner of the page whether to save the login, and to which vault; the mima icon shows a badge too, and the extension offers the same. Choose **Not now** to let it go. If you signed in to a saved login with a different password, it offers to update the password instead, and the old one stays under Earlier passwords. Logins you already saved, and anything typed into mima itself, are never offered.
 - **Search** to find any item; the buttons copy its username, password or one-time code.
 - **Lock** forgets the key. The extension also locks itself after 15 idle minutes, and whenever the browser closes.
 
@@ -32,7 +33,7 @@ Fills and copies appear in **Activity**, like everything else.
 
 ## What it can access
 
-The extension asks to read and change data on all sites. It needs that to fill forms on whatever site you're on, to notice a login being submitted so it can offer to save it, and to reach your mima server, whose address is different for every team. On each page, a small script watches for a sign-in form being sent and passes the username and password to the extension; it changes the page only when you choose **Fill**.
+The extension asks to read and change data on all sites. It needs that to fill forms on whatever site you're on, to notice a login being submitted so it can offer to save it, and to reach your mima server, whose address is different for every team. On each page, a small script watches for a sign-in form being sent and passes the username and password to the extension. The menu and the save prompt it adds to a page are frames of the extension's own page, so the site can't read the logins listed in them, and they never hold a password: filling and saving happen in the extension itself. The script changes the page's fields only when you choose a login to fill.
 
 What it stores:
 

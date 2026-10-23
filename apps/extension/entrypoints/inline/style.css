@@ -1,0 +1,12 @@
+@import "@mima/ui/globals.css";
+@import "@mima/ui/pure.css";
+
+/* The frame sits on someone else's page: only the card shows, with room for its shadow. */
+html {
+	background: transparent;
+}
+
+body {
+	background: transparent;
+	padding: 0.75rem;
+}

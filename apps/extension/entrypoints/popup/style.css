@@ -1,4 +1,5 @@
 @import "@mima/ui/globals.css";
+@import "@mima/ui/pure.css";
 
 /* The popup is a fixed width; its height follows the content up to the browser's limit. */
 body {

@@ -1,0 +1,57 @@
+@import "@fontsource-variable/spline-sans";
+@import "@fontsource-variable/spline-sans-mono";
+
+/*
+ * Pure, mima's default look: near-white paper, surfaces drawn with a single hairline
+ * instead of drop shadows, and Spline Sans. These are only its tokens; the web app and
+ * the browser extension each turn it on with data-style="pure" on <html>.
+ */
+
+html[data-style="pure"] {
+	--font-text: "Spline Sans Variable", system-ui, sans-serif;
+	--font-code: "Spline Sans Mono Variable", ui-monospace, monospace;
+	--frame: #f9f9fa;
+	--canvas: #fbfbfc;
+	--surface: #ffffff;
+	--surface-sunken: #f6f6f7;
+	--fg: #111113;
+	--fg-emphasis: #29292e;
+	--fg-muted: #55555c;
+	--fg-subtle: #75757e;
+	--fg-faint: #a6a6ae;
+	--line: #e9e9ec;
+	--line-subtle: #f1f1f3;
+	--line-strong: #d8d8dd;
+	--hairline: rgb(17 17 19 / 6%);
+	--tint: #111113;
+	--skeleton: #efeff1;
+	--elevation-card: 0 0 0 1px #e9e9ec;
+	--elevation-pill: 0 0 0 1px #e2e2e6;
+	--elevation-popover:
+		0 0 0 1px #e2e2e6, 0 0.75rem 2rem -0.75rem rgb(17 17 19 / 16%);
+	--elevation-float:
+		0 0 0 1px #e2e2e6, 0 0.5rem 1.5rem -0.75rem rgb(17 17 19 / 12%);
+	--radius: 0.5rem;
+	--round-window: 10px;
+	--round-shell: 12px;
+	--round-panel: 14px;
+}
+
+html.dark[data-style="pure"] {
+	--frame: #0c0c0e;
+	--canvas: #0f0f11;
+	--surface: #131316;
+	--surface-sunken: #18181b;
+	--fg: #f3f3f5;
+	--fg-emphasis: #d9d9de;
+	--fg-muted: #ababb3;
+	--fg-subtle: #83838c;
+	--fg-faint: #5d5d65;
+	--line: #222226;
+	--line-subtle: #1a1a1d;
+	--line-strong: #2e2e33;
+	--tint: #ffffff;
+	--skeleton: #1e1e22;
+	--elevation-card: 0 0 0 1px #222226;
+	--elevation-pill: 0 0 0 1px #2a2a2f;
+}

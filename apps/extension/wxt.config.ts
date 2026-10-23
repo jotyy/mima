@@ -16,5 +16,9 @@ export default defineConfig({
 		// has its own address.
 		host_permissions: ["<all_urls>"],
 		action: { default_title: "mima" },
+		// The fill menu and the save prompt are this page, framed inside the site's page.
+		web_accessible_resources: [
+			{ resources: ["inline.html"], matches: ["http://*/*", "https://*/*"] },
+		],
 	},
 });

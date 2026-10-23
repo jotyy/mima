@@ -1,15 +1,12 @@
 import { parseTotp, totpCode, totpSecondsLeft } from "@mima/crypto";
 import { Button } from "@mima/ui/components/button";
 import { Input } from "@mima/ui/components/input";
-import { logoDomain, logoUrl } from "@mima/ui/lib/logos";
+import { logoDomain } from "@mima/ui/lib/logos";
 import { cn } from "@mima/ui/lib/utils";
 import {
 	ArrowSquareOutIcon,
-	ArrowsClockwiseIcon,
-	CaretDownIcon,
 	ClockCountdownIcon,
 	CopyIcon,
-	FloppyDiskIcon,
 	GlobeIcon,
 	KeyIcon,
 	LockSimpleIcon,
@@ -20,12 +17,15 @@ import {
 } from "@phosphor-icons/react";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 
+import { Field, FormError } from "@/components/form";
+import { ItemLogo } from "@/components/item-logo";
+import { SaveOffer } from "@/components/save-offer";
 import {
 	dropCapture,
 	getCapture,
 	type Offer,
 	offerFor,
-	suggestedName,
+	viewOf,
 } from "@/lib/capture";
 import { fillLoginForm } from "@/lib/fill";
 import {
@@ -41,7 +41,6 @@ import {
 } from "@/lib/storage";
 import {
 	apiClient,
-	type EditableEntry,
 	type Entry,
 	findServer,
 	hostOf,
@@ -342,7 +341,7 @@ function Items({
 		setTimeout(() => setStatus(""), 2000);
 	};
 
-	const copy = async (entry: Entry, field: Field) => {
+	const copy = async (entry: Entry, field: CopyField) => {
 		await touch();
 		if (field === "code") {
 			const code = await oneTimeCode(entry);
@@ -415,17 +414,30 @@ function Items({
 
 			{offer && (
 				<SaveOffer
-					offer={offer}
+					offer={viewOf(offer)}
 					vaults={vaults}
-					onSave={async (vault, login) => {
+					className="shadow-card mx-3 mt-3"
+					onSave={async (vaultId, login) => {
+						const vault = vaults.find((v) => v.id === vaultId);
+						if (!vault) return;
 						await touch();
-						await saveLogin(client, vault, login);
+						await saveLogin(client, vault, {
+							...login,
+							password: offer.capture.password,
+							url: offer.capture.url,
+						});
 						await settle(`Saved to ${vault.name}`);
 					}}
-					onUpdate={async (entry, password) => {
+					onUpdate={async () => {
+						if (offer.kind !== "update") return;
 						await touch();
 						const me = await client.account.me();
-						await updatePassword(client, entry, password, me.name);
+						await updatePassword(
+							client,
+							offer.entry,
+							offer.capture.password,
+							me.name,
+						);
 						await settle("Password updated");
 					}}
 					onDismiss={() => settle()}
@@ -521,161 +533,7 @@ function Items({
 	);
 }
 
-const offerCard =
-	"bg-surface shadow-card mx-3 mt-3 flex flex-col gap-3 rounded-xl p-3";
-
-function OfferTitle({
-	icon: Icon,
-	title,
-	children,
-}: {
-	icon: typeof FloppyDiskIcon;
-	title: string;
-	children: ReactNode;
-}) {
-	return (
-		<div className="flex items-start gap-2.5">
-			<span className="bg-brand-soft text-brand flex size-7 shrink-0 items-center justify-center rounded-md">
-				<Icon className="size-4" />
-			</span>
-			<div className="flex min-w-0 flex-col gap-0.5">
-				<h2 className="text-body-sm text-fg font-medium">{title}</h2>
-				<p className="text-caption text-fg-muted">{children}</p>
-			</div>
-		</div>
-	);
-}
-
-/** Offers to keep a login the person just typed into the page. */
-function SaveOffer({
-	offer,
-	vaults,
-	onSave,
-	onUpdate,
-	onDismiss,
-}: {
-	offer: Offer;
-	vaults: VaultInfo[];
-	onSave: (
-		vault: VaultInfo,
-		login: { name: string; username: string; password: string; url: string },
-	) => Promise<void>;
-	onUpdate: (entry: EditableEntry, password: string) => Promise<void>;
-	onDismiss: () => void;
-}) {
-	const { capture } = offer;
-	const [name, setName] = useState(() => suggestedName(capture.url));
-	const [username, setUsername] = useState(capture.username);
-	const [vaultId, setVaultId] = useState(vaults[0]?.id ?? "");
-	const [busy, setBusy] = useState(false);
-	const [error, setError] = useState("");
-
-	const run = async (work: () => Promise<void>) => {
-		setBusy(true);
-		setError("");
-		try {
-			await work();
-		} catch (err) {
-			setError((err as Error).message || "That didn't work");
-			setBusy(false);
-		}
-	};
-
-	if (offer.kind === "update") {
-		return (
-			<section aria-label="Update password" className={offerCard}>
-				<OfferTitle
-					icon={ArrowsClockwiseIcon}
-					title={`Update the password for ${offer.entry.name}?`}
-				>
-					You signed in as {capture.username || "this account"} with a new
-					password. The old one stays under Earlier passwords.
-				</OfferTitle>
-				<FormError>{error}</FormError>
-				<div className="flex justify-end gap-2">
-					<Button variant="ghost" size="sm" onClick={onDismiss}>
-						Not now
-					</Button>
-					<Button
-						variant="brand"
-						size="sm"
-						disabled={busy}
-						onClick={() => run(() => onUpdate(offer.entry, capture.password))}
-					>
-						{busy ? "Encrypting…" : "Update"}
-					</Button>
-				</div>
-			</section>
-		);
-	}
-
-	return (
-		<section aria-label="Save login" className={offerCard}>
-			<OfferTitle icon={FloppyDiskIcon} title="Save this login to mima?">
-				You just signed in on {hostOf(capture.url)}.
-			</OfferTitle>
-			<div className="grid grid-cols-2 gap-2">
-				<Field label="Name">
-					<Input
-						value={name}
-						onChange={(event) => setName(event.target.value)}
-					/>
-				</Field>
-				<Field label="Vault">
-					<span className="relative flex">
-						<select
-							value={vaultId}
-							onChange={(event) => setVaultId(event.target.value)}
-							className="border-line bg-surface text-body-sm text-fg focus-visible:border-brand h-8 w-full appearance-none rounded-lg border pr-7 pl-2.5 outline-none"
-						>
-							{vaults.map((vault) => (
-								<option key={vault.id} value={vault.id}>
-									{vault.name}
-								</option>
-							))}
-						</select>
-						<CaretDownIcon className="text-fg-subtle pointer-events-none absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2" />
-					</span>
-				</Field>
-				<div className="col-span-2">
-					<Field label="Username">
-						<Input
-							value={username}
-							onChange={(event) => setUsername(event.target.value)}
-						/>
-					</Field>
-				</div>
-			</div>
-			<FormError>{error}</FormError>
-			<div className="flex justify-end gap-2">
-				<Button variant="ghost" size="sm" onClick={onDismiss}>
-					Not now
-				</Button>
-				<Button
-					variant="brand"
-					size="sm"
-					disabled={busy || !name.trim() || !vaultId}
-					onClick={() => {
-						const vault = vaults.find((v) => v.id === vaultId);
-						if (!vault) return;
-						void run(() =>
-							onSave(vault, {
-								name: name.trim(),
-								username: username.trim(),
-								password: capture.password,
-								url: capture.url,
-							}),
-						);
-					}}
-				>
-					{busy ? "Encrypting…" : "Save"}
-				</Button>
-			</div>
-		</section>
-	);
-}
-
-type Field = "username" | "secret" | "code";
+type CopyField = "username" | "secret" | "code";
 
 async function oneTimeCode(entry: Entry) {
 	const config = entry.totp ? parseTotp(entry.totp) : null;
@@ -706,26 +564,11 @@ function Row({
 	entry: Entry;
 	canFill: boolean;
 	onFill: (entry: Entry) => void;
-	onCopy: (entry: Entry, field: Field) => void;
+	onCopy: (entry: Entry, field: CopyField) => void;
 }) {
-	const Icon = kindIcon[entry.kind];
-	const logo = logoDomain(entry);
-	const [missing, setMissing] = useState(false);
 	return (
 		<li className="hover:bg-tint/4 flex items-center gap-2.5 rounded-lg px-2 py-1.5">
-			<span className="bg-surface text-fg-muted shadow-pill flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md">
-				{logo && !missing ? (
-					<img
-						src={logoUrl(logo, 28)}
-						alt=""
-						draggable={false}
-						className="size-full object-cover"
-						onError={() => setMissing(true)}
-					/>
-				) : (
-					<Icon className="size-4" />
-				)}
-			</span>
+			<ItemLogo logo={logoDomain(entry)} icon={kindIcon[entry.kind]} />
 			<div className="flex min-w-0 flex-1 flex-col">
 				<span className="text-body-sm text-fg truncate">{entry.name}</span>
 				<span className="text-caption text-fg-subtle truncate">
@@ -816,28 +659,6 @@ function Card({
 			</div>
 			{children}
 		</main>
-	);
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-	return (
-		// biome-ignore lint/a11y/noLabelWithoutControl: the control is passed as children
-		<label className="flex flex-col gap-1.5">
-			<span className="text-caption text-fg-muted">{label}</span>
-			{children}
-		</label>
-	);
-}
-
-function FormError({ children }: { children: ReactNode }) {
-	if (!children) return null;
-	return (
-		<p
-			role="alert"
-			className="border-danger-line bg-danger-soft text-caption text-danger-strong rounded-lg border px-3 py-2"
-		>
-			{children}
-		</p>
 	);
 }
 
