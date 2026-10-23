@@ -8,7 +8,7 @@ type KitDetails = {
 	address: string;
 };
 
-const escape = (text: string) =>
+const escapeHtml = (text: string) =>
 	text.replace(
 		/[&<>"']/g,
 		(char) =>
@@ -24,7 +24,7 @@ export function emergencyKitHtml(kit: KitDetails, date = new Date()) {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>mima Emergency Kit · ${escape(kit.email)}</title>
+<title>mima Emergency Kit · ${escapeHtml(kit.email)}</title>
 <style>
 	* { box-sizing: border-box; }
 	body { margin: 0; font: 15px/1.5 "IBM Plex Sans", system-ui, sans-serif; color: #111; background: #fff; }
@@ -48,16 +48,16 @@ export function emergencyKitHtml(kit: KitDetails, date = new Date()) {
 <body>
 <main>
 	<h1>mima Emergency Kit</h1>
-	<p class="sub">For ${escape(kit.name)} in ${escape(kit.workspace)} · ${escape(date.toLocaleDateString(undefined, { dateStyle: "long" }))}</p>
+	<p class="sub">For ${escapeHtml(kit.name)} in ${escapeHtml(kit.workspace)} · ${escapeHtml(date.toLocaleDateString(undefined, { dateStyle: "long" }))}</p>
 	<div class="card">
-		${row("Sign-in address", escape(kit.address))}
-		${row("Email", escape(kit.email))}
+		${row("Sign-in address", escapeHtml(kit.address))}
+		${row("Email", escapeHtml(kit.email))}
 		<div class="row write"><span class="label">Master password</span><span class="blank"></span></div>
 	</div>
 	<h2>Keep it safe</h2>
 	<ul>
 		<li>Write your master password above by hand, then keep this page where you keep your passport.</li>
-		<li>Your master password can't be reset. Nobody at ${escape(kit.workspace)}, and nothing on the server, can open your private vault without it.</li>
+		<li>Your master password can't be reset. Nobody at ${escapeHtml(kit.workspace)}, and nothing on the server, can open your private vault without it.</li>
 		<li>If you lose it anyway, an admin can invite you again. You'll start with an empty private vault, and shared vaults can be opened to you again.</li>
 	</ul>
 	<footer>Printed from mima. This page holds no secret until you write one on it.</footer>
