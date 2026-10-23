@@ -1,12 +1,15 @@
 import { useEffect, useSyncExternalStore } from "react";
 
-// Which look the app wears (see themes.css). Kept per device; "classic" is mima's own.
+// Which look the app wears (see themes.css). Kept per device; Pure unless someone picks
+// another.
 
 export const APP_STYLES = [
-	{ value: "classic", label: "Classic" },
-	{ value: "frost", label: "Frost" },
 	{ value: "pure", label: "Pure" },
+	{ value: "frost", label: "Frost" },
+	{ value: "classic", label: "Classic" },
 ] as const;
+
+export const DEFAULT_STYLE = "pure";
 
 export type AppStyle = (typeof APP_STYLES)[number]["value"];
 
@@ -18,9 +21,9 @@ function read(): AppStyle {
 		const stored = localStorage.getItem(KEY);
 		return APP_STYLES.some((style) => style.value === stored)
 			? (stored as AppStyle)
-			: "classic";
+			: DEFAULT_STYLE;
 	} catch {
-		return "classic";
+		return DEFAULT_STYLE;
 	}
 }
 
@@ -40,7 +43,7 @@ export function useAppStyle() {
 			return () => listeners.delete(listener);
 		},
 		read,
-		() => "classic" as AppStyle,
+		() => DEFAULT_STYLE as AppStyle,
 	);
 }
 

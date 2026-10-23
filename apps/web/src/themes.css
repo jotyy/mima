@@ -4,8 +4,9 @@
 /*
  * Styles to choose from. Every one keeps mima's layout, mima blue, the logo and the
  * sign-in page; they change only how things look: typefaces, neutrals, surfaces, depth,
- * radii and how a selection shows. Fonts load only when a style uses them. The app shell sets data-style on <html> while it's
- * open. Without it, mima looks as it always has ("classic").
+ * radii and how a selection shows. Fonts load only when a style uses them. The app shell
+ * sets data-style on <html> while it's open. Pure is the default; without data-style,
+ * mima looks as it first did ("classic").
  */
 
 /* ── Frost: light and airy. A soft blue morning light behind everything, a glass sidebar,
