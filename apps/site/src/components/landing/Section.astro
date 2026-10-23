@@ -1,22 +1,21 @@
 ---
-import Crossing from "./Crossing.astro";
-
-// A band of the page: a hairline across the top, dots where it meets the guide lines.
+// A band of the page, set apart by space alone.
 interface Props {
 	id?: string;
-	/** The band's number in the margin, such as "02". */
-	index?: string;
+	/** A dark band, in either theme. */
+	dark?: boolean;
 	class?: string;
 }
 
-const { id, index, class: className } = Astro.props;
+const { id, dark = false, class: className } = Astro.props;
 ---
 
-<section id={id} class="border-line-subtle relative border-t">
-	<Crossing index={index} />
-	<div class="mx-auto max-w-6xl px-6">
-		<div class:list={["py-24 sm:px-10 sm:py-32", className]}>
-			<slot />
+<section id={id} class:list={["relative", dark && "px-2 sm:px-4"]}>
+	<div class:list={[dark && "dark bg-frame text-fg ring-line-subtle rounded-3xl ring-1"]}>
+		<div class="mx-auto max-w-6xl px-6">
+			<div class:list={["py-24 sm:px-10 sm:py-28", className]}>
+				<slot />
+			</div>
 		</div>
 	</div>
 </section>

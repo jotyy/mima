@@ -1,0 +1,58 @@
+---
+import { PlusIcon } from "@phosphor-icons/react";
+
+import Heading from "./Heading.astro";
+import Section from "./Section.astro";
+
+const questions = [
+	{
+		q: "Is mima free?",
+		a: "Yes. It's open source under AGPL-3.0. You only pay for your own Cloudflare account, and a small team usually fits in the free plan.",
+	},
+	{
+		q: "Can anyone at mima see our data?",
+		a: "There's no one to ask. There is no mima cloud: it runs on your Cloudflare account, and even that server only ever stores ciphertext.",
+	},
+	{
+		q: "What if I forget my master password?",
+		a: "Nobody can reset it, not even an admin. It's the only key to your items. An admin can invite you again so you start over, which is why mima asks you to print an Emergency Kit.",
+	},
+	{
+		q: "What happens when someone leaves?",
+		a: "Remove them and their copies of the vault keys are deleted. mima then lists every item they could open, so you can change what matters.",
+	},
+	{
+		q: "Can we move from 1Password or Bitwarden?",
+		a: "Yes. Import their CSV exports, or Chrome's, Firefox's and Safari's. You can download a full backup any time, too.",
+	},
+	{
+		q: "Has it been audited?",
+		a: "Not yet. The design is small and documented, and every line of code is open to read.",
+	},
+];
+---
+
+<Section id="faq">
+	<div class="grid gap-14 lg:grid-cols-5">
+		<div class="lg:col-span-2">
+			<Heading label="Questions" title="Fair questions." quiet="Straight answers.">
+				<a href="/docs/" class="text-label text-link mt-1 w-fit font-medium underline-offset-4 hover:underline">
+					More in the docs →
+				</a>
+			</Heading>
+		</div>
+		<div data-reveal class="flex flex-col gap-2 lg:col-span-3">
+			{
+				questions.map((item) => (
+					<details name="faq" class="group bg-surface shadow-card rounded-xl">
+						<summary class="text-copy text-fg flex cursor-pointer list-none items-center justify-between gap-4 rounded-xl px-5 py-4 outline-none focus-visible:ring-2 focus-visible:ring-brand [&::-webkit-details-marker]:hidden">
+							{item.q}
+							<PlusIcon className="text-fg-subtle size-4 shrink-0 transition-transform duration-300 group-open:rotate-45" />
+						</summary>
+						<p class="text-label text-fg-muted px-5 pb-5 text-pretty">{item.a}</p>
+					</details>
+				))
+			}
+		</div>
+	</div>
+</Section>

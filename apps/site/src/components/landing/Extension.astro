@@ -1,0 +1,92 @@
+---
+import { CheckIcon, GlobeIcon } from "@phosphor-icons/react";
+
+import BrandIcon from "@/components/BrandIcon.astro";
+import Heading from "./Heading.astro";
+import Section from "./Section.astro";
+
+const points = [
+	"Choose mima's mark in any login field to fill.",
+	"Sign in somewhere new and it offers to save.",
+	"The site can't read the menu. It's mima's own frame.",
+];
+---
+
+<Section id="extension">
+	<div class="grid items-center gap-16 lg:grid-cols-2">
+		<Heading
+			label="Browser extension"
+			title="Fills where you sign in."
+			quiet="Saves what you type."
+		>
+			<ul class="mt-3 flex flex-col gap-3">
+				{
+					points.map((point) => (
+						<li class="text-copy text-fg-muted flex gap-3">
+							<CheckIcon weight="bold" className="text-brand mt-1 size-4 shrink-0" />
+							{point}
+						</li>
+					))
+				}
+			</ul>
+		</Heading>
+
+		<!-- A site's sign-in, with mima's mark in the field and its menu open under it. -->
+		<div data-reveal class="bg-surface shadow-float ring-line-subtle rounded-2xl p-8 ring-1 sm:p-10">
+			<div class="flex items-center gap-2.5">
+				<span class="bg-surface-sunken text-fg flex size-9 items-center justify-center rounded-xl">
+					<BrandIcon brand="Linear" class="size-4.5" />
+				</span>
+				<span class="text-h5 text-fg font-medium">Sign in to Linear</span>
+			</div>
+
+			<div class="mt-7 flex flex-col gap-1.5">
+				<span class="text-label text-fg-muted">Email</span>
+				<div class="relative">
+					<div class="ring-brand bg-surface flex h-11 items-center rounded-lg pr-2 pl-3.5 ring-2">
+						<span class="text-copy text-fg-faint flex-1">you@company.com</span>
+						<span class="bg-tint/6 flex size-7 items-center justify-center rounded-md">
+							<img src="/favicon.svg" alt="" class="size-4.5" />
+						</span>
+					</div>
+
+					<!-- The menu: mima's frame, under the field -->
+					<div class="bg-surface shadow-popover ring-line-subtle absolute top-full right-0 left-10 z-10 mt-2 overflow-hidden rounded-xl ring-1">
+						<ul class="flex flex-col p-1">
+							{
+								[
+									{ name: "Linear", user: "alex@acme.example" },
+									{ name: "Linear (admin)", user: "ops@acme.example" },
+								].map((login, index) => (
+									<li class:list={["flex items-center gap-2.5 rounded-lg px-2 py-1.5", index === 0 && "bg-tint/4"]}>
+										<span class="bg-surface shadow-pill text-fg flex size-7 items-center justify-center rounded-md">
+											<BrandIcon brand="Linear" class="size-3.5" />
+										</span>
+										<span class="flex min-w-0 flex-1 flex-col">
+											<span class="text-label text-fg truncate">{login.name}</span>
+											<span class="text-micro text-fg-subtle truncate">{login.user}</span>
+										</span>
+										{index === 0 && <span class="text-micro text-link">Fill</span>}
+									</li>
+								))
+							}
+						</ul>
+						<div class="border-line-subtle text-micro text-fg-subtle flex items-center gap-1.5 border-t px-3 py-2">
+							<GlobeIcon className="size-3" />
+							Logins for linear.app
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="mt-4 flex flex-col gap-1.5">
+				<span class="text-label text-fg-muted">Password</span>
+				<div class="ring-line h-11 rounded-lg ring-1"></div>
+			</div>
+			<div class="bg-surface-sunken text-fg-subtle text-label mt-6 flex h-11 items-center justify-center rounded-lg font-medium">
+				Continue
+			</div>
+			<p class="text-micro text-fg-subtle mt-5 text-center">Forgot your password?</p>
+		</div>
+	</div>
+</Section>

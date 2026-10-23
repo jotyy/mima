@@ -1,0 +1,83 @@
+---
+import { ArrowRightIcon, LockSimpleIcon } from "@phosphor-icons/react";
+
+import { button, REPOSITORY } from "@/lib/ui";
+import ItemChip from "./ItemChip.astro";
+
+// The sign-in page's lock, once more: items drift through it and come out as ciphertext.
+const rows = [
+	[
+		{ brand: "Github", name: "GitHub", cipher: "kX9fQ2Lq0vA7" },
+		{ brand: "Stripe", name: "Stripe live key", cipher: "U2Fs8dGVkX1e" },
+		{ brand: "Figma", name: "Figma", cipher: "p0Rz8nWc4JdQ" },
+		{ brand: "Linear", name: "Linear", cipher: "Qw3oE7iU1yHs" },
+	],
+	[
+		{ brand: "Cloudflare", name: "Cloudflare token", cipher: "f1Jw5uN9eL0o" },
+		{ brand: "Postgresql", name: "Postgres · staging", cipher: "m4Ls9Xa0Jf7T" },
+		{ brand: "Vercel", name: "Vercel", cipher: "Ze8cD1nR5qB2" },
+		{ brand: "Notion", name: "Notion", cipher: "b6Nv2Kc8Ps4D" },
+	],
+	[
+		{ brand: "Docker", name: "Docker Hub", cipher: "Yt2hG6vK4pWs" },
+		{ brand: "Sentry", name: "Sentry", cipher: "Gx5tR0wM3zLa" },
+		{ brand: "Supabase", name: "Supabase", cipher: "Vn6sA0yP2gHk" },
+		{ brand: "Datadog", name: "Datadog", cipher: "Rk3bM8qZ7cXu" },
+	],
+];
+---
+
+<section class="px-2 pb-2 sm:px-4 sm:pb-4">
+	<div data-slot="brand-panel" class="rounded-3xl">
+		<div class="mx-auto grid max-w-6xl items-center gap-14 px-6 py-24 sm:px-16 sm:py-28 lg:grid-cols-2">
+			<div data-reveal class="flex flex-col items-start gap-6">
+				<h2 class="text-title-sm sm:text-title text-balance text-white">
+					Own your secrets.
+					<span class="text-sky-glow block">Start in ten minutes.</span>
+				</h2>
+				<p class="text-lead-sm max-w-md text-white/75">Free, open source, and running on your own Cloudflare.</p>
+				<div class="flex flex-wrap gap-3">
+					<a href="/docs/self-hosting/" class={button("light", "lg", "group")}>
+						Deploy mima
+						<ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
+					</a>
+					<a href={REPOSITORY} class={button("glass", "lg")}>Star on GitHub</a>
+				</div>
+			</div>
+
+			<div aria-hidden="true" data-reveal style="--reveal-delay: 120ms" class="flex flex-col gap-3">
+				<div data-slot="seal">
+					{
+						[false, true].map((sealed) => (
+							<div data-slot="seal-layer" data-plain={sealed ? undefined : ""}>
+								{rows.map((row, index) => (
+									<div data-slot="marquee">
+										<div
+											data-slot="marquee-track"
+											data-reverse
+											style={`--marquee-duration: ${42 + index * 8}s; animation-delay: -${index * 11}s`}
+										>
+											{[...row, ...row].map((item) => (
+												<span class="mr-2 w-44 shrink-0">
+													<ItemChip brand={item.brand} name={item.name} cipher={sealed ? item.cipher : undefined} />
+												</span>
+											))}
+										</div>
+									</div>
+								))}
+							</div>
+						))
+					}
+					<span class="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-white/30"></span>
+					<span class="bg-surface text-brand shadow-float absolute top-1/2 left-1/2 flex size-10 -translate-1/2 items-center justify-center rounded-full ring-4 ring-white/20">
+						<LockSimpleIcon weight="bold" className="size-4.5" />
+					</span>
+				</div>
+				<div class="text-micro grid grid-cols-2 text-center text-white/60">
+					<span>On your device</span>
+					<span>On the server</span>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>

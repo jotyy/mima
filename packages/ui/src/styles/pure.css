@@ -37,7 +37,8 @@ html[data-style="pure"] {
 	--round-panel: 14px;
 }
 
-html.dark[data-style="pure"] {
+html.dark[data-style="pure"],
+[data-style="pure"] .dark {
 	--frame: #0c0c0e;
 	--canvas: #0f0f11;
 	--surface: #131316;

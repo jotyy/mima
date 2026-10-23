@@ -14,7 +14,7 @@ const { label, title, quiet, lead, center = false } = Astro.props;
 <div
 	data-reveal
 	class:list={[
-		"flex flex-col gap-5",
+		"flex min-w-0 flex-col gap-5",
 		center ? "mx-auto max-w-3xl items-center text-center" : "max-w-2xl",
 	]}
 >
@@ -24,7 +24,7 @@ const { label, title, quiet, lead, center = false } = Astro.props;
 	</span>
 	<h2 class="text-title-sm sm:text-title text-fg text-balance">
 		{title}
-		{quiet && <span class="text-fg-faint"> {quiet}</span>}
+		{quiet && <span class="text-fg-faint block">{quiet}</span>}
 	</h2>
 	{lead && <p class="text-lead-sm text-fg-muted text-pretty">{lead}</p>}
 	<slot />

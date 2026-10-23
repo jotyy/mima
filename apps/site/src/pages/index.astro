@@ -1,10 +1,15 @@
 ---
 import Agents from "@/components/landing/Agents.astro";
+import Details from "@/components/landing/Details.astro";
+import Extension from "@/components/landing/Extension.astro";
+import Faq from "@/components/landing/Faq.astro";
+import FinalCta from "@/components/landing/FinalCta.astro";
 import Footer from "@/components/landing/Footer.astro";
-import Guides from "@/components/landing/Guides.astro";
 import Hero from "@/components/landing/Hero.astro";
 import Nav from "@/components/landing/Nav.astro";
 import Product from "@/components/landing/Product.astro";
+import Security from "@/components/landing/Security.astro";
+import SelfHost from "@/components/landing/SelfHost.astro";
 import Sharing from "@/components/landing/Sharing.astro";
 import Landing from "@/layouts/Landing.astro";
 ---
@@ -14,13 +19,18 @@ import Landing from "@/layouts/Landing.astro";
 	description="End-to-end encrypted logins, API keys and SSH keys for small teams and their agents. Open source, and it runs on your own Cloudflare account."
 >
 	<div class="relative isolate">
-		<Guides />
 		<Nav />
 		<main>
 			<Hero />
 			<Product />
 			<Sharing />
 			<Agents />
+			<Extension />
+			<Details />
+			<Security />
+			<SelfHost />
+			<Faq />
+			<FinalCta />
 		</main>
 		<Footer />
 	</div>

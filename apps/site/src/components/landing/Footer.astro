@@ -1,7 +1,14 @@
 ---
+import { DesktopIcon, MoonIcon, SunIcon } from "@phosphor-icons/react";
+
 import Logo from "@/components/Logo.astro";
 import { REPOSITORY } from "@/lib/ui";
-import Crossing from "./Crossing.astro";
+
+const themes = [
+	{ value: "light", label: "Light", icon: SunIcon },
+	{ value: "auto", label: "System", icon: DesktopIcon },
+	{ value: "dark", label: "Dark", icon: MoonIcon },
+];
 
 const columns = [
 	{
@@ -37,8 +44,7 @@ const columns = [
 ];
 ---
 
-<footer class="border-line-subtle relative border-t">
-	<Crossing />
+<footer class="border-line-subtle border-t">
 	<div class="mx-auto max-w-6xl px-6">
 		<div class="grid gap-12 py-16 sm:grid-cols-2 sm:px-10 lg:grid-cols-5">
 		<div class="flex flex-col gap-4 lg:col-span-2">
@@ -62,13 +68,67 @@ const columns = [
 		}
 		</div>
 	</div>
-	<div class="border-line-subtle relative border-t">
-		<Crossing />
-		<div class="mx-auto max-w-6xl px-6">
+	<div class="border-line-subtle border-t">
+			<div class="mx-auto max-w-6xl px-6">
 			<div class="text-micro text-fg-faint flex flex-wrap items-center justify-between gap-3 py-6 sm:px-10">
 				<span>Made for teams of a handful. Open source under AGPL-3.0.</span>
-				<span>Your keys, your server, your data.</span>
+				<div
+					role="radiogroup"
+					aria-label="Theme"
+					data-theme-switch
+					class="bg-surface-sunken flex items-center gap-0.5 rounded-full p-0.5"
+				>
+					{
+						themes.map((theme) => (
+							<button
+								type="button"
+								role="radio"
+								aria-checked="false"
+								aria-label={theme.label}
+								title={theme.label}
+								data-value={theme.value}
+								class="text-fg-subtle hover:text-fg aria-checked:bg-surface aria-checked:text-fg aria-checked:shadow-pill flex size-7 items-center justify-center rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand"
+							>
+								<theme.icon className="size-3.5" />
+							</button>
+						))
+					}
+				</div>
 			</div>
 		</div>
 	</div>
 </footer>
+
+<script>
+	// The same setting the docs keep: "light", "dark", or nothing to follow the system.
+	const KEY = "starlight-theme";
+	const system = matchMedia("(prefers-color-scheme: dark)");
+	const stored = () => {
+		try {
+			return localStorage.getItem(KEY) || "auto";
+		} catch {
+			return "auto";
+		}
+	};
+	const apply = () => {
+		const choice = stored();
+		const dark = choice === "dark" || (choice === "auto" && system.matches);
+		document.documentElement.classList.toggle("dark", dark);
+		document.documentElement.dataset.theme = dark ? "dark" : "light";
+		for (const button of document.querySelectorAll<HTMLElement>("[data-theme-switch] [data-value]"))
+			button.setAttribute("aria-checked", String(button.dataset.value === choice));
+	};
+	for (const button of document.querySelectorAll<HTMLElement>("[data-theme-switch] [data-value]")) {
+		button.addEventListener("click", () => {
+			try {
+				if (button.dataset.value === "auto") localStorage.removeItem(KEY);
+				else localStorage.setItem(KEY, button.dataset.value ?? "");
+			} catch {
+				// Private windows may refuse storage; the choice still applies to this page.
+			}
+			apply();
+		});
+	}
+	system.addEventListener("change", apply);
+	apply();
+</script>

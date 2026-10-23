@@ -1,0 +1,123 @@
+---
+import {
+	ArrowDownIcon,
+	EyeIcon,
+	EyeSlashIcon,
+	KeyIcon,
+	LockSimpleIcon,
+	PasswordIcon,
+	UserCircleIcon,
+	VaultIcon,
+} from "@phosphor-icons/react";
+
+import Heading from "./Heading.astro";
+import Section from "./Section.astro";
+
+// How a master password becomes the key to one item, as in docs/security.md.
+const chain = [
+	{
+		icon: PasswordIcon,
+		name: "Master password",
+		spec: "Never leaves your device",
+		via: "PBKDF2-SHA256 · 600,000 rounds",
+	},
+	{
+		icon: KeyIcon,
+		name: "Master key",
+		spec: "Split by HKDF into a sign-in key and a wrap key",
+		via: "Wrap key opens",
+	},
+	{
+		icon: UserCircleIcon,
+		name: "Your private key",
+		spec: "ECDH P-256",
+		via: "Opens what teammates shared",
+	},
+	{
+		icon: VaultIcon,
+		name: "Vault key",
+		spec: "AES-256-GCM, one per vault",
+		via: "Wraps",
+	},
+	{
+		icon: LockSimpleIcon,
+		name: "Item key",
+		spec: "AES-256-GCM, one per item",
+		via: null,
+	},
+];
+
+const hidden = [
+	"Item names, usernames and passwords",
+	"Notes, websites and one-time code secrets",
+	"Vault names",
+	"Your private key and every vault key",
+];
+const seen = [
+	"Emails, names and roles",
+	"Who can open which vault",
+	"When items are used",
+];
+---
+
+<Section id="security">
+	<Heading
+		center
+		label="Security"
+		title="The server can't read it."
+		quiet="Not even the names."
+		lead="Every item is sealed in your browser before it's saved. Your master password is the only key, and only you hold it."
+	/>
+
+	<div class="mt-16 grid items-start gap-6 sm:mt-20 lg:grid-cols-5">
+		<!-- From password to item -->
+		<ol data-reveal class="bg-surface shadow-card flex flex-col rounded-2xl p-6 sm:p-8 lg:col-span-3">
+			{
+				chain.map((step) => (
+					<li class="flex flex-col">
+						<div class="flex items-center gap-4">
+							<span class="bg-brand-soft text-link flex size-10 shrink-0 items-center justify-center rounded-xl">
+								<step.icon className="size-5" />
+							</span>
+							<div class="flex min-w-0 flex-col">
+								<span class="text-copy text-fg font-medium">{step.name}</span>
+								<span class="text-label text-fg-subtle">{step.spec}</span>
+							</div>
+						</div>
+						{step.via && (
+							<div class="text-micro text-fg-faint flex items-center gap-3 py-2 pl-3.5">
+								<ArrowDownIcon className="size-3" />
+								<span class="font-mono">{step.via}</span>
+							</div>
+						)}
+					</li>
+				))
+			}
+		</ol>
+
+		<div class="flex flex-col gap-6 lg:col-span-2">
+			<div data-reveal style="--reveal-delay: 80ms" class="bg-surface shadow-card rounded-2xl p-6 sm:p-8">
+				<h3 class="text-label text-fg flex items-center gap-2 font-medium">
+					<EyeSlashIcon className="text-brand size-4" />
+					Encrypted, out of the server's reach
+				</h3>
+				<ul class="mt-4 flex flex-col gap-2.5">
+					{hidden.map((line) => <li class="text-label text-fg-muted">{line}</li>)}
+				</ul>
+			</div>
+			<div data-reveal style="--reveal-delay: 140ms" class="bg-surface-sunken/60 ring-line-subtle rounded-2xl p-6 ring-1 sm:p-8">
+				<h3 class="text-label text-fg flex items-center gap-2 font-medium">
+					<EyeIcon className="text-fg-subtle size-4" />
+					What the server does see
+				</h3>
+				<ul class="mt-4 flex flex-col gap-2.5">
+					{seen.map((line) => <li class="text-label text-fg-subtle">{line}</li>)}
+				</ul>
+			</div>
+			<p data-reveal class="text-label text-fg-subtle px-2 text-pretty">
+				Open source and small enough to read, but not independently audited yet.
+				<a href="/docs/security/" class="text-link font-medium underline-offset-4 hover:underline">Read the model and its limits →</a>
+			</p>
+		</div>
+	</div>
+</Section>

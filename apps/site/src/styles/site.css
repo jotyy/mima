@@ -38,6 +38,11 @@
 	--text-copy: 0.9375rem;
 	--text-copy--line-height: 1.6;
 
+	/* The hero's second line: the sky's own light. */
+	--color-sky-glow: #a9c2ff;
+	/* The deep blue of the mark's keyhole, for text on white in both themes. */
+	--color-navy: #071b45;
+
 	/* A terminal, the same in both themes. */
 	--color-terminal: #0d0d10;
 	--color-terminal-fg: #e4e4e7;
@@ -95,6 +100,105 @@ body {
 		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
 		mix-blend-mode: soft-light;
 		opacity: 0.45;
+	}
+}
+
+/* ── The hero's sky: navy at the top, mima blue in the middle, the page at the bottom ── */
+
+[data-slot="hero-sky"] {
+	position: relative;
+	isolation: isolate;
+	overflow: hidden;
+	background-color: #061032;
+	background-image:
+		radial-gradient(60% 40% at 50% 0%, rgb(46 96 245 / 0.5), transparent 70%),
+		linear-gradient(
+			to bottom,
+			#040a20 0%,
+			#081a5a 26%,
+			#1443e0 54%,
+			#3f7aff 68%,
+			#b4c9ff 84%,
+			var(--frame) 100%
+		);
+
+	&::before {
+		content: "";
+		position: absolute;
+		inset: 0;
+		z-index: -1;
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+		mix-blend-mode: soft-light;
+		opacity: 0.4;
+	}
+}
+
+/* Ciphertext across the sky, with a keyhole that reads it. */
+[data-slot="cipher-field"] {
+	--x: 80%;
+	--y: 26%;
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	overflow: hidden;
+	pointer-events: none;
+	/* Clear behind the heading, gone before the demo. */
+	mask-image:
+		linear-gradient(
+			to bottom,
+			transparent 0,
+			black 9%,
+			black 30%,
+			transparent 62%
+		),
+		radial-gradient(
+			ellipse 44% 30% at 50% 34%,
+			transparent,
+			rgb(0 0 0 / 0.06) 55%,
+			black 100%
+		);
+	mask-composite: intersect;
+
+	& > pre {
+		position: absolute;
+		inset: 0;
+		margin: 0;
+		font: 500 11px / 22px var(--font-code);
+		letter-spacing: 0.08em;
+		white-space: pre;
+	}
+
+	& > [data-layer="cipher"] {
+		color: rgb(255 255 255 / 0.09);
+	}
+
+	& > [data-layer="plain"] {
+		color: #fff;
+		text-shadow: 0 0 10px rgb(150 185 255 / 0.9);
+		mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 280'%3E%3Cfilter id='b' x='-20%' y='-20%' width='140%' height='140%'%3E%3CfeGaussianBlur stdDeviation='4'/%3E%3C/filter%3E%3Cpath filter='url(%23b)' d='M100 30a60 60 0 0 1 30.6 111.6L143 257H57l12.4-115.4A60 60 0 0 1 100 30z'/%3E%3C/svg%3E");
+		mask-repeat: no-repeat;
+		mask-size: 200px 280px;
+		mask-position: calc(var(--x) - 100px) calc(var(--y) - 90px);
+	}
+
+	/* On phones the heading fills the width, so the keyhole would only cover it. */
+	@media (width < 48rem) {
+		& > [data-layer="plain"],
+		& > [data-slot="keyhole"] {
+			display: none;
+		}
+	}
+
+	& > [data-slot="keyhole"] {
+		position: absolute;
+		top: calc(var(--y) - 90px);
+		left: calc(var(--x) - 100px);
+		width: 200px;
+		height: 280px;
+		fill: rgb(255 255 255 / 0.04);
+		stroke: rgb(255 255 255 / 0.4);
+		stroke-width: 1.25;
+		filter: drop-shadow(0 0 18px rgb(120 165 255 / 0.55));
 	}
 }
 

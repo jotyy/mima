@@ -1,0 +1,137 @@
+---
+// The hero's sky is full of ciphertext: noise to anyone looking at it. The pointer is a
+// keyhole cut from mima's mark, and through it the same text reads as your team's items.
+// Both layers are the same rows, character for character; only the keyhole shows the
+// plain one. With no pointer, the keyhole wanders by itself.
+
+const words = [
+	"GitHub",
+	"alex@acme.example",
+	"r7#Lq2v!Wm9e-Tb4",
+	"Stripe live key",
+	"sk_live_51NxQ2vLr8KcT",
+	"Postgres · staging",
+	"postgres://app:h4Kq9@db",
+	"Office Wi-Fi",
+	"lighthouse-42",
+	"AWS root",
+	"ops@acme.example",
+	"Figma",
+	"design@acme.example",
+	"Vercel token",
+	"Linear",
+	"deploy@prod",
+	"ssh-ed25519 AAAAC3NzaC1",
+	"Door code 4417",
+	"Recovery codes",
+	"OPENAI_API_KEY",
+	"Cloudflare token",
+	"Notion",
+	"Sentry DSN",
+	"Datadog API key",
+	"Hn8$wQ2!zR5p",
+	"kim@acme.example",
+	"Backup server",
+	"JBSWY3DPEHPK3PXP",
+	"riley@acme.example",
+	"Google Workspace",
+	"Wi-Fi guest",
+	"pk_test_9Kd2",
+	"Docker Hub",
+	"acmebot",
+	"Supabase service key",
+	"Qm7&vT3#nW8x",
+	"Build runner",
+	"jordan@acme.example",
+];
+const BASE64 =
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const ROWS = 46;
+const WIDTH = 320;
+
+// A fixed seed, so the page is the same on every build.
+let seed = 20261023;
+const random = () => {
+	seed = (seed + 0x6d2b79f5) | 0;
+	let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+	t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+	return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+
+const plain: string[] = [];
+const cipher: string[] = [];
+for (let row = 0; row < ROWS; row++) {
+	let line = " ".repeat(Math.floor(random() * 12));
+	while (line.length < WIDTH)
+		line += `${words[Math.floor(random() * words.length)]}   `;
+	plain.push(line);
+	cipher.push(
+		[...line]
+			.map((char) =>
+				char === " " ? " " : BASE64[Math.floor(random() * BASE64.length)],
+			)
+			.join(""),
+	);
+}
+---
+
+<div data-slot="cipher-field" aria-hidden="true">
+	<pre data-layer="cipher">{cipher.join("\n")}</pre>
+	<pre data-layer="plain">{plain.join("\n")}</pre>
+	<svg data-slot="keyhole" viewBox="0 0 200 280">
+		<path d="M100 30a60 60 0 0 1 30.6 111.6L143 257H57l12.4-115.4A60 60 0 0 1 100 30z"></path>
+	</svg>
+</div>
+
+<script>
+	// Follows the pointer over the hero; wanders on its own when there isn't one.
+	for (const field of document.querySelectorAll<HTMLElement>("[data-slot='cipher-field']")) {
+		const hero = field.parentElement;
+		if (!hero) continue;
+		const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+		let target: { x: number; y: number } | null = null;
+		let lastMove = 0;
+		const at = { x: 0, y: 0 };
+
+		hero.addEventListener("pointermove", (event) => {
+			if (event.pointerType !== "mouse") return;
+			const box = field.getBoundingClientRect();
+			target = { x: event.clientX - box.left, y: event.clientY - box.top };
+			lastMove = performance.now();
+		});
+		hero.addEventListener("pointerleave", () => {
+			lastMove = 0;
+		});
+
+		const place = (x: number, y: number) => {
+			field.style.setProperty("--x", `${x}px`);
+			field.style.setProperty("--y", `${y}px`);
+		};
+
+		let visible = true;
+		new IntersectionObserver(([entry]) => {
+			visible = Boolean(entry?.isIntersecting);
+		}).observe(field);
+
+		const frame = (now: number) => {
+			const { width, height } = field.getBoundingClientRect();
+			const following = target && now - lastMove < 2500;
+			const goal = following && target
+				? target
+				: {
+						x: width * (0.5 + 0.36 * Math.sin(now / 5200)),
+						y: height * (0.3 + 0.12 * Math.sin(now / 3700)),
+					};
+			at.x += (goal.x - at.x) * (following ? 0.22 : 0.04);
+			at.y += (goal.y - at.y) * (following ? 0.22 : 0.04);
+			place(at.x, at.y);
+			if (!calm && visible) requestAnimationFrame(frame);
+			else if (!calm) setTimeout(() => requestAnimationFrame(frame), 400);
+		};
+		const { width, height } = field.getBoundingClientRect();
+		at.x = width * 0.82;
+		at.y = height * 0.26;
+		place(at.x, at.y);
+		if (!calm) requestAnimationFrame(frame);
+	}
+</script>

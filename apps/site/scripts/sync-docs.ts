@@ -17,11 +17,15 @@ const root = path.resolve(import.meta.dirname, "../../..");
 const source = path.join(root, "docs");
 const pages = path.resolve(import.meta.dirname, "../src/content/docs/docs");
 const images = path.resolve(import.meta.dirname, "../public/docs/images");
+// The landing page shows the same screenshots, optimized at build time.
+const screens = path.resolve(import.meta.dirname, "../src/assets/screens");
 
 rmSync(pages, { recursive: true, force: true });
 rmSync(images, { recursive: true, force: true });
+rmSync(screens, { recursive: true, force: true });
 mkdirSync(pages, { recursive: true });
 mkdirSync(images, { recursive: true });
+mkdirSync(screens, { recursive: true });
 
 const slugOf = (file: string) =>
 	file === "README.md" ? "" : file.replace(/\.md$/, "");
@@ -89,4 +93,5 @@ for (const file of readdirSync(source)) {
 
 for (const file of readdirSync(path.join(source, "images"))) {
 	copyFileSync(path.join(source, "images", file), path.join(images, file));
+	copyFileSync(path.join(source, "images", file), path.join(screens, file));
 }

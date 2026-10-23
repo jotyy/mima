@@ -1,0 +1,203 @@
+---
+import {
+	ArrowCounterClockwiseIcon,
+	CopySimpleIcon,
+	EyeIcon,
+	LinkSimpleIcon,
+	RobotIcon,
+	ShieldCheckIcon,
+	TrashIcon,
+} from "@phosphor-icons/react";
+
+import BrandIcon from "@/components/BrandIcon.astro";
+import Heading from "./Heading.astro";
+import Section from "./Section.astro";
+
+const card =
+	"bg-surface shadow-card flex flex-col justify-between gap-8 overflow-hidden rounded-2xl p-6 sm:p-7";
+const caption = "flex flex-col gap-1.5";
+const title = "text-copy text-fg font-medium";
+const text = "text-label text-fg-subtle text-pretty";
+
+const health = [
+	{ count: 2, label: "weak passwords", tone: "bg-danger" },
+	{ count: 1, label: "used in two places", tone: "bg-warning" },
+	{ count: 3, label: "seen by someone who left", tone: "bg-brand" },
+];
+
+const activity = [
+	{
+		icon: CopySimpleIcon,
+		who: "Alex",
+		what: "copied the password for",
+		item: "GitHub",
+		when: "2m",
+	},
+	{
+		icon: RobotIcon,
+		who: "Claude Code",
+		what: "used",
+		item: "Postgres · staging",
+		when: "8m",
+	},
+	{
+		icon: EyeIcon,
+		who: "Riley",
+		what: "revealed",
+		item: "Office Wi-Fi",
+		when: "1h",
+	},
+	{
+		icon: LinkSimpleIcon,
+		who: "Jordan",
+		what: "shared",
+		item: "Figma",
+		when: "3h",
+	},
+];
+
+const sources = [
+	"1password",
+	"Bitwarden",
+	"Lastpass",
+	"Googlechrome",
+	"Firefox",
+	"Safari",
+];
+---
+
+<Section id="details">
+	<Heading
+		center
+		label="The details"
+		title="Small things,"
+		quiet="done properly."
+	/>
+
+	<div class="mt-16 grid gap-3 sm:mt-20 md:grid-cols-3">
+		<!-- Password health -->
+		<div data-reveal class:list={[card, "md:col-span-2"]}>
+			<ul class="flex flex-col gap-2.5">
+				{
+					health.map((row) => (
+						<li class="bg-surface-sunken/70 flex items-center gap-3 rounded-xl px-4 py-3">
+							<span class:list={["size-2 rounded-full", row.tone]} />
+							<span class="text-h5 text-fg w-6 font-medium tabular-nums">{row.count}</span>
+							<span class="text-label text-fg-muted flex-1">{row.label}</span>
+							<span class="text-micro text-link font-medium">Review</span>
+						</li>
+					))
+				}
+			</ul>
+			<div class={caption}>
+				<h3 class={title}>Password health</h3>
+				<p class={text}>Weak, reused and exposed passwords, worked out on your device.</p>
+			</div>
+		</div>
+
+		<!-- Two-step login -->
+		<div data-reveal style="--reveal-delay: 80ms" class={card}>
+			<div class="flex items-center justify-center gap-1.5 py-4">
+				{
+					["4", "8", "2", "9", "1", "3"].map((digit, index) => (
+						<>
+							<span class="bg-surface-sunken text-h4 text-fg flex h-12 w-9 items-center justify-center rounded-lg font-mono">
+								{digit}
+							</span>
+							{index === 2 && <span class="bg-line-strong mx-0.5 h-px w-2" />}
+						</>
+					))
+				}
+			</div>
+			<div class={caption}>
+				<h3 class={title}>Two-step login</h3>
+				<p class={text}>A code from your phone, with recovery codes for a bad day.</p>
+			</div>
+		</div>
+
+		<!-- Share links -->
+		<div data-reveal class={card}>
+			<div class="flex flex-col gap-3 py-2">
+				<div class="text-micro bg-surface-sunken flex items-center gap-2 overflow-hidden rounded-lg px-3 py-2.5 font-mono whitespace-nowrap">
+					<LinkSimpleIcon className="text-fg-subtle size-3.5 shrink-0" />
+					<span class="text-fg-muted">acme.example/s/7Gk2</span><span class="bg-brand-soft text-link -ml-1 rounded px-1">#Q2xqZ8vN…</span>
+				</div>
+				<div class="text-micro text-fg-subtle flex items-center justify-between px-1">
+					<span>The key stays in the link</span>
+					<span>1 view · 1 hour</span>
+				</div>
+			</div>
+			<div class={caption}>
+				<h3 class={title}>Share links</h3>
+				<p class={text}>Send one item to anyone. It expires, and the server can't open it.</p>
+			</div>
+		</div>
+
+		<!-- Activity -->
+		<div data-reveal style="--reveal-delay: 80ms" class:list={[card, "md:col-span-2"]}>
+			<ul class="flex flex-col">
+				{
+					activity.map((row) => (
+						<li class="border-line-subtle flex items-center gap-3 border-b py-2.5 last:border-0">
+							<span class="bg-surface-sunken text-fg-muted flex size-7 items-center justify-center rounded-full">
+								<row.icon className="size-3.5" />
+							</span>
+							<span class="text-label text-fg-subtle flex-1 truncate">
+								<span class="text-fg">{row.who}</span> {row.what} <span class="text-fg">{row.item}</span>
+							</span>
+							<span class="text-micro text-fg-faint tabular-nums">{row.when}</span>
+						</li>
+					))
+				}
+			</ul>
+			<div class={caption}>
+				<h3 class={title}>Every use, on the record</h3>
+				<p class={text}>Reveals, copies, shares and agent runs, in one activity log.</p>
+			</div>
+		</div>
+
+		<!-- Recently deleted -->
+		<div data-reveal class={card}>
+			<div class="flex justify-center py-4">
+				<div class="bg-cta text-cta-fg shadow-float text-label flex items-center gap-3 rounded-full py-2 pr-2 pl-4 whitespace-nowrap">
+					<TrashIcon className="size-3.5 opacity-60" />
+					Moved to Recently deleted
+					<span class="flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 font-medium dark:bg-black/10">
+						<ArrowCounterClockwiseIcon className="size-3" />
+						Undo
+					</span>
+				</div>
+			</div>
+			<div class={caption}>
+				<h3 class={title}>Hard to lose things</h3>
+				<p class={text}>Thirty days to undo a delete. Old passwords stay under Earlier.</p>
+			</div>
+		</div>
+
+		<!-- Import -->
+		<div data-reveal style="--reveal-delay: 80ms" class:list={[card, "md:col-span-2"]}>
+			<div class="flex flex-wrap items-center justify-center gap-3 py-3">
+				{
+					sources.map((brand) => (
+						<span class="bg-surface-sunken text-fg flex size-12 items-center justify-center rounded-xl">
+							<BrandIcon brand={brand} class="size-5.5" />
+						</span>
+					))
+				}
+				<span class="text-fg-faint mx-1">→</span>
+				<span class="bg-brand-soft flex size-12 items-center justify-center rounded-xl">
+					<img src="/favicon.svg" alt="mima" class="size-6" />
+				</span>
+			</div>
+			<div class={caption}>
+				<h3 class={title}>Move in from anywhere</h3>
+				<p class={text}>Import from 1Password, Bitwarden, LastPass and your browser. Export any time.</p>
+			</div>
+		</div>
+	</div>
+
+	<p data-reveal class="text-label text-fg-subtle mt-10 flex items-center justify-center gap-2">
+		<ShieldCheckIcon className="text-brand size-4" />
+		Light and dark, ⌘K everywhere, and it installs on your phone.
+	</p>
+</Section>

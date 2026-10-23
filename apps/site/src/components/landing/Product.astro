@@ -1,6 +1,9 @@
 ---
+import { Picture } from "astro:assets";
 import { CommandIcon, StackIcon, UsersThreeIcon } from "@phosphor-icons/react";
 
+import items from "@/assets/screens/items.png";
+import itemsDark from "@/assets/screens/items-dark.png";
 import Heading from "./Heading.astro";
 import Section from "./Section.astro";
 
@@ -23,7 +26,7 @@ const points = [
 ];
 ---
 
-<Section index="01" id="product">
+<Section id="product">
 	<Heading
 		center
 		label="The app"
@@ -34,22 +37,20 @@ const points = [
 	<div data-reveal class="mt-16 sm:mt-20">
 		<div class="bg-surface-sunken/70 ring-line-subtle rounded-3xl p-2 ring-1 sm:p-3">
 			<div class="bg-surface shadow-float ring-line overflow-hidden rounded-2xl ring-1">
-				<img
-					src="/docs/images/items.png"
-					alt="The Engineering vault in mima, with an AWS login open: username, hidden password, a live one-time code and the website."
-					width="1600"
-					height="1000"
-					loading="lazy"
-					decoding="async"
+				<Picture
+					src={items}
+					formats={["avif", "webp"]}
+					widths={[800, 1200, 1800, 2400]}
+					sizes="(min-width: 72rem) 68rem, 100vw"
+					alt="The Engineering vault in mima, with the AWS root login open: username, hidden password, a live one-time code and the website."
 					class="block h-auto w-full dark:hidden"
 				/>
-				<img
-					src="/docs/images/items-dark.png"
+				<Picture
+					src={itemsDark}
+					formats={["avif", "webp"]}
+					widths={[800, 1200, 1800, 2400]}
+					sizes="(min-width: 72rem) 68rem, 100vw"
 					alt=""
-					width="1600"
-					height="1000"
-					loading="lazy"
-					decoding="async"
 					class="hidden h-auto w-full dark:block"
 				/>
 			</div>

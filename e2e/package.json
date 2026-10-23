@@ -4,7 +4,8 @@
 	"type": "module",
 	"scripts": {
 		"test": "playwright test",
-		"report": "playwright show-report"
+		"report": "playwright show-report",
+		"screenshots": "playwright test --config screenshots.config.ts"
 	},
 	"devDependencies": {
 		"@mima/crypto": "workspace:*",

@@ -16,7 +16,8 @@ const variants = {
 	outline: "bg-surface text-fg shadow-pill hover:shadow-float hover:text-fg",
 	ghost: "text-fg-muted hover:bg-tint/4 hover:text-fg",
 	glass:
-		"bg-white/12 text-white ring-1 ring-white/25 backdrop-blur-md hover:bg-white/20",
+		"bg-white/10 text-white ring-1 ring-white/25 backdrop-blur-md hover:bg-white/18",
+	light: "bg-white text-navy shadow-float hover:bg-white/90",
 };
 
 export function button(

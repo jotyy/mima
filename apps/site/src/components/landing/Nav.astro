@@ -17,11 +17,11 @@ const links = [
 	At the top it's a plain bar on the page; once the page scrolls, it draws in to a
 	floating pill, so it stays out of the way of what's being read.
 -->
-<header data-nav class="group/nav sticky top-0 z-50 px-3 sm:px-6">
+<header data-nav class="group/nav ease-emphasized fixed inset-x-0 top-0 z-50 px-3 transition-[padding] duration-500 data-scrolled:pt-3 sm:px-6 sm:data-scrolled:pt-4">
 	<div
-		class="ease-emphasized mx-auto mt-0 flex h-16 max-w-6xl items-center gap-6 rounded-full px-3 transition-all duration-500 group-data-scrolled/nav:mt-4 group-data-scrolled/nav:h-13 group-data-scrolled/nav:max-w-3xl group-data-scrolled/nav:bg-surface/80 group-data-scrolled/nav:pr-1.5 group-data-scrolled/nav:pl-4 sm:group-data-scrolled/nav:pr-1.5 sm:group-data-scrolled/nav:pl-4 group-data-scrolled/nav:shadow-float group-data-scrolled/nav:backdrop-blur-xl sm:px-16"
+		class="ease-emphasized mx-auto flex h-16 max-w-6xl items-center gap-6 rounded-full px-3 transition-all duration-500 group-data-scrolled/nav:h-13 group-data-scrolled/nav:max-w-3xl group-data-scrolled/nav:bg-surface/80 group-data-scrolled/nav:pr-1.5 group-data-scrolled/nav:pl-4 sm:group-data-scrolled/nav:pr-1.5 sm:group-data-scrolled/nav:pl-4 group-data-scrolled/nav:shadow-float group-data-scrolled/nav:backdrop-blur-xl sm:px-16"
 	>
-		<a href="/" class="text-fg flex shrink-0 items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-brand" aria-label="mima home">
+		<a href="/" class="group-data-scrolled/nav:text-fg flex shrink-0 items-center rounded-md text-white transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand" aria-label="mima home">
 			<Logo class="h-6.5 w-auto" />
 		</a>
 
@@ -30,7 +30,7 @@ const links = [
 				links.map((link) => (
 					<a
 						href={link.href}
-						class="text-label text-fg-muted hover:text-fg rounded-full px-3 py-1.5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand"
+						class="text-label group-data-scrolled/nav:text-fg-muted group-data-scrolled/nav:hover:text-fg rounded-full px-3 py-1.5 text-white/75 transition-colors outline-none hover:text-white focus-visible:ring-2 focus-visible:ring-brand"
 					>
 						{link.label}
 					</a>
@@ -41,18 +41,18 @@ const links = [
 		<div class="ml-auto flex items-center gap-1.5 md:ml-0">
 			<a
 				href={REPOSITORY}
-				class={button("ghost", "md", "hidden px-3 sm:inline-flex")}
+				class={button("ghost", "md", "group-data-scrolled/nav:text-fg-muted group-data-scrolled/nav:hover:text-fg hidden px-3 text-white/80 hover:bg-white/10 hover:text-white sm:inline-flex")}
 				aria-label="mima on GitHub"
 			>
 				<GithubLogoIcon weight="fill" />
 				<span class="hidden lg:inline">GitHub</span>
 			</a>
-			<a href="/docs/self-hosting/" class={button("brand", "md")}>
+			<a href="/docs/self-hosting/" class={button("light", "md", "group-data-scrolled/nav:bg-brand group-data-scrolled/nav:text-brand-fg group-data-scrolled/nav:shadow-sheen shadow-none")}>
 				Get started
 			</a>
 			<details class="relative md:hidden" data-menu>
 				<summary
-					class={button("ghost", "md", "size-9 cursor-pointer list-none px-0 [&::-webkit-details-marker]:hidden")}
+					class={button("ghost", "md", "group-data-scrolled/nav:text-fg size-9 cursor-pointer list-none px-0 text-white [&::-webkit-details-marker]:hidden")}
 					aria-label="Menu"
 				>
 					<ListIcon />
