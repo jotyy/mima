@@ -120,7 +120,10 @@ function SearchCard() {
 	const [query, setQuery] = useState("");
 
 	return (
-		<div className="rounded-window border-line-subtle bg-surface-sunken border">
+		<div
+			data-slot="search-card"
+			className="rounded-window border-line-subtle bg-surface-sunken border"
+		>
 			<form
 				className="rounded-window bg-surface shadow-card"
 				onSubmit={(event) => {
@@ -170,7 +173,10 @@ function SearchCard() {
 					</Button>
 				</div>
 			</form>
-			<p className="text-caption text-fg-muted py-2 text-center">
+			<p
+				data-slot="search-hint"
+				className="text-caption text-fg-muted py-2 text-center"
+			>
 				Press ⌘K to search from anywhere
 			</p>
 		</div>

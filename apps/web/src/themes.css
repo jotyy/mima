@@ -4,220 +4,6 @@
  * look. Without data-style, mima looks as it always has ("classic").
  */
 
-/* ── Blueprint: the sign-in page's guide lines carried into the app. A faint blue grid,
-   crisp hairlines, small radii and mono labels: precise, technical, calm. ───────────── */
-
-html[data-style="blueprint"] {
-	--frame: #f3f6fb;
-	--canvas: #f6f8fc;
-	--surface: #ffffff;
-	--surface-sunken: #f5f7fb;
-	--fg: #0b1530;
-	--fg-emphasis: #233150;
-	--fg-muted: #44516d;
-	--fg-subtle: #63708b;
-	--fg-faint: #97a1b5;
-	--line: #dce2ee;
-	--line-subtle: #e8ecf4;
-	--line-strong: #c2cbdb;
-	--hairline: rgb(11 21 48 / 7%);
-	--tint: #0b1530;
-	--skeleton: #e7ebf3;
-	--cta: #0b1530;
-	--cta-hover: #1c2949;
-	--elevation-card: 0 0 0 1px #dce2ee, 0 1px 2px rgb(11 21 48 / 4%);
-	--elevation-pill: 0 0 0 1px #dce2ee, 0 1px 1px rgb(11 21 48 / 4%);
-	--radius: 0.375rem;
-	--round-window: 6px;
-	--round-shell: 8px;
-	--round-panel: 10px;
-}
-
-html.dark[data-style="blueprint"] {
-	--frame: #0a0f1d;
-	--canvas: #0c1222;
-	--surface: #111829;
-	--surface-sunken: #0e1424;
-	--fg: #eef2fb;
-	--fg-emphasis: #cfd7e8;
-	--fg-muted: #a9b4cb;
-	--fg-subtle: #7d89a3;
-	--fg-faint: #59647d;
-	--line: #222c44;
-	--line-subtle: #1a2338;
-	--line-strong: #2f3b57;
-	--tint: #ffffff;
-	--cta: #eef2fb;
-	--cta-hover: #cfd7e8;
-	--elevation-card: 0 0 0 1px #222c44;
-	--elevation-pill: 0 0 0 1px #222c44;
-}
-
-html[data-style="blueprint"] [data-slot="app-main"] {
-	background-image:
-		linear-gradient(rgb(31 91 249 / 0.055) 1px, transparent 1px),
-		linear-gradient(90deg, rgb(31 91 249 / 0.055) 1px, transparent 1px);
-	background-size: 24px 24px;
-	background-position: -1px -1px;
-	border-top: 1px solid var(--line);
-	border-left: 1px solid var(--line);
-	border-top-left-radius: var(--round-panel);
-}
-
-html[data-style="blueprint"] [data-slot="page-header"] {
-	align-items: flex-start;
-	text-align: left;
-	padding-bottom: 1.25rem;
-	border-bottom: 1px dashed var(--line-strong);
-}
-
-html[data-style="blueprint"] [data-slot="page-header"] h1 {
-	font-weight: 600;
-	letter-spacing: -0.01em;
-}
-
-html[data-style="blueprint"]
-	:is([data-slot="section-title"] h2, [data-slot="nav-label"]) {
-	font-family: var(--font-mono);
-	font-size: 10.5px;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	color: var(--fg-subtle);
-}
-
-html[data-style="blueprint"] [data-slot="section-title"] h2 {
-	display: flex;
-	flex: 1;
-	align-items: center;
-	gap: 0.75rem;
-	font-weight: 400;
-
-	&::after {
-		content: "";
-		flex: 1;
-		height: 1px;
-		background: var(--line);
-	}
-}
-
-html[data-style="blueprint"] [data-slot="nav-label"] {
-	border: 0;
-	background: none;
-	padding-left: 0.5rem;
-}
-
-html[data-style="blueprint"] [data-slot="nav-link"][data-status="active"] {
-	background: var(--surface);
-	box-shadow: var(--elevation-pill);
-	color: var(--fg);
-
-	&::before {
-		content: "";
-		position: absolute;
-		inset-block: 0.5rem;
-		left: 0;
-		width: 2px;
-		border-radius: 2px;
-		background: var(--brand);
-	}
-}
-
-/* ── Navy: confident and on-brand. The frame is deep mima navy, and the work sits on a
-   light sheet set into it, with soft depth and blue primary actions. ───────────────── */
-
-html[data-style="navy"] {
-	--frame: #0b1736;
-	--canvas: #f4f6fa;
-	--surface: #ffffff;
-	--surface-sunken: #f5f7fa;
-	--fg: #0e1726;
-	--fg-emphasis: #29344a;
-	--fg-muted: #48546a;
-	--fg-subtle: #697489;
-	--fg-faint: #9aa3b2;
-	--line: #e3e7ee;
-	--line-subtle: #eef1f5;
-	--line-strong: #cdd4df;
-	--tint: #0e1726;
-	--cta: var(--brand);
-	--cta-hover: var(--brand-hover);
-	--elevation-card:
-		0 0 0 1px rgb(14 23 38 / 6%), 0 1px 2px rgb(14 23 38 / 5%),
-		0 8px 20px -8px rgb(14 23 38 / 12%);
-	--radius: 0.55rem;
-	--round-window: 12px;
-	--round-shell: 14px;
-	--round-panel: 18px;
-}
-
-html.dark[data-style="navy"] {
-	--frame: #060c1e;
-	--canvas: #0d1424;
-	--surface: #121a2c;
-	--surface-sunken: #0f1627;
-	--fg: #eef2fb;
-	--fg-emphasis: #d0d8ea;
-	--fg-muted: #aab4c9;
-	--fg-subtle: #7f8aa2;
-	--fg-faint: #5a657d;
-	--line: #222b40;
-	--line-subtle: #1a2234;
-	--line-strong: #2e3851;
-	--tint: #ffffff;
-	--elevation-card: 0 0 0 1px #222b40;
-}
-
-/* The navy frame around the sheet: white ink, blue for where you are. */
-html[data-style="navy"]
-	:is(
-		[data-slot="sidebar"],
-		[data-slot="topbar"],
-		[data-slot="sheet-content"]
-	) {
-	--fg: #ffffff;
-	--fg-emphasis: #e8edf9;
-	--fg-muted: #b3bfd9;
-	--fg-subtle: #8a98ba;
-	--fg-faint: #63739a;
-	--tint: #ffffff;
-	--line: rgb(255 255 255 / 12%);
-	--surface: rgb(255 255 255 / 6%);
-	--surface-sunken: rgb(255 255 255 / 6%);
-	--link: #8eb0ff;
-	color: var(--fg);
-}
-
-html[data-style="navy"] [data-slot="sheet-content"] {
-	background: var(--frame);
-}
-
-html[data-style="navy"] [data-slot="app-main"] {
-	background: var(--canvas);
-	border-top-left-radius: var(--round-panel);
-	box-shadow: 0 0 0 1px rgb(0 0 0 / 20%);
-}
-
-html[data-style="navy"] [data-slot="page-header"] {
-	align-items: flex-start;
-	text-align: left;
-}
-
-html[data-style="navy"] [data-slot="page-header"] h1 {
-	font-size: 26px;
-	font-weight: 600;
-	letter-spacing: -0.015em;
-}
-
-html[data-style="navy"] [data-slot="nav-label"] {
-	border-color: rgb(255 255 255 / 14%);
-	color: var(--fg-subtle);
-}
-
-html[data-style="navy"] [data-slot="nav-link"][data-status="active"] {
-	background: var(--brand);
-	color: #ffffff;
-}
-
 /* ── Frost: light and airy. A soft blue morning light behind everything, a glass sidebar,
    generous radii and cool, lifted cards. ─────────────────────────────────────────────── */
 
@@ -314,97 +100,313 @@ html[data-style="frost"] [data-slot="page-header"] h1 {
 	letter-spacing: -0.02em;
 }
 
-/* ── Ink: editorial and exact. Pure white, true black, hairlines and big bold titles;
-   blue appears only where it means something. ──────────────────────────────────────── */
+/* ── Pure: after Mercury, Attio and Linear's light theme. White paper, hairlines, room
+   to breathe and quiet type; color only where it means something. ─────────────────── */
 
-html[data-style="ink"] {
-	--frame: #ffffff;
+html[data-style="pure"] {
+	--frame: #fafafb;
 	--canvas: #ffffff;
 	--surface: #ffffff;
-	--surface-sunken: #f6f6f6;
-	--fg: #0a0a0a;
-	--fg-emphasis: #262626;
-	--fg-muted: #525252;
-	--fg-subtle: #737373;
-	--fg-faint: #a3a3a3;
-	--line: #e5e5e5;
-	--line-subtle: #f0f0f0;
-	--line-strong: #cfcfcf;
-	--tint: #0a0a0a;
-	--elevation-card: 0 0 0 1px #e5e5e5;
-	--elevation-pill: 0 0 0 1px #e5e5e5;
-	--radius: 0.25rem;
-	--round-window: 4px;
-	--round-shell: 6px;
-	--round-panel: 8px;
+	--surface-sunken: #f7f7f8;
+	--fg: #111113;
+	--fg-emphasis: #29292e;
+	--fg-muted: #55555c;
+	--fg-subtle: #75757e;
+	--fg-faint: #a6a6ae;
+	--line: #ebebee;
+	--line-subtle: #f3f3f5;
+	--line-strong: #dadade;
+	--hairline: rgb(17 17 19 / 6%);
+	--tint: #111113;
+	--skeleton: #f0f0f2;
+	--elevation-card: 0 0 0 1px #ebebee;
+	--elevation-pill: 0 0 0 1px #e4e4e8, 0 1px 2px rgb(17 17 19 / 4%);
+	--elevation-popover:
+		0 0 0 1px #e4e4e8, 0 0.75rem 2rem -0.75rem rgb(17 17 19 / 18%);
+	--elevation-float:
+		0 0 0 1px #e4e4e8, 0 0.5rem 1.5rem -0.75rem rgb(17 17 19 / 14%);
+	--radius: 0.5rem;
+	--round-window: 10px;
+	--round-shell: 12px;
+	--round-panel: 14px;
 }
 
-html.dark[data-style="ink"] {
-	--frame: #000000;
-	--canvas: #000000;
-	--surface: #0a0a0a;
-	--surface-sunken: #111111;
-	--fg: #fafafa;
-	--fg-emphasis: #e5e5e5;
-	--fg-muted: #a3a3a3;
-	--fg-subtle: #8a8a8a;
-	--fg-faint: #5c5c5c;
-	--line: #262626;
-	--line-subtle: #1a1a1a;
-	--line-strong: #3a3a3a;
+html.dark[data-style="pure"] {
+	--frame: #0c0c0e;
+	--canvas: #0f0f11;
+	--surface: #131316;
+	--surface-sunken: #18181b;
+	--fg: #f3f3f5;
+	--fg-emphasis: #d9d9de;
+	--fg-muted: #ababb3;
+	--fg-subtle: #83838c;
+	--fg-faint: #5d5d65;
+	--line: #222226;
+	--line-subtle: #1a1a1d;
+	--line-strong: #2e2e33;
 	--tint: #ffffff;
-	--elevation-card: 0 0 0 1px #262626;
-	--elevation-pill: 0 0 0 1px #262626;
+	--skeleton: #1e1e22;
+	--elevation-card: 0 0 0 1px #222226;
+	--elevation-pill: 0 0 0 1px #2a2a2f;
 }
 
-html[data-style="ink"] [data-slot="topbar"] {
+html[data-style="pure"] [data-slot="app-shell"] {
+	background: var(--canvas);
+}
+
+html[data-style="pure"] [data-slot="topbar"] {
 	border-bottom: 1px solid var(--line);
+	background: var(--frame);
 }
 
-html[data-style="ink"] [data-slot="sidebar"] {
+html[data-style="pure"] [data-slot="sidebar"] {
+	background: var(--frame);
 	border-right: 1px solid var(--line);
+}
+
+html[data-style="pure"] [data-slot="sidebar"] > nav {
+	margin-top: 1.25rem;
+}
+
+html[data-style="pure"] [data-slot="page-header"] {
+	align-items: flex-start;
+	text-align: left;
+	gap: 0.25rem;
 	padding-top: 0.5rem;
 }
 
-html[data-style="ink"] [data-slot="sidebar"] > nav {
-	margin-top: 1rem;
-}
-
-html[data-style="ink"] [data-slot="page-header"] {
-	align-items: flex-start;
-	text-align: left;
-	gap: 0.5rem;
-	padding-top: 1rem;
-}
-
-html[data-style="ink"] [data-slot="page-header"] h1 {
-	font-size: 34px;
-	line-height: 1.1;
-	font-weight: 700;
-	letter-spacing: -0.03em;
-}
-
-html[data-style="ink"] [data-slot="section-title"] {
-	padding-top: 0.625rem;
-	border-top: 2px solid var(--fg);
-}
-
-html[data-style="ink"]
-	:is([data-slot="section-title"] h2, [data-slot="nav-label"]) {
-	font-size: 11px;
+html[data-style="pure"] [data-slot="page-header"] h1 {
+	font-size: 24px;
 	font-weight: 600;
-	letter-spacing: 0.06em;
-	text-transform: uppercase;
+	letter-spacing: -0.02em;
+}
+
+html[data-style="pure"] [data-slot="page-header"] p {
+	color: var(--fg-subtle);
+}
+
+html[data-style="pure"] [data-slot="section-title"] h2 {
+	font-weight: 600;
 	color: var(--fg);
 }
 
-html[data-style="ink"] [data-slot="nav-label"] {
+html[data-style="pure"] [data-slot="nav-label"] {
 	border: 0;
 	background: none;
 	padding-left: 0.5rem;
+	font-weight: 500;
+	color: var(--fg-faint);
 }
 
-html[data-style="ink"] [data-slot="nav-link"][data-status="active"] {
+html[data-style="pure"] [data-slot="nav-link"][data-status="active"] {
+	background: color-mix(in oklab, var(--tint) 5%, transparent);
+	color: var(--fg);
+}
+
+html[data-style="pure"] [data-slot="lock-box"] {
+	border-color: transparent;
+	background: none;
+	padding-inline: 0.5rem;
+}
+
+html[data-style="pure"] [data-slot="search-card"] {
+	border: 0;
+	background: none;
+}
+
+html[data-style="pure"] [data-slot="search-hint"] {
+	display: none;
+}
+
+/* Filters read as plain tabs on a line, not buttons in a tray. */
+html[data-style="pure"] [data-slot="tabs-list"][data-variant="default"] {
+	gap: 1rem;
+	padding: 0;
+	border-radius: 0;
+	background: none;
+	box-shadow: inset 0 -1px 0 var(--line);
+}
+
+html[data-style="pure"]
+	[data-slot="tabs-list"][data-variant="default"]
+	> [data-slot="tabs-trigger"] {
+	padding-inline: 0;
+}
+
+html[data-style="pure"]
+	[data-slot="tabs-list"][data-variant="default"]
+	> [data-slot="tabs-indicator"] {
+	top: auto;
+	bottom: 0;
+	height: 2px;
+	border-radius: 0;
 	background: var(--fg);
-	color: var(--canvas);
+	box-shadow: none;
+}
+
+html[data-style="pure"] [data-slot="item-tile"] {
+	box-shadow: 0 0 0 1px var(--line);
+}
+
+/* ── Glass: after Apple's Passwords app and macOS Settings, and Raycast. A translucent
+   sidebar over a soft wash, the content as a window pane, grouped cards, and the accent
+   where the system would put it. ───────────────────────────────────────────────────── */
+
+html[data-style="glass"] {
+	--frame: #eceff5;
+	--canvas: #f5f6f8;
+	--surface: #ffffff;
+	--surface-sunken: #f2f3f6;
+	--fg: #1d1d1f;
+	--fg-emphasis: #323236;
+	--fg-muted: #55565c;
+	--fg-subtle: #77787f;
+	--fg-faint: #a9a9af;
+	--line: rgb(0 0 0 / 9%);
+	--line-subtle: rgb(0 0 0 / 5%);
+	--line-strong: rgb(0 0 0 / 15%);
+	--hairline: rgb(0 0 0 / 6%);
+	--tint: #1d1d1f;
+	--cta: var(--brand);
+	--cta-hover: var(--brand-hover);
+	--elevation-card: 0 0 0 0.5px rgb(0 0 0 / 7%), 0 1px 3px rgb(0 0 0 / 6%);
+	--elevation-pill: 0 0.5px 1.5px rgb(0 0 0 / 12%), 0 0 0 0.5px rgb(0 0 0 / 6%);
+	--elevation-popover:
+		0 0 0 0.5px rgb(0 0 0 / 10%), 0 1.25rem 2.5rem -0.75rem rgb(0 0 0 / 24%);
+	--elevation-float:
+		0 0 0 0.5px rgb(0 0 0 / 8%), 0 0.75rem 2rem -0.75rem rgb(0 0 0 / 20%);
+	--radius: 0.6rem;
+	--round-window: 12px;
+	--round-shell: 14px;
+	--round-panel: 16px;
+}
+
+html.dark[data-style="glass"] {
+	--frame: #16171c;
+	--canvas: #1b1c20;
+	--surface: #232428;
+	--surface-sunken: #1e1f23;
+	--fg: #f5f5f7;
+	--fg-emphasis: #dcdce0;
+	--fg-muted: #aeaeb4;
+	--fg-subtle: #86868d;
+	--fg-faint: #5f5f66;
+	--line: rgb(255 255 255 / 9%);
+	--line-subtle: rgb(255 255 255 / 5%);
+	--line-strong: rgb(255 255 255 / 15%);
+	--tint: #ffffff;
+	--elevation-card:
+		0 0 0 0.5px rgb(255 255 255 / 8%), 0 1px 3px rgb(0 0 0 / 40%);
+}
+
+html[data-style="glass"] [data-slot="app-shell"] {
+	background:
+		radial-gradient(80% 60% at 0% 0%, rgb(31 91 249 / 0.12), transparent 70%),
+		radial-gradient(
+			70% 60% at 0% 100%,
+			rgb(128 141 254 / 0.12),
+			transparent 70%
+		),
+		var(--frame);
+}
+
+html[data-style="glass"] :is([data-slot="sidebar"], [data-slot="topbar"]) {
+	background: rgb(255 255 255 / 35%);
+}
+
+html.dark[data-style="glass"] :is([data-slot="sidebar"], [data-slot="topbar"]) {
+	background: rgb(30 31 36 / 45%);
+}
+
+html[data-style="glass"] [data-slot="sidebar"] > nav {
+	margin-top: 1rem;
+}
+
+/* The content is a window pane set into the sidebar's glass. */
+html[data-style="glass"] [data-slot="app-main"] {
+	background: var(--canvas);
+	border-top-left-radius: var(--round-panel);
+	box-shadow:
+		0 0 0 0.5px rgb(0 0 0 / 10%),
+		-8px 0 24px -16px rgb(0 0 0 / 18%);
+}
+
+html.dark[data-style="glass"] [data-slot="app-main"] {
+	box-shadow: 0 0 0 0.5px rgb(255 255 255 / 8%);
+}
+
+html[data-style="glass"] [data-slot="page-header"] {
+	align-items: flex-start;
+	text-align: left;
+	gap: 0.25rem;
+}
+
+html[data-style="glass"] [data-slot="page-header"] h1 {
+	font-size: 26px;
+	font-weight: 700;
+	letter-spacing: -0.022em;
+}
+
+html[data-style="glass"] [data-slot="section-title"] h2 {
+	font-weight: 600;
+	color: var(--fg);
+}
+
+html[data-style="glass"] [data-slot="nav-label"] {
+	border: 0;
+	background: none;
+	padding-left: 0.5rem;
+	font-weight: 600;
+	color: var(--fg-subtle);
+}
+
+/* Sidebar icons take the accent, and the selected row fills with it, like Finder. */
+html[data-style="glass"] [data-slot="nav-link"] svg {
+	color: var(--brand);
+}
+
+html[data-style="glass"] [data-slot="nav-link"][data-status="active"] {
+	background: var(--brand);
+	color: #ffffff;
+
+	& svg {
+		color: #ffffff;
+	}
+}
+
+html[data-style="glass"] [data-slot="lock-box"] {
+	border-color: transparent;
+	background: rgb(255 255 255 / 45%);
+}
+
+html.dark[data-style="glass"] [data-slot="lock-box"] {
+	background: rgb(255 255 255 / 5%);
+}
+
+html[data-style="glass"] [data-slot="search-card"] {
+	border: 0;
+	background: none;
+}
+
+html[data-style="glass"] [data-slot="search-hint"] {
+	display: none;
+}
+
+html[data-style="glass"] [data-slot="item-tile"] {
+	border-radius: 8px;
+}
+
+/* Frost, tidied like the others: no tray around the search, no card around the lock. */
+html[data-style="frost"] [data-slot="search-card"] {
+	border: 0;
+	background: none;
+}
+
+html[data-style="frost"] [data-slot="search-hint"] {
+	display: none;
+}
+
+html[data-style="frost"] [data-slot="lock-box"] {
+	border-color: transparent;
+	background: none;
 }

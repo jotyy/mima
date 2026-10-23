@@ -51,6 +51,7 @@ export function ItemTile({
 	const withLogo = Boolean(logo) && shown && missing !== logo;
 	return (
 		<span
+			data-slot="item-tile"
 			className={cn(
 				"bg-surface text-fg-muted shadow-pill inline-flex shrink-0 items-center justify-center overflow-hidden",
 				sizes[size].tile,

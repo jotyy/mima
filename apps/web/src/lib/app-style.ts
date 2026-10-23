@@ -4,10 +4,9 @@ import { useEffect, useSyncExternalStore } from "react";
 
 export const APP_STYLES = [
 	{ value: "classic", label: "Classic" },
-	{ value: "blueprint", label: "Blueprint" },
-	{ value: "navy", label: "Navy" },
 	{ value: "frost", label: "Frost" },
-	{ value: "ink", label: "Ink" },
+	{ value: "pure", label: "Pure" },
+	{ value: "glass", label: "Glass" },
 ] as const;
 
 export type AppStyle = (typeof APP_STYLES)[number]["value"];
