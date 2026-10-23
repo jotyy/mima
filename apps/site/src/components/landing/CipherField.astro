@@ -2,13 +2,24 @@
 // The hero's sky is full of ciphertext: noise to anyone looking at it. The pointer is a
 // keyhole cut from vauly's mark, and through it the same text reads as your team's items.
 // Both layers are the same rows, character for character; only the keyhole shows the
-// plain one. With no pointer, the keyhole wanders by itself.
+// plain one. With no pointer, the keyhole wanders by itself. Given `still`, the keyhole
+// stays at that point instead, for pictures such as the social cards.
 import { cipherRows, keyhole } from "@vauly/ui/lib/ciphertext";
 
+interface Props {
+	still?: { x: number; y: number };
+}
+
+const { still } = Astro.props;
 const { plain, cipher } = cipherRows(46);
 ---
 
-<div data-slot="cipher-field" aria-hidden="true">
+<div
+	data-slot="cipher-field"
+	aria-hidden="true"
+	data-still={still ? "" : undefined}
+	style={still ? `--x: ${still.x}px; --y: ${still.y}px` : undefined}
+>
 	<pre data-layer="cipher">{cipher.join("\n")}</pre>
 	<pre data-layer="plain">{plain.join("\n")}</pre>
 	<svg data-slot="keyhole" viewBox="0 0 200 280">
@@ -18,7 +29,7 @@ const { plain, cipher } = cipherRows(46);
 
 <script>
 	// Follows the pointer over the hero; wanders on its own when there isn't one.
-	for (const field of document.querySelectorAll<HTMLElement>("[data-slot='cipher-field']")) {
+	for (const field of document.querySelectorAll<HTMLElement>("[data-slot='cipher-field']:not([data-still])")) {
 		const hero = field.parentElement;
 		if (!hero) continue;
 		const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;

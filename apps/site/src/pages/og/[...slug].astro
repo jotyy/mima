@@ -1,0 +1,87 @@
+---
+import { getCollection } from "astro:content";
+
+import Logo from "@/components/Logo.astro";
+import CipherField from "@/components/landing/CipherField.astro";
+import "@/styles/site.css";
+
+// The pictures shown when someone shares a link to vauly: the hero's sky, with the keyhole
+// reading the ciphertext beside the words. One for the landing page and one for each docs
+// page. The card fills the window, which `bun run og` (scripts/og.ts) sets to 1200 × 630
+// before saving each card under public/social/. Not linked anywhere.
+
+interface Props {
+	title?: string;
+	description?: string;
+}
+
+export async function getStaticPaths() {
+	const docs = await getCollection("docs", (entry) =>
+		entry.id.startsWith("docs"),
+	);
+	return [
+		{ params: { slug: undefined }, props: {} },
+		...docs.map((entry) => ({
+			params: { slug: entry.id },
+			props: {
+				title: entry.id === "docs" ? "Documentation" : entry.data.title,
+				description: entry.data.description,
+			},
+		})),
+	];
+}
+
+const { title, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" data-style="pure">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="robots" content="noindex" />
+		<title>{title ?? "vauly"}</title>
+	</head>
+	<body class="m-0">
+		<div data-slot="og" class="flex h-screen w-screen flex-col justify-between px-20 py-16">
+			<!-- The keyhole's circle sits right of the words, its outline centred top to bottom. -->
+			<CipherField still={{ x: 620, y: 156 }} />
+
+			<div class="flex items-center justify-between">
+				<div class="flex items-center gap-4">
+					<Logo tone="white" class="h-12 w-auto text-white" />
+					{
+						title && (
+							<span class="text-label rounded-full bg-white/10 px-3 py-1 font-medium text-white/85 ring-1 ring-white/20">
+								Docs
+							</span>
+						)
+					}
+				</div>
+				<span class="text-lead-sm font-medium text-white/70">vauly.app</span>
+			</div>
+
+			{
+				title ? (
+					<div class="flex max-w-2xl flex-col gap-5">
+						<h1 class="text-display text-balance text-white">{title}</h1>
+						{description && (
+							<p class="text-lead line-clamp-3 text-pretty text-white/75">
+								{description}
+							</p>
+						)}
+					</div>
+				) : (
+					<div class="flex flex-col gap-6">
+						<h1 class="text-display text-white">
+							The password manager
+							<span class="text-sky-glow block">your team owns.</span>
+						</h1>
+						<p class="text-lead text-white/75">
+							End-to-end encrypted · Self-hosted on Cloudflare · Open source
+						</p>
+					</div>
+				)
+			}
+		</div>
+	</body>
+</html>

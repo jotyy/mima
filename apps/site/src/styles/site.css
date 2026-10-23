@@ -112,10 +112,23 @@ body {
 
 /* ── The hero's sky: navy at the top, vauly blue in the middle, the page at the bottom ── */
 
-[data-slot="hero-sky"] {
+:is([data-slot="hero-sky"], [data-slot="og"]) {
 	position: relative;
 	isolation: isolate;
 	overflow: hidden;
+
+	&::before {
+		content: "";
+		position: absolute;
+		inset: 0;
+		z-index: -1;
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+		mix-blend-mode: soft-light;
+		opacity: 0.4;
+	}
+}
+
+[data-slot="hero-sky"] {
 	background-color: #061032;
 	background-image:
 		radial-gradient(60% 40% at 50% 0%, rgb(46 96 245 / 0.5), transparent 70%),
@@ -128,16 +141,6 @@ body {
 			#b4c9ff 84%,
 			var(--frame) 100%
 		);
-
-	&::before {
-		content: "";
-		position: absolute;
-		inset: 0;
-		z-index: -1;
-		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
-		mix-blend-mode: soft-light;
-		opacity: 0.4;
-	}
 }
 
 /* Ciphertext across the sky, with a keyhole that reads it. */
@@ -206,6 +209,21 @@ body {
 		stroke: rgb(255 255 255 / 0.4);
 		stroke-width: 1.25;
 		filter: drop-shadow(0 0 18px rgb(120 165 255 / 0.55));
+	}
+}
+
+/* ── Social cards: the sky in blue all the way down, the keyhole beside the words ──── */
+
+[data-slot="og"] {
+	background-color: #061032;
+	background-image:
+		radial-gradient(42% 70% at 78% 52%, rgb(63 122 255 / 0.5), transparent 70%),
+		linear-gradient(155deg, #040a20 0%, #0a1f6b 42%, #1443e0 100%);
+
+	/* Larger text and keyhole, so a thumbnail still reads; clear behind the words. */
+	& [data-slot="cipher-field"] {
+		zoom: 1.5;
+		mask-image: linear-gradient(to right, transparent 30%, black 68%);
 	}
 }
 

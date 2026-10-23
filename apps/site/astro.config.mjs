@@ -5,7 +5,7 @@ import { defineConfig } from "astro/config";
 
 // The landing page lives in src/pages; the docs are Starlight, under /docs, built from
 // the repository's docs/ folder (see scripts/sync-docs.ts).
-// Where the site will live. Links in the sitemap and the social preview use it.
+// Where the site lives. Canonical links and the social cards use it.
 const SITE = "https://vauly.app";
 
 export default defineConfig({
@@ -50,6 +50,8 @@ export default defineConfig({
 				},
 			],
 			customCss: ["./src/styles/docs.css"],
+			// Gives each page its social card.
+			routeMiddleware: "./src/routeData.ts",
 			components: {
 				SocialIcons: "./src/components/docs/HeaderLinks.astro",
 				ThemeSelect: "./src/components/docs/ThemeSelect.astro",
@@ -62,14 +64,6 @@ export default defineConfig({
 				{
 					tag: "link",
 					attrs: { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
-				},
-				{
-					tag: "meta",
-					attrs: { property: "og:image", content: `${SITE}/og.png` },
-				},
-				{
-					tag: "meta",
-					attrs: { name: "twitter:image", content: `${SITE}/og.png` },
 				},
 				{
 					// Pure's tokens switch on data-style and on the .dark class; Starlight
