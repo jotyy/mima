@@ -4,7 +4,7 @@ import Icon from "@/components/Icon.astro";
 
 import CipherField from "@/components/landing/CipherField.astro";
 import EncryptDemo from "@/components/landing/EncryptDemo";
-import { button, DEPLOY_URL, REPOSITORY } from "@/lib/ui";
+import { button, DEMO_URL, DEPLOY_URL, REPOSITORY } from "@/lib/ui";
 ---
 
 <!--
@@ -56,7 +56,7 @@ import { button, DEPLOY_URL, REPOSITORY } from "@/lib/ui";
 				Deploy to Cloudflare
 				<Icon name="arrow-right" class="transition-transform group-hover:translate-x-0.5" />
 			</a>
-			<a href="/docs/" class={button("glass", "lg")}>Read the docs</a>
+			<a href={DEMO_URL} class={button("glass", "lg")}>Try the demo</a>
 		</div>
 	</div>
 

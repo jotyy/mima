@@ -14,6 +14,10 @@
   <a href="LICENSE"><img alt="License: AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg"></a>
 </p>
 
+<p align="center">
+  <a href="https://demo.vauly.app"><strong>Try the demo</strong></a> · <a href="https://vauly.app/docs/">Docs</a> · <a href="https://vauly.app/docs/self-hosting/">Deploy your own</a>
+</p>
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/items-dark.png">
   <img alt="The Engineering vault in vauly, with an AWS login open: username, hidden password, a live one-time code and the website." src="docs/images/items.png">

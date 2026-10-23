@@ -12,4 +12,5 @@ Key facts:
 - Nobody can reset a forgotten master password, not even an admin.
 - It hasn't had an independent security audit yet. There are no native mobile or desktop apps, though the web app works on phones and installs as an app (PWA), and it doesn't hold passkeys.
 - Compared with 1Password and Bitwarden: https://vauly.app/docs/compare.md
+- A live demo anyone can sign in to, with an example team that comes back every hour: https://demo.vauly.app
 - Website: https://vauly.app. Source code: https://github.com/jotyy/vauly.

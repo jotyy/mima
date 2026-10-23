@@ -32,3 +32,6 @@ export const REPOSITORY = "https://github.com/jotyy/vauly";
 
 /** Cloudflare's Deploy button for this repository: vauly in the visitor's own account. */
 export const DEPLOY_URL = `https://deploy.workers.cloudflare.com/?url=${REPOSITORY}`;
+
+/** A vauly anyone can sign in to, with an example team that comes back every hour. */
+export const DEMO_URL = "https://demo.vauly.app";
