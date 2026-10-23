@@ -326,7 +326,7 @@ function Members() {
 				open={Boolean(removing)}
 				onOpenChange={(open) => !open && setRemoving(null)}
 				title={`Remove ${removing?.name}?`}
-				description="They lose access to every vault right away, and their private vault is deleted. Change any secrets they could see."
+				description="They lose access to every vault right away. Their private vault, any shared vault nobody else can open, and their agents are deleted. Change any secrets they could see."
 				confirm="Remove"
 				destructive
 				onConfirm={async () => {

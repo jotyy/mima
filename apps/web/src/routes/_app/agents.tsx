@@ -151,7 +151,7 @@ function AgentRow({ agent }: { agent: Agent }) {
 				<span className="text-caption text-fg-subtle truncate">
 					{[
 						agent.host ?? "not used yet",
-						`owned by ${agent.ownerName}`,
+						`owned by ${agent.ownerName ?? "someone who left"}`,
 						`${grants} ${grants === 1 ? "item" : "items"}`,
 						expires
 							? expired

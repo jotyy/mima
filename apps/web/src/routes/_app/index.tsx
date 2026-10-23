@@ -559,7 +559,7 @@ function useNeeds() {
 							: `loses access in ${left} ${left === 1 ? "day" : "days"}`}
 					</>
 				),
-				meta: `${agent.host ?? "not used yet"} · owned by ${agent.ownerName}`,
+				meta: `${agent.host ?? "not used yet"} · owned by ${agent.ownerName ?? "someone who left"}`,
 				actions: (
 					<Button
 						variant="outline"

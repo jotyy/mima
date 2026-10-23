@@ -35,7 +35,8 @@ async function requireAgent(db: Parameters<typeof logEvent>[0], id: string) {
 export const agentsRouter = {
 	list: memberProcedure.handler(async ({ context }) => {
 		const { db, userId } = context;
-		const itemIds = await accessibleItemIds(db, userId);
+		// Which agents can use an item is for the people who can change it.
+		const itemIds = await accessibleItemIds(db, userId, { role: "edit" });
 		const weekAgo = new Date(Date.now() - 7 * 24 * HOUR);
 		const [agents, grants, runs] = await Promise.all([
 			db
@@ -53,7 +54,8 @@ export const agentsRouter = {
 					createdAt: agent.createdAt,
 				})
 				.from(agent)
-				.innerJoin(user, eq(user.id, agent.ownerId)),
+				// Agents whose owner left still show, so nobody misses one.
+				.leftJoin(user, eq(user.id, agent.ownerId)),
 			itemIds.length
 				? db
 						.select({

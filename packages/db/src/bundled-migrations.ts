@@ -40,4 +40,9 @@ export const migrations: readonly {
 		hash: "90bbb0db412eb416e8e0477ba3f217e8888ba4e2e2a2d2afc2409a5773cbb5c2",
 		sql: "ALTER TABLE `vault_access` ADD `role` text DEFAULT 'manage' NOT NULL;",
 	},
+	{
+		name: "20261023192424_agents_of_leavers",
+		hash: "25cd20f0414e2cd4ace1a0dcaf434cda046c15ce362791bea29f8097465ac27c",
+		sql: "-- Agents whose owner was removed from the workspace before removal took their agents too.\n-- Their grants and requests go first, in case foreign keys aren't enforced.\nDELETE FROM `agent_grant` WHERE `agent_id` IN (SELECT `id` FROM `agent` WHERE `owner_id` NOT IN (SELECT `user_id` FROM `member`));--> statement-breakpoint\nDELETE FROM `access_request` WHERE `agent_id` IN (SELECT `id` FROM `agent` WHERE `owner_id` NOT IN (SELECT `user_id` FROM `member`));--> statement-breakpoint\nDELETE FROM `agent` WHERE `owner_id` NOT IN (SELECT `user_id` FROM `member`);\n",
+	},
 ];

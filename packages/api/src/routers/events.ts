@@ -1,13 +1,49 @@
 import { user } from "@vauly/db/schema/auth";
-import { agent, event } from "@vauly/db/schema/vault";
-import { and, desc, eq, inArray, isNull, or, type SQL } from "drizzle-orm";
+import { agent, type EventAction, event } from "@vauly/db/schema/vault";
+import {
+	and,
+	desc,
+	eq,
+	inArray,
+	isNull,
+	ne,
+	notInArray,
+	or,
+	type SQL,
+} from "drizzle-orm";
 import { z } from "zod";
 
 import { memberProcedure } from "../index";
-import { accessibleItemIds, myVaultIds, requireItemAccess } from "../lib";
+import {
+	accessibleItemIds,
+	myVaultIds,
+	requireItemAccess,
+	requireVaultAccess,
+} from "../lib";
+
+/** About agents and share links, which only people who can change an item handle. */
+const editorsOnly: EventAction[] = [
+	"requested",
+	"approved",
+	"denied",
+	"granted",
+	"injected",
+	"linked",
+	"opened",
+];
+
+/** Everything someone who can only view a vault may see in its log. */
+const forViewers = and(
+	notInArray(event.action, editorsOnly),
+	// Revoking on an item means an agent or a link; on a vault, a person.
+	or(ne(event.action, "revoked"), isNull(event.itemId)),
+);
 
 export const eventsRouter = {
-	/** Events about items and vaults you can open, plus workspace-wide ones (joins, invites). */
+	/**
+	 * Events about vaults you can open and their items, workspace-wide ones (joins, invites),
+	 * and what you did yourself. In a vault you can only view, agents and links stay out.
+	 */
 	list: memberProcedure
 		.input(
 			z
@@ -22,17 +58,36 @@ export const eventsRouter = {
 			const { db, userId } = context;
 			let where: SQL | undefined;
 			if (input.itemId) {
-				await requireItemAccess(db, userId, input.itemId, { deleted: true });
-				where = eq(event.itemId, input.itemId);
+				const target = await requireItemAccess(db, userId, input.itemId, {
+					deleted: true,
+				});
+				const access = await requireVaultAccess(db, userId, target.vaultId);
+				where = and(
+					eq(event.itemId, input.itemId),
+					access.role === "view" ? forViewers : undefined,
+				);
 			} else {
-				const [itemIds, vaultIds] = await Promise.all([
-					accessibleItemIds(db, userId, { deleted: true }),
-					myVaultIds(db, userId),
-				]);
+				const [vaultIds, editVaultIds, itemIds, editItemIds] =
+					await Promise.all([
+						myVaultIds(db, userId),
+						myVaultIds(db, userId, "edit"),
+						accessibleItemIds(db, userId, { deleted: true }),
+						accessibleItemIds(db, userId, { deleted: true, role: "edit" }),
+					]);
+				const viewOnly = (all: string[], editable: string[]) =>
+					all.filter((id) => !editable.includes(id));
 				where = or(
-					isNull(event.itemId),
-					...(itemIds.length ? [inArray(event.itemId, itemIds)] : []),
-					...(vaultIds.length ? [inArray(event.vaultId, vaultIds)] : []),
+					and(isNull(event.itemId), isNull(event.vaultId)),
+					and(eq(event.actorType, "member"), eq(event.actorId, userId)),
+					inArray(event.vaultId, editVaultIds),
+					inArray(event.itemId, editItemIds),
+					and(
+						or(
+							inArray(event.vaultId, viewOnly(vaultIds, editVaultIds)),
+							inArray(event.itemId, viewOnly(itemIds, editItemIds)),
+						),
+						forViewers,
+					),
 				);
 			}
 			const rows = await db
@@ -70,6 +125,8 @@ export const eventsRouter = {
 			);
 			return rows.map((row) => ({
 				...row,
+				// A link's ID opens it, so it isn't handed out with its events.
+				actorId: row.actorType === "link" ? "" : row.actorId,
 				actorName:
 					row.actorType === "link"
 						? "Someone with a link"

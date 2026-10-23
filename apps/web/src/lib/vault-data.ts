@@ -316,11 +316,12 @@ export function useExposed() {
 }
 
 /** Share links to one item that still work. */
-export function useLinks(itemId: string) {
+/** An item's share links, for people who can change it; others aren't shown them. */
+export function useLinks(itemId: string, editable: boolean) {
 	const { status } = useKeyring();
 	return useQuery({
 		queryKey: ["vault", "links", itemId],
-		enabled: status === "unlocked",
+		enabled: status === "unlocked" && editable,
 		queryFn: () => client.links.list({ itemId }),
 	});
 }

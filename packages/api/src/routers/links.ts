@@ -26,12 +26,15 @@ const alive = (now: Date) =>
 const linkId = z.object({ id: z.string().min(8).max(64) });
 
 export const linksRouter = {
-	/** Links to one item that still work. Dead ones are removed on the way. */
+	/**
+	 * Links to one item that still work. Dead ones are removed on the way. A link's ID is
+	 * enough to use up a one-view link, so only people who can change the item see them.
+	 */
 	list: memberProcedure
 		.input(z.object({ itemId: z.string() }))
 		.handler(async ({ context, input }) => {
 			const { db, userId } = context;
-			await requireItemAccess(db, userId, input.itemId);
+			await requireItemAccess(db, userId, input.itemId, { role: "edit" });
 			const now = new Date();
 			await db
 				.delete(shareLink)
@@ -97,7 +100,7 @@ export const linksRouter = {
 			return { id, expiresAt };
 		}),
 
-	/** Anyone who can open the item can turn its links off. */
+	/** Anyone who can change the item can turn its links off. */
 	revoke: memberProcedure.input(linkId).handler(async ({ context, input }) => {
 		const { db, userId } = context;
 		const [row] = await db

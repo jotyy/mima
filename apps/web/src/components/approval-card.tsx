@@ -61,7 +61,7 @@ export function ApprovalCard({
 					<p className="text-caption text-fg-subtle">
 						{[
 							agent?.host,
-							agent?.ownerName && `owned by ${agent.ownerName}`,
+							agent && `owned by ${agent.ownerName ?? "someone who left"}`,
 							ago(request.createdAt),
 						]
 							.filter(Boolean)

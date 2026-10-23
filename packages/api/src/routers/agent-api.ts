@@ -1,5 +1,11 @@
 import { ORPCError } from "@orpc/server";
-import { accessRequest, agent, agentGrant, item } from "@vauly/db/schema/vault";
+import {
+	accessRequest,
+	agent,
+	agentGrant,
+	item,
+	member,
+} from "@vauly/db/schema/vault";
 import { and, eq, gt, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
@@ -24,12 +30,20 @@ const agentProcedure = publicProcedure.use(async ({ context, next }) => {
 	const match = /^Bearer (agt_[a-z0-9]+)\.([0-9a-f]{48})$/.exec(header);
 	if (!match?.[1] || !match[2])
 		throw new ORPCError("UNAUTHORIZED", { message: "Missing agent token" });
-	const [row] = await context.db
-		.select()
+	const [found] = await context.db
+		.select({ agent, owner: member.userId })
 		.from(agent)
+		.leftJoin(member, eq(member.userId, agent.ownerId))
 		.where(eq(agent.id, match[1]));
+	const row = found?.agent;
 	if (!row || !sameHash(row.secretHash, await hashToken(match[2]))) {
 		throw new ORPCError("UNAUTHORIZED", { message: "Unknown agent token" });
+	}
+	// An agent acts for the person who made it, and stops when they leave.
+	if (!found.owner) {
+		throw new ORPCError("FORBIDDEN", {
+			message: "This agent's owner is no longer in the workspace",
+		});
 	}
 	if (!row.enabled)
 		throw new ORPCError("FORBIDDEN", {

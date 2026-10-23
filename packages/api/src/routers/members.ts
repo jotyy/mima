@@ -1,7 +1,13 @@
 import { ORPCError } from "@orpc/server";
 import { user } from "@vauly/db/schema/auth";
-import { invite, member, vault, vaultAccess } from "@vauly/db/schema/vault";
-import { and, eq, gt, isNull, ne, sql } from "drizzle-orm";
+import {
+	agent,
+	invite,
+	member,
+	vault,
+	vaultAccess,
+} from "@vauly/db/schema/vault";
+import { and, eq, gt, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { adminProcedure, memberProcedure } from "../index";
@@ -176,7 +182,7 @@ export const membersRouter = {
 			}
 			// The person's account goes, so their name is kept in the log. One event per
 			// shared vault tells the people left behind which passwords they could see.
-			const [person, shared] = await Promise.all([
+			const [person, shared, owned] = await Promise.all([
 				db
 					.select({ name: user.name })
 					.from(user)
@@ -192,30 +198,72 @@ export const membersRouter = {
 							isNull(vault.personalFor),
 						),
 					),
+				db
+					.select({ name: agent.name })
+					.from(agent)
+					.where(eq(agent.ownerId, input.userId)),
 			]);
 			const name = person?.name ?? "Someone";
-			// A vault whose only manager leaves isn't left without one: the people who could
-			// edit it take over, or everyone left when nobody could.
-			const successors: { vaultId: string; userId: string }[] = [];
-			for (const row of shared.filter((access) => access.role === "manage")) {
-				const others = await db
-					.select({ userId: vaultAccess.userId, role: vaultAccess.role })
-					.from(vaultAccess)
-					.where(
-						and(
-							eq(vaultAccess.vaultId, row.vaultId),
-							ne(vaultAccess.userId, input.userId),
-						),
-					);
-				if (others.some((other) => other.role === "manage")) continue;
-				const editors = others.filter((other) => other.role === "edit");
-				for (const next of editors.length ? editors : others) {
-					successors.push({ vaultId: row.vaultId, userId: next.userId });
-				}
-			}
+			const sharedIds = shared.map((row) => row.vaultId);
+			// Vaults in this list that still have a manager. Not correlated with the row being
+			// changed, so SQLite works it out once per statement.
+			const managed = db
+				.select({ vaultId: vaultAccess.vaultId })
+				.from(vaultAccess)
+				.where(eq(vaultAccess.role, "manage"));
+			const [, , , promotedEditors, promotedEveryone, stranded] =
+				await db.batch([
+					db.delete(vault).where(eq(vault.personalFor, input.userId)),
+					// Their agents stop with them; grants and requests go with the agents.
+					db.delete(agent).where(eq(agent.ownerId, input.userId)),
+					db.delete(user).where(eq(user.id, input.userId)),
+					// A vault they were the last manager of is handed on: to the people who could
+					// edit it, or to everyone left when nobody could. In the same transaction as
+					// the removal, so two removals at once can't leave a vault without one.
+					db
+						.update(vaultAccess)
+						.set({ role: "manage" })
+						.where(
+							and(
+								inArray(vaultAccess.vaultId, sharedIds),
+								eq(vaultAccess.role, "edit"),
+								notInArray(vaultAccess.vaultId, managed),
+							),
+						)
+						.returning({
+							vaultId: vaultAccess.vaultId,
+							userId: vaultAccess.userId,
+						}),
+					db
+						.update(vaultAccess)
+						.set({ role: "manage" })
+						.where(
+							and(
+								inArray(vaultAccess.vaultId, sharedIds),
+								notInArray(vaultAccess.vaultId, managed),
+							),
+						)
+						.returning({
+							vaultId: vaultAccess.vaultId,
+							userId: vaultAccess.userId,
+						}),
+					// A shared vault nobody else could open goes, like their private vault: nobody
+					// is left who could read it.
+					db
+						.delete(vault)
+						.where(
+							and(
+								inArray(vault.id, sharedIds),
+								notInArray(
+									vault.id,
+									db.select({ vaultId: vaultAccess.vaultId }).from(vaultAccess),
+								),
+							),
+						)
+						.returning({ id: vault.id }),
+				]);
+			const gone = new Set(stranded.map((row) => row.id));
 			await db.batch([
-				db.delete(vault).where(eq(vault.personalFor, input.userId)),
-				db.delete(user).where(eq(user.id, input.userId)),
 				logEvent(db, {
 					actorType: "member",
 					actorId: userId,
@@ -223,26 +271,19 @@ export const membersRouter = {
 					subjectId: input.userId,
 					detail: name,
 				}),
-				...shared.map((row) =>
-					logEvent(db, {
-						actorType: "member",
-						actorId: userId,
-						action: "revoked",
-						vaultId: row.vaultId,
-						subjectId: input.userId,
-						detail: name,
-					}),
-				),
-				...successors.flatMap((next) => [
-					db
-						.update(vaultAccess)
-						.set({ role: "manage" })
-						.where(
-							and(
-								eq(vaultAccess.vaultId, next.vaultId),
-								eq(vaultAccess.userId, next.userId),
-							),
-						),
+				...shared
+					.filter((row) => !gone.has(row.vaultId))
+					.map((row) =>
+						logEvent(db, {
+							actorType: "member",
+							actorId: userId,
+							action: "revoked",
+							vaultId: row.vaultId,
+							subjectId: input.userId,
+							detail: name,
+						}),
+					),
+				...[...promotedEditors, ...promotedEveryone].map((next) =>
 					logEvent(db, {
 						actorType: "member",
 						actorId: userId,
@@ -251,7 +292,23 @@ export const membersRouter = {
 						subjectId: next.userId,
 						detail: "manage",
 					}),
-				]),
+				),
+				...[...gone].map((vaultId) =>
+					logEvent(db, {
+						actorType: "member",
+						actorId: userId,
+						action: "deleted",
+						vaultId,
+					}),
+				),
+				...owned.map((row) =>
+					logEvent(db, {
+						actorType: "member",
+						actorId: userId,
+						action: "deleted",
+						detail: `agent ${row.name}`,
+					}),
+				),
 			]);
 		}),
 };

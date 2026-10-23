@@ -82,7 +82,10 @@ export function ItemDetail({ item }: { item: Item }) {
 	const agents = useAgents();
 	const members = useMembers();
 	const lookup = useLookup();
-	const links = useLinks(item.id);
+	const links = useLinks(
+		item.id,
+		canEdit(vaults.data?.find((v) => v.id === item.vaultId)),
+	);
 	const history = useItemEvents(item.id);
 	const exposure = useExposed().exposed.get(item.id);
 	const breaches = useBreached().get(item.id);
