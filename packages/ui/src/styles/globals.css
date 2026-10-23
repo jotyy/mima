@@ -299,20 +299,6 @@
 	--default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Hollow rings on a 17px grid, drawn over the brand panel behind the sign-in card. */
-@utility pattern-rings {
-	--pattern-ring: color-mix(in oklab, var(--brand-fg) 22%, transparent);
-	background-image: radial-gradient(
-		circle at center,
-		transparent 3.25px,
-		var(--pattern-ring) 3.5px,
-		var(--pattern-ring) 4.5px,
-		transparent 4.75px
-	);
-	background-size: 17px 17px;
-	background-position: center;
-}
-
 @layer base {
 	* {
 		@apply border-border;

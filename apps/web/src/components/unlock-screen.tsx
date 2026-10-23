@@ -1,5 +1,7 @@
+import { Avatar, AvatarFallback } from "@mima/ui/components/avatar";
 import { useState } from "react";
 
+import { initials } from "@/lib/format";
 import { useKeyring, WrongPasswordError } from "@/lib/keyring";
 import { errorMessage, useWorkspace } from "@/lib/vault-data";
 
@@ -22,7 +24,14 @@ export function UnlockScreen() {
 		<AuthLayout
 			title={`Unlock ${workspace.data?.workspaceName ?? "mima"}`}
 			description={
-				<>Locked to keep your items safe. Signed in as {keyring.me?.email}.</>
+				keyring.me && (
+					<span className="bg-surface shadow-pill text-fg-emphasis mt-1 inline-flex max-w-full items-center gap-2 rounded-full py-1 pr-3 pl-1">
+						<Avatar size="sm">
+							<AvatarFallback>{initials(keyring.me.name)}</AvatarFallback>
+						</Avatar>
+						<span className="truncate">{keyring.me.email}</span>
+					</span>
+				)
 			}
 			footer={
 				<p>
