@@ -20,14 +20,47 @@ import { adminProcedure, memberProcedure, publicProcedure } from "../index";
 import { hashToken, logEvent, newId } from "../lib";
 import { deleteWorkspace, removeFromWorkspace } from "../workspace";
 
-const DEFAULT_ITERATIONS = 600_000;
+/** What new accounts derive with (ARGON2ID in @vauly/crypto), and what decoys answer. */
+const NEW_ACCOUNT_KDF = {
+	kdf: "argon2id",
+	kdfIterations: 3,
+	kdfMemory: 64 * 1024,
+} as const;
 
-const accountKeys = z.object({
+const keyFields = z.object({
 	kdfSalt: z.string().min(16).max(64),
-	kdfIterations: z.number().int().min(1_000).max(10_000_000),
+	// Apps from before Argon2id don't send it.
+	kdf: z.enum(["pbkdf2", "argon2id"]).default("pbkdf2"),
+	/** PBKDF2's rounds, or Argon2's passes. */
+	kdfIterations: z.number().int().min(1).max(10_000_000),
+	/** Argon2's memory in KiB. */
+	kdfMemory: z
+		.number()
+		.int()
+		.min(19 * 1024)
+		.max(1024 * 1024)
+		.nullish(),
 	publicKey: z.string().min(40).max(400),
 	encryptedPrivateKey: z.string().min(40).max(1_000),
 });
+
+/** Settings that make sense for their KDF; the apps hold servers to stricter limits. */
+const validKdf = (keys: {
+	kdf: "pbkdf2" | "argon2id";
+	kdfIterations: number;
+	kdfMemory?: number | null;
+}) =>
+	keys.kdf === "argon2id"
+		? keys.kdfMemory != null && keys.kdfIterations <= 10
+		: keys.kdfMemory == null && keys.kdfIterations >= 1_000;
+const kdfMessage = {
+	message: "Those key derivation settings don't fit together",
+};
+
+const accountKeys = keyFields.refine(validKdf, kdfMessage);
+const newPasswordKeys = keyFields
+	.omit({ publicKey: true })
+	.refine(validKdf, kdfMessage);
 
 async function hmac(secret: string, message: string) {
 	const key = await crypto.subtle.importKey(
@@ -107,7 +140,9 @@ export const accountRouter = {
 			const [row] = await context.db
 				.select({
 					kdfSalt: member.kdfSalt,
+					kdf: member.kdf,
 					kdfIterations: member.kdfIterations,
+					kdfMemory: member.kdfMemory,
 				})
 				.from(member)
 				.innerJoin(user, eq(user.id, member.userId))
@@ -115,7 +150,7 @@ export const accountRouter = {
 			return (
 				row ?? {
 					kdfSalt: await decoySalt(context.secret, email),
-					kdfIterations: DEFAULT_ITERATIONS,
+					...NEW_ACCOUNT_KDF,
 				}
 			);
 		}),
@@ -298,7 +333,9 @@ export const accountRouter = {
 			recoveryCodesLeft: me.recoveryCodes?.length ?? 0,
 			keys: {
 				kdfSalt: me.kdfSalt,
+				kdf: me.kdf,
 				kdfIterations: me.kdfIterations,
+				kdfMemory: me.kdfMemory,
 				publicKey: me.publicKey,
 				encryptedPrivateKey: me.encryptedPrivateKey,
 			},
@@ -324,7 +361,7 @@ export const accountRouter = {
 			z.object({
 				currentAuthKey: z.string().length(64),
 				authKey: z.string().length(64),
-				keys: accountKeys.omit({ publicKey: true }),
+				keys: newPasswordKeys,
 			}),
 		)
 		.handler(async ({ context, input }) => {
@@ -343,7 +380,9 @@ export const accountRouter = {
 					.update(member)
 					.set({
 						kdfSalt: input.keys.kdfSalt,
+						kdf: input.keys.kdf,
 						kdfIterations: input.keys.kdfIterations,
+						kdfMemory: input.keys.kdfMemory ?? null,
 						encryptedPrivateKey: input.keys.encryptedPrivateKey,
 					})
 					.where(eq(member.userId, userId)),
@@ -360,6 +399,54 @@ export const accountRouter = {
 					actorId: userId,
 					action: "updated",
 					detail: "master password",
+				}),
+			]);
+			return { ok: true };
+		}),
+
+	/**
+	 * Moves the person's keys to Argon2id without changing their master password: the auth
+	 * key and the sealed private key swap together, as with a new password, but their other
+	 * sessions stay signed in, since the password is the same. The web app calls it after an
+	 * unlock with a master password that still goes through PBKDF2.
+	 */
+	upgradeKdf: memberProcedure
+		.input(
+			z.object({
+				currentAuthKey: z.string().length(64),
+				authKey: z.string().length(64),
+				keys: newPasswordKeys.refine((keys) => keys.kdf === "argon2id", {
+					message: "Only a move to Argon2id",
+				}),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			const { db, userId } = context;
+			const auth = await context.auth.$context;
+			const credential = await checkAuthKey(context, input.currentAuthKey);
+			await db.batch([
+				db
+					.update(account)
+					.set({
+						password: await auth.password.hash(input.authKey),
+						updatedAt: new Date(),
+					})
+					.where(eq(account.id, credential.id)),
+				db
+					.update(member)
+					.set({
+						kdfSalt: input.keys.kdfSalt,
+						kdf: input.keys.kdf,
+						kdfIterations: input.keys.kdfIterations,
+						kdfMemory: input.keys.kdfMemory ?? null,
+						encryptedPrivateKey: input.keys.encryptedPrivateKey,
+					})
+					.where(eq(member.userId, userId)),
+				logEvent(db, {
+					actorType: "member",
+					actorId: userId,
+					action: "updated",
+					detail: "key derivation",
 				}),
 			]);
 			return { ok: true };

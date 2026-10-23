@@ -1,12 +1,19 @@
 import { describe, expect, test } from "bun:test";
 
+import { argon2id } from "./argon2";
 import {
+	ARGON2ID,
 	changeMasterPassword,
+	checkKdf,
 	createAccount,
 	decodeAgentToken,
 	deriveMasterKeys,
 	encodeAgentToken,
 	importPrivateKey,
+	type Kdf,
+	KdfError,
+	kdfIsCurrent,
+	kdfOf,
 	keyFromText,
 	keyToText,
 	newDataKey,
@@ -16,15 +23,21 @@ import {
 	openJson,
 	seal,
 	sealJson,
+	setArgon2,
 	unlockAccount,
 	unwrapKey,
 	unwrapKeyFrom,
+	upgradeKdf,
 	wrapKey,
 	wrapKeyFor,
 } from "./index";
 
-// Low iterations keep the suite fast; production uses KDF_ITERATIONS.
-const FAST = 1_000;
+setArgon2(argon2id);
+
+// Small settings keep the suite fast; production uses ARGON2ID, or KDF_ITERATIONS of
+// PBKDF2 for accounts that haven't moved yet.
+const FAST: Kdf = { kdf: "argon2id", kdfIterations: 1, kdfMemory: 64 };
+const OLD: Kdf = { kdf: "pbkdf2", kdfIterations: 1_000, kdfMemory: null };
 
 describe("master password", () => {
 	test("same password and salt give the same auth key", async () => {
@@ -81,6 +94,93 @@ describe("master password", () => {
 		await expect(
 			changeMasterPassword("wrong", "x", account.keys, FAST),
 		).rejects.toThrow();
+	});
+
+	test("an account made with PBKDF2 moves to Argon2id and keeps its key pair", async () => {
+		const account = await createAccount("old-example-pass", OLD);
+		expect(account.keys.kdf).toBe("pbkdf2");
+		const vaultKey = await newDataKey();
+		const wrapped = await wrapKeyFor(account.keys.publicKey, vaultKey);
+
+		const moved = await upgradeKdf("old-example-pass", account.keys, FAST);
+		expect(moved.currentAuthKey).toBe(account.authKey);
+		expect(moved.authKey).not.toBe(account.authKey);
+		expect(moved.keys).toMatchObject({
+			kdf: "argon2id",
+			kdfIterations: 1,
+			kdfMemory: 64,
+			publicKey: account.keys.publicKey,
+		});
+		expect(moved.keys.kdfSalt).not.toBe(account.keys.kdfSalt);
+
+		const unlocked = await unlockAccount("old-example-pass", moved.keys);
+		expect(unlocked.authKey).toBe(moved.authKey);
+		const opened = await unwrapKeyFrom(
+			unlocked.privateKey,
+			moved.keys.publicKey,
+			wrapped,
+		);
+		const sealed = await sealJson(vaultKey, { ok: true });
+		expect(await openJson(opened, sealed)).toEqual({ ok: true });
+		await expect(upgradeKdf("wrong", account.keys, FAST)).rejects.toThrow();
+	});
+
+	test("keys saved before Argon2id read as PBKDF2", async () => {
+		const account = await createAccount("old-example-pass", OLD);
+		const { kdf: _, kdfMemory: __, ...saved } = account.keys;
+		expect(kdfOf(saved)).toEqual(OLD);
+		expect((await unlockAccount("old-example-pass", saved)).authKey).toBe(
+			account.authKey,
+		);
+	});
+
+	test("Argon2id and PBKDF2 give different keys for the same password and salt", async () => {
+		const salt = newSalt();
+		const a = await deriveMasterKeys("correct horse", salt, FAST);
+		const b = await deriveMasterKeys("correct horse", salt, OLD);
+		expect(a.authKey).not.toBe(b.authKey);
+	});
+});
+
+describe("key derivation settings", () => {
+	test("new accounts use Argon2id with 64 MiB and three passes", () => {
+		expect(ARGON2ID).toEqual({
+			kdf: "argon2id",
+			kdfIterations: 3,
+			kdfMemory: 65_536,
+		});
+		expect(kdfIsCurrent(ARGON2ID)).toBe(true);
+		expect(kdfIsCurrent({ ...OLD, kdfIterations: 600_000 })).toBe(false);
+		expect(kdfIsCurrent({ ...ARGON2ID, kdfMemory: 32_768 })).toBe(false);
+	});
+
+	test("what a server asks for must be within vauly's limits", () => {
+		const pbkdf2 = (kdfIterations: number): Kdf => ({ ...OLD, kdfIterations });
+		const argon = (kdfMemory: number | null, kdfIterations = 3): Kdf => ({
+			kdf: "argon2id",
+			kdfIterations,
+			kdfMemory,
+		});
+		for (const allowed of [
+			ARGON2ID,
+			pbkdf2(600_000),
+			argon(19_456, 2),
+			argon(1_048_576, 10),
+		]) {
+			expect(checkKdf(allowed)).toEqual(allowed);
+		}
+		for (const refused of [
+			pbkdf2(599_999),
+			pbkdf2(1_000),
+			argon(19_455),
+			argon(null),
+			argon(65_536, 1),
+			argon(1_048_577),
+			argon(65_536, 11),
+			{ ...ARGON2ID, kdf: "scrypt" } as unknown as Kdf,
+		]) {
+			expect(() => checkKdf(refused)).toThrow(KdfError);
+		}
 	});
 });
 

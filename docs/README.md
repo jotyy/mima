@@ -14,8 +14,8 @@ vauly is a password manager for small teams, from two people to a handful, who w
 <!-- diagram: KeyChain -->
 
 ```
-master password ──PBKDF2 (600,000 rounds)──▶ master key ──HKDF──┬─▶ auth key   sent to the server to sign in
-                                                               └─▶ wrap key   unlocks your private key
+master password ──Argon2id (64 MiB, 3 passes)──▶ master key ──HKDF──┬─▶ auth key   sent to the server to sign in
+                                                                    └─▶ wrap key   unlocks your private key
 your key pair (ECDH P-256)  receives vault keys from the people who share them with you
 vault key (AES-256-GCM)     wraps the key of each item in the vault
 item key  (AES-256-GCM)     encrypts one item

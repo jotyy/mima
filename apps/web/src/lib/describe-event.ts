@@ -49,6 +49,8 @@ export function describeEvent(
 		case "updated":
 			if (!event.itemId && event.detail === "master password")
 				return parts("changed their master password");
+			if (event.detail === "key derivation")
+				return parts("moved their master password to Argon2id");
 			if (event.detail === "two-step login on")
 				return parts("turned on two-step login");
 			if (event.detail === "two-step login off")

@@ -51,6 +51,25 @@ test("the app's pages and files are served with the security headers", async ({
 	}
 });
 
+test("only the key worker may compile WebAssembly", async ({ request }) => {
+	const page = (await request.get("/")).headers()["content-security-policy"];
+	expect(page).not.toContain("wasm");
+	const manifest = await (
+		await request.get("/.well-known/vauly-build.json")
+	).json();
+	const workerFiles = Object.keys(manifest.files).filter((file) =>
+		file.startsWith("/assets/key-worker/"),
+	);
+	expect(workerFiles.length).toBeGreaterThan(0);
+	for (const file of workerFiles) {
+		const headers = (await request.get(file)).headers();
+		expect(headers["content-security-policy"], file).toBe(
+			"default-src 'none'; script-src 'self' 'wasm-unsafe-eval'",
+		);
+		expect(headers["x-content-type-options"], file).toBe("nosniff");
+	}
+});
+
 test("another site can't show vauly in a frame", async ({ page, baseURL }) => {
 	await page.route("http://elsewhere.example.test/", (route) =>
 		route.fulfill({

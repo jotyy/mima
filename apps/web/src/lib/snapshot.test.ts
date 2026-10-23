@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 
 import { describe, expect, test } from "bun:test";
-import { createAccount } from "@vauly/crypto";
+import { createAccount, type Kdf } from "@vauly/crypto";
 
 import { type Contents, isFresh, openSnapshot, sealSnapshot } from "./snapshot";
 
@@ -19,9 +19,12 @@ const contents = {
 	items: [{ id: "item_github", vaultId: "vault_private", data: "sealed-item" }],
 } as unknown as Contents;
 
+// Quick key derivation: these tests are about the copy, not the master password.
+const FAST: Kdf = { kdf: "pbkdf2", kdfIterations: 1_000, kdfMemory: null };
+
 describe("the offline copy", () => {
 	test("opens with the account's private key, as it was", async () => {
-		const account = await createAccount("correct horse battery staple", 1_000);
+		const account = await createAccount("correct horse battery staple", FAST);
 		const snapshot = await sealSnapshot(
 			{ id: "user_alex", sessionId: "session_1", keys: account.keys },
 			contents,
@@ -30,7 +33,7 @@ describe("the offline copy", () => {
 	});
 
 	test("keeps nothing readable but what unlocking needs", async () => {
-		const account = await createAccount("correct horse battery staple", 1_000);
+		const account = await createAccount("correct horse battery staple", FAST);
 		const snapshot = await sealSnapshot(
 			{ id: "user_alex", sessionId: "session_1", keys: account.keys },
 			contents,
@@ -56,8 +59,8 @@ describe("the offline copy", () => {
 	});
 
 	test("another account's key doesn't open it", async () => {
-		const alex = await createAccount("correct horse battery staple", 1_000);
-		const sam = await createAccount("another long passphrase", 1_000);
+		const alex = await createAccount("correct horse battery staple", FAST);
+		const sam = await createAccount("another long passphrase", FAST);
 		const snapshot = await sealSnapshot(
 			{ id: "user_alex", sessionId: "session_1", keys: alex.keys },
 			contents,
@@ -66,7 +69,7 @@ describe("the offline copy", () => {
 	});
 
 	test("is used for 30 days at most", async () => {
-		const account = await createAccount("correct horse battery staple", 1_000);
+		const account = await createAccount("correct horse battery staple", FAST);
 		const day = 24 * 60 * 60_000;
 		const now = Date.now();
 		const at = async (syncedAt: number) =>

@@ -1,10 +1,15 @@
 // Writes test-vectors.json: fixed, made-up inputs and what vauly's formats make of them.
 // The outputs come from the formats as docs/security.md describes them, computed here
-// step by step with plain WebCrypto, not by calling packages/crypto, so the unit test
-// (src/vectors.test.ts) checks the package against an independent reading of the format.
+// step by step with plain WebCrypto and Node's Argon2 (OpenSSL's), not by calling
+// packages/crypto, so the unit test (src/vectors.test.ts) checks the package, and its
+// libsodium Argon2id, against an independent reading of the format. It runs on Node 24.7
+// or later: Bun's node:crypto has no Argon2.
 //
 //   bun run vectors     (in packages/crypto)
 
+import { spawnSync } from "node:child_process";
+import { argon2 as nodeArgon2 } from "node:crypto";
+import { writeFileSync } from "node:fs";
 import path from "node:path";
 
 const encoder = new TextEncoder();
@@ -36,6 +41,74 @@ const iv = (n: number) => run(0xa0 + n * 0x10, 12);
 // --- The formats, step by step -----------------------------------------------------
 
 const ECDH = { name: "ECDH", namedCurve: "P-256" } as const;
+
+type Kdf =
+	| { kdf: "pbkdf2"; kdfIterations: number; kdfMemory: null }
+	| { kdf: "argon2id"; kdfIterations: number; kdfMemory: number };
+
+/** What new accounts use: Argon2id, 64 MiB, three passes, one lane. */
+const ARGON2ID: Kdf = { kdf: "argon2id", kdfIterations: 3, kdfMemory: 65_536 };
+/** The least Argon2id vauly accepts from a server. */
+const ARGON2ID_FLOOR: Kdf = {
+	kdf: "argon2id",
+	kdfIterations: 2,
+	kdfMemory: 19_456,
+};
+const pbkdf2Kdf = (kdfIterations: number): Kdf => ({
+	kdf: "pbkdf2",
+	kdfIterations,
+	kdfMemory: null,
+});
+
+/** Argon2id (RFC 9106) from Node, 32 bytes out. */
+function argon2id(
+	message: Uint8Array,
+	nonce: Uint8Array,
+	passes: number,
+	memory: number,
+	extra: {
+		parallelism?: number;
+		secret?: Uint8Array;
+		associatedData?: Uint8Array;
+	} = {},
+) {
+	return new Promise<Uint8Array>((resolve, reject) =>
+		nodeArgon2(
+			"argon2id",
+			{
+				message,
+				nonce,
+				passes,
+				memory,
+				parallelism: 1,
+				tagLength: 32,
+				...extra,
+			},
+			(error, tag) => (error ? reject(error) : resolve(new Uint8Array(tag))),
+		),
+	);
+}
+
+// RFC 9106, section 5.3: Node's Argon2id must agree with the RFC before it vouches for vauly's.
+{
+	const tag = await argon2id(
+		new Uint8Array(32).fill(1),
+		new Uint8Array(16).fill(2),
+		3,
+		32,
+		{
+			parallelism: 4,
+			secret: new Uint8Array(8).fill(3),
+			associatedData: new Uint8Array(12).fill(4),
+		},
+	);
+	if (
+		hex(tag) !==
+		"0d640df58d78766c08c037a34a8b53c9d01ef0452d75b65eb52520e96b01e659"
+	) {
+		throw new Error("Argon2id disagrees with RFC 9106's test vector");
+	}
+}
 
 async function pbkdf2(password: string, salt: Uint8Array, iterations: number) {
 	const key = await crypto.subtle.importKey(
@@ -99,12 +172,16 @@ async function seal(
 	return `${b64(ivBytes)}.${b64(new Uint8Array(ciphertext))}`;
 }
 
-async function masterKeys(
-	password: string,
-	salt: Uint8Array,
-	iterations: number,
-) {
-	const masterKey = await pbkdf2(password, salt, iterations);
+async function masterKeys(password: string, salt: Uint8Array, kdf: Kdf) {
+	const masterKey =
+		kdf.kdf === "argon2id"
+			? await argon2id(
+					encoder.encode(password.normalize("NFKC")),
+					salt,
+					kdf.kdfIterations,
+					kdf.kdfMemory,
+				)
+			: await pbkdf2(password, salt, kdf.kdfIterations);
 	return {
 		masterKey,
 		authKey: hex(await hkdf(masterKey, "vauly/auth")),
@@ -163,15 +240,15 @@ const base64Url = (bytes: Uint8Array) =>
 async function masterKeyVector(
 	password: string,
 	salt: Uint8Array,
-	iterations: number,
+	kdf: Kdf,
 	checkIv: Uint8Array,
 ) {
-	const keys = await masterKeys(password, salt, iterations);
+	const keys = await masterKeys(password, salt, kdf);
 	return {
 		password,
 		passwordNfkc: password.normalize("NFKC"),
 		salt: b64(salt),
-		iterations,
+		kdf,
 		masterKey: hex(keys.masterKey),
 		authKey: keys.authKey,
 		wrapKey: hex(keys.wrapKey),
@@ -192,15 +269,14 @@ async function sealVector(plaintext: string, ivBytes: Uint8Array) {
 	};
 }
 
-async function accountVector() {
+async function accountVector(kdf: Kdf) {
 	const password = "correct horse battery staple";
 	const salt = run(0x00, 16);
-	const iterations = 1000;
-	const keys = await masterKeys(password, salt, iterations);
+	const keys = await masterKeys(password, salt, kdf);
 	const publicKey = await publicKeyOf(keyPairs.account);
 	return {
 		password,
-		iterations,
+		kdf,
 		salt: b64(salt),
 		privateKey: keyPairs.account,
 		publicKey,
@@ -208,7 +284,7 @@ async function accountVector() {
 		authKey: keys.authKey,
 		keys: {
 			kdfSalt: b64(salt),
-			kdfIterations: iterations,
+			...kdf,
 			publicKey,
 			encryptedPrivateKey: await seal(
 				keys.wrapKey,
@@ -219,7 +295,9 @@ async function accountVector() {
 	};
 }
 
-const account = await accountVector();
+const account = await accountVector(ARGON2ID);
+/** An account from before Argon2id, which upgradeKdf moves over. */
+const oldAccount = await accountVector(pbkdf2Kdf(1000));
 const recipientPublicKey = await publicKeyOf(keyPairs.recipient);
 const ephemeralPublicKey = await publicKeyOf(keyPairs.ephemeral);
 const sharedSecret = await ecdh(keyPairs.ephemeral, recipientPublicKey);
@@ -228,7 +306,12 @@ const shareKey = await hkdf(sharedSecret, shareInfo);
 
 const nextPassword = "a new and longer passphrase";
 const nextSalt = run(0x10, 16);
-const nextKeys = await masterKeys(nextPassword, nextSalt, 1000);
+const nextKeys = await masterKeys(nextPassword, nextSalt, ARGON2ID_FLOOR);
+const movedKeys = await masterKeys(
+	oldAccount.password,
+	nextSalt,
+	ARGON2ID_FLOOR,
+);
 
 const item = { kind: "login", name: "Example", username: "alex@example.test" };
 
@@ -327,10 +410,27 @@ const vectors = {
 		await masterKeyVector(
 			"correct horse battery staple",
 			run(0x00, 16),
-			600_000,
+			ARGON2ID,
 			iv(0),
 		),
-		await masterKeyVector("Ｐａｓｓ ｗｏｒｄ ﬁ①", run(0x10, 16), 1000, iv(1)),
+		await masterKeyVector(
+			"Ｐａｓｓ ｗｏｒｄ ﬁ①",
+			run(0x10, 16),
+			ARGON2ID_FLOOR,
+			iv(1),
+		),
+		await masterKeyVector(
+			"correct horse battery staple",
+			run(0x00, 16),
+			pbkdf2Kdf(600_000),
+			iv(0),
+		),
+		await masterKeyVector(
+			"Ｐａｓｓ ｗｏｒｄ ﬁ①",
+			run(0x10, 16),
+			pbkdf2Kdf(1000),
+			iv(1),
+		),
 	],
 	seal: [
 		await sealVector("Hello, vauly", iv(2)),
@@ -375,17 +475,38 @@ const vectors = {
 			current: account.password,
 			next: nextPassword,
 			keys: account.keys,
-			iterations: 1000,
+			kdf: ARGON2ID_FLOOR,
 			salt: b64(nextSalt),
 			iv: b64(iv(9)),
 			currentAuthKey: account.authKey,
 			authKey: nextKeys.authKey,
 			nextKeys: {
 				kdfSalt: b64(nextSalt),
-				kdfIterations: 1000,
+				...ARGON2ID_FLOOR,
 				publicKey: account.publicKey,
 				encryptedPrivateKey: await seal(
 					nextKeys.wrapKey,
+					iv(9),
+					fromB64(keyPairs.account),
+				),
+			},
+		},
+	],
+	upgradeKdf: [
+		{
+			password: oldAccount.password,
+			keys: oldAccount.keys,
+			kdf: ARGON2ID_FLOOR,
+			salt: b64(nextSalt),
+			iv: b64(iv(9)),
+			currentAuthKey: oldAccount.authKey,
+			authKey: movedKeys.authKey,
+			nextKeys: {
+				kdfSalt: b64(nextSalt),
+				...ARGON2ID_FLOOR,
+				publicKey: oldAccount.publicKey,
+				encryptedPrivateKey: await seal(
+					movedKeys.wrapKey,
 					iv(9),
 					fromB64(keyPairs.account),
 				),
@@ -457,10 +578,8 @@ const vectors = {
 	],
 };
 
-const file = path.join(import.meta.dir, "../test-vectors.json");
-await Bun.write(file, `${JSON.stringify(vectors, null, "\t")}\n`);
+const file = path.join(import.meta.dirname, "../test-vectors.json");
+writeFileSync(file, `${JSON.stringify(vectors, null, "\t")}\n`);
 // Formatted the way the repository's Biome check expects.
-Bun.spawnSync(["bunx", "biome", "format", "--write", file], {
-	stdout: "ignore",
-});
+spawnSync("bunx", ["biome", "format", "--write", file], { stdio: "ignore" });
 console.log(`Wrote ${path.relative(process.cwd(), file)}`);

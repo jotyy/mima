@@ -16,6 +16,12 @@ export default defineConfig({
 		// has its own address.
 		host_permissions: ["<all_urls>"],
 		action: { default_title: "vauly" },
+		// The popup derives the key from the master password with Argon2id, which is
+		// WebAssembly. Chrome's default policy already allows compiling it; Firefox's doesn't.
+		content_security_policy: {
+			extension_pages:
+				"script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
+		},
 		// The fill menu and the save prompt are this page, framed inside the site's page;
 		// the button in a login field shows the mark.
 		web_accessible_resources: [

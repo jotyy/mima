@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
+import { argon2id } from "./argon2";
 import {
 	type AccountKeys,
 	changeMasterPassword,
@@ -11,6 +12,7 @@ import {
 	encodeAgentToken,
 	fromBase64,
 	importPrivateKey,
+	type Kdf,
 	keyFromText,
 	keyToText,
 	open,
@@ -20,6 +22,7 @@ import {
 	seal,
 	sealDeviceCopy,
 	sealJson,
+	setArgon2,
 	sha256Hex,
 	type TotpConfig,
 	toBase64,
@@ -27,21 +30,27 @@ import {
 	unlockAccount,
 	unwrapKey,
 	unwrapKeyFrom,
+	upgradeKdf,
 	wrapKey,
 	wrapKeyFor,
 } from "./index";
 import { withFixedRandom } from "./random";
+
+setArgon2(argon2id);
 
 // Checks packages/crypto against test-vectors.json, which scripts/vectors.ts computes from
 // the formats on their own. If this fails, the package no longer makes what other
 // implementations (and existing vaults) expect: fix the package, or, for a deliberate
 // format change, regenerate the vectors and plan how existing data moves over.
 
+/** Stored keys as the vectors give them, every field there. */
+type Keys = Required<AccountKeys>;
+
 type Vectors = {
 	masterKeys: {
 		password: string;
 		salt: string;
-		iterations: number;
+		kdf: Kdf;
 		authKey: string;
 		wrapKeyCheck: { iv: string; plaintext: string; sealed: string };
 	}[];
@@ -59,23 +68,33 @@ type Vectors = {
 	linkKey: { key: string; text: string }[];
 	createAccount: {
 		password: string;
-		iterations: number;
+		kdf: Kdf;
 		salt: string;
 		privateKey: string;
 		iv: string;
 		authKey: string;
-		keys: AccountKeys;
+		keys: Keys;
 	}[];
 	changeMasterPassword: {
 		current: string;
 		next: string;
-		keys: AccountKeys;
-		iterations: number;
+		keys: Keys;
+		kdf: Kdf;
 		salt: string;
 		iv: string;
 		currentAuthKey: string;
 		authKey: string;
-		nextKeys: AccountKeys;
+		nextKeys: Keys;
+	}[];
+	upgradeKdf: {
+		password: string;
+		keys: Keys;
+		kdf: Kdf;
+		salt: string;
+		iv: string;
+		currentAuthKey: string;
+		authKey: string;
+		nextKeys: Keys;
 	}[];
 	deviceKey: {
 		prfOutput: string;
@@ -135,11 +154,12 @@ async function keyPair(pkcs8: string): Promise<CryptoKeyPair> {
 
 describe("master keys", () => {
 	for (const vector of vectors.masterKeys) {
-		test(`${vector.iterations} rounds of "${vector.password}"`, async () => {
+		const { kdf, kdfIterations, kdfMemory } = vector.kdf;
+		test(`${kdf}, ${kdfIterations} × ${kdfMemory ?? "-"} KiB, of "${vector.password}"`, async () => {
 			const keys = await deriveMasterKeys(
 				vector.password,
 				vector.salt,
-				vector.iterations,
+				vector.kdf,
 			);
 			expect(keys.authKey).toBe(vector.authKey);
 			const { iv, plaintext, sealed } = vector.wrapKeyCheck;
@@ -235,7 +255,7 @@ describe("accounts", () => {
 					bytes: [fromBase64(vector.salt), fromBase64(vector.iv)],
 					ecdhKeyPairs: [await keyPair(vector.privateKey)],
 				},
-				() => createAccount(vector.password, vector.iterations),
+				() => createAccount(vector.password, vector.kdf),
 			);
 			expect(made.authKey).toBe(vector.authKey);
 			expect(made.keys).toEqual(vector.keys);
@@ -263,7 +283,7 @@ describe("accounts", () => {
 						vector.current,
 						vector.next,
 						vector.keys,
-						vector.iterations,
+						vector.kdf,
 					),
 			);
 			expect(made.currentAuthKey).toBe(vector.currentAuthKey);
@@ -275,6 +295,21 @@ describe("accounts", () => {
 			await expect(
 				unlockAccount(vector.current, vector.nextKeys),
 			).rejects.toThrow();
+		}
+	});
+
+	test("upgradeKdf", async () => {
+		for (const vector of vectors.upgradeKdf) {
+			const made = await withFixedRandom(
+				{ bytes: [fromBase64(vector.salt), fromBase64(vector.iv)] },
+				() => upgradeKdf(vector.password, vector.keys, vector.kdf),
+			);
+			expect(made.currentAuthKey).toBe(vector.currentAuthKey);
+			expect(made.authKey).toBe(vector.authKey);
+			expect(made.keys).toEqual(vector.nextKeys);
+			expect(
+				(await unlockAccount(vector.password, vector.nextKeys)).authKey,
+			).toBe(vector.authKey);
 		}
 	});
 });

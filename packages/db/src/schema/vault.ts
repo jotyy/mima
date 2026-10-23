@@ -33,7 +33,14 @@ export const member = sqliteTable("member", {
 		.references(() => user.id, { onDelete: "cascade" }),
 	role: text("role").$type<Role>().notNull(),
 	kdfSalt: text("kdf_salt").notNull(),
+	/**
+	 * How the master password becomes the master key: Argon2id, or PBKDF2 for accounts made
+	 * before it, until their next unlock moves them. Iterations are PBKDF2's rounds or
+	 * Argon2's passes; memory is Argon2's, in KiB.
+	 */
+	kdf: text("kdf").$type<"pbkdf2" | "argon2id">().notNull().default("pbkdf2"),
 	kdfIterations: integer("kdf_iterations").notNull(),
+	kdfMemory: integer("kdf_memory"),
 	publicKey: text("public_key").notNull(),
 	encryptedPrivateKey: text("encrypted_private_key").notNull(),
 	/**

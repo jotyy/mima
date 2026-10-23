@@ -9,6 +9,7 @@ The first public version.
 ### Added
 
 - End-to-end encryption: items, vault names and private keys are encrypted in the browser; the server stores ciphertext and wrapped keys only.
+- Master passwords go through Argon2id (64 MiB, three passes), in a key worker whose policy is the only one that lets WebAssembly run. Accounts made with PBKDF2 move over the next time they sign in or unlock with the master password in the web app. Update the browser extension along with the server: an older one can't unlock an account that has moved. The apps refuse key derivation settings weaker than vauly allows, whatever the server asks for.
 - Workspaces with an owner, admins and members. The first visitor creates the workspace; everyone else joins with a one-time invite link.
 - Two-step login: a code from an authenticator app after the master password, with ten one-time recovery codes. It works the same in the web app and the browser extension, and admins can reset it for someone who lost their phone.
 - A private vault for everyone, and shared vaults opened to people one by one. Each person can view, edit or manage a shared vault: viewers open, copy and fill items; editors also change them and share them by link or with agents; managers also choose who can open the vault. Existing access becomes manage.

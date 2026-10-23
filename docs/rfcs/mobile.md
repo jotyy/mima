@@ -64,7 +64,7 @@ These facts hold whatever builds the main app.
 - **Face ID only works in the UI path.** LocalAuthentication works only in the foreground [A10]. So the extension unlocks in its list or unlock screen, by reading a Keychain item protected with `.biometryCurrentSet` from the shared access group [A9].
 - **The crypto is all native.**
   - CryptoKit has AES-GCM, HKDF and P-256 key agreement, and reads DER keys [A11].
-  - PBKDF2 comes from CommonCrypto's `CCKeyDerivationPBKDF`, which KeePassium also relies on [A12].
+  - Argon2id isn't in CryptoKit or CommonCrypto. It comes from libsodium (swift-sodium), as on the web, or the RFC 9106 reference code. Its 64 MiB is about half the extension's budget, so the extension should unlock with the biometric secret and leave the master password to the app, as Bitwarden does with large Argon2 settings [A6]. Accounts that haven't moved yet still need PBKDF2, from CommonCrypto's `CCKeyDerivationPBKDF`, which KeePassium also relies on [A12].
 - **Suggestions in the keyboard bar** need `ASCredentialIdentityStore` to hold sites and usernames. iOS keeps those outside vauly's encryption, though never in backups or iCloud [A4]. This should be optional.
 - **The rest of a full provider is newer API.** Passkeys came in iOS 17, one-time codes in iOS 18, and save-password requests in iOS 26.2 [A2].
 
@@ -72,7 +72,7 @@ These facts hold whatever builds the main app.
 
 - **The service runs on the system's schedule.**
   - `AutofillService` is bound only while a request is open. The system can kill the process when it unbinds, and callbacks arrive on the main thread [G1, G2].
-  - AOSP times a fill request out after 5 seconds [G3]. So the service never touches the network or runs PBKDF2 there. It answers from a local index and the encrypted cache.
+  - AOSP times a fill request out after 5 seconds [G3]. So the service never touches the network or runs Argon2id there. It answers from a local index and the encrypted cache.
 - **Unlocking goes through an Activity.**
   - The service returns a response with `setAuthentication`, which opens our unlock Activity [G2].
   - That Activity runs `BiometricPrompt` with a `CryptoObject` over a Keystore AES-GCM key. It falls back to the master password when the key is invalidated [G6, G7].
@@ -83,24 +83,24 @@ These facts hold whatever builds the main app.
   - Chrome dropped compatibility mode in version 137. The person turns on third-party autofill in Chrome's settings, and our app can open that screen for them [G4, G5].
   - Passkeys come through `CredentialProviderService`, on Android 14 and later [G8].
 - **The crypto is all native, except HKDF.**
-  - The JCA has AES-GCM, PBKDF2WithHmacSHA256 (API 26 and later), ECDH on P-256, and SPKI and PKCS#8 key specs.
+  - The JCA has AES-GCM, PBKDF2WithHmacSHA256 (API 26 and later, for accounts that haven't moved to Argon2id), ECDH on P-256, and SPKI and PKCS#8 key specs. Argon2id comes from libsodium (Lazysodium), as on the web.
   - HKDF has no platform API. It's about 30 lines of RFC 5869 over HMAC-SHA256, and the test vectors check them [G11].
 
 ### The native surface, on each platform
 
 This is what each native core has to do, for #11 and #12.
 
-| Job                             | How                                                                                                                                              |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Unlock with biometrics          | Read the unlock secret from the Keychain (shared access group, `.biometryCurrentSet`) or decrypt it with a Keystore key under `BiometricPrompt`. |
-| Unlock with the master password | PBKDF2-SHA256 (600,000 rounds), then HKDF `vauly/wrap`, then open `encryptedPrivateKey`.                                                         |
-| Use the private key             | Read PKCS#8 into a P-256 key-agreement key.                                                                                                      |
-| Unwrap vault keys               | Split `ephemeral SPKI : sealed`. Run ECDH, then HKDF `vauly/share:` plus your own public key, then AES-GCM open.                                 |
-| Unwrap item keys, open items    | AES-256-GCM open, then read the JSON item fields.                                                                                                |
-| One-time codes                  | RFC 6238 with SHA-1, SHA-256 or SHA-512, from base32 or `otpauth://`.                                                                            |
-| Match                           | Domains through the Public Suffix List; Android apps by package and signing certificate, with Digital Asset Links.                               |
-| Read the cache                  | The encrypted snapshot from #10, in the App Group container or app-private storage, never decrypted at rest.                                     |
-| Save a new login                | Seal it with a new item key, wrap that key with the vault key, and queue the upload.                                                             |
+| Job                             | How                                                                                                                                                              |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unlock with biometrics          | Read the unlock secret from the Keychain (shared access group, `.biometryCurrentSet`) or decrypt it with a Keystore key under `BiometricPrompt`.                 |
+| Unlock with the master password | Argon2id (64 MiB, 3 passes, 1 lane), or PBKDF2-SHA256 (600,000 rounds) for accounts that haven't moved, then HKDF `vauly/wrap`, then open `encryptedPrivateKey`. |
+| Use the private key             | Read PKCS#8 into a P-256 key-agreement key.                                                                                                                      |
+| Unwrap vault keys               | Split `ephemeral SPKI : sealed`. Run ECDH, then HKDF `vauly/share:` plus your own public key, then AES-GCM open.                                                 |
+| Unwrap item keys, open items    | AES-256-GCM open, then read the JSON item fields.                                                                                                                |
+| One-time codes                  | RFC 6238 with SHA-1, SHA-256 or SHA-512, from base32 or `otpauth://`.                                                                                            |
+| Match                           | Domains through the Public Suffix List; Android apps by package and signing certificate, with Digital Asset Links.                                               |
+| Read the cache                  | The encrypted snapshot from #10, in the App Group container or app-private storage, never decrypted at rest.                                                     |
+| Save a new login                | Seal it with a new item key, wrap that key with the vault key, and queue the upload.                                                                             |
 
 Every row has a test vector already, except matching and the cache format, which #10 adds. Each core should come to a few hundred lines.
 
@@ -193,7 +193,7 @@ Every row has a test vector already, except matching and the cache format, which
     - `ring` has no static ECDH, which vauly's stored PKCS#8 keys need [F26].
     - `aws-lc-rs` brings a C toolchain [F26].
   - **gomobile's limits:** it binds only some Go types, and a panic that crosses the boundary ends the program [F24].
-  - **The web app:** using the core on the web would mean WASM, and WASM needs `'wasm-unsafe-eval'` in the CSP [F27].
+  - **The web app:** using the core on the web would mean WASM in the page, and WASM needs `'wasm-unsafe-eval'` in the CSP [F27]. Argon2id runs as WASM already, but in a key worker with a policy of its own, so the page's policy still forbids it.
 - **When it pays off:** when the shared logic is large, as with sync, conflict resolution and item schemas. vauly's autofill slice is small, and each platform's own crypto covers it.
 
 **Verdict:** not now. Revisit it if offline editing and sync make the shared logic grow.

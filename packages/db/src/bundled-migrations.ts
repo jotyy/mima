@@ -45,4 +45,9 @@ export const migrations: readonly {
 		hash: "25cd20f0414e2cd4ace1a0dcaf434cda046c15ce362791bea29f8097465ac27c",
 		sql: "-- Agents whose owner was removed from the workspace before removal took their agents too.\n-- Their grants and requests go first, in case foreign keys aren't enforced.\nDELETE FROM `agent_grant` WHERE `agent_id` IN (SELECT `id` FROM `agent` WHERE `owner_id` NOT IN (SELECT `user_id` FROM `member`));--> statement-breakpoint\nDELETE FROM `access_request` WHERE `agent_id` IN (SELECT `id` FROM `agent` WHERE `owner_id` NOT IN (SELECT `user_id` FROM `member`));--> statement-breakpoint\nDELETE FROM `agent` WHERE `owner_id` NOT IN (SELECT `user_id` FROM `member`);\n",
 	},
+	{
+		name: "20261023230244_argon2id",
+		hash: "fb63f430ac4ab75db6db2ed0405da765edcebea0606c932760990be393a696d5",
+		sql: "ALTER TABLE `member` ADD `kdf` text DEFAULT 'pbkdf2' NOT NULL;--> statement-breakpoint\nALTER TABLE `member` ADD `kdf_memory` integer;",
+	},
 ];

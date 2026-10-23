@@ -1,9 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
+import { parseHeaders } from "./build-manifest";
 import {
 	contentSecurityPolicy,
 	type HeaderOptions,
 	headersFile,
+	KEY_WORKER_DIR,
+	keyWorkerPolicy,
 } from "./security-headers";
 
 const options: HeaderOptions = { server: "", logos: true, breaches: true };
@@ -60,10 +63,24 @@ describe("contentSecurityPolicy", () => {
 	});
 });
 
+describe("keyWorkerPolicy", () => {
+	test("lets the key worker compile WebAssembly and nothing else", () => {
+		const policy = keyWorkerPolicy();
+		expect(directive(policy, "default-src")).toEqual(["'none'"]);
+		expect(directive(policy, "script-src")).toEqual([
+			"'self'",
+			"'wasm-unsafe-eval'",
+		]);
+		expect(policy).not.toContain("connect-src");
+		expect(contentSecurityPolicy(options)).not.toContain("wasm");
+	});
+});
+
 describe("headersFile", () => {
 	test("applies every header to every path", () => {
 		const file = headersFile(options);
-		const [, rule, ...headers] = file.trimEnd().split("\n");
+		const [, rule, ...lines] = file.trimEnd().split("\n");
+		const headers = lines.slice(0, lines.indexOf(""));
 		expect(rule).toBe("/*");
 		expect(headers.map((line) => line.split(":")[0]?.trim())).toEqual([
 			"Content-Security-Policy",
@@ -75,5 +92,39 @@ describe("headersFile", () => {
 			"Strict-Transport-Security",
 		]);
 		expect(file).not.toContain("preload");
+	});
+
+	test("gives the key worker's files its policy instead of the page's", () => {
+		const rules = parseHeaders(headersFile(options));
+		const page = rules["/*"] ?? {};
+		const worker = rules[`/${KEY_WORKER_DIR}/*`] ?? {};
+		expect(page["content-security-policy"]).toBe(
+			contentSecurityPolicy(options),
+		);
+		expect(worker["content-security-policy"]).toBe(keyWorkerPolicy());
+		const { "content-security-policy": _, ...rest } = page;
+		expect(worker).toMatchObject(rest);
+	});
+});
+
+describe("parseHeaders", () => {
+	test("reads each rule the way Cloudflare applies it", () => {
+		const rules = parseHeaders(
+			[
+				"# A comment",
+				"/*",
+				"  X-One: a",
+				"  X-Two: b",
+				"",
+				"/sub/*",
+				"  ! X-One",
+				"  X-One: c",
+				"  X-Two: d",
+			].join("\n"),
+		);
+		expect(rules).toEqual({
+			"/*": { "x-one": "a", "x-two": "b" },
+			"/sub/*": { "x-one": "c", "x-two": "b, d" },
+		});
 	});
 });

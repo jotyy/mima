@@ -13,14 +13,27 @@ import path from "node:path";
 export const REPOSITORY = "https://github.com/jotyy/vauly.git";
 
 export type BuildManifest = {
-	format: 1;
+	format: 2;
 	version: string;
 	commit: string;
 	dirty: boolean;
 	config: Record<string, unknown>;
-	headers: Record<string, string>;
+	/** For each rule in _headers ("/*", the key worker's folder), its files' headers. */
+	headers: Record<string, Record<string, string>>;
 	files: Record<string, string>;
 };
+
+/** The rule every page and file falls under. */
+const EVERY_PATH = "/*";
+
+/** Whether a _headers path pattern, where * stands for anything, covers a path. */
+const coversPath = (pattern: string, file: string) =>
+	new RegExp(
+		`^${pattern
+			.split("*")
+			.map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+			.join(".*")}$`,
+	).test(file);
 
 export type Difference = {
 	/** A path, or "header <name>". */
@@ -48,26 +61,54 @@ export class VerifyError extends Error {}
 const sha256 = (data: Uint8Array) =>
 	createHash("sha256").update(data).digest("hex");
 
-/** Parses a manifest, refusing anything that doesn't look like one. */
+/**
+ * Parses a manifest, refusing anything that doesn't look like one. Format 1, from before
+ * the key worker had headers of its own, listed only the "/*" rule's.
+ */
 export function parseManifest(text: string): BuildManifest {
-	const value = JSON.parse(text) as Partial<BuildManifest>;
+	const value = JSON.parse(text) as Omit<Partial<BuildManifest>, "format"> & {
+		format?: number;
+	};
 	if (
-		value.format !== 1 ||
+		(value.format !== 1 && value.format !== 2) ||
 		typeof value.commit !== "string" ||
 		!value.files ||
 		typeof value.files !== "object"
 	) {
 		throw new VerifyError("That isn't a vauly build manifest.");
 	}
+	const headers = value.headers ?? {};
 	return {
-		format: 1,
+		format: 2,
 		version: String(value.version ?? ""),
 		commit: value.commit,
 		dirty: value.dirty === true,
 		config: value.config ?? {},
-		headers: value.headers ?? {},
+		headers:
+			value.format === 1
+				? { [EVERY_PATH]: headers as unknown as Record<string, string> }
+				: headers,
 		files: value.files,
 	};
+}
+
+/** Header by header, what's served against what's expected. */
+function compareHeaders(
+	expected: Record<string, string>,
+	served: Headers,
+	where: string,
+) {
+	const differences: Difference[] = [];
+	for (const [name, value] of Object.entries(expected)) {
+		const actual = served.get(name);
+		if (actual === value) continue;
+		differences.push({
+			what: `header ${name}${where}`,
+			problem: actual === null ? "missing" : "differs",
+			detail: `served: ${actual ?? "(none)"}`,
+		});
+	}
+	return differences;
 }
 
 /** Paths that index.html and the service worker load, which must all be in the manifest. */
@@ -114,21 +155,27 @@ export function compareManifests(
 		});
 	}
 	if (JSON.stringify(served.config) === JSON.stringify(trusted.config)) {
-		const names = new Set([
+		const rules = new Set([
 			...Object.keys(served.headers),
 			...Object.keys(trusted.headers),
 		]);
-		for (const name of [...names].sort()) {
-			if (served.headers[name] === trusted.headers[name]) continue;
-			differences.push({
-				what: `header ${name}`,
-				problem: !trusted.headers[name]
-					? "unexpected"
-					: !served.headers[name]
-						? "missing"
-						: "differs",
-				detail: `expected: ${trusted.headers[name] ?? "(none)"}`,
-			});
+		for (const rule of [...rules].sort()) {
+			const mine = served.headers[rule] ?? {};
+			const theirs = trusted.headers[rule] ?? {};
+			const where = rule === EVERY_PATH ? "" : ` on ${rule}`;
+			const names = new Set([...Object.keys(mine), ...Object.keys(theirs)]);
+			for (const name of [...names].sort()) {
+				if (mine[name] === theirs[name]) continue;
+				differences.push({
+					what: `header ${name}${where}`,
+					problem: !theirs[name]
+						? "unexpected"
+						: !mine[name]
+							? "missing"
+							: "differs",
+					detail: `expected: ${theirs[name] ?? "(none)"}`,
+				});
+			}
 		}
 	} else {
 		notes.push(
@@ -158,6 +205,11 @@ export async function checkServed(
 	const served: Difference[] = [];
 	const bodies = new Map<string, Uint8Array>();
 	const paths = Object.keys(manifest.files);
+	// Files under a rule of their own (the key worker's) are checked for its headers.
+	const ownRule = (file: string) =>
+		Object.keys(manifest.headers)
+			.filter((rule) => rule !== EVERY_PATH && coversPath(rule, file))
+			.sort((a, b) => b.length - a.length)[0];
 	let next = 0;
 	const worker = async () => {
 		while (next < paths.length) {
@@ -186,6 +238,16 @@ export async function checkServed(
 			if (sha256(body) !== manifest.files[file]) {
 				served.push({ what: file, problem: "differs" });
 			}
+			const rule = ownRule(file);
+			if (rule) {
+				served.push(
+					...compareHeaders(
+						manifest.headers[rule] ?? {},
+						answer.headers,
+						` on ${file}`,
+					),
+				);
+			}
 		}
 	};
 	await Promise.all(Array.from({ length: 8 }, worker));
@@ -200,16 +262,9 @@ export async function checkServed(
 			detail: "isn't the listed index.html",
 		});
 	}
-	for (const [name, value] of Object.entries(manifest.headers)) {
-		const actual = root.headers.get(name);
-		if (actual !== value) {
-			served.push({
-				what: `header ${name}`,
-				problem: actual === null ? "missing" : "differs",
-				detail: `served: ${actual ?? "(none)"}`,
-			});
-		}
-	}
+	served.push(
+		...compareHeaders(manifest.headers[EVERY_PATH] ?? {}, root.headers, ""),
+	);
 
 	// Nothing the page or the service worker loads may be left out of the manifest.
 	const decoder = new TextDecoder();
@@ -409,7 +464,7 @@ export function formatReport(report: Report) {
 	];
 	if (report.served.length === 0) {
 		out.push(
-			`✓ All ${report.checked} files, the page at / and its headers match the instance's own manifest.`,
+			`✓ All ${report.checked} files, the page at / and the headers they're served with match the instance's own manifest.`,
 		);
 	} else {
 		out.push("What the instance serves doesn't match its own manifest:");

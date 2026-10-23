@@ -2,14 +2,16 @@
 // server and the CLI share one implementation. The server only ever stores what this
 // module outputs: ciphertext, wrapped keys and public keys.
 //
-//   master password ─PBKDF2─▶ master key ─HKDF─┬─▶ auth key  (sent to the server as the login password)
-//                                              └─▶ wrap key  (encrypts the account private key)
+//   master password ─Argon2id─▶ master key ─HKDF─┬─▶ auth key  (sent to the server as the login password)
+//                                                └─▶ wrap key  (encrypts the account private key)
+//   (accounts made before Argon2id use PBKDF2-SHA256 until their next unlock moves them)
 //   account keypair (ECDH P-256): receives vault keys from other members
 //   vault key (AES-256-GCM): wraps the item keys of one vault
 //   item key  (AES-256-GCM): encrypts one item; also wrapped to an agent's public key to grant it
 
 import { random } from "./random";
 
+/** PBKDF2-SHA256's rounds: what accounts used before Argon2id, and the least vauly accepts. */
 export const KDF_ITERATIONS = 600_000;
 const AES = { name: "AES-GCM", length: 256 } as const;
 const ECDH = { name: "ECDH", namedCurve: "P-256" } as const;
@@ -40,6 +42,90 @@ const toHex = (bytes: Uint8Array) =>
 
 // --- Master password -------------------------------------------------------------
 
+/** How the master password becomes the master key. The server keeps it with the salt. */
+export type Kdf = {
+	kdf: "pbkdf2" | "argon2id";
+	/** PBKDF2's rounds, or Argon2's passes (t). */
+	kdfIterations: number;
+	/** Argon2's memory in KiB (m); null for PBKDF2. Argon2 runs one lane (p = 1). */
+	kdfMemory: number | null;
+};
+
+/**
+ * RFC 9106's second recommendation, with one lane instead of four: a browser runs the
+ * lanes one after another, so more of them would cost the device time and an attacker
+ * nothing.
+ */
+export const ARGON2ID: Kdf = {
+	kdf: "argon2id",
+	kdfIterations: 3,
+	kdfMemory: 64 * 1024,
+};
+
+/** A stored account's settings, including those saved before vauly had Argon2id. */
+export const kdfOf = (keys: {
+	kdf?: Kdf["kdf"];
+	kdfIterations: number;
+	kdfMemory?: number | null;
+}): Kdf => ({
+	kdf: keys.kdf ?? "pbkdf2",
+	kdfIterations: keys.kdfIterations,
+	kdfMemory: keys.kdfMemory ?? null,
+});
+
+/** Whether an account already derives its keys the way new accounts do. */
+export const kdfIsCurrent = (kdf: Kdf) =>
+	kdf.kdf === "argon2id" &&
+	(kdf.kdfMemory ?? 0) >= (ARGON2ID.kdfMemory ?? 0) &&
+	kdf.kdfIterations >= ARGON2ID.kdfIterations;
+
+/** The settings a server asked for are weaker than vauly allows, or heavier than a device should run. */
+export class KdfError extends Error {
+	constructor() {
+		super(
+			"This server asks for different key derivation than vauly allows, so your master password wasn't used.",
+		);
+	}
+}
+
+/**
+ * Checks settings the server sent before the password goes into them. A server that
+ * lowered the work could test guesses against the auth key it gets back; one that raised
+ * it could make a phone run out of memory.
+ */
+export function checkKdf(kdf: Kdf): Kdf {
+	const allowed =
+		kdf.kdf === "argon2id"
+			? kdf.kdfMemory !== null &&
+				kdf.kdfMemory >= 19 * 1024 &&
+				kdf.kdfMemory <= 1024 * 1024 &&
+				kdf.kdfIterations >= 2 &&
+				kdf.kdfIterations <= 10
+			: kdf.kdf === "pbkdf2" &&
+				kdf.kdfIterations >= KDF_ITERATIONS &&
+				kdf.kdfIterations <= 10_000_000;
+	if (!allowed) throw new KdfError();
+	return kdf;
+}
+
+/** Argon2id: the password, a 16-byte salt, passes and memory in KiB give 32 bytes. */
+export type Argon2 = (
+	password: Uint8Array,
+	salt: Uint8Array,
+	passes: number,
+	memory: number,
+) => Promise<Uint8Array>;
+
+let argon2: Argon2 | null = null;
+
+/**
+ * Where Argon2id runs. It's WebAssembly (libsodium, in ./argon2.ts), so each app picks:
+ * the web app runs it in a worker with a CSP of its own, the extension and tests directly.
+ */
+export function setArgon2(implementation: Argon2) {
+	argon2 = implementation;
+}
+
 export type MasterKeys = {
 	/** Sent to the server instead of the password; the server hashes it again. */
 	authKey: string;
@@ -47,26 +133,45 @@ export type MasterKeys = {
 	wrapKey: CryptoKey;
 };
 
-export async function deriveMasterKeys(
-	password: string,
-	salt: string,
-	iterations = KDF_ITERATIONS,
-): Promise<MasterKeys> {
+async function masterBits(password: Uint8Array, salt: Bytes, kdf: Kdf) {
+	if (kdf.kdf === "argon2id") {
+		if (!argon2) throw new Error("Argon2id isn't set up: call setArgon2 first");
+		const bits = await argon2(
+			password,
+			salt,
+			kdf.kdfIterations,
+			kdf.kdfMemory ?? 0,
+		);
+		return new Uint8Array(bits);
+	}
 	const passwordKey = await crypto.subtle.importKey(
 		"raw",
-		encoder.encode(password.normalize("NFKC")),
+		password as Bytes,
 		"PBKDF2",
 		false,
 		["deriveBits"],
 	);
-	const masterBits = await crypto.subtle.deriveBits(
-		{ name: "PBKDF2", hash: "SHA-256", salt: fromBase64(salt), iterations },
-		passwordKey,
-		256,
+	return new Uint8Array(
+		await crypto.subtle.deriveBits(
+			{ name: "PBKDF2", hash: "SHA-256", salt, iterations: kdf.kdfIterations },
+			passwordKey,
+			256,
+		),
 	);
+}
+
+export async function deriveMasterKeys(
+	password: string,
+	salt: string,
+	kdf: Kdf = ARGON2ID,
+): Promise<MasterKeys> {
 	const masterKey = await crypto.subtle.importKey(
 		"raw",
-		masterBits,
+		await masterBits(
+			encoder.encode(password.normalize("NFKC")),
+			fromBase64(salt),
+			kdf,
+		),
 		"HKDF",
 		false,
 		["deriveBits", "deriveKey"],
@@ -91,6 +196,12 @@ export async function deriveMasterKeys(
 	);
 	return { authKey: toHex(new Uint8Array(authBits)), wrapKey };
 }
+
+/** The master keys for an account, from its stored salt and settings. */
+export const masterKeysFor = (
+	password: string,
+	keys: Pick<AccountKeys, "kdfSalt" | "kdf" | "kdfIterations" | "kdfMemory">,
+) => deriveMasterKeys(password, keys.kdfSalt, kdfOf(keys));
 
 export const newSalt = () => toBase64(randomBytes(16));
 
@@ -307,31 +418,33 @@ export async function unwrapKeyFrom(
 
 // --- Account bundle --------------------------------------------------------------
 
-/** What the server stores per person: it can hand it back, but cannot open it. */
+/**
+ * What the server stores per person: it can hand it back, but cannot open it. Copies
+ * saved before Argon2id have no `kdf` or `kdfMemory`; kdfOf reads them as PBKDF2.
+ */
 export type AccountKeys = {
 	kdfSalt: string;
+	kdf?: Kdf["kdf"];
 	kdfIterations: number;
+	kdfMemory?: number | null;
 	publicKey: string;
 	encryptedPrivateKey: Sealed;
 };
 
-export async function createAccount(
-	password: string,
-	iterations = KDF_ITERATIONS,
-) {
+export async function createAccount(password: string, kdf: Kdf = ARGON2ID) {
 	const kdfSalt = newSalt();
 	const { authKey, wrapKey: wrap } = await deriveMasterKeys(
 		password,
 		kdfSalt,
-		iterations,
+		kdf,
 	);
 	const pair = await newKeypair();
-	const keys: AccountKeys = {
+	const keys = {
 		kdfSalt,
-		kdfIterations: iterations,
+		...kdf,
 		publicKey: pair.publicKey,
 		encryptedPrivateKey: await seal(wrap, pair.privateKeyRaw),
-	};
+	} satisfies AccountKeys;
 	return { authKey, keys, privateKey: pair.privateKey };
 }
 
@@ -344,11 +457,7 @@ export async function openPrivateKey(
 }
 
 export async function unlockAccount(password: string, keys: AccountKeys) {
-	const { authKey, wrapKey: wrap } = await deriveMasterKeys(
-		password,
-		keys.kdfSalt,
-		keys.kdfIterations,
-	);
+	const { authKey, wrapKey: wrap } = await masterKeysFor(password, keys);
 	return {
 		authKey,
 		privateKey: await openPrivateKey(wrap, keys.encryptedPrivateKey),
@@ -363,22 +472,42 @@ export async function changeMasterPassword(
 	current: string,
 	next: string,
 	keys: AccountKeys,
-	iterations = KDF_ITERATIONS,
+	kdf: Kdf = ARGON2ID,
 ) {
-	const old = await deriveMasterKeys(current, keys.kdfSalt, keys.kdfIterations);
+	const old = await masterKeysFor(current, keys);
 	const privateKeyRaw = await open(old.wrapKey, keys.encryptedPrivateKey);
 	const kdfSalt = newSalt();
-	const fresh = await deriveMasterKeys(next, kdfSalt, iterations);
+	const fresh = await deriveMasterKeys(next, kdfSalt, kdf);
 	return {
 		currentAuthKey: old.authKey,
 		authKey: fresh.authKey,
 		keys: {
 			kdfSalt,
-			kdfIterations: iterations,
+			...kdf,
 			publicKey: keys.publicKey,
 			encryptedPrivateKey: await seal(fresh.wrapKey, privateKeyRaw),
 		} satisfies AccountKeys,
 	};
+}
+
+/**
+ * Moves an account to Argon2id without changing its password: the same key pair, sealed
+ * under keys from a fresh salt. Before anything is sent, the new copy is opened again
+ * from scratch and checked to hold the same key pair, so a bad derivation can't lock the
+ * account. Throws if the password is wrong.
+ */
+export async function upgradeKdf(
+	password: string,
+	keys: AccountKeys,
+	kdf: Kdf = ARGON2ID,
+) {
+	const moved = await changeMasterPassword(password, password, keys, kdf);
+	const again = await masterKeysFor(password, moved.keys);
+	const pkcs8 = await open(again.wrapKey, moved.keys.encryptedPrivateKey);
+	if ((await publicKeyOf(pkcs8)) !== keys.publicKey) {
+		throw new Error("The new copy holds another key");
+	}
+	return moved;
 }
 
 // --- Unlocking with a passkey ----------------------------------------------------

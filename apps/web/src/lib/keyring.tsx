@@ -3,13 +3,18 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
 	type AccountKeys,
 	changeMasterPassword,
+	checkKdf,
 	createAccount,
 	deriveMasterKeys,
+	kdfIsCurrent,
+	kdfOf,
 	newDataKey,
 	openPrivateKey,
 	open as openSealed,
 	sealJson,
+	setArgon2,
 	unwrapKeyFrom,
+	upgradeKdf,
 	wrapKeyFor,
 } from "@vauly/crypto";
 import {
@@ -23,6 +28,8 @@ import {
 	useState,
 } from "react";
 import { notify } from "@/components/notify";
+import { instance } from "@/config";
+import { argon2InWorker, prepareArgon2 } from "@/lib/argon2";
 import { authClient } from "@/lib/auth-client";
 import {
 	type DeviceUnlock,
@@ -45,6 +52,19 @@ import { client, SESSION_ENDED } from "@/utils/orpc";
 
 // The keyring holds the unlocked private key and the vault keys in memory only. A reload,
 // "Lock" or a few idle minutes forget them; the session cookie alone opens nothing.
+
+// Argon2id runs in a key worker, whose CSP allows the WebAssembly the page's doesn't.
+setArgon2(argon2InWorker);
+
+/**
+ * The master keys for an account, once its key derivation settings are checked against
+ * vauly's limits: what the server sends decides how hard the auth key it gets back is to
+ * attack.
+ */
+const masterKeys = (
+	password: string,
+	keys: Pick<AccountKeys, "kdfSalt" | "kdf" | "kdfIterations" | "kdfMemory">,
+) => deriveMasterKeys(password, keys.kdfSalt, checkKdf(kdfOf(keys)));
 
 /** Idle minutes before the vault locks. Each device keeps its own choice. */
 export const AUTO_LOCK_CHOICES = [5, 15, 30, 60, 240] as const;
@@ -158,6 +178,8 @@ const privateVaultMeta = {
 
 export function KeyringProvider({ children }: { children: ReactNode }) {
 	const queryClient = useQueryClient();
+	// Loaded while there's a connection, so a later unlock doesn't need one.
+	useEffect(() => prepareArgon2(), []);
 	const [status, setStatus] = useState<Status>("loading");
 	const [me, setMe] = useState<Me | null>(null);
 	const [epoch, setEpoch] = useState(0);
@@ -310,16 +332,46 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 		setStatus((current) => (current === "unlocked" ? "locked" : current));
 	}, [queryClient]);
 
+	/**
+	 * After an unlock with the master password, moves an account that still derives its
+	 * keys with PBKDF2 to Argon2id: the same key pair, sealed anew, and a new auth key. It
+	 * runs after the unlock rather than in its way, and when it can't (offline, or another
+	 * device moved it first), the next unlock tries again. Not on the demo, whose shared
+	 * account goes back to how it was every hour.
+	 */
+	const upgrade = useCallback(
+		async (password: string, known: AccountKeys) => {
+			if (kdfIsCurrent(kdfOf(known)) || instance().demo) return;
+			if (!navigator.onLine) return;
+			try {
+				// What the server has now: another device may have moved it already.
+				const { keys } = await loadMe();
+				if (kdfIsCurrent(kdfOf(keys))) return;
+				checkKdf(kdfOf(keys));
+				const moved = await upgradeKdf(password, keys);
+				await client.account.upgradeKdf({
+					currentAuthKey: moved.currentAuthKey,
+					authKey: moved.authKey,
+					keys: {
+						kdfSalt: moved.keys.kdfSalt,
+						kdf: moved.keys.kdf,
+						kdfIterations: moved.keys.kdfIterations,
+						kdfMemory: moved.keys.kdfMemory,
+						encryptedPrivateKey: moved.keys.encryptedPrivateKey,
+					},
+				});
+				await loadMe();
+			} catch {
+				// The account stays as it was until the next unlock.
+			}
+		},
+		[loadMe],
+	);
+
 	const signIn = useCallback(
 		async (email: string, password: string, code?: string) => {
-			const { kdfSalt, kdfIterations } = await client.account.prelogin({
-				email,
-			});
-			const { authKey, wrapKey } = await deriveMasterKeys(
-				password,
-				kdfSalt,
-				kdfIterations,
-			);
+			const settings = await client.account.prelogin({ email });
+			const { authKey, wrapKey } = await masterKeys(password, settings);
 			const result = await authClient.signIn.email(
 				{ email, password: authKey },
 				code ? { headers: { "x-vauly-code": code } } : undefined,
@@ -335,25 +387,24 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 				await openPrivateKey(wrapKey, profile.keys.encryptedPrivateKey),
 				profile.id,
 			);
+			void upgrade(password, profile.keys);
 		},
-		[loadMe, open, adoptSession],
+		[loadMe, open, adoptSession, upgrade],
 	);
 
 	const unlock = useCallback(
 		async (password: string) => {
 			if (!me) throw new Error("Sign in first");
-			const { wrapKey } = await deriveMasterKeys(
-				password,
-				me.keys.kdfSalt,
-				me.keys.kdfIterations,
-			);
+			const { wrapKey } = await masterKeys(password, me.keys);
 			try {
 				open(await openPrivateKey(wrapKey, me.keys.encryptedPrivateKey), me.id);
 			} catch {
 				throw new WrongPasswordError();
 			}
+			// An offline start has no email yet, and nothing to send the move to.
+			if (me.email) void upgrade(password, me.keys);
 		},
-		[me, open],
+		[me, open, upgrade],
 	);
 
 	const unlockWithPasskey = useCallback(async () => {
@@ -457,11 +508,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 	const verifyPassword = useCallback(
 		async (password: string) => {
 			if (!me) return false;
-			const { wrapKey } = await deriveMasterKeys(
-				password,
-				me.keys.kdfSalt,
-				me.keys.kdfIterations,
-			);
+			const { wrapKey } = await masterKeys(password, me.keys);
 			try {
 				await openPrivateKey(wrapKey, me.keys.encryptedPrivateKey);
 				return true;
@@ -475,9 +522,12 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 	const changePassword = useCallback(
 		async (current: string, next: string) => {
 			if (!me) throw new Error("Sign in first");
+			// Fresh settings: another device may have moved the account to Argon2id.
+			const { keys } = await loadMe();
+			checkKdf(kdfOf(keys));
 			let changed: Awaited<ReturnType<typeof changeMasterPassword>>;
 			try {
-				changed = await changeMasterPassword(current, next, me.keys);
+				changed = await changeMasterPassword(current, next, keys);
 			} catch {
 				throw new WrongPasswordError();
 			}
@@ -486,7 +536,9 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 				authKey: changed.authKey,
 				keys: {
 					kdfSalt: changed.keys.kdfSalt,
+					kdf: changed.keys.kdf,
 					kdfIterations: changed.keys.kdfIterations,
+					kdfMemory: changed.keys.kdfMemory,
 					encryptedPrivateKey: changed.keys.encryptedPrivateKey,
 				},
 			});
@@ -503,11 +555,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 	const deleteAccount = useCallback(
 		async (password: string) => {
 			if (!me) throw new Error("Sign in first");
-			const { authKey } = await deriveMasterKeys(
-				password,
-				me.keys.kdfSalt,
-				me.keys.kdfIterations,
-			);
+			const { authKey } = await masterKeys(password, (await loadMe()).keys);
 			const result = await client.account.deleteAccount({ authKey });
 			// The account and its sessions are gone on the server; this device forgets it too.
 			lock();
@@ -522,7 +570,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			setStatus("signed-out");
 			return result;
 		},
-		[me, lock, forgetDevice],
+		[me, lock, forgetDevice, loadMe],
 	);
 
 	const startDeviceUnlock = useCallback(
@@ -534,11 +582,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 					"vauly couldn't check this session. Reload the page and try again.",
 				);
 			}
-			const { wrapKey } = await deriveMasterKeys(
-				password,
-				me.keys.kdfSalt,
-				me.keys.kdfIterations,
-			);
+			const { wrapKey } = await masterKeys(password, me.keys);
 			let privateKeyPkcs8: Uint8Array;
 			try {
 				privateKeyPkcs8 = await openSealed(

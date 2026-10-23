@@ -4,7 +4,7 @@
 
 Key facts:
 - Free and open source under AGPL-3.0. There is no paid plan and no hosted vauly: a team deploys it to its own Cloudflare account, as one Worker with a D1 database, with the Deploy to Cloudflare button. A small team fits in Cloudflare's free plan.
-- Every item is encrypted on the device before it's saved, so the server never sees the master password or anything inside an item, not even its name. Keys come from the master password with PBKDF2 (600,000 rounds), items are encrypted with AES-256-GCM, and vault keys reach other people through ECDH P-256 key pairs.
+- Every item is encrypted on the device before it's saved, so the server never sees the master password or anything inside an item, not even its name. Keys come from the master password with Argon2id (64 MiB, three passes), items are encrypted with AES-256-GCM, and vault keys reach other people through ECDH P-256 key pairs.
 - It holds logins with one-time codes (TOTP), API keys, SSH keys and notes. Everyone has a private vault, and shared vaults are opened to people one by one.
 - The browser extension fills and saves logins in Chrome, Edge, Brave, Arc and other Chromium browsers. It isn't in a store yet.
 - `vauly run` hands a secret to a command, so coding agents, scripts and CI jobs can use it without seeing it. A person approves each item once.

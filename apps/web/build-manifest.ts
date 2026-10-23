@@ -14,14 +14,18 @@ export const MANIFEST_PATH = ".well-known/vauly-build.json";
 export const UNHASHED = new Set([MANIFEST_PATH, "vauly.json", "_headers"]);
 
 export type BuildManifest = {
-	format: 1;
+	/** 2 since headers are per rule; 1 had only the "/*" rule's. */
+	format: 2;
 	version: string;
 	commit: string;
 	/** Built from a working tree with changes, so no one can build the same files. */
 	dirty: boolean;
 	config: Record<string, unknown>;
-	/** The headers every page is served with, from _headers: the CSP among them. */
-	headers: Record<string, string>;
+	/**
+	 * For each rule in _headers ("/*", the key worker's folder), the headers a file under
+	 * it is served with: the CSP among them.
+	 */
+	headers: Record<string, Record<string, string>>;
 	/** "/path" → hex SHA-256, for every served file but the unhashed ones. */
 	files: Record<string, string>;
 };
@@ -62,14 +66,51 @@ function listFiles(dir: string, base = dir): string[] {
 	});
 }
 
-/** The headers _headers sets for every path ("/*"). */
+/** Whether a _headers path pattern, where * stands for anything, covers a path. */
+export const coversPath = (pattern: string, file: string) =>
+	new RegExp(
+		`^${pattern
+			.split("*")
+			.map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+			.join(".*")}$`,
+	).test(file);
+
+/**
+ * The headers each rule in _headers ends up giving its files, the way Cloudflare applies
+ * them: every rule that covers a file adds its headers in order, a repeated header is
+ * joined with a comma, and `! Name` drops what came before.
+ */
 export function parseHeaders(text: string) {
-	const headers: Record<string, string> = {};
+	const rules: { path: string; lines: [string, string | null][] }[] = [];
 	for (const line of text.split("\n")) {
-		const match = /^\s+([\w-]+):\s*(.*)$/.exec(line);
-		if (match?.[1]) headers[match[1].toLowerCase()] = (match[2] ?? "").trim();
+		if (!line.trim() || line.trim().startsWith("#")) continue;
+		if (!/^\s/.test(line)) {
+			rules.push({ path: line.trim(), lines: [] });
+			continue;
+		}
+		const detach = /^\s+!\s*([\w-]+)\s*$/.exec(line);
+		const header = /^\s+([\w-]+):\s*(.*)$/.exec(line);
+		if (detach?.[1]) rules.at(-1)?.lines.push([detach[1].toLowerCase(), null]);
+		else if (header?.[1])
+			rules
+				.at(-1)
+				?.lines.push([header[1].toLowerCase(), (header[2] ?? "").trim()]);
 	}
-	return headers;
+	const result: Record<string, Record<string, string>> = {};
+	for (const rule of rules) {
+		const example = rule.path.replaceAll("*", "x");
+		const headers: Record<string, string> = {};
+		for (const other of rules) {
+			if (!coversPath(other.path, example)) continue;
+			for (const [name, value] of other.lines) {
+				if (value === null) delete headers[name];
+				else
+					headers[name] = headers[name] ? `${headers[name]}, ${value}` : value;
+			}
+		}
+		result[rule.path] = headers;
+	}
+	return result;
 }
 
 export function buildManifest(
@@ -84,7 +125,7 @@ export function buildManifest(
 			.digest("hex");
 	}
 	return {
-		format: 1,
+		format: 2,
 		version: process.env.VAULY_VERSION || "dev",
 		commit: buildCommit(),
 		dirty: git(["status", "--porcelain", "--untracked-files=no"]) !== "",

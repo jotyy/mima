@@ -2,9 +2,11 @@ import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import type { AppRouterClient } from "@vauly/api/routers/index";
 import {
+	checkKdf,
 	deriveMasterKeys,
 	fromBase64,
 	importPrivateKey,
+	kdfOf,
 	newDataKey,
 	open,
 	openJson,
@@ -124,22 +126,25 @@ export async function unlock(
 	password: string,
 	code?: string,
 ) {
-	const anonymous = apiClient(connection.server);
-	const { kdfSalt, kdfIterations } = await anonymous.account.prelogin({
-		email: connection.email,
-	});
-	const { authKey, wrapKey } = await deriveMasterKeys(
-		password,
-		kdfSalt,
-		kdfIterations,
-	);
-
 	let token = connection.token;
 	let me = token
 		? await apiClient(connection.server, token)
 				.account.me()
 				.catch(() => null)
 		: null;
+	// The account's own settings when there's a session; before signing in, prelogin's.
+	// Either way they're checked against vauly's limits before the password goes in.
+	const settings =
+		me?.keys ??
+		(await apiClient(connection.server).account.prelogin({
+			email: connection.email,
+		}));
+	const { authKey, wrapKey } = await deriveMasterKeys(
+		password,
+		settings.kdfSalt,
+		checkKdf(kdfOf(settings)),
+	);
+
 	if (!me) {
 		token = await signIn(connection.server, connection.email, authKey, code);
 		me = await apiClient(connection.server, token).account.me();

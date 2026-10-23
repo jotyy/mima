@@ -44,14 +44,14 @@ vauly is for small teams who want one place for their shared logins, API keys an
 ## How it works
 
 ```
-master password ──PBKDF2 (600,000 rounds)──▶ master key ──HKDF──┬─▶ auth key   sent to the server to sign in
-                                                               └─▶ wrap key   unlocks your private key
+master password ──Argon2id (64 MiB, 3 passes)──▶ master key ──HKDF──┬─▶ auth key   sent to the server to sign in
+                                                                    └─▶ wrap key   unlocks your private key
 your key pair (ECDH P-256)  receives vault keys from the people who share them with you
 vault key (AES-256-GCM)     wraps the key of each item in the vault
 item key  (AES-256-GCM)     encrypts one item
 ```
 
-Everything is WebCrypto, so the browser, the server and the CLI share one implementation in [`packages/crypto`](packages/crypto). The keys live in memory only: a reload, **Lock now** or a few idle minutes forget them. Read [Security](docs/security.md) for the full design, what the server can and can't see, and the limits of the model.
+The browser, the extension and the CLI share one implementation in [`packages/crypto`](packages/crypto): WebCrypto, and libsodium for Argon2id. The keys live in memory only: a reload, **Lock now** or a few idle minutes forget them. Read [Security](docs/security.md) for the full design, what the server can and can't see, and the limits of the model.
 
 ## Quick start
 

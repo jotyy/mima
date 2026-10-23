@@ -8,7 +8,7 @@ import { defineConfig, type Plugin, type ResolvedConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 import { buildDate, buildManifest, MANIFEST_PATH } from "./build-manifest";
-import { headersFile } from "./security-headers";
+import { headersFile, KEY_WORKER_DIR } from "./security-headers";
 
 /** A VITE_ setting: the stack passes them through `define`, a plain build reads the env. */
 function setting(config: ResolvedConfig | undefined, name: string) {
@@ -141,6 +141,23 @@ export default defineConfig(() => {
 		},
 		resolve: {
 			tsconfigPaths: true,
+		},
+		// The key worker's libsodium, bundled when the dev server starts rather than on the
+		// first unlock, which would reload the page.
+		optimizeDeps: {
+			include: ["@vauly/crypto > libsodium-wrappers-sumo"],
+		},
+		// The key worker (src/lib/argon2.worker.ts) and everything it loads go in a folder of
+		// their own, which _headers serves with the worker's CSP (security-headers.ts).
+		worker: {
+			format: "es" as const,
+			rolldownOptions: {
+				output: {
+					entryFileNames: `${KEY_WORKER_DIR}/[name]-[hash].js`,
+					chunkFileNames: `${KEY_WORKER_DIR}/[name]-[hash].js`,
+					assetFileNames: `${KEY_WORKER_DIR}/[name]-[hash][extname]`,
+				},
+			},
 		},
 		plugins: [
 			tailwindcss(),

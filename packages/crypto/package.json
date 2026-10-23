@@ -4,12 +4,16 @@
 	"private": true,
 	"type": "module",
 	"exports": {
-		".": "./src/index.ts"
+		".": "./src/index.ts",
+		"./argon2": "./src/argon2.ts"
 	},
 	"scripts": {
 		"check-types": "tsc -b",
 		"test": "bun test",
-		"vectors": "bun scripts/vectors.ts"
+		"vectors": "node scripts/vectors.ts"
+	},
+	"dependencies": {
+		"libsodium-wrappers-sumo": "0.8.4"
 	},
 	"devDependencies": {
 		"@vauly/config": "workspace:*",

@@ -8,6 +8,7 @@ import {
 	type BuildManifest,
 	exitCode,
 	formatReport,
+	parseManifest,
 	referencedPaths,
 	VerifyError,
 	verify,
@@ -19,6 +20,8 @@ import {
 const sha = (text: string) => createHash("sha256").update(text).digest("hex");
 const COMMIT = "a".repeat(40);
 const CSP = "default-src 'self'; script-src 'self'";
+const WORKER_CSP = "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'";
+const WORKER_RULE = "/assets/key-worker/*";
 
 const files: Record<string, string> = {
 	"/index.html":
@@ -28,19 +31,29 @@ const files: Record<string, string> = {
 	"/sw.js":
 		'importScripts("/workbox-1.js");precacheAndRoute([{url:"assets/index-abc.js",revision:null},{url:"index.html",revision:"1"}])',
 	"/workbox-1.js": "// workbox",
+	"/assets/key-worker/argon2.worker-abc.js": "// argon2",
 };
+
+/** Each file's headers, the way _headers gives them: the key worker's own policy. */
+const servedHeaders = (pathname: string) =>
+	pathname.startsWith("/assets/key-worker/")
+		? { "content-security-policy": WORKER_CSP }
+		: { "content-security-policy": CSP };
 
 function manifestOf(
 	served: Record<string, string>,
 	extra: Partial<BuildManifest> = {},
 ): BuildManifest {
 	return {
-		format: 1,
+		format: 2,
 		version: "0.1.0",
 		commit: COMMIT,
 		dirty: false,
 		config: { server: "", brandfetch: "", breachCheck: true },
-		headers: { "content-security-policy": CSP },
+		headers: {
+			"/*": { "content-security-policy": CSP },
+			[WORKER_RULE]: { "content-security-policy": WORKER_CSP },
+		},
 		files: Object.fromEntries(
 			Object.entries(served).map(([file, body]) => [file, sha(body)]),
 		),
@@ -57,7 +70,7 @@ afterEach(() => {
 function instance(
 	served: Record<string, string>,
 	manifest: BuildManifest | null,
-	headers: Record<string, string> = { "content-security-policy": CSP },
+	headers: (pathname: string) => Record<string, string> = servedHeaders,
 ) {
 	const server = Bun.serve({
 		port: 0,
@@ -70,7 +83,7 @@ function instance(
 			}
 			const body = served[pathname === "/" ? "/index.html" : pathname];
 			if (body === undefined) return new Response("Not found", { status: 404 });
-			return new Response(body, { headers });
+			return new Response(body, { headers: headers(pathname) });
 		},
 	});
 	servers.push(server);
@@ -133,9 +146,12 @@ test("a script added beside a matching manifest is still caught", async () => {
 test("a weaker Content-Security-Policy is caught", async () => {
 	const manifest = manifestOf(files);
 	const report = await verify(
-		instance(files, manifest, {
-			"content-security-policy": `${CSP} 'unsafe-eval'`,
-		}),
+		instance(files, manifest, (pathname) => ({
+			...servedHeaders(pathname),
+			...(pathname === "/" && {
+				"content-security-policy": `${CSP} 'unsafe-eval'`,
+			}),
+		})),
 		{ against: trusted(manifest) },
 	);
 	expect(report.served).toContainEqual(
@@ -145,6 +161,29 @@ test("a weaker Content-Security-Policy is caught", async () => {
 		}),
 	);
 	expect(exitCode(report)).toBe(1);
+});
+
+test("the key worker's files must have its policy, not another", async () => {
+	const manifest = manifestOf(files);
+	const report = await verify(
+		instance(files, manifest, () => ({ "content-security-policy": CSP })),
+		{ against: trusted(manifest) },
+	);
+	expect(report.served).toEqual([
+		{
+			what: "header content-security-policy on /assets/key-worker/argon2.worker-abc.js",
+			problem: "differs",
+			detail: `served: ${CSP}`,
+		},
+	]);
+	expect(exitCode(report)).toBe(1);
+});
+
+test("a manifest from before per-rule headers still reads", () => {
+	const old = { ...manifestOf(files), format: 1, headers: { "x-one": "a" } };
+	expect(parseManifest(JSON.stringify(old)).headers).toEqual({
+		"/*": { "x-one": "a" },
+	});
 });
 
 test("the default rebuilds the instance's commit with its settings", async () => {

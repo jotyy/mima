@@ -46,6 +46,21 @@ export function contentSecurityPolicy({
 	return directives.map((directive) => directive.join(" ")).join("; ");
 }
 
+/** Where the build puts the key worker and what it loads (vite.config.ts). */
+export const KEY_WORKER_DIR = "assets/key-worker";
+
+/**
+ * The key worker's own policy, which browsers apply to a worker instead of the page's.
+ * It runs Argon2id, which is WebAssembly, so it may compile that, and nothing else: it
+ * loads only the app's files and can't connect anywhere. The page's policy still forbids
+ * WebAssembly.
+ */
+export function keyWorkerPolicy() {
+	return ["default-src 'none'", "script-src 'self' 'wasm-unsafe-eval'"].join(
+		"; ",
+	);
+}
+
 export function headersFile(options: HeaderOptions) {
 	const headers = {
 		"Content-Security-Policy": contentSecurityPolicy(options),
@@ -63,5 +78,10 @@ export function headersFile(options: HeaderOptions) {
 	const lines = Object.entries(headers).map(
 		([name, value]) => `  ${name}: ${value}`,
 	);
-	return `# Written by the build, from apps/web/security-headers.ts.\n/*\n${lines.join("\n")}\n`;
+	// The key worker's files get the other headers, but its policy instead of the page's.
+	const keyWorker = [
+		"  ! Content-Security-Policy",
+		`  Content-Security-Policy: ${keyWorkerPolicy()}`,
+	];
+	return `# Written by the build, from apps/web/security-headers.ts.\n/*\n${lines.join("\n")}\n\n/${KEY_WORKER_DIR}/*\n${keyWorker.join("\n")}\n`;
 }
