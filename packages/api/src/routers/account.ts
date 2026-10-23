@@ -1,3 +1,9 @@
+import {
+	hashRecoveryCode,
+	matchCode,
+	newRecoveryCodes,
+	newSetupKey,
+} from "@mima/auth/two-step";
 import { account, session, user } from "@mima/db/schema/auth";
 import {
 	invite,
@@ -9,7 +15,6 @@ import {
 import { ORPCError } from "@orpc/server";
 import { and, count, eq, gt, isNull, ne } from "drizzle-orm";
 import { z } from "zod";
-
 import { adminProcedure, memberProcedure, publicProcedure } from "../index";
 import { hashToken, logEvent, newId } from "../lib";
 
@@ -216,6 +221,8 @@ export const accountRouter = {
 			name: session.user.name,
 			email: session.user.email,
 			role: me.role,
+			twoStep: me.totpSecret !== null,
+			recoveryCodesLeft: me.recoveryCodes?.length ?? 0,
 			keys: {
 				kdfSalt: me.kdfSalt,
 				kdfIterations: me.kdfIterations,
@@ -312,6 +319,106 @@ export const accountRouter = {
 					set: { value: input.name },
 				});
 			return { name: input.name };
+		}),
+
+	/**
+	 * Two-step login, step one: a new setup key for the authenticator app. It only takes
+	 * effect once a code from it is confirmed.
+	 */
+	beginTwoStep: memberProcedure.handler(async ({ context }) => {
+		const { db, member: me, session } = context;
+		if (me.totpSecret) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "Two-step login is on already",
+			});
+		}
+		const secret = newSetupKey();
+		await db
+			.update(member)
+			.set({ totpPending: secret })
+			.where(eq(member.userId, me.userId));
+		const [workspace] = await db
+			.select({ value: setting.value })
+			.from(setting)
+			.where(eq(setting.key, "workspace_name"));
+		const issuer = `mima ${workspace?.value ?? ""}`.trim();
+		const label = encodeURIComponent(`${issuer}:${session.user.email}`);
+		return {
+			secret,
+			uri: `otpauth://totp/${label}?secret=${secret}&issuer=${encodeURIComponent(issuer)}`,
+		};
+	}),
+
+	/** Step two: a code from the new setup key turns it on, and returns recovery codes once. */
+	confirmTwoStep: memberProcedure
+		.input(z.object({ code: z.string().trim().min(6).max(12) }))
+		.handler(async ({ context, input }) => {
+			const { db, member: me } = context;
+			if (!me.totpPending) {
+				throw new ORPCError("BAD_REQUEST", { message: "Start again" });
+			}
+			const step = await matchCode(me.totpPending, input.code);
+			if (step === null) {
+				throw new ORPCError("BAD_REQUEST", {
+					message: "That code didn't work. Check the time on your phone.",
+				});
+			}
+			const recoveryCodes = newRecoveryCodes();
+			await db.batch([
+				db
+					.update(member)
+					.set({
+						totpSecret: me.totpPending,
+						totpPending: null,
+						totpStep: step,
+						recoveryCodes: await Promise.all(
+							recoveryCodes.map(hashRecoveryCode),
+						),
+					})
+					.where(eq(member.userId, me.userId)),
+				logEvent(db, {
+					actorType: "member",
+					actorId: me.userId,
+					action: "updated",
+					detail: "two-step login on",
+				}),
+			]);
+			return { recoveryCodes };
+		}),
+
+	/** Turning it off takes a current code, or a recovery code. */
+	disableTwoStep: memberProcedure
+		.input(z.object({ code: z.string().trim().min(6).max(12) }))
+		.handler(async ({ context, input }) => {
+			const { db, member: me } = context;
+			if (!me.totpSecret) return { ok: true };
+			const matched =
+				(await matchCode(me.totpSecret, input.code, me.totpStep ?? -1)) !==
+					null ||
+				(me.recoveryCodes ?? []).includes(await hashRecoveryCode(input.code));
+			if (!matched) {
+				throw new ORPCError("BAD_REQUEST", {
+					message: "That code didn't work",
+				});
+			}
+			await db.batch([
+				db
+					.update(member)
+					.set({
+						totpSecret: null,
+						totpPending: null,
+						totpStep: null,
+						recoveryCodes: null,
+					})
+					.where(eq(member.userId, me.userId)),
+				logEvent(db, {
+					actorType: "member",
+					actorId: me.userId,
+					action: "updated",
+					detail: "two-step login off",
+				}),
+			]);
+			return { ok: true };
 		}),
 
 	/** Records that someone downloaded a decrypted backup. Only the count is logged. */

@@ -21,6 +21,7 @@ mima is for small teams who want one place for their shared logins, API keys and
 ## Features
 
 - **End-to-end encrypted.** Your master password never leaves your device. The server stores ciphertext, wrapped keys and public keys, nothing it can read.
+- **Two-step login.** Optionally ask for a code from an authenticator app too, with recovery codes for a lost phone. Admins can reset it for a teammate.
 - **Vaults for sharing.** Everyone gets a private vault. Shared vaults are opened to people one by one, and taking someone out takes the vault away from them.
 - **The items a team actually keeps.** Logins with one-time codes (TOTP), API keys, SSH keys and secure notes, with a password generator and a strength check.
 - **Password health.** The Overview points out weak passwords, logins that share one, and items someone could see before they left a vault or the team. It's worked out on your device, because only it can read them.

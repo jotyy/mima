@@ -47,6 +47,7 @@ import {
 	loadVault,
 	matchesPage,
 	saveLogin,
+	TwoStepError,
 	unlock,
 	updatePassword,
 	type VaultInfo,
@@ -176,6 +177,7 @@ function SignIn({
 }) {
 	const [email, setEmail] = useState(connection.email ?? "");
 	const [password, setPassword] = useState("");
+	const [code, setCode] = useState<string | null>(null);
 	const [error, setError] = useState("");
 	const [busy, setBusy] = useState(false);
 
@@ -191,12 +193,19 @@ function SignIn({
 					token: connection.token || undefined,
 				},
 				password,
+				code?.trim() || undefined,
 			);
 			await saveConnection({ email: email.trim(), token: result.token });
 			await saveUnlocked(result.privateKey, result.publicKey);
 			onUnlocked();
 		} catch (err) {
+			if (err instanceof TwoStepError) {
+				setCode("");
+				setError(err.wrongCode ? err.message : "");
+				return;
+			}
 			setPassword("");
+			setCode(null);
 			setError(
 				err instanceof WrongPasswordError
 					? "That email and master password don't match."
@@ -236,6 +245,19 @@ function SignIn({
 						onChange={(event) => setPassword(event.target.value)}
 					/>
 				</Field>
+				{code !== null && (
+					<Field label="Code from your authenticator app">
+						<Input
+							required
+							autoFocus
+							autoComplete="one-time-code"
+							placeholder="123 456, or a recovery code"
+							className="font-mono tracking-widest"
+							value={code}
+							onChange={(event) => setCode(event.target.value)}
+						/>
+					</Field>
+				)}
 				<FormError>{error}</FormError>
 				<Button type="submit" variant="brand" disabled={busy}>
 					{busy ? "Unlocking…" : known ? "Unlock" : "Sign in"}

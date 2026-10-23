@@ -1,7 +1,7 @@
 import { user } from "@mima/db/schema/auth";
 import { invite, member, vault, vaultAccess } from "@mima/db/schema/vault";
 import { ORPCError } from "@orpc/server";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { adminProcedure, memberProcedure } from "../index";
@@ -20,6 +20,10 @@ export const membersRouter = {
 					publicKey: member.publicKey,
 					lastSeenAt: member.lastSeenAt,
 					createdAt: member.createdAt,
+					// Whether it's on, never the setup key itself.
+					twoStep: sql<boolean>`${member.totpSecret} is not null`.mapWith(
+						Boolean,
+					),
 					name: user.name,
 					email: user.email,
 				})
@@ -117,6 +121,42 @@ export const membersRouter = {
 				.update(member)
 				.set({ role: input.role })
 				.where(eq(member.userId, input.userId));
+		}),
+
+	/** For someone who lost their phone and their recovery codes. */
+	resetTwoStep: adminProcedure
+		.input(z.object({ userId: z.string() }))
+		.handler(async ({ context, input }) => {
+			const { db, userId } = context;
+			const [target] = await db
+				.select({ role: member.role })
+				.from(member)
+				.where(eq(member.userId, input.userId));
+			if (!target)
+				throw new ORPCError("NOT_FOUND", { message: "Member not found" });
+			if (target.role === "owner" && context.member.role !== "owner") {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Only the owner can do this for the owner",
+				});
+			}
+			await db.batch([
+				db
+					.update(member)
+					.set({
+						totpSecret: null,
+						totpPending: null,
+						totpStep: null,
+						recoveryCodes: null,
+					})
+					.where(eq(member.userId, input.userId)),
+				logEvent(db, {
+					actorType: "member",
+					actorId: userId,
+					action: "updated",
+					subjectId: input.userId,
+					detail: "two-step login reset",
+				}),
+			]);
 		}),
 
 	remove: adminProcedure

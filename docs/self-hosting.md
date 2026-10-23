@@ -80,6 +80,17 @@ bunx alchemy destroy --stage production
 
 This deletes the Workers **and the database with every item in it**. Download backups first.
 
+## If the owner is locked out of two-step login
+
+An admin can reset two-step login for anyone except the owner. If the owner loses both their phone and their recovery codes, open the instance's D1 database in the Cloudflare dashboard and run this in its console, with the owner's email:
+
+```sql
+UPDATE member SET totp_secret = NULL, totp_pending = NULL, totp_step = NULL, recovery_codes = NULL
+WHERE user_id = (SELECT id FROM user WHERE email = 'owner@example.com');
+```
+
+Their master password alone signs them in again. It changes nothing about encryption: the master password is still the only key to their items.
+
 ## Good to know
 
 - The `e2e` stage used by the test suite adds a route that wipes the database, guarded by `MIMA_E2E_RESET_TOKEN`. It only exists when that variable is set; never set it for a real deploy.

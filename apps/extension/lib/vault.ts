@@ -54,6 +54,17 @@ const HISTORY_LIMIT = 10;
 
 export class WrongPasswordError extends Error {}
 
+/** The password was right, and the account wants a code too: none yet, or a wrong one. */
+export class TwoStepError extends Error {
+	constructor(readonly wrongCode: boolean) {
+		super(
+			wrongCode
+				? "That code didn't work."
+				: "Enter the code from your authenticator app.",
+		);
+	}
+}
+
 export function apiClient(server: string, token?: string): AppRouterClient {
 	const link = new RPCLink({
 		url: `${server}/rpc`,
@@ -101,6 +112,7 @@ export async function findServer(address: string) {
 export async function unlock(
 	connection: Pick<Connection, "server" | "email"> & { token?: string },
 	password: string,
+	code?: string,
 ) {
 	const anonymous = apiClient(connection.server);
 	const { kdfSalt, kdfIterations } = await anonymous.account.prelogin({
@@ -119,7 +131,7 @@ export async function unlock(
 				.catch(() => null)
 		: null;
 	if (!me) {
-		token = await signIn(connection.server, connection.email, authKey);
+		token = await signIn(connection.server, connection.email, authKey, code);
 		me = await apiClient(connection.server, token).account.me();
 	}
 
@@ -136,13 +148,28 @@ export async function unlock(
 	};
 }
 
-async function signIn(server: string, email: string, authKey: string) {
+async function signIn(
+	server: string,
+	email: string,
+	authKey: string,
+	code?: string,
+) {
 	const response = await fetch(`${server}/api/auth/sign-in/email`, {
 		method: "POST",
-		headers: { "content-type": "application/json" },
+		headers: {
+			"content-type": "application/json",
+			...(code ? { "x-mima-code": code } : {}),
+		},
 		body: JSON.stringify({ email, password: authKey }),
 	});
-	if (!response.ok) throw new WrongPasswordError();
+	if (!response.ok) {
+		const error = (await response.json().catch(() => ({}))) as {
+			code?: string;
+		};
+		if (error.code === "TWO_FACTOR_REQUIRED") throw new TwoStepError(false);
+		if (error.code === "TWO_FACTOR_WRONG") throw new TwoStepError(true);
+		throw new WrongPasswordError();
+	}
 	const body = (await response.json()) as { token?: string };
 	const token = response.headers.get("set-auth-token") ?? body.token;
 	if (!token) throw new Error("The server didn't start a session");

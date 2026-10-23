@@ -21,7 +21,7 @@ app.use(
 	cors({
 		origin: ENV.CORS_ORIGIN,
 		allowMethods: ["GET", "POST", "OPTIONS"],
-		allowHeaders: ["Content-Type", "Authorization"],
+		allowHeaders: ["Content-Type", "Authorization", "X-Mima-Code"],
 		credentials: true,
 	}),
 );

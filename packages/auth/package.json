@@ -12,6 +12,7 @@
 	"dependencies": {
 		"@better-auth/core": "1.7.7",
 		"@better-auth/drizzle-adapter": "1.7.7",
+		"@mima/crypto": "workspace:*",
 		"@mima/db": "workspace:*",
 		"better-auth": "catalog:",
 		"drizzle-orm": "catalog:",

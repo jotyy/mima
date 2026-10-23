@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
-import { parseTotp, totpCode, totpSecondsLeft } from "./totp";
+import {
+	newTotpSecret,
+	parseTotp,
+	totpCode,
+	totpSecondsLeft,
+	verifyTotp,
+} from "./totp";
 
 // RFC 6238, appendix B: the SHA-1 test key "12345678901234567890", in base32.
 const rfcKey = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
@@ -53,4 +59,35 @@ test("totpSecondsLeft counts down within the period", () => {
 	if (!config) throw new Error("no config");
 	expect(totpSecondsLeft(config, 0)).toBe(30);
 	expect(totpSecondsLeft(config, 29_000)).toBe(1);
+});
+
+describe("two-step login", () => {
+	test("a new setup key is 160 bits of base32", () => {
+		const secret = newTotpSecret();
+		expect(secret).toMatch(/^[A-Z2-7]{32}$/);
+		expect(newTotpSecret()).not.toBe(secret);
+	});
+
+	test("a code works in its step and the ones next to it, once", async () => {
+		const secret = newTotpSecret();
+		const config = parseTotp(secret);
+		if (!config) throw new Error("no config");
+		const now = 1_800_000_000_000;
+		const code = await totpCode(config, now);
+		const step = await verifyTotp(secret, code, { now });
+		expect(step).toBe(Math.floor(now / 30_000));
+		// Thirty seconds late still counts; a minute and a half doesn't.
+		expect(await verifyTotp(secret, code, { now: now + 30_000 })).toBe(step);
+		expect(await verifyTotp(secret, code, { now: now + 90_000 })).toBeNull();
+		// Used once, it's refused.
+		expect(
+			await verifyTotp(secret, code, { now, after: step ?? 0 }),
+		).toBeNull();
+	});
+
+	test("anything but six digits is refused", async () => {
+		const secret = newTotpSecret();
+		expect(await verifyTotp(secret, "12345")).toBeNull();
+		expect(await verifyTotp(secret, "abcdef")).toBeNull();
+	});
 });

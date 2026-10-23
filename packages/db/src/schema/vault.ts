@@ -36,6 +36,14 @@ export const member = sqliteTable("member", {
 	kdfIterations: integer("kdf_iterations").notNull(),
 	publicKey: text("public_key").notNull(),
 	encryptedPrivateKey: text("encrypted_private_key").notNull(),
+	/**
+	 * Two-step login: the setup key the server checks codes against, the last time step
+	 * used (so a code works once), and SHA-256 hashes of the unused recovery codes.
+	 */
+	totpSecret: text("totp_secret"),
+	totpPending: text("totp_pending"),
+	totpStep: integer("totp_step"),
+	recoveryCodes: text("recovery_codes", { mode: "json" }).$type<string[]>(),
 	lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" }),
 	createdAt: createdAt(),
 });

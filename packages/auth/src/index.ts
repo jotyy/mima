@@ -5,6 +5,8 @@ import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { bearer } from "better-auth/plugins";
 
+import { CODE_HEADER, checkSecondStep } from "./two-step";
+
 export type AuthConfig = {
 	BETTER_AUTH_URL: string;
 	BETTER_AUTH_SECRET: string;
@@ -47,6 +49,29 @@ export function createAuth(
 						message: "Sign up with an invite link",
 					});
 				}
+			}),
+			// Two-step login is checked once the password is right, so a wrong password never
+			// tells anyone whether the account has it turned on. Without the code, the new
+			// session is deleted again before anyone gets to use it.
+			after: createAuthMiddleware(async (ctx) => {
+				if (ctx.path !== "/sign-in/email") return;
+				const created = ctx.context.newSession;
+				if (!created) return;
+				const result = await checkSecondStep(
+					database,
+					created.user.id,
+					ctx.headers?.get(CODE_HEADER) ?? null,
+				);
+				if (result === "ok" || result === "not-needed") return;
+				await ctx.context.internalAdapter.deleteSession(created.session.token);
+				throw new APIError("UNAUTHORIZED", {
+					code:
+						result === "missing" ? "TWO_FACTOR_REQUIRED" : "TWO_FACTOR_WRONG",
+					message:
+						result === "missing"
+							? "Enter the code from your authenticator app"
+							: "That code didn't work",
+				});
 			}),
 		},
 		advanced: {

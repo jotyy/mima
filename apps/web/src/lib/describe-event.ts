@@ -42,6 +42,12 @@ export function describeEvent(
 		case "updated":
 			if (!event.itemId && event.detail === "master password")
 				return parts("changed their master password");
+			if (event.detail === "two-step login on")
+				return parts("turned on two-step login");
+			if (event.detail === "two-step login off")
+				return parts("turned off two-step login");
+			if (event.detail === "two-step login reset")
+				return parts(`reset two-step login for ${subject ?? "someone"}`);
 			return parts("updated", itemName);
 		case "deleted":
 			if (event.itemId && event.detail === "for good")

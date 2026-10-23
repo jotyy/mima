@@ -519,6 +519,8 @@ export function useActions() {
 				after(client.members.setRole({ userId, role })),
 			removeMember: (userId: string) =>
 				after(client.members.remove({ userId })),
+			resetTwoStep: (userId: string) =>
+				after(client.members.resetTwoStep({ userId })),
 
 			/** Returns the token, which is shown once: the private key exists nowhere else. */
 			async createAgent(input: {

@@ -47,6 +47,8 @@ export type Me = {
 	name: string;
 	email: string;
 	role: "owner" | "admin" | "member";
+	twoStep: boolean;
+	recoveryCodesLeft: number;
 	keys: AccountKeys;
 };
 
@@ -58,7 +60,8 @@ type Keyring = {
 	/** Bumped on every lock, so decrypted queries never outlive the keys. */
 	epoch: number;
 	locksAt: number | null;
-	signIn: (email: string, password: string) => Promise<void>;
+	/** With two-step login on, the second try carries the code. */
+	signIn: (email: string, password: string, code?: string) => Promise<void>;
 	unlock: (password: string) => Promise<void>;
 	register: (input: {
 		email: string;
@@ -74,6 +77,8 @@ type Keyring = {
 	verifyPassword: (password: string) => Promise<boolean>;
 	changePassword: (current: string, next: string) => Promise<void>;
 	rename: (name: string) => Promise<void>;
+	/** Loads the profile again, after something about the account changed. */
+	reloadMe: () => Promise<void>;
 	autoLockMinutes: AutoLockMinutes;
 	setAutoLockMinutes: (minutes: AutoLockMinutes) => void;
 };
@@ -89,6 +94,17 @@ export function useKeyring() {
 export class WrongPasswordError extends Error {
 	constructor() {
 		super("That master password doesn't open this account");
+	}
+}
+
+/** The password was right, and the account asks for a code too: none yet, or a wrong one. */
+export class TwoStepError extends Error {
+	constructor(readonly wrongCode: boolean) {
+		super(
+			wrongCode
+				? "That code didn't work"
+				: "Enter the code from your authenticator app",
+		);
 	}
 }
 
@@ -149,7 +165,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 	}, [queryClient]);
 
 	const signIn = useCallback(
-		async (email: string, password: string) => {
+		async (email: string, password: string, code?: string) => {
 			const { kdfSalt, kdfIterations } = await client.account.prelogin({
 				email,
 			});
@@ -158,10 +174,14 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 				kdfSalt,
 				kdfIterations,
 			);
-			const result = await authClient.signIn.email({
-				email,
-				password: authKey,
-			});
+			const result = await authClient.signIn.email(
+				{ email, password: authKey },
+				code ? { headers: { "x-mima-code": code } } : undefined,
+			);
+			if (result.error?.code === "TWO_FACTOR_REQUIRED")
+				throw new TwoStepError(false);
+			if (result.error?.code === "TWO_FACTOR_WRONG")
+				throw new TwoStepError(true);
 			if (result.error) throw new WrongPasswordError();
 			const profile = await loadMe();
 			open(await openPrivateKey(wrapKey, profile.keys.encryptedPrivateKey));
@@ -287,6 +307,10 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 		[loadMe, queryClient],
 	);
 
+	const reloadMe = useCallback(async () => {
+		await loadMe();
+	}, [loadMe]);
+
 	const setAutoLockMinutes = useCallback((minutes: AutoLockMinutes) => {
 		setAutoLock(minutes);
 		setLastActive(Date.now());
@@ -349,6 +373,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			verifyPassword,
 			changePassword,
 			rename,
+			reloadMe,
 			autoLockMinutes,
 			setAutoLockMinutes,
 		}),
@@ -358,6 +383,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			verifyPassword,
 			changePassword,
 			rename,
+			reloadMe,
 			setAutoLockMinutes,
 			status,
 			me,

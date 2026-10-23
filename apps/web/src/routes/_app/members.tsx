@@ -21,6 +21,8 @@ import {
 import {
 	DotsThreeIcon,
 	LinkIcon,
+	ShieldCheckIcon,
+	ShieldSlashIcon,
 	UserMinusIcon,
 	VaultIcon,
 	XIcon,
@@ -67,6 +69,7 @@ function Members() {
 	);
 	const [giving, setGiving] = useState<Member | null>(null);
 	const [removing, setRemoving] = useState<Member | null>(null);
+	const [resetting, setResetting] = useState<Member | null>(null);
 	const people = members.data?.members ?? [];
 	const invites = members.data?.invites ?? [];
 
@@ -154,6 +157,13 @@ function Members() {
 								<div className="flex items-center gap-2">
 									<span className="text-body-sm text-fg">{person.name}</span>
 									{isMe && <Badge variant="secondary">You</Badge>}
+									{person.twoStep && (
+										<ShieldCheckIcon
+											role="img"
+											aria-label="Two-step login on"
+											className="text-success size-3.5"
+										/>
+									)}
 								</div>
 								<span className="text-caption text-fg-subtle truncate">
 									{person.email}
@@ -218,6 +228,12 @@ function Members() {
 											))}
 										</DropdownMenuGroup>
 										<DropdownMenuSeparator />
+										{person.twoStep && (
+											<DropdownMenuItem onClick={() => setResetting(person)}>
+												<ShieldSlashIcon />
+												Reset two-step login
+											</DropdownMenuItem>
+										)}
 										<DropdownMenuItem
 											variant="destructive"
 											onClick={() => setRemoving(person)}
@@ -289,6 +305,21 @@ function Members() {
 			<GiveAccessDialog
 				member={giving}
 				onOpenChange={(open) => !open && setGiving(null)}
+			/>
+			<ConfirmDialog
+				open={Boolean(resetting)}
+				onOpenChange={(open) => !open && setResetting(null)}
+				title={`Reset two-step login for ${resetting?.name}?`}
+				description="For when they lost their phone and their recovery codes. Their master password alone signs them in again, until they turn two-step login back on."
+				confirm="Reset"
+				onConfirm={async () => {
+					if (resetting) {
+						await run(
+							actions.resetTwoStep(resetting.userId),
+							`${resetting.name} can sign in with their master password alone`,
+						);
+					}
+				}}
 			/>
 			<ConfirmDialog
 				open={Boolean(removing)}

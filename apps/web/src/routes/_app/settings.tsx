@@ -22,10 +22,14 @@ import {
 	ChangePasswordDialog,
 	ExportDialog,
 } from "@/components/settings-dialogs";
+import {
+	TurnOffTwoStepDialog,
+	TurnOnTwoStepDialog,
+} from "@/components/two-step-dialogs";
 import { authClient } from "@/lib/auth-client";
 import { describeDevice } from "@/lib/device";
 import { openEmergencyKit } from "@/lib/emergency-kit";
-import { ago } from "@/lib/format";
+import { ago, plural } from "@/lib/format";
 import {
 	AUTO_LOCK_CHOICES,
 	type AutoLockMinutes,
@@ -54,6 +58,7 @@ function Settings() {
 	const { theme = "system", setTheme } = useTheme();
 	const [changing, setChanging] = useState(false);
 	const [exporting, setExporting] = useState(false);
+	const [twoStep, setTwoStep] = useState<"on" | "off" | null>(null);
 	const me = keyring.me;
 	if (!me) return null;
 	const isAdmin = me.role !== "member";
@@ -88,6 +93,21 @@ function Settings() {
 				>
 					<Button variant="outline" onClick={() => setChanging(true)}>
 						Change master password
+					</Button>
+				</Row>
+				<Row
+					label="Two-step login"
+					hint={
+						me.twoStep
+							? `On. Signing in asks for a code from your authenticator app. ${plural(me.recoveryCodesLeft, "recovery code")} left.`
+							: "Ask for a code from your phone too when signing in, so a master password alone isn't enough."
+					}
+				>
+					<Button
+						variant="outline"
+						onClick={() => setTwoStep(me.twoStep ? "off" : "on")}
+					>
+						{me.twoStep ? "Turn off" : "Turn on"}
 					</Button>
 				</Row>
 				<Row
@@ -209,6 +229,14 @@ function Settings() {
 
 			<ChangePasswordDialog open={changing} onOpenChange={setChanging} />
 			<ExportDialog open={exporting} onOpenChange={setExporting} />
+			<TurnOnTwoStepDialog
+				open={twoStep === "on"}
+				onOpenChange={(open) => !open && setTwoStep(null)}
+			/>
+			<TurnOffTwoStepDialog
+				open={twoStep === "off"}
+				onOpenChange={(open) => !open && setTwoStep(null)}
+			/>
 		</Page>
 	);
 }

@@ -37,8 +37,10 @@ export function parseTotp(input: string): TotpConfig | null {
 	return { secret: text, digits: 6, period: 30, algorithm: "SHA-1" };
 }
 
+const BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
 function base32(text: string) {
-	const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+	const alphabet = BASE32;
 	const clean = text.toUpperCase().replace(/[\s=-]/g, "");
 	let bits = 0;
 	let value = 0;
@@ -80,4 +82,43 @@ export async function totpCode(config: TotpConfig, now = Date.now()) {
 /** Seconds until the current code changes. */
 export function totpSecondsLeft(config: TotpConfig, now = Date.now()) {
 	return config.period - (Math.floor(now / 1000) % config.period);
+}
+
+/** A new random setup key: 160 bits in base32, the way authenticator apps expect it. */
+export function newTotpSecret() {
+	const bytes = crypto.getRandomValues(new Uint8Array(20));
+	let bits = 0;
+	let value = 0;
+	let out = "";
+	for (const byte of bytes) {
+		value = (value << 8) | byte;
+		bits += 8;
+		while (bits >= 5) {
+			out += BASE32[(value >>> (bits - 5)) & 31];
+			bits -= 5;
+		}
+		value &= (1 << bits) - 1;
+	}
+	return out;
+}
+
+/**
+ * Checks a six-digit code made from `secret` with the usual settings (SHA-1, every 30
+ * seconds), allowing one step either side for a clock that's off. Returns the step it
+ * matched, or null. Steps at or before `after` are refused, so a code works only once.
+ */
+export async function verifyTotp(
+	secret: string,
+	code: string,
+	{ now = Date.now(), after = -1 }: { now?: number; after?: number } = {},
+) {
+	const digits = code.replace(/\s/g, "");
+	if (!/^\d{6}$/.test(digits)) return null;
+	const config = { secret, digits: 6, period: 30, algorithm: "SHA-1" } as const;
+	const current = Math.floor(now / 30_000);
+	for (const step of [current - 1, current, current + 1]) {
+		if (step <= after) continue;
+		if ((await totpCode(config, step * 30_000)) === digits) return step;
+	}
+	return null;
 }

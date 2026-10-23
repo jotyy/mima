@@ -339,3 +339,38 @@ test("the activity log shows the fill", async () => {
 	await popup.close();
 	await page.close();
 });
+
+test("with two-step login on, signing in asks for a code", async () => {
+	const page = await context.newPage();
+	await page.goto("/");
+	await page.getByLabel("Master password").fill(owner.password);
+	await page.getByRole("button", { name: "Unlock" }).click();
+	await page.getByRole("button", { name: owner.name }).click();
+	await page.getByRole("menuitem", { name: "Settings" }).click();
+	await page.getByRole("button", { name: "Turn on", exact: true }).click();
+	const dialog = page.getByRole("dialog");
+	await expect(dialog.getByTestId("setup-key")).toHaveText(/^[A-Z2-7]{32}$/);
+	const key = (await dialog.getByTestId("setup-key").textContent()) ?? "";
+	const config = parseTotp(key);
+	if (!config) throw new Error("no setup key");
+	await dialog.getByLabel("Code from the app").fill(await totpCode(config));
+	await dialog.getByRole("button", { name: "Turn on" }).click();
+	await dialog.getByRole("button", { name: "I saved them" }).click();
+	await page.close();
+
+	const popup = await openPopup();
+	await popup.getByRole("button", { name: "Lock" }).click();
+	await popup.getByRole("button", { name: "Use another account" }).click();
+	await popup.getByLabel("Email").fill(owner.email);
+	await popup.getByLabel("Master password").fill(owner.password);
+	await popup.getByRole("button", { name: "Sign in" }).click();
+	const code = popup.getByLabel("Code from your authenticator app");
+	await expect(code).toBeVisible();
+	// The code that turned it on is used up; the app's next one works.
+	await code.fill(await totpCode(config, Date.now() + 30_000));
+	await popup.getByRole("button", { name: "Sign in" }).click();
+	await expect(
+		popup.getByRole("list", { name: "All items" }).getByText(login.name),
+	).toBeVisible();
+	await popup.close();
+});
