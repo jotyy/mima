@@ -133,7 +133,7 @@ export default function AgentsDemo() {
 					<span className="size-2.5 rounded-full bg-white/15" />
 					<span className="size-2.5 rounded-full bg-white/15" />
 					<span className="size-2.5 rounded-full bg-white/15" />
-					<span className="text-micro ml-2 font-mono text-white/40">
+					<span className="text-micro ml-2 font-mono text-white/60">
 						~/acme/api
 					</span>
 					{done && (

@@ -5,8 +5,11 @@ import { defineConfig } from "astro/config";
 
 // The landing page lives in src/pages; the docs are Starlight, under /docs, built from
 // the repository's docs/ folder (see scripts/sync-docs.ts).
+// Where the site will live. Links in the sitemap and the social preview use it.
+const SITE = "https://mima.example.com";
+
 export default defineConfig({
-	site: "https://mima.example.com",
+	site: SITE,
 	devToolbar: { enabled: false },
 	integrations: [
 		starlight({
@@ -48,6 +51,14 @@ export default defineConfig({
 				ThemeSelect: "./src/components/docs/ThemeSelect.astro",
 			},
 			head: [
+				{
+					tag: "meta",
+					attrs: { property: "og:image", content: `${SITE}/og.png` },
+				},
+				{
+					tag: "meta",
+					attrs: { name: "twitter:image", content: `${SITE}/og.png` },
+				},
 				{
 					// Pure's tokens switch on data-style and on the .dark class; Starlight
 					// keeps its theme in data-theme, so follow it.

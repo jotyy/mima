@@ -85,7 +85,7 @@ const seen = [
 							</div>
 						</div>
 						{step.via && (
-							<div class="text-micro text-fg-faint flex items-center gap-3 py-2 pl-3.5">
+							<div class="text-micro text-fg-subtle flex items-center gap-3 py-2 pl-3.5">
 								<ArrowDownIcon className="size-3" />
 								<span class="font-mono">{step.via}</span>
 							</div>
@@ -111,7 +111,7 @@ const seen = [
 					What the server does see
 				</h3>
 				<ul class="mt-4 flex flex-col gap-2.5">
-					{seen.map((line) => <li class="text-label text-fg-subtle">{line}</li>)}
+					{seen.map((line) => <li class="text-label text-fg-muted">{line}</li>)}
 				</ul>
 			</div>
 			<p data-reveal class="text-label text-fg-subtle px-2 text-pretty">

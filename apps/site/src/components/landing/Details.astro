@@ -4,9 +4,11 @@ import {
 	CopySimpleIcon,
 	EyeIcon,
 	LinkSimpleIcon,
+	LockSimpleIcon,
 	RobotIcon,
 	ShieldCheckIcon,
 	TrashIcon,
+	UserMinusIcon,
 } from "@phosphor-icons/react";
 
 import BrandIcon from "@/components/BrandIcon.astro";
@@ -54,6 +56,13 @@ const activity = [
 		item: "Figma",
 		when: "3h",
 	},
+	{
+		icon: UserMinusIcon,
+		who: "Alex",
+		what: "removed Sam from",
+		item: "Engineering",
+		when: "1d",
+	},
 ];
 
 const sources = [
@@ -97,7 +106,8 @@ const sources = [
 
 		<!-- Two-step login -->
 		<div data-reveal style="--reveal-delay: 80ms" class={card}>
-			<div class="flex items-center justify-center gap-1.5 py-4">
+			<div class="flex flex-col items-center gap-4 py-4">
+			<div class="flex items-center justify-center gap-1.5">
 				{
 					["4", "8", "2", "9", "1", "3"].map((digit, index) => (
 						<>
@@ -109,6 +119,14 @@ const sources = [
 					))
 				}
 			</div>
+				<!-- The code's 30 seconds running out -->
+				<div class="flex w-full max-w-52 items-center gap-2.5">
+					<span class="bg-surface-sunken h-1 flex-1 overflow-hidden rounded-full">
+						<span data-slot="totp-bar" class="bg-brand block h-full rounded-full"></span>
+					</span>
+					<span class="text-micro text-fg-subtle tabular-nums">30s</span>
+				</div>
+			</div>
 			<div class={caption}>
 				<h3 class={title}>Two-step login</h3>
 				<p class={text}>A code from your phone, with recovery codes for a bad day.</p>
@@ -117,14 +135,21 @@ const sources = [
 
 		<!-- Share links -->
 		<div data-reveal class={card}>
-			<div class="flex flex-col gap-3 py-2">
+			<div class="flex flex-col gap-2.5 py-1">
 				<div class="text-micro bg-surface-sunken flex items-center gap-2 overflow-hidden rounded-lg px-3 py-2.5 font-mono whitespace-nowrap">
 					<LinkSimpleIcon className="text-fg-subtle size-3.5 shrink-0" />
 					<span class="text-fg-muted">acme.example/s/7Gk2</span><span class="bg-brand-soft text-link -ml-1 rounded px-1">#Q2xqZ8vN…</span>
 				</div>
-				<div class="text-micro text-fg-subtle flex items-center justify-between px-1">
-					<span>The key stays in the link</span>
-					<span>1 view · 1 hour</span>
+				<!-- What the person at the other end sees -->
+				<div class="ring-line-subtle bg-surface flex flex-col items-center gap-2.5 rounded-xl px-4 pt-4 pb-3.5 text-center ring-1">
+					<span class="bg-brand-soft text-link flex size-8 items-center justify-center rounded-full">
+						<LockSimpleIcon className="size-4" />
+					</span>
+					<span class="text-label text-fg">Alex shared an item with you</span>
+					<span class="text-label bg-brand text-brand-fg shadow-sheen rounded-full px-3.5 py-1.5 font-medium">
+						Show the item
+					</span>
+					<span class="text-micro text-fg-subtle">Opens once · expires in 59 min</span>
 				</div>
 			</div>
 			<div class={caption}>
@@ -145,7 +170,7 @@ const sources = [
 							<span class="text-label text-fg-subtle flex-1 truncate">
 								<span class="text-fg">{row.who}</span> {row.what} <span class="text-fg">{row.item}</span>
 							</span>
-							<span class="text-micro text-fg-faint tabular-nums">{row.when}</span>
+							<span class="text-micro text-fg-subtle tabular-nums">{row.when}</span>
 						</li>
 					))
 				}
@@ -184,7 +209,7 @@ const sources = [
 						</span>
 					))
 				}
-				<span class="text-fg-faint mx-1">→</span>
+				<span aria-hidden="true" class="text-fg-faint mx-1">→</span>
 				<span class="bg-brand-soft flex size-12 items-center justify-center rounded-xl">
 					<img src="/favicon.svg" alt="mima" class="size-6" />
 				</span>

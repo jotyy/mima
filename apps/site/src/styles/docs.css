@@ -80,7 +80,7 @@ site-search button[data-open-modal] {
 	border: 1px solid var(--line);
 	border-radius: 999px;
 	background: var(--surface-sunken);
-	color: var(--fg-subtle);
+	color: var(--fg-muted);
 	font-size: 0.8125rem;
 	padding-inline: 0.875rem 0.375rem;
 }

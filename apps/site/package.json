@@ -9,7 +9,8 @@
 		"dev": "bun scripts/sync-docs.ts && astro dev --port 4321",
 		"build": "bun scripts/sync-docs.ts && astro build",
 		"preview": "astro preview --port 4321",
-		"check-types": "bun scripts/sync-docs.ts && astro check"
+		"check-types": "bun scripts/sync-docs.ts && astro check",
+		"og": "bun scripts/og.ts"
 	},
 	"dependencies": {
 		"@astrojs/react": "7.1.1",

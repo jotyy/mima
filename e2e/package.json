@@ -5,9 +5,11 @@
 	"scripts": {
 		"test": "playwright test",
 		"report": "playwright show-report",
-		"screenshots": "playwright test --config screenshots.config.ts"
+		"screenshots": "playwright test --config screenshots.config.ts",
+		"test:site": "playwright test --config site.config.ts"
 	},
 	"devDependencies": {
+		"@axe-core/playwright": "^4.14.0",
 		"@mima/crypto": "workspace:*",
 		"@playwright/test": "1.64.1",
 		"@types/node": "^26.4.1",

@@ -40,6 +40,9 @@
 
 	/* The hero's second line: the sky's own light. */
 	--color-sky-glow: #a9c2ff;
+	/* The quieter second line of a heading: light enough to recede, still 3:1 as large text. */
+	--color-quiet: #85858e;
+
 	/* The deep blue of the mark's keyhole, for text on white in both themes. */
 	--color-navy: #071b45;
 
@@ -47,7 +50,7 @@
 	--color-terminal: #0d0d10;
 	--color-terminal-fg: #e4e4e7;
 	--color-terminal-dim: #a1a1aa;
-	--color-terminal-faint: #71717a;
+	--color-terminal-faint: #8a8a93;
 	--color-terminal-link: #93b4ff;
 	--color-terminal-ok: #4ade80;
 	--color-terminal-warm: #f0a35e;
@@ -72,6 +75,10 @@ body {
 	html {
 		scroll-behavior: auto;
 	}
+}
+
+.dark {
+	--color-quiet: #6e6e77;
 }
 
 ::selection {
@@ -292,6 +299,27 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
 	[data-slot="marquee"] > [data-slot="marquee-track"] {
+		animation: none;
+	}
+}
+
+/* A one-time code's 30 seconds, running out and starting again. */
+@keyframes totp {
+	from {
+		width: 100%;
+	}
+	to {
+		width: 0;
+	}
+}
+
+[data-slot="totp-bar"] {
+	animation: totp 30s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	[data-slot="totp-bar"] {
+		width: 60%;
 		animation: none;
 	}
 }

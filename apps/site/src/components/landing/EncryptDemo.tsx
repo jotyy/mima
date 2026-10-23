@@ -285,13 +285,15 @@ export default function EncryptDemo() {
 				<div className="bg-surface-sunken/60 flex flex-col gap-4 p-5 sm:p-7 md:pl-12">
 					<PaneLabel icon={CloudIcon}>On the server</PaneLabel>
 					<pre className="text-caption text-fg-muted font-mono leading-relaxed whitespace-pre-wrap">
-						<span className="text-fg-faint">
+						<span aria-hidden className="text-fg-faint">
 							{"POST /rpc/items/create\n{\n"}
 						</span>
 						<JsonLine name="vaultId" value="vlt_4f9c2a7e" />
 						<JsonLine name="wrappedKey" value={sealed.wrappedKey} cipher />
 						<JsonLine name="data" value={sealed.data} cipher last />
-						<span className="text-fg-faint">{"}"}</span>
+						<span aria-hidden className="text-fg-faint">
+							{"}"}
+						</span>
 					</pre>
 					<p className="text-caption text-fg-subtle mt-auto">
 						Even the name is encrypted. Type to see it change.
@@ -325,11 +327,17 @@ function JsonLine({
 	return (
 		<span className="block pl-4 break-all">
 			<span className="text-fg-subtle">"{name}"</span>
-			<span className="text-fg-faint">: </span>
+			<span aria-hidden className="text-fg-faint">
+				:{" "}
+			</span>
 			<span className={cipher ? "text-link" : "text-fg-muted"}>
 				"{cipher ? <Scramble text={value} /> : value}"
 			</span>
-			{!last && <span className="text-fg-faint">,</span>}
+			{!last && (
+				<span aria-hidden className="text-fg-faint">
+					,
+				</span>
+			)}
 		</span>
 	);
 }
