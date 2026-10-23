@@ -12,16 +12,56 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Every job runs on Ubuntu 24.04 rather than ubuntu-latest, which is moving to 26.04. The
+# image already has what Chromium needs, so the browser installs without
+# `--with-deps`, whose packages could take a quarter of an hour to download.
 jobs:
-  check:
-    name: Types, lint and unit tests
+  changes:
+    name: What changed
     # Copies made by the Deploy to Cloudflare button get this file too; they don't need it.
     if: github.repository == 'jotyy/vauly'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+      site: ${{ steps.filter.outputs.site }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+      - id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          # A file counts when it matches a pattern and none of those starting with "!".
+          predicate-quantifier: some-with-excludes
+          filters: |
+            app:
+              - "**"
+              - "!apps/site/**"
+              - "!docs/**"
+              - "!e2e/site/**"
+              - "!e2e/site.config.ts"
+              - "!**/*.md"
+            site:
+              - "apps/site/**"
+              - "docs/**"
+              - "packages/ui/**"
+              - "packages/crypto/**"
+              - "e2e/site/**"
+              - "e2e/site.config.ts"
+              - "e2e/package.json"
+              - "package.json"
+              - "bun.lock"
+              - ".github/workflows/ci.yml"
+
+  check:
+    name: Types, lint and unit tests
+    if: github.repository == 'jotyy/vauly'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
       # Astro needs a newer Node 22 than the runner image ships.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - uses: oven-sh/setup-bun@v2
@@ -34,29 +74,35 @@ jobs:
 
   site:
     name: Website
-    if: github.repository == 'jotyy/vauly'
-    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.site == 'true'
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      # Astro needs a newer Node 22 than the runner image ships.
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
-      - run: bunx playwright install --with-deps chromium
+      - run: bunx playwright install chromium
         working-directory: e2e
       - run: bun run test:site
 
+  # The suite runs one test at a time against one database, so it's split across three
+  # runners, each with a stack of its own.
   e2e:
-    name: End-to-end tests
-    if: github.repository == 'jotyy/vauly'
-    runs-on: ubuntu-latest
-    # The Alchemy stack can take minutes to start on a runner.
-    timeout-minutes: 35
+    name: End-to-end tests (${{ matrix.shard }}/3)
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     env:
       # Throwaway values for the local test stack only.
       BETTER_AUTH_SECRET: ci-only-secret-that-is-at-least-32-characters
@@ -64,43 +110,50 @@ jobs:
       CORS_ORIGIN: http://localhost:3101
       VITE_SERVER_URL: http://localhost:3100
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
-      - run: bunx playwright install --with-deps chromium
+      - run: bunx playwright install chromium
         working-directory: e2e
-      - run: bun run test:e2e
-      - uses: actions/upload-artifact@v4
+      - run: bun run test --shard=${{ matrix.shard }}/3
+        working-directory: e2e
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: |
             e2e/report
             e2e/results
           retention-days: 7
 
   one-worker:
-    name: End-to-end tests, as one Worker
-    if: github.repository == 'jotyy/vauly'
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
+    name: End-to-end tests, as one Worker (${{ matrix.shard }}/3)
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
-      - run: bunx playwright install --with-deps chromium
+      - run: bunx playwright install chromium
         working-directory: e2e
       # The app as the Deploy to Cloudflare button deploys it: wrangler.jsonc under
       # `wrangler dev`, with no secrets, so the Worker makes its own and migrates its D1.
-      - run: bun run test:e2e:one-worker
-      - uses: actions/upload-artifact@v4
+      - run: bun run test:one-worker --shard=${{ matrix.shard }}/3
+        working-directory: e2e
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: playwright-report-one-worker
+          name: playwright-report-one-worker-${{ matrix.shard }}
           path: |
             e2e/report
             e2e/results

@@ -22,7 +22,7 @@ jobs:
     if: github.repository != 'jotyy/vauly'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           token: ${{ secrets.VAULY_UPDATE_TOKEN || github.token }}
