@@ -127,8 +127,13 @@ test("the teammate can now open and decrypt the shared item", async ({
 	await expect(
 		card.getByRole("heading", { name: "Postgres staging" }),
 	).toBeVisible();
+	// The reveal is reported in the background; the audit test below looks for it.
+	const reported = page.waitForResponse(
+		(response) => response.url().includes("/rpc/items/log") && response.ok(),
+	);
 	await card.getByRole("button", { name: "Reveal value" }).click();
 	await expect(card.getByText(SECRET)).toBeVisible();
+	await reported;
 });
 
 test("the teammate can't see the owner's private items", async ({ page }) => {
