@@ -1,0 +1,60 @@
+name: vauly
+description: Run a CI step with secrets from vauly, approved once by a person, instead of keeping them in GitHub's settings.
+author: vauly
+
+# Use it as jotyy/vauly/action@<commit>. It installs the vauly CLI and runs `run` under
+# `vauly run`, which resolves vauly:// references in the script's environment only and
+# hides their values in its output. See docs/agents.md.
+
+inputs:
+  server:
+    description: Your vauly server's API address. Keep it in a secret or variable such as VAULY_SERVER.
+    required: true
+  token:
+    description: A CI agent's token, from vauly's Agents page. Keep it in a secret such as VAULY_TOKEN.
+    required: true
+  run:
+    description: A script to run with the references resolved, in its environment only. This is the safer way.
+    required: false
+  env:
+    description: References to resolve, one NAME=vauly://… per line. References in the step's own env work too.
+    required: false
+  export:
+    description: Also write the values of the env references to GITHUB_ENV for the steps after this one, masked in the log. Every later step can read them, so prefer run.
+    default: "false"
+  approval-timeout:
+    description: Seconds to wait for a person to approve an item the agent can't use yet.
+    default: "300"
+  version:
+    description: The vauly CLI release to install, such as 0.1.0. Pin it along with the action.
+    default: latest
+  download-url:
+    description: Where to download the CLI and its SHA256SUMS instead of a release, such as a build of your own.
+    required: false
+  shell:
+    description: The shell that runs `run`, bash or sh.
+    default: bash
+
+runs:
+  using: composite
+  steps:
+    - name: Install the vauly CLI
+      shell: bash
+      env:
+        VAULY_VERSION: ${{ inputs.version }}
+        VAULY_DOWNLOAD_URL: ${{ inputs.download-url }}
+        VAULY_INSTALL_DIR: ${{ runner.temp }}/vauly-bin
+      run: sh "$GITHUB_ACTION_PATH/../apps/site/public/install.sh"
+    # Inputs reach the script as environment variables, never pasted into it, so neither
+    # a reference nor the script itself can change what runs here.
+    - name: Run with vauly
+      shell: bash
+      env:
+        VAULY_SERVER: ${{ inputs.server }}
+        VAULY_TOKEN: ${{ inputs.token }}
+        VAULY_APPROVAL_TIMEOUT: ${{ inputs.approval-timeout }}
+        VAULY_ACTION_RUN: ${{ inputs.run }}
+        VAULY_ACTION_ENV: ${{ inputs.env }}
+        VAULY_ACTION_EXPORT: ${{ inputs.export }}
+        VAULY_ACTION_SHELL: ${{ inputs.shell }}
+      run: bash "$GITHUB_ACTION_PATH/run.sh"

@@ -138,6 +138,30 @@ When an item needs approval, `run_with_secrets` asks in vauly, tells the client 
 
 Masking catches a value only as it is. A command that prints it changed, such as base64-encoded or reversed, gets past it, with `run_with_secrets` as with `vauly run`. The agent can run commands either way, as any coding agent with a shell can.
 
+## GitHub Actions
+
+The action in this repository installs the CLI from a release and runs a step under `vauly run`.
+1. Create an agent of the kind **CI job**.
+2. Allow it the items the workflow needs: **Use with an agent…** on each item, **Until I revoke it**.
+3. Keep its token and your vauly's API address in the repository's secrets, as `VAULY_TOKEN` and `VAULY_SERVER`.
+
+```yaml
+- uses: jotyy/vauly/action@<commit> # pin it to a commit
+  with:
+    server: ${{ secrets.VAULY_SERVER }}
+    token: ${{ secrets.VAULY_TOKEN }}
+    version: 0.1.0 # the CLI release: pin it with the action
+    env: |
+      CLOUDFLARE_API_TOKEN=vauly://itm_7k2m9qx4hc3r
+    run: npx wrangler deploy
+```
+
+`run` is the step's script, in bash or, with `shell: sh`, sh. Only the script gets the values, and they show as `<hidden>` in its output. References can go in the step's own `env:` as well.
+
+To hand values to the steps after this one, set `export: true` with `env` and no `run`. Each value goes into `GITHUB_ENV`, masked in the log first. Every later step, and every action those steps use, can then read it, so prefer `run`.
+
+An item the agent can't use yet waits for a person, as with any `vauly run`. Set `approval-timeout` (in seconds, default 300) to fail the step sooner. The action runs on Linux and macOS runners, not Windows yet.
+
 ## Approvals
 
 The first time an agent asks for an item it hasn't been allowed to use, `vauly run` waits, and vauly shows the request to people who can open that item: in **Needs you** on the Overview, and as a waiting-for-approval link at the top right. They can:

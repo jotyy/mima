@@ -64,8 +64,11 @@ export function NewAgentDialog({
 						<DialogHeader>
 							<DialogTitle>{name} is ready</DialogTitle>
 							<DialogDescription>
-								Put these two lines in the agent's environment. The token holds
-								the agent's private key, so it is shown only now.
+								{kind === "ci"
+									? "Add these as secrets of the CI job, such as repository secrets VAULY_SERVER and VAULY_TOKEN for vauly's GitHub Action."
+									: "Put these two lines in the agent's environment."}{" "}
+								The token holds the agent's private key, so it is shown only
+								now.
 							</DialogDescription>
 						</DialogHeader>
 						<div className="border-line bg-surface-sunken flex items-start gap-1 rounded-lg border py-2 pr-1 pl-3">

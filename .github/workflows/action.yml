@@ -1,0 +1,171 @@
+name: Action
+
+# vauly's GitHub Action (action/), used for real: the CLI built from this commit, a
+# throwaway test stack, a CI agent and a made-up item. The second job reads the first
+# job's log through the API and fails if the made-up value is anywhere in it.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - action/**
+      - apps/cli/**
+      - apps/site/public/install.sh
+      - e2e/action/**
+      - .github/workflows/action.yml
+  pull_request:
+    paths:
+      - action/**
+      - apps/cli/**
+      - apps/site/public/install.sh
+      - e2e/action/**
+      - .github/workflows/action.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # The second job reads the first one's log.
+  actions: read
+
+jobs:
+  use:
+    name: Use the action
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      # Throwaway values for the local test stack only.
+      BETTER_AUTH_SECRET: ci-only-secret-that-is-at-least-32-characters
+      BETTER_AUTH_URL: http://localhost:3100
+      CORS_ORIGIN: http://localhost:3101
+      VITE_SERVER_URL: http://localhost:3100
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install chromium
+        working-directory: e2e
+      - name: Build the CLI from this commit
+        working-directory: apps/cli
+        run: |
+          bun scripts/release.ts build --version 0.0.0-ci --commit "${GITHUB_SHA::7}" linux-x64
+          bun scripts/release.ts checksums
+      - name: Start the test stack
+        working-directory: packages/infra
+        env:
+          VAULY_API_PORT: 3100
+          VAULY_WEB_PORT: 3101
+          VAULY_E2E_RESET_TOKEN: vauly-e2e-local
+        run: |
+          for attempt in 1 2; do
+            nohup bun run dev --stage e2e > "../../e2e/stack-$attempt.log" 2>&1 &
+            for second in $(seq 240); do
+              curl -sf -o /dev/null http://localhost:3101/ && exit 0
+              sleep 1
+            done
+            echo "::warning::The test stack didn't start in four minutes (try $attempt)"
+            tail -n 40 "../../e2e/stack-$attempt.log"
+            pkill -f "alchemy dev" || true
+            pkill -f workerd || true
+            sleep 3
+          done
+          exit 1
+      - name: Seed a CI agent and a made-up item
+        working-directory: e2e
+        env:
+          VAULY_E2E_STACK: started
+          VAULY_ACTION_SEED: ${{ runner.temp }}/seed
+        run: bunx playwright test --config action.config.ts
+      - name: Hand the seed to the steps below
+        run: |
+          seed="$RUNNER_TEMP/seed"
+          echo "::add-mask::$(cat "$seed/token")"
+          {
+            echo "SEED_TOKEN=$(cat "$seed/token")"
+            echo "SEED_REFERENCE=$(cat "$seed/reference")"
+            echo "SEED_OTHER=$(cat "$seed/other")"
+            echo "SEED_SHA256=$(cat "$seed/sha256")"
+          } >> "$GITHUB_ENV"
+
+      - name: "run: the script gets the value"
+        uses: ./action
+        with:
+          server: http://localhost:3100
+          token: ${{ env.SEED_TOKEN }}
+          download-url: file://${{ github.workspace }}/apps/cli/dist
+          env: |
+            DEPLOY_TOKEN=${{ env.SEED_REFERENCE }}
+          run: |
+            test "$(printf %s "$DEPLOY_TOKEN" | sha256sum | cut -d ' ' -f 1)" = "$SEED_SHA256"
+            echo "The script has the deploy token: $DEPLOY_TOKEN"
+            echo "On stderr too: $DEPLOY_TOKEN" >&2
+
+      - name: "export: later steps get the value"
+        uses: ./action
+        with:
+          server: http://localhost:3100
+          token: ${{ env.SEED_TOKEN }}
+          download-url: file://${{ github.workspace }}/apps/cli/dist
+          export: true
+          env: |
+            DEPLOY_TOKEN=${{ env.SEED_REFERENCE }}
+      - name: A later step reads the exported value
+        run: |
+          test "$(printf %s "$DEPLOY_TOKEN" | sha256sum | cut -d ' ' -f 1)" = "$SEED_SHA256"
+          echo "Exported: $DEPLOY_TOKEN"
+
+      - name: An item nobody approves
+        id: unapproved
+        continue-on-error: true
+        uses: ./action
+        with:
+          server: http://localhost:3100
+          token: ${{ env.SEED_TOKEN }}
+          download-url: file://${{ github.workspace }}/apps/cli/dist
+          approval-timeout: 5
+          env: |
+            STAGING_KEY=${{ env.SEED_OTHER }}
+          run: echo "This never runs."
+      - name: The step without approval failed
+        if: steps.unapproved.outcome != 'failure'
+        run: |
+          echo "::error::The step should have failed when nobody approved it."
+          exit 1
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: action-stack-logs
+          path: |
+            e2e/results
+            e2e/stack-*.log
+          retention-days: 7
+
+  log:
+    name: The value isn't in the log
+    needs: use
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: e2e/action
+      - name: Read the first job's log
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          job="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs" \
+            --jq '.jobs[] | select(.name == "Use the action") | .id')"
+          gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$job/logs" > use.log
+          value="$(jq -r .value e2e/action/made-up.json)"
+          if grep -qF -- "$value" use.log; then
+            echo "::error::The made-up value is in the job's log."
+            grep -nF -- "$value" use.log | cut -c1-120
+            exit 1
+          fi
+          # The steps that printed it show a placeholder instead: vauly's in the script's
+          # output, GitHub's in the step after the export.
+          grep -q "<hidden>" use.log
+          grep -q "Exported: \*\*\*" use.log
+          echo "The made-up value is nowhere in the log."
