@@ -9,6 +9,7 @@ import {
 	invite,
 	item,
 	member,
+	pushSubscription,
 	setting,
 	vault,
 	vaultAccess,
@@ -33,6 +34,7 @@ export async function resetDatabase(db: Database) {
 		db.delete(member),
 		// Except the session secret a deploy without BETTER_AUTH_SECRET keeps here.
 		db.delete(setting).where(ne(setting.key, "auth_secret")),
+		db.delete(pushSubscription),
 		db.delete(session),
 		db.delete(account),
 		db.delete(verification),

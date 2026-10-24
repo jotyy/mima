@@ -60,4 +60,14 @@ export const migrations: readonly {
 		hash: "b241a915b161441f6a61a760adcd0eb23a40331ab6fac225fed308ae8c5cbb78",
 		sql: "-- Reveals and copies of a custom field were logged with the field's label, which is part of\n-- the item. Any detail that isn't one of the fields every item has, or a field's ID,\n-- becomes \"field\", which the activity log shows as \"a custom field\".\nUPDATE `event` SET `detail` = 'field'\nWHERE `action` IN ('revealed', 'copied')\n\tAND `detail` IS NOT NULL\n\tAND `detail` NOT IN ('username', 'secret', 'one-time code', 'login', 'passkey', 'earlier password', 'earlier value', 'earlier private key', 'field')\n\tAND NOT (`detail` GLOB 'field:[a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9]' AND length(`detail`) = 14);\n",
 	},
+	{
+		name: "20261024030712_push_subscriptions",
+		hash: "c446968dac5cd56737d037e454cc58e57bab17bde2a5f4040abf9b73e2b24d9f",
+		sql: "CREATE TABLE `push_subscription` (\n\t`id` text PRIMARY KEY,\n\t`user_id` text NOT NULL,\n\t`session_id` text NOT NULL,\n\t`endpoint` text NOT NULL UNIQUE,\n\t`p256dh` text NOT NULL,\n\t`auth` text NOT NULL,\n\t`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,\n\tCONSTRAINT `fk_push_subscription_user_id_user_id_fk` FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE CASCADE,\n\tCONSTRAINT `fk_push_subscription_session_id_session_id_fk` FOREIGN KEY (`session_id`) REFERENCES `session`(`id`) ON DELETE CASCADE\n);\n--> statement-breakpoint\nCREATE INDEX `push_subscription_user_idx` ON `push_subscription` (`user_id`);",
+	},
+	{
+		name: "20261024041216_push_limits",
+		hash: "47552309c7f0bd9788b93bac9c3d68c7160faa4acf2bb5c8d15b57a42e53fe88",
+		sql: "ALTER TABLE `agent` ADD `notified_at` integer;--> statement-breakpoint\nALTER TABLE `push_subscription` ADD `failures` integer DEFAULT 0 NOT NULL;--> statement-breakpoint\n-- A database that ran the first version of the table may have more than one device on a session: keep the newest.\nDELETE FROM `push_subscription` WHERE rowid NOT IN (SELECT max(rowid) FROM `push_subscription` GROUP BY `session_id`);--> statement-breakpoint\nCREATE UNIQUE INDEX `push_subscription_session_idx` ON `push_subscription` (`session_id`);",
+	},
 ];

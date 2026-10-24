@@ -13,10 +13,20 @@ export type AuthConfig = {
 	CORS_ORIGIN: string;
 };
 
+export type AuthOptions = {
+	desktopOrigins?: readonly string[];
+	/** Called once a sign-in has passed every check, with the session it made. */
+	onSignIn?: (signedIn: {
+		userId: string;
+		sessionId: string;
+		userAgent: string | null;
+	}) => void;
+};
+
 export function createAuth(
 	env: AuthConfig,
 	database: Database,
-	desktopOrigins: readonly string[] = [],
+	{ desktopOrigins = [], onSignIn }: AuthOptions = {},
 ) {
 	return betterAuth({
 		database: drizzleAdapter(database, {
@@ -62,7 +72,19 @@ export function createAuth(
 					created.user.id,
 					ctx.headers?.get(CODE_HEADER) ?? null,
 				);
-				if (result === "ok" || result === "not-needed") return;
+				if (result === "ok" || result === "not-needed") {
+					// The sign-in has passed; nothing the hook does can undo that.
+					try {
+						onSignIn?.({
+							userId: created.user.id,
+							sessionId: created.session.id,
+							userAgent: created.session.userAgent ?? null,
+						});
+					} catch (error) {
+						console.error(error);
+					}
+					return;
+				}
 				await ctx.context.internalAdapter.deleteSession(created.session.token);
 				throw new APIError("UNAUTHORIZED", {
 					code:

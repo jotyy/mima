@@ -173,6 +173,8 @@ To let an agent use an item without asking, open the item, choose **Use with an 
 
 `vauly run` waits up to five minutes for an answer. Set `VAULY_APPROVAL_TIMEOUT` (in seconds) to change that.
 
+To hear about a request when vauly isn't open, turn on **Settings › Notifications** on your phone or computer. The notification names the agent and how many items it wants, never the items themselves, and tapping it opens **Agents**. It goes to everyone who can approve. An agent's requests notify at most once every five minutes; any it makes in between wait in the app. On iPhone and iPad, add vauly to your Home Screen first (**Share › Add to Home Screen**), then turn notifications on in that app. This needs iOS 16.4 or later.
+
 ## What's recorded
 
 Every request, approval, denial and value handed to an agent appears in **Activity**, with the command that asked for it. Pausing an agent stops its token right away; deleting an item takes it out of every agent's reach until it's restored. An agent works for the person who created it: when they're taken out of a vault, their agents lose the items in it, whoever approved them, and when they leave the workspace, their agents are deleted.

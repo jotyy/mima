@@ -1,6 +1,8 @@
 import type { Auth, Session } from "@vauly/auth";
 import type { Database } from "@vauly/db";
 
+import type { Delivery } from "./push/notify";
+
 export type Context = {
 	session: Session | null;
 	db: Database;
@@ -13,4 +15,12 @@ export type Context = {
 	 * claimed by whoever finds it first. It comes from the deploy's setup link.
 	 */
 	setupCode?: string;
+	/**
+	 * Sends notifications to people's devices once the response is on its way
+	 * (push/notify.ts). Nothing that calls it waits for it or fails with it, not even
+	 * when working out who gets them, which `deliveries` may still be doing.
+	 */
+	notify: (deliveries: Delivery[] | Promise<Delivery[]>) => void;
+	/** The e2e stack, whose tests run a stand-in push service on localhost. */
+	localPush?: boolean;
 };
