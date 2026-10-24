@@ -1,7 +1,8 @@
 // How this instance is set up: its API's address, its logo and breach-check settings, the
-// demo account on the demo, and which version of vauly it runs. They come from /vauly.json when the app starts, not from
-// the build, so every instance of a version serves the same files and anyone can check
-// them (vauly verify). The last copy stays on the device, to start without a connection.
+// demo account on the demo, and which version of vauly it runs. They come from
+// /vauly.json when the app starts, not from the build, so every instance of a version
+// serves the same files and anyone can check them (vauly verify). The last copy stays on
+// the device, to start without a connection.
 
 export type InstanceConfig = {
 	/** The API's address; empty when the app and the API share one origin. */

@@ -163,6 +163,22 @@ describe("saveSubscription", () => {
 		).toBe(false);
 	});
 
+	test(`subscribes at the same moment can't pass ${DEVICE_LIMIT} devices together`, async () => {
+		const sessions = Array.from(
+			{ length: DEVICE_LIMIT + 1 },
+			(_, i) => `ses_alex_${i}`,
+		);
+		for (const id of sessions) addSession(id, "usr_alex");
+		const results = await Promise.all(
+			sessions.map((id) => save("usr_alex", id, fcm(id))),
+		);
+		expect(results.filter((result) => result === "saved")).toHaveLength(
+			DEVICE_LIMIT,
+		);
+		expect(results).toContain("too-many");
+		expect(devices()).toHaveLength(DEVICE_LIMIT);
+	});
+
 	test("only push services, and only a browser's keys", async () => {
 		for (const endpoint of [
 			"http://fcm.googleapis.com/fcm/send/abc",

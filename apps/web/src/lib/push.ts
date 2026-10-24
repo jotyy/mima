@@ -37,6 +37,15 @@ export class PushBlockedError extends Error {
 	}
 }
 
+/**
+ * One tab at a time: one tab's check mustn't drop the subscription another tab is
+ * making, before the server has it. Without Web Locks, as in old browsers, each runs as it
+ * comes.
+ */
+function inTurn<T>(work: () => Promise<T>): Promise<T> {
+	return navigator.locks ? navigator.locks.request("vauly.push", work) : work();
+}
+
 async function browserSubscription() {
 	const registration = await navigator.serviceWorker?.getRegistration();
 	return (await registration?.pushManager?.getSubscription()) ?? null;
@@ -65,18 +74,24 @@ async function serviceWorker() {
  */
 export async function pushEnabled() {
 	if (pushSupport() === "unsupported") return false;
-	const subscription = await browserSubscription();
-	if (!subscription) return false;
-	if (await client.push.status({ endpoint: subscription.endpoint }))
-		return true;
-	await subscription.unsubscribe().catch(() => false);
-	return false;
+	return inTurn(async () => {
+		const subscription = await browserSubscription();
+		if (!subscription) return false;
+		if (await client.push.status({ endpoint: subscription.endpoint }))
+			return true;
+		await subscription.unsubscribe().catch(() => false);
+		return false;
+	});
 }
 
 /** Turns notifications on here. Call it from the tap itself: iOS asks only then. */
 export async function turnOnPush() {
 	if ((await Notification.requestPermission()) !== "granted")
 		throw new PushBlockedError();
+	await inTurn(subscribe);
+}
+
+async function subscribe() {
 	const [registration, publicKey] = await Promise.all([
 		serviceWorker(),
 		client.push.publicKey(),
@@ -108,10 +123,12 @@ export async function turnOnPush() {
 
 /** Turns notifications off here, on the server and in the browser. */
 export async function turnOffPush() {
-	const subscription = await browserSubscription();
-	if (!subscription) return;
-	await client.push.unsubscribe({ endpoint: subscription.endpoint });
-	await subscription.unsubscribe();
+	await inTurn(async () => {
+		const subscription = await browserSubscription();
+		if (!subscription) return;
+		await client.push.unsubscribe({ endpoint: subscription.endpoint });
+		await subscription.unsubscribe();
+	});
 }
 
 /**
@@ -120,7 +137,9 @@ export async function turnOffPush() {
  */
 export async function forgetPush() {
 	try {
-		await (await browserSubscription())?.unsubscribe();
+		await inTurn(async () => {
+			await (await browserSubscription())?.unsubscribe();
+		});
 	} catch {
 		// Nothing to forget.
 	}
