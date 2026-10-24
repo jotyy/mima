@@ -6,6 +6,7 @@ import {
 	agentGrant,
 	item,
 	member,
+	vaultAccess,
 } from "@vauly/db/schema/vault";
 import { and, eq, gt, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
@@ -69,15 +70,35 @@ const reason = z.string().trim().min(1).max(200);
 
 type Lookup = Awaited<ReturnType<typeof lookup>>[number];
 
-/** Each item with this agent's live grant on it, and its open or recently denied request. */
-async function lookup(db: Database, agentId: string, ids: string[]) {
+/**
+ * Each item with this agent's live grant on it, and its open or recently denied request.
+ * Items in vaults the agent's owner can't open are out of its reach, whatever it holds.
+ */
+async function lookup(
+	db: Database,
+	me: { id: string; ownerId: string },
+	ids: string[],
+) {
+	const agentId = me.id;
 	const unique = [...new Set(ids)];
 	const now = new Date();
 	const [items, grants, requests] = await Promise.all([
 		db
 			.select()
 			.from(item)
-			.where(and(inArray(item.id, unique), isNull(item.deletedAt))),
+			.where(
+				and(
+					inArray(item.id, unique),
+					isNull(item.deletedAt),
+					inArray(
+						item.vaultId,
+						db
+							.select({ vaultId: vaultAccess.vaultId })
+							.from(vaultAccess)
+							.where(eq(vaultAccess.userId, me.ownerId)),
+					),
+				),
+			),
 		db
 			.select()
 			.from(agentGrant)
@@ -169,7 +190,7 @@ export const agentApiRouter = {
 		.input(z.object({ itemIds, command: reason }))
 		.handler(async ({ context, input }) => {
 			const { db, agent: me } = context;
-			const found = await lookup(db, me.id, input.itemIds);
+			const found = await lookup(db, me, input.itemIds);
 			const results = [];
 			const asked: string[] = [];
 			for (const entry of found) {
@@ -206,7 +227,7 @@ export const agentApiRouter = {
 	status: agentProcedure
 		.input(z.object({ itemIds }))
 		.handler(async ({ context, input }) => {
-			const found = await lookup(context.db, context.agent.id, input.itemIds);
+			const found = await lookup(context.db, context.agent, input.itemIds);
 			return found.map(({ id, target, grant, pending, denied }) => {
 				if (!target) return { itemId: id, status: "missing" as const };
 				if (grant) {
@@ -234,7 +255,7 @@ export const agentApiRouter = {
 		.input(z.object({ itemIds, reason }))
 		.handler(async ({ context, input }) => {
 			const { db, agent: me } = context;
-			const found = await lookup(db, me.id, input.itemIds);
+			const found = await lookup(db, me, input.itemIds);
 			const asked: string[] = [];
 			const results = await Promise.all(
 				found.map((entry) =>

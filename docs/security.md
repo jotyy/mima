@@ -117,7 +117,7 @@ A device where you turn on **Settings › Notifications** is told when an agent 
 
 An agent's key pair is created in the browser. Its private key goes into the token, which is shown once and never stored by vauly; the server keeps the public key and a SHA-256 hash of the token's secret. When a person approves a request, their browser wraps that item's key to the agent's public key. `vauly run` decrypts the item on the machine where it runs, passes the value to the command in its environment, and masks the value in the command's output. See [Agents and scripts](agents.md).
 
-Anyone who holds an agent token can use whatever that agent has been allowed to use. An agent stops working when the person who created it leaves the workspace, and loses its grants in a vault when they lose that vault. Treat a token like a password, give each agent only the items it needs, and pause or delete agents you no longer use.
+Anyone who holds an agent token can use whatever that agent has been allowed to use. An agent acts for the person who created it, so it can only use items in vaults they can open: it stops working when they leave the workspace, loses its grants in a vault when they lose that vault, and loses an item that's moved to a vault they can't open. An item can't be granted to an agent whose owner can't open its vault. Treat a token like a password, give each agent only the items it needs, and pause or delete agents you no longer use.
 
 ## Browser extension
 

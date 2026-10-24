@@ -10,7 +10,13 @@ import { and, count, eq, gt, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { memberProcedure } from "../index";
-import { accessibleItemIds, logEvent, newId, requireItemAccess } from "../lib";
+import {
+	accessibleItemIds,
+	logEvent,
+	newId,
+	requireAgentFor,
+	requireItemAccess,
+} from "../lib";
 
 const wrapped = z.string().min(40).max(1_000);
 const HOUR = 60 * 60 * 1000;
@@ -195,7 +201,11 @@ export const agentsRouter = {
 			const target = await requireItemAccess(db, userId, input.itemId, {
 				role: "edit",
 			});
-			await requireAgent(db, input.agentId);
+			await requireAgentFor(
+				db,
+				await requireAgent(db, input.agentId),
+				target.vaultId,
+			);
 			const terms = grantTerms(input.duration);
 			await db.batch([
 				db
@@ -292,6 +302,11 @@ export const requestsRouter = {
 			const target = await requireItemAccess(db, userId, request.itemId, {
 				role: "edit",
 			});
+			await requireAgentFor(
+				db,
+				await requireAgent(db, request.agentId),
+				target.vaultId,
+			);
 			const terms = grantTerms(input.duration);
 			await db.batch([
 				db
