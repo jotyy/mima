@@ -16,7 +16,6 @@ import { parseTotp, totpCode, totpSecondsLeft } from "@vauly/crypto";
 import { Button } from "@vauly/ui/components/button";
 import { Input } from "@vauly/ui/components/input";
 import { Switch } from "@vauly/ui/components/switch";
-import { logoDomain } from "@vauly/ui/lib/logos";
 import { cn } from "@vauly/ui/lib/utils";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 
@@ -31,6 +30,13 @@ import {
 	viewOf,
 } from "@/lib/capture";
 import { fillLoginForm } from "@/lib/fill";
+import {
+	getLogoSettings,
+	type LogoSettings,
+	logoFor,
+	refreshInstance,
+	setLogosShown,
+} from "@/lib/logos";
 import {
 	getPasskeySettings,
 	type PasskeySettings,
@@ -78,6 +84,8 @@ export default function App() {
 	const route = async () => {
 		const saved = await getConnection();
 		setConnection(saved);
+		// The instance may have changed its settings, such as turning logos off.
+		void refreshInstance(saved.web);
 		if (!saved.server) return setScreen({ name: "connect" });
 		if (!saved.email) return setScreen({ name: "sign-in" });
 		const unlocked = await getUnlocked();
@@ -303,7 +311,20 @@ function Items({
 	const [tab, setTab] = useState<{ id?: number; url?: string }>({});
 	const [status, setStatus] = useState("");
 	const [settings, setSettings] = useState(false);
+	const [logos, setLogos] = useState<LogoSettings | null>(null);
 	const client = apiClient(connection.server, connection.token);
+
+	// Again when the settings change, here or with the instance's.
+	useEffect(() => {
+		const load = () => void getLogoSettings().then(setLogos);
+		load();
+		const changed = (changes: Record<string, unknown>, area: string) => {
+			if (area === "local" && ("logos" in changes || "brandfetch" in changes))
+				load();
+		};
+		browser.storage.onChanged.addListener(changed);
+		return () => browser.storage.onChanged.removeListener(changed);
+	}, []);
 
 	const load = async (tabId?: number) => {
 		try {
@@ -502,6 +523,7 @@ function Items({
 									results.map((entry) => (
 										<Row
 											key={entry.id}
+											logos={logos}
 											entry={entry}
 											canFill={matchesPage(entry, tab.url)}
 											onFill={fill}
@@ -521,6 +543,7 @@ function Items({
 											here.map((entry) => (
 												<Row
 													key={entry.id}
+													logos={logos}
 													entry={entry}
 													canFill
 													onFill={fill}
@@ -537,6 +560,7 @@ function Items({
 										entries.map((entry) => (
 											<Row
 												key={entry.id}
+												logos={logos}
 												entry={entry}
 												canFill={false}
 												onFill={fill}
@@ -564,17 +588,23 @@ function Items({
 	);
 }
 
-/** This browser's choices: whether vauly asks for passkeys, and where it doesn't. */
+/**
+ * This browser's choices: whether vauly asks for passkeys, and where it doesn't, and
+ * whether it shows website logos.
+ */
 function Settings({ onDone }: { onDone: () => void }) {
 	const [passkeys, setPasskeys] = useState<PasskeySettings | null>(null);
+	const [logos, setLogos] = useState<LogoSettings | null>(null);
 	useEffect(() => {
 		void getPasskeySettings().then(setPasskeys);
+		void getLogoSettings().then(setLogos);
 	}, []);
 	const change = async (next: PasskeySettings) => {
 		setPasskeys(next);
 		await savePasskeySettings(next);
 	};
-	if (!passkeys) return null;
+	if (!passkeys || !logos) return null;
+	const logosOff = logos.instance === "off";
 
 	return (
 		<section aria-label="Settings" className="flex flex-col gap-4 p-3">
@@ -601,6 +631,25 @@ function Settings({ onDone }: { onDone: () => void }) {
 					aria-label="Offer vauly for passkeys"
 					checked={passkeys.offer}
 					onCheckedChange={(offer) => change({ ...passkeys, offer })}
+				/>
+			</div>
+			<div className="flex items-start gap-3 px-1">
+				<div className="flex min-w-0 flex-1 flex-col gap-0.5">
+					<span className="text-body-sm text-fg">Show website logos</span>
+					<span className="text-caption text-fg-muted">
+						{logosOff
+							? "Your vauly has logos turned off."
+							: "Logos come from Brandfetch, which then learns which sites' logos this browser shows."}
+					</span>
+				</div>
+				<Switch
+					aria-label="Show website logos"
+					checked={logos.shown && !logosOff}
+					disabled={logosOff}
+					onCheckedChange={async (shown) => {
+						setLogos({ ...logos, shown });
+						await setLogosShown(shown);
+					}}
 				/>
 			</div>
 			{passkeys.notOn.length > 0 && (
@@ -660,18 +709,23 @@ const kindIcon = {
 
 function Row({
 	entry,
+	logos,
 	canFill,
 	onFill,
 	onCopy,
 }: {
 	entry: Entry;
+	logos: LogoSettings | null;
 	canFill: boolean;
 	onFill: (entry: Entry) => void;
 	onCopy: (entry: Entry, field: CopyField) => void;
 }) {
 	return (
 		<li className="hover:bg-tint/4 flex items-center gap-2.5 rounded-lg px-2 py-1.5">
-			<ItemLogo logo={logoDomain(entry)} icon={kindIcon[entry.kind]} />
+			<ItemLogo
+				logo={logos ? logoFor(entry, logos) : null}
+				icon={kindIcon[entry.kind]}
+			/>
 			<div className="flex min-w-0 flex-1 flex-col">
 				<span className="text-body-sm text-fg truncate">{entry.name}</span>
 				<span className="text-caption text-fg-subtle truncate">

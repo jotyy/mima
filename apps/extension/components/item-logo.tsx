@@ -1,8 +1,10 @@
 import type { Icon } from "@phosphor-icons/react";
-import { logoUrl } from "@vauly/ui/lib/logos";
 import { useState } from "react";
 
-/** An item's brand logo, or the icon for its kind when there's none to show. */
+/**
+ * An item's brand logo, from the address lib/logos.ts gives, or the icon for its kind when
+ * there's none to show.
+ */
 export function ItemLogo({
 	logo,
 	icon: Fallback,
@@ -15,7 +17,7 @@ export function ItemLogo({
 		<span className="bg-surface text-fg-muted shadow-pill flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md">
 			{logo && !missing ? (
 				<img
-					src={logoUrl(logo, 28)}
+					src={logo}
 					alt=""
 					draggable={false}
 					className="size-full object-cover"

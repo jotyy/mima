@@ -294,6 +294,44 @@ test("a login with another website fills there too", async () => {
 	await page.close();
 });
 
+test("website logos can be turned off, and follow an instance that turned them off", async () => {
+	let popup = await openPopup();
+	const logos = () => popup.getByRole("switch", { name: "Show website logos" });
+	await popup.getByRole("button", { name: "Settings" }).click();
+	await expect(logos()).toBeChecked();
+	await logos().click();
+	await expect(logos()).not.toBeChecked();
+	await popup.close();
+	popup = await openPopup();
+	await popup.getByRole("button", { name: "Settings" }).click();
+	await expect(logos()).not.toBeChecked();
+	await logos().click();
+	await expect(logos()).toBeChecked();
+	await popup.close();
+
+	// The instance's /vauly.json says no logos: the extension follows it when it opens.
+	const config = `http://localhost:${WEB_PORT}/vauly.json`;
+	await context.route(config, async (route) => {
+		const response = await route.fetch();
+		await route.fulfill({
+			response,
+			json: { ...(await response.json()), brandfetch: "off" },
+		});
+	});
+	popup = await openPopup();
+	await popup.getByRole("button", { name: "Settings" }).click();
+	await expect(
+		popup.getByText("Your vauly has logos turned off."),
+	).toBeVisible();
+	await expect(logos()).toBeDisabled();
+	await popup.close();
+	await context.unroute(config);
+	popup = await openPopup();
+	await popup.getByRole("button", { name: "Settings" }).click();
+	await expect(logos()).toBeEnabled();
+	await popup.close();
+});
+
 test("Lock forgets the key until the master password is entered again", async () => {
 	const popup = await openPopup();
 	await popup.getByRole("button", { name: "Lock" }).click();

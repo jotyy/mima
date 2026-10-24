@@ -61,7 +61,13 @@ export async function rememberArgon2id(email: string) {
 
 export async function forgetConnection() {
 	await lock();
-	await browser.storage.local.remove(["server", "web", "email", "token"]);
+	await browser.storage.local.remove([
+		"server",
+		"web",
+		"email",
+		"token",
+		"brandfetch",
+	]);
 }
 
 /** The unlocked key, or null when locked or idle for too long (which also locks). */

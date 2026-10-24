@@ -5,7 +5,6 @@ import {
 	sealPasskeyKey,
 	totpCode,
 } from "@vauly/crypto";
-import { logoDomain } from "@vauly/ui/lib/logos";
 
 import {
 	dropCapture,
@@ -15,6 +14,7 @@ import {
 	viewOf,
 } from "@/lib/capture";
 import { fillLoginForm } from "@/lib/fill";
+import { getLogoSettings, logoFor } from "@/lib/logos";
 import type {
 	Done,
 	FillResult,
@@ -294,6 +294,7 @@ async function menuState(url: string): Promise<MenuState> {
 	if ((await siteStatus(url)) === "signed-out") return { status: "signed-out" };
 	const open = await openVault();
 	if (!open) return { status: "locked" };
+	const logos = await getLogoSettings();
 	return {
 		status: "ready",
 		host: hostOf(url),
@@ -303,7 +304,7 @@ async function menuState(url: string): Promise<MenuState> {
 				id: entry.id,
 				name: entry.name,
 				username: entry.username,
-				logo: logoDomain(entry),
+				logo: logoFor(entry, logos),
 			})),
 	};
 }
@@ -769,6 +770,7 @@ async function passkeyState(pending: Pending | null): Promise<PasskeyState> {
 	}
 	const { missing } = await verification(pending);
 	if (pending.kind === "get") {
+		const logos = await getLogoSettings();
 		return {
 			...base,
 			status: "get",
@@ -776,7 +778,7 @@ async function passkeyState(pending: Pending | null): Promise<PasskeyState> {
 				itemId: entry.id,
 				name: entry.name,
 				userName: entry.passkey?.userName ?? entry.username,
-				logo: logoDomain(entry),
+				logo: logoFor(entry, logos),
 			})),
 			verify: missing,
 		};

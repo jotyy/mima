@@ -122,7 +122,7 @@ A link is a copy: changing the item later doesn't change what the link shows, an
 
 ## Website logos
 
-To show a brand's logo next to an item, the browser loads an image from Brandfetch's CDN for that brand's domain. Only the registrable domain is used (`hubspot.com` for `app.hubspot.com`), never a subdomain, and never an IP address or a private network name such as `.local`, `.internal` or `.corp`. Items without a website get a logo only when their name matches a short list of well-known services. Brandfetch requires a `Referer`, so it also sees the address of your vauly, along with your IP address, like any image request. It learns nothing else about the item. Turn logos off per device in **Settings → Website logos**, or for a whole instance by deploying with `VITE_BRANDFETCH_CLIENT_ID=off`.
+To show a brand's logo next to an item, the browser loads an image from Brandfetch's CDN for that brand's domain. Only the registrable domain is used (`hubspot.com` for `app.hubspot.com`), never a subdomain, and never an IP address or a private network name such as `.local`, `.internal` or `.corp`. Items without a website get a logo only when their name matches a short list of well-known services. Brandfetch requires a `Referer`, so it also sees the address of your vauly, along with your IP address, like any image request. It learns nothing else about the item. Turn logos off per device in **Settings → Website logos**, in the browser extension's settings (the gear) with **Show website logos**, or for a whole instance by deploying with `VITE_BRANDFETCH_CLIENT_ID=off`, which the extension follows too.
 
 ## Breached passwords
 
