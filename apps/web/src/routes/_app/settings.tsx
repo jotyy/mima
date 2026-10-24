@@ -1,4 +1,8 @@
-import { DesktopIcon, DeviceMobileIcon } from "@phosphor-icons/react";
+import {
+	ArrowSquareOutIcon,
+	DesktopIcon,
+	DeviceMobileIcon,
+} from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { describeDevice } from "@vauly/api/device";
@@ -31,6 +35,7 @@ import {
 	TurnOffTwoStepDialog,
 	TurnOnTwoStepDialog,
 } from "@/components/two-step-dialogs";
+import { instance } from "@/config";
 import { demoAccount } from "@/env.public";
 import { authClient } from "@/lib/auth-client";
 import {
@@ -331,6 +336,9 @@ function Settings() {
 				</Row>
 			</Card>
 
+			<SectionTitle>About</SectionTitle>
+			<About />
+
 			<SectionTitle>Leaving</SectionTitle>
 			<Card>
 				<Row
@@ -523,6 +531,40 @@ function Notifications() {
 				onCheckedChange={change}
 			/>
 		</Row>
+	);
+}
+
+const RELEASES = "https://github.com/jotyy/vauly/releases";
+const UPDATING =
+	"https://vauly.app/docs/updating/#copies-whose-update-vauly-takes-main";
+
+/** Which vauly this is, for a bug report and for knowing whether there's a newer one. */
+function About() {
+	const { version, commit } = instance();
+	const release = /^\d+\.\d+\.\d+$/.test(version);
+	return (
+		<Card>
+			<Row
+				label="Version"
+				hint={
+					release
+						? "The release of vauly this copy runs, and the commit it was built from."
+						: "A development version from vauly's next branch, not a release. Update vauly moves this copy to a release once one has everything it has."
+				}
+			>
+				<a
+					href={release ? `${RELEASES}/tag/v${version}` : UPDATING}
+					target="_blank"
+					rel="noreferrer"
+					data-testid="version"
+					className="text-body-sm text-link inline-flex items-center gap-1 font-mono"
+				>
+					{version || "dev"}
+					{commit && ` · ${commit.slice(0, 7)}`}
+					<ArrowSquareOutIcon className="size-3.5" />
+				</a>
+			</Row>
+		</Card>
 	);
 }
 

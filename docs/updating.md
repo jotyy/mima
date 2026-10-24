@@ -1,6 +1,6 @@
 # Updating vauly
 
-New versions of vauly land on GitHub. This page covers how to bring your copy up to date, what updates by itself and what doesn't, and what an update needs from you when it needs anything.
+New versions of vauly are [releases on GitHub](https://github.com/jotyy/vauly/releases). This page covers how to bring your copy up to date, what updates by itself and what doesn't, and what an update needs from you when it needs anything. **Settings › About** shows the version a copy runs.
 
 ## Before you update
 
@@ -9,22 +9,33 @@ New versions of vauly land on GitHub. This page covers how to bring your copy up
 
 ## Update the server
 
-**A copy made with the Deploy to Cloudflare button:** in your copy of vauly on GitHub, open **Actions → Update vauly → Run workflow**. It replaces the files with the latest vauly and pushes, and Cloudflare builds and deploys it.
+**A copy made with the Deploy to Cloudflare button:** in your copy of vauly on GitHub, open **Actions → Update vauly → Run workflow**. It replaces the files with the latest release of vauly and pushes, and Cloudflare builds and deploys it.
+- **Another version.** In the **version** box, a release such as `v0.1.1` takes that one. `next` takes vauly's development branch, which has changes that aren't released yet.
+- **Never backwards.** It never moves a copy back to an older version, since database migrations can't be undone, and it does nothing when the copy is already on the version you asked for.
+- **What it keeps.**
+  - `wrangler.jsonc`, which names your Worker and its database. When an update needs a change there, the notes below say so.
+  - `.github/workflows`, which GitHub's default token can't change. To let updates replace the workflows too, add a repository secret named `VAULY_UPDATE_TOKEN`: a fine-grained token for that repository with read and write access to Contents and Workflows.
 
-It keeps two things as they are:
-- `wrangler.jsonc`, which names your Worker and its database. When an update needs a change there, the notes below say so.
-- `.github/workflows`, which GitHub's default token can't change. To let updates replace the workflows too, add a repository secret named `VAULY_UPDATE_TOKEN`: a fine-grained token for that repository with read and write access to Contents and Workflows.
+If the run says "Updated to jotyy/vauly@…" with no version, your copy still has the workflow from before releases. See [Copies whose Update vauly takes main](#copies-whose-update-vauly-takes-main).
 
-**Deployed from your machine:**
+**Deployed from your machine:** check out the [latest release](https://github.com/jotyy/vauly/releases/latest), for example `v0.1.1`, then build and deploy:
 
 ```sh
-git pull
+git fetch --tags
+git checkout v0.1.1
 bun install
 bun run build
 bun run deploy
 ```
 
 Either way, the Worker updates the database itself on its first request after the deploy. It applies each migration it's missing, once and in order.
+
+### Update the workflows
+
+A copy keeps its own `.github/workflows` unless it has `VAULY_UPDATE_TOKEN`. When vauly's workflows change, the **Update vauly** run says so. To update a workflow by hand:
+1. Open the file in your copy on GitHub, for example `.github/workflows/update.yml`, and choose **Edit**.
+2. Replace its contents with the same file in vauly, for example [update.yml](https://github.com/jotyy/vauly/blob/main/.github/workflows/update.yml).
+3. Commit.
 
 ## Update the browser extension and the CLI
 
@@ -37,6 +48,14 @@ They don't update with the server, so update them at the same time:
 Deploying an older version is possible, but it doesn't undo database migrations, and it may not understand what the newer one wrote. If an update goes wrong, restore the database to the minute before it and deploy the version you had, rather than only deploying the older version. The notes say when going back has a catch.
 
 ## What each update needs from you
+
+### Copies whose Update vauly takes main
+
+Until October 24, 2026, vauly's main branch had changes that weren't released yet, and **Update vauly** took main. Now main holds only the latest release, so that older workflow gets releases too. It doesn't check versions, though: a copy that took main on October 23 or 24, 2026 would be moved back to 0.1.0. To get the version box and that check, do this once:
+1. Replace `.github/workflows/update.yml`, as in [Update the workflows](#update-the-workflows).
+2. Run **Update vauly**.
+
+A copy on 0.1.0 then moves to the latest release. A copy that already took main after 0.1.0 stays where it is, because its database may have changes that 0.1.x doesn't. It moves on once a release has everything it has, and until then **Settings › About** says it runs a development version.
 
 ### Updating from 0.1.0
 

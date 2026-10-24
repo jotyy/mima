@@ -7,9 +7,11 @@ Notable changes to vauly. The format follows [Keep a Changelog](https://keepacha
 ### Added
 
 - Notifications: turn them on for each device in Settings to hear when an agent asks for an item you can approve, and when your account signs in from another browser. They name the agent and count the items, but never name an item, and they're encrypted to the device. They stop when that device is signed out, and an agent's requests notify at most once every five minutes. On iPhone and iPad they need the app added to the Home Screen, on iOS 16.4 or later.
+- **Settings › About** shows the version of vauly and the commit it was built from, and `/vauly.json` reports them. A copy on the development branch says so there. The development branch, `next`, carries the next version with `-dev`, such as `0.2.0-dev`.
 
 ### Fixed
 
+- **Update vauly** took whatever was on main, including changes that weren't released yet. main now holds only the latest release, and the workflow goes to the latest release by default; its **version** input picks a release or `next`, the development branch. It never moves a copy back to an older version, and it does nothing when the copy is already on the version asked for. To get those, copies replace their workflow once; see [Updating vauly](docs/updating.md#copies-whose-update-vauly-takes-main).
 - The service worker is the same wherever the web app is built, so `vauly verify --against` a release's manifest matches every instance of that release. It used to list its files in the order the build machine's file system gave them. CI now builds the app on macOS as well as Linux and compares.
 - After another device signs this one out, the app says "You were signed out" once, not once for every request that was on its way.
 

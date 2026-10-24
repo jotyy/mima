@@ -45,7 +45,7 @@ Out of scope: findings that need a compromised device, social engineering of tea
 
 ## Supported versions
 
-vauly has no stable release yet. Fixes go to the `main` branch; run the latest `main` to get them.
+Security fixes go into the [latest release](https://github.com/jotyy/vauly/releases/latest), as a patch release such as 0.1.1 when one is needed, and into `next`, the development branch. Older releases don't get them, so keep your copy on the latest release: [Updating vauly](updating.md) explains how. **Settings › About** shows which version a copy runs.
 
 ## Thanks
 

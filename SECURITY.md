@@ -11,7 +11,11 @@ Report it privately through GitHub instead: open the repository's **Security** t
 Helpful things to include:
 - what an attacker can do, and what they need first (an account, a member's session, control of the server, …)
 - the steps to reproduce it, ideally against a local instance (`bun run dev`)
-- the commit or version you tested
+- the version you tested, which **Settings › About** shows
+
+## Supported versions
+
+Security fixes go into the [latest release](https://github.com/jotyy/vauly/releases/latest), as a patch release when one is needed. Older releases don't get them, so keep your copy on the latest release: [Updating vauly](docs/updating.md) explains how.
 
 ## The whole policy
 

@@ -1,9 +1,12 @@
 name: Update vauly
 
 # For a copy of vauly made by the Deploy to Cloudflare button. Run it from the Actions tab
-# ("Update vauly", then "Run workflow"): it replaces this repository's files with the latest
-# vauly and pushes, and Cloudflare deploys the update. The Worker applies any new database
-# migrations on its first request.
+# ("Update vauly", then "Run workflow"): it replaces this repository's files with a release
+# of vauly, the latest one unless you name another, and pushes, and Cloudflare deploys
+# it. The Worker applies any new database migrations on its first request.
+#
+# It never moves this copy back to an older version, since database migrations can't be
+# undone, and it does nothing when the copy is already on the version asked for.
 #
 # It keeps this copy's wrangler.jsonc, which names your Worker and its database. It also
 # keeps .github/workflows, because GitHub doesn't let the default token change workflows;
@@ -12,13 +15,19 @@ name: Update vauly
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "latest (the latest release), a release such as v0.1.1, or next (vauly's development branch, not released yet)"
+        required: true
+        default: latest
+        type: string
 
 permissions:
   contents: write
 
 jobs:
   update:
-    name: Update to the latest vauly
+    name: Update vauly
     if: github.repository != 'jotyy/vauly'
     runs-on: ubuntu-latest
     steps:
@@ -26,29 +35,115 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.VAULY_UPDATE_TOKEN || github.token }}
-      - name: Replace the files with the latest vauly
+      - name: Replace the files with vauly's
         env:
+          WANTED: ${{ inputs.version }}
           WORKFLOWS_TOO: ${{ secrets.VAULY_UPDATE_TOKEN != '' }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # The tests (e2e/tests/update.spec.ts) point these at repositories of their own.
+          upstream="${VAULY_UPSTREAM:-https://github.com/jotyy/vauly.git}"
+          summary="${GITHUB_STEP_SUMMARY:-/dev/null}"
+          say() { echo "$1"; echo "$1" >>"$summary"; }
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch --no-tags https://github.com/jotyy/vauly.git main
-          latest=$(git rev-parse FETCH_HEAD)
+
+          # Which vauly: the latest published release (never a draft), a release, or next.
+          # main holds the latest release too, for copies whose workflow still takes it.
+          wanted="${WANTED:-latest}"
+          if [ "$wanted" = latest ]; then
+            wanted="${VAULY_LATEST:-$(gh api repos/jotyy/vauly/releases/latest --jq .tag_name)}"
+          fi
+          if [ "$wanted" = next ] || [ "$wanted" = main ]; then
+            ref="refs/heads/$wanted"
+          elif [[ "$wanted" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            ref="refs/tags/$wanted"
+          else
+            echo "::error title=vauly::version is latest, next or a release such as v0.1.1, not \"$wanted\"."
+            exit 2
+          fi
+          # next too, which has every commit, for copies that recorded only a commit.
+          git fetch --no-tags "$upstream" "+$ref:refs/vauly/target" "+refs/heads/next:refs/vauly/next"
+          target=$(git rev-parse "refs/vauly/target^{commit}")
+          short="${target:0:7}"
+          version_of() { git show "$1:package.json" 2>/dev/null | jq -r '.version // empty' || true; }
+          if [ "$wanted" = next ] || [ "$wanted" = main ]; then
+            target_version=$(version_of "$target")
+            label="$wanted (${target_version:+$target_version, }jotyy/vauly@$short)"
+          else
+            target_version="${wanted#v}"
+            label="$wanted"
+          fi
+
+          # Which vauly this copy runs: what the last update recorded, or the version in its
+          # files. An update from before releases names only the commit it took from main.
+          current=$(git log -n 500 --format=%B | sed -n 's/^Vauly-Version: //p' | head -n 1)
+          current="${current:-$(version_of HEAD)}"
+          stay() {
+            echo "::warning title=vauly::$1"
+            say "$1"
+            say "This copy stays as it is until a release has everything it has. To follow vauly's development branch instead, run this workflow with \`next\`."
+            exit 0
+          }
+          if [ -n "$current" ] && [ -n "$target_version" ]; then
+            # Whether this copy's version comes before, after or with the one asked for.
+            order=$(node -e '
+              const parse = (v) => /^v?(\d+)\.(\d+)\.(\d+)(?:-(.+))?$/.exec(v);
+              const [a, b] = process.argv.slice(1).map(parse);
+              console.log((() => {
+                if (!a || !b) return "unknown";
+                for (let i = 1; i <= 3; i++)
+                  if (Number(a[i]) !== Number(b[i]))
+                    return Number(a[i]) < Number(b[i]) ? "older" : "newer";
+                // 0.2.0-dev comes before 0.2.0.
+                if (a[4] === b[4]) return "same";
+                if (a[4] === undefined) return "newer";
+                if (b[4] === undefined) return "older";
+                return a[4] < b[4] ? "older" : "newer";
+              })());
+            ' "$current" "$target_version")
+            if [ "$order" = newer ]; then
+              stay "This copy runs vauly ${current}, which is newer than $label."
+            fi
+          else
+            taken=$(git log -n 500 --format=%s | sed -n 's|^Update vauly to jotyy/vauly@\([0-9a-f]\{7,40\}\)$|\1|p' | head -n 1)
+            if [ -n "$taken" ] && taken=$(git rev-parse --verify --quiet "$taken^{commit}") &&
+              ! git merge-base --is-ancestor "$taken" "$target"; then
+              stay "This copy runs jotyy/vauly@${taken:0:7}, from before releases, which has changes $label doesn't."
+            fi
+          fi
+          # Whatever the versions say, a database migration this copy has applied stays.
+          migrations=packages/db/src/migrations
+          ahead=$(comm -23 \
+            <(git ls-tree --name-only "HEAD:$migrations" 2>/dev/null | sort) \
+            <(git ls-tree --name-only "$target:$migrations" 2>/dev/null | sort))
+          if [ -n "$ahead" ]; then
+            stay "This copy has database migrations that $label doesn't: $(echo $ahead)."
+          fi
 
           # This repository's history stays; its files become vauly's.
-          git read-tree --reset -u "$latest"
+          git read-tree --reset -u "$target"
           git checkout HEAD -- wrangler.jsonc
           if [ "$WORKFLOWS_TOO" != "true" ]; then
             git rm -rq --cached .github/workflows
             rm -rf .github/workflows
             git checkout HEAD -- .github/workflows
+            if ! git diff --quiet HEAD "$target" -- .github/workflows; then
+              echo "::notice title=vauly::vauly's workflows have changed, and this copy keeps its own. See \"Update the workflows\" in docs/updating.md."
+              say "vauly's workflows have changed, and this copy keeps its own: see [Update the workflows](https://github.com/jotyy/vauly/blob/main/docs/updating.md#update-the-workflows)."
+            fi
           fi
 
           if git diff --cached --quiet HEAD; then
-            echo "Already up to date with jotyy/vauly@${latest:0:7}."
+            say "This copy is already on vauly $label."
             exit 0
           fi
-          git commit -qm "Update vauly to jotyy/vauly@${latest:0:7}"
+          git commit -q -F - <<EOF
+          Update vauly to $label
+
+          Vauly-Version: ${target_version:-$wanted}
+          Vauly-Commit: $target
+          EOF
           git push origin "HEAD:${GITHUB_REF_NAME}"
-          echo "Updated to jotyy/vauly@${latest:0:7}. Cloudflare deploys it now."
+          say "Updated to vauly $label. Cloudflare deploys it now."
