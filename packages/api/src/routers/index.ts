@@ -5,6 +5,7 @@ import { accountRouter } from "./account";
 import { agentApiRouter } from "./agent-api";
 import { agentsRouter, requestsRouter } from "./agents";
 import { eventsRouter } from "./events";
+import { filesRouter } from "./files";
 import { itemsRouter } from "./items";
 import { linksRouter } from "./links";
 import { membersRouter } from "./members";
@@ -16,6 +17,7 @@ export const appRouter = {
 	account: accountRouter,
 	vaults: vaultsRouter,
 	items: itemsRouter,
+	files: filesRouter,
 	links: linksRouter,
 	members: membersRouter,
 	agents: agentsRouter,

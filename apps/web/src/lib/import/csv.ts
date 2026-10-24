@@ -104,6 +104,9 @@ const formats: CsvFormat[] = [
 				...((fields.length > 0 || withDetails) && { fields }),
 				...(card && { card }),
 				...(identity && { identity }),
+				files: jsonList<string>(row.get("vauly_files")).filter(
+					(path) => typeof path === "string" && path.startsWith("files/"),
+				),
 			};
 		},
 	},

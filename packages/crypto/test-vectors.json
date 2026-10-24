@@ -256,6 +256,50 @@
 			"sealed": "UFFSU1RVVldYWVpb.hlCmy4aCvtXJoculZJ02cElowiZE1wVTbJia1C7YnXVjzxTy1UVCIcPOdtDQYZgJyNe1CJeNIqvaV5FTpIwW2qK3rxTQAWLvyCeyDXUQ5uKge1eSEL8caABHGRbJDcHa7+vzljdNRW0SXb4jp7ocZhkb8pDuRttSFwha/4ww+Jgi92GkJ0GWXc69MjJEyWHKNY+KPOJig2EujQ=="
 		}
 	],
+	"files": [
+		{
+			"fileId": "att_0123456789",
+			"itemId": "itm_0123456789",
+			"plaintext": "YWJj",
+			"lengths": [28],
+			"chunks": ["n2Xe/rBwYaDX0/SD5G062QRZlw=="],
+			"meta": {
+				"v": 1,
+				"name": "recovery.txt",
+				"type": "text/plain",
+				"size": 3,
+				"chunks": 1,
+				"key": "EBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8="
+			},
+			"itemKey": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8=",
+			"iv": "YGFiY2RlZmdoaWpr",
+			"sealedMeta": "YGFiY2RlZmdoaWpr.1wp/Jz2lvIRn4BRTJ7x+eWpPgWdyTOggegK/mofgc4JQis8kWb+68dzW0ER6R24I0gQeJQ8jj45WOjsIlPSi2zeDlX9jbTSiOyunW/5bCkjYKgezLlr74B0DMzaDCk4xb70vjaI6PfdV39137BO8y7l6021v129R3RoFdCICz8pyeNPvxAJv4u36"
+		},
+		{
+			"fileId": "att_0123456789",
+			"itemId": "itm_0123456789",
+			"run": {
+				"start": 0,
+				"length": 1048577
+			},
+			"lengths": [1398124, 24],
+			"chunkSha256": [
+				"313273cc5f26b2855670c4671f0a9585f0b5d09f07729baced034ca1293cf6af",
+				"5c22c9cdd9e743dd7c17154992d1facc07bc0b917729b7e987989b0e6de0e4bb"
+			],
+			"meta": {
+				"v": 1,
+				"name": "server.p12",
+				"type": "application/x-pkcs12",
+				"size": 1048577,
+				"chunks": 2,
+				"key": "MDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk8="
+			},
+			"itemKey": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8=",
+			"iv": "cHFyc3R1dnd4eXp7",
+			"sealedMeta": "cHFyc3R1dnd4eXp7.qMfNOqRpyCjFPtY4nT45Uq16F/RiK7ILxK+6p1F7pcTqE7dQtbVms3A8fbu0zZAhkrK2r/qcPWC1bN1pcNh4/fEkKjQAYGbchUweQvw7PAglxcBYMOep2Bv/yiA0iqgndMmj+j5w5N8Ip6Xmg1rC8bNWgPrSgX28L5zKlhnjG7YVw/xo5iS7Z7oqkxD4CemogLYIB2rtDZI="
+		}
+	],
 	"agentToken": [
 		{
 			"agentId": "agent_0123456789",

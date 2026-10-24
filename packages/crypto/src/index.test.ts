@@ -9,6 +9,8 @@ import {
 	decodeAgentToken,
 	deriveMasterKeys,
 	encodeAgentToken,
+	type FileMeta,
+	fileKeyOf,
 	importPrivateKey,
 	type Kdf,
 	KdfError,
@@ -19,11 +21,16 @@ import {
 	keyFromText,
 	keyToText,
 	newDataKey,
+	newFileKey,
 	newKeypair,
 	newSalt,
 	open,
+	openFileChunk,
+	openFileMeta,
 	openJson,
 	seal,
+	sealFileChunk,
+	sealFileMeta,
 	sealJson,
 	setArgon2,
 	unlockAccount,
@@ -298,5 +305,75 @@ describe("sharing", () => {
 
 	test("malformed tokens are rejected", () => {
 		expect(() => decodeAgentToken("vauly_agent_only")).toThrow();
+	});
+});
+
+describe("files", () => {
+	const bytes = (text: string) => new TextEncoder().encode(text);
+
+	test("a chunk opens only at its own place in its own file", async () => {
+		const key = await newFileKey();
+		const [first, second] = await Promise.all([
+			sealFileChunk(key, "att_a", 0, 2, bytes("first")),
+			sealFileChunk(key, "att_a", 1, 2, bytes("second")),
+		]);
+		expect(
+			new TextDecoder().decode(await openFileChunk(key, "att_a", 1, 2, second)),
+		).toBe("second");
+		// Swapped around.
+		await expect(openFileChunk(key, "att_a", 0, 2, second)).rejects.toThrow();
+		// The last one dropped: the first chunk says there are two.
+		await expect(openFileChunk(key, "att_a", 0, 1, first)).rejects.toThrow();
+		// Put into another file with the same key.
+		await expect(openFileChunk(key, "att_b", 0, 2, first)).rejects.toThrow();
+		// Or under another key.
+		await expect(
+			openFileChunk(await newFileKey(), "att_a", 0, 2, first),
+		).rejects.toThrow();
+	});
+
+	test("meta opens only for its own file and item, and holds the file key", async () => {
+		const itemKey = await newDataKey();
+		const key = await newFileKey();
+		const raw = new Uint8Array(await crypto.subtle.exportKey("raw", key));
+		const meta: FileMeta = {
+			v: 1,
+			name: "server.p12",
+			type: "application/x-pkcs12",
+			size: 5,
+			chunks: 1,
+			key: btoa(String.fromCharCode(...raw)),
+		};
+		const sealed = await sealFileMeta(itemKey, "att_a", "itm_a", meta);
+		const opened = await openFileMeta(itemKey, "att_a", "itm_a", sealed);
+		expect(opened).toEqual(meta);
+		const chunk = await sealFileChunk(key, "att_a", 0, 1, bytes("hello"));
+		const again = await fileKeyOf(opened);
+		expect(
+			new TextDecoder().decode(
+				await openFileChunk(again, "att_a", 0, 1, chunk),
+			),
+		).toBe("hello");
+		await expect(
+			openFileMeta(itemKey, "att_b", "itm_a", sealed),
+		).rejects.toThrow();
+		await expect(
+			openFileMeta(itemKey, "att_a", "itm_b", sealed),
+		).rejects.toThrow();
+	});
+
+	test("meta whose chunk count doesn't match its size is refused", async () => {
+		const itemKey = await newDataKey();
+		const sealed = await sealFileMeta(itemKey, "att_a", "itm_a", {
+			v: 1,
+			name: "short.bin",
+			type: "",
+			size: 3 * 1024 * 1024,
+			chunks: 2,
+			key: "",
+		});
+		await expect(
+			openFileMeta(itemKey, "att_a", "itm_a", sealed),
+		).rejects.toThrow("Unknown file format");
 	});
 });

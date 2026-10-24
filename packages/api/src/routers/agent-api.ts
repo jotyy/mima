@@ -4,13 +4,16 @@ import {
 	accessRequest,
 	agent,
 	agentGrant,
+	attachment,
+	attachmentChunk,
 	item,
 	member,
 	vaultAccess,
 } from "@vauly/db/schema/vault";
-import { and, eq, gt, inArray, isNull } from "drizzle-orm";
+import { and, eq, gt, inArray, isNotNull, isNull, lte } from "drizzle-orm";
 import { z } from "zod";
 
+import { readPass, signPass } from "../file-pass";
 import { publicProcedure } from "../index";
 import { hashToken, logEvent, newId } from "../lib";
 import { approvalDeliveries } from "../push/notify";
@@ -66,6 +69,91 @@ const agentProcedure = publicProcedure.use(async ({ context, next }) => {
 });
 
 const itemIds = z.array(z.string().max(40)).min(1).max(20);
+
+/** How long a pass to download a granted item's files lasts. */
+const FILE_PASS_MS = 15 * 60 * 1000;
+
+type Grant = typeof agentGrant.$inferSelect;
+
+/**
+ * Whether a grant still lets its agent in: not expired, and not a one-time grant its run
+ * has used already.
+ */
+const isLive = (grant: Grant, now = new Date()) =>
+	(!grant.expiresAt || grant.expiresAt > now) && !grant.filesUntil;
+
+/**
+ * Uses up a one-time grant, if no other run has: with files, it's kept until `filesUntil`
+ * for the run's downloads; without, it goes. Whether this run got it.
+ */
+async function useUp(db: Database, grantId: string, filesUntil: number | null) {
+	const result = filesUntil
+		? await db
+				.update(agentGrant)
+				.set({ filesUntil: new Date(filesUntil) })
+				.where(and(eq(agentGrant.id, grantId), isNull(agentGrant.filesUntil)))
+		: await db
+				.delete(agentGrant)
+				.where(and(eq(agentGrant.id, grantId), isNull(agentGrant.filesUntil)));
+	return result.meta.changes === 1;
+}
+
+/** Whether the item has finished files newer than `since`. */
+async function filesSince(db: Database, itemId: string, since: Date) {
+	const [row] = await db
+		.select({ id: attachment.id })
+		.from(attachment)
+		.where(
+			and(
+				eq(attachment.itemId, itemId),
+				isNotNull(attachment.meta),
+				gt(attachment.createdAt, since),
+			),
+		)
+		.limit(1);
+	return Boolean(row);
+}
+
+/**
+ * The files a grant covers, each with a pass to download it: the finished files the item
+ * had when it was granted, none added since. A pass names the agent, the grant and the
+ * file, and lasts FILE_PASS_MS; each download checks the grant again.
+ */
+async function grantedFiles(
+	db: Database,
+	secret: string,
+	agentId: string,
+	grant: Grant,
+	until: number,
+) {
+	const rows = await db
+		.select({
+			id: attachment.id,
+			meta: attachment.meta,
+			chunks: attachment.chunks,
+		})
+		.from(attachment)
+		.where(
+			and(
+				eq(attachment.itemId, grant.itemId),
+				isNotNull(attachment.meta),
+				lte(attachment.createdAt, grant.filesThrough ?? new Date(0)),
+			),
+		);
+	return Promise.all(
+		rows.map(async (row) => ({
+			id: row.id,
+			meta: row.meta as string,
+			chunks: row.chunks,
+			token: await signPass(secret, {
+				agentId,
+				grantId: grant.id,
+				fileId: row.id,
+				until,
+			}),
+		})),
+	);
+}
 const reason = z.string().trim().min(1).max(200);
 
 type Lookup = Awaited<ReturnType<typeof lookup>>[number];
@@ -119,9 +207,7 @@ async function lookup(
 			),
 	]);
 	return unique.map((id) => {
-		const grant = grants.find(
-			(row) => row.itemId === id && (!row.expiresAt || row.expiresAt > now),
-		);
+		const grant = grants.find((row) => row.itemId === id && isLive(row, now));
 		const mine = requests.filter((row) => row.itemId === id);
 		return {
 			id,
@@ -139,8 +225,9 @@ async function lookup(
 }
 
 /**
- * For an item without a grant: its open request, a recent denial, or a new request. A new
- * one adds its vault to `asked`, for the notifications to the people who can approve it.
+ * For an item without a grant, or one that doesn't cover the files a run needs: its open
+ * request, a recent denial, or a new request. A new one adds its vault to `asked`, for
+ * the notifications to the people who can approve it.
  */
 async function ask(
 	db: Database,
@@ -148,9 +235,17 @@ async function ask(
 	{ id, target, pending, denied }: Lookup,
 	command: string,
 	asked: string[],
+	files = false,
 ) {
 	if (!target) return { itemId: id, status: "missing" as const };
 	if (pending) {
+		// Asked before without files: the person approving now sees that files go too.
+		if (files && !pending.files) {
+			await db
+				.update(accessRequest)
+				.set({ files: true })
+				.where(eq(accessRequest.id, pending.id));
+		}
 		return { itemId: id, status: "pending" as const, requestId: pending.id };
 	}
 	if (denied) return { itemId: id, status: "denied" as const };
@@ -161,6 +256,7 @@ async function ask(
 			agentId,
 			itemId: id,
 			command,
+			files,
 		}),
 		logEvent(db, {
 			actorType: "agent",
@@ -187,17 +283,37 @@ export const agentApiRouter = {
 	 * request that a person approves in vauly.
 	 */
 	resolve: agentProcedure
-		.input(z.object({ itemIds, command: reason }))
+		.input(
+			z.object({
+				itemIds,
+				command: reason,
+				/** The items whose files the run needs, because a reference names one. */
+				files: z.array(z.string().max(40)).max(20).optional(),
+			}),
+		)
 		.handler(async ({ context, input }) => {
 			const { db, agent: me } = context;
 			const found = await lookup(db, me, input.itemIds);
+			const withFiles = new Set(input.files ?? []);
 			const results = [];
 			const asked: string[] = [];
 			for (const entry of found) {
 				const { id, target, grant } = entry;
-				if (target && grant) {
-					if (grant.once)
-						await db.delete(agentGrant).where(eq(agentGrant.id, grant.id));
+				const needsFiles = withFiles.has(id);
+				// A grant covers the files the item had when it was given: with files added
+				// since, a person approves again, having seen them.
+				const covered =
+					!needsFiles ||
+					(grant?.files &&
+						!(await filesSince(db, id, grant.filesThrough ?? new Date(0))));
+				// A one-time grant is used up now, by one run only: whichever claims it first.
+				// With files it stays, used up, until its run's passes expire.
+				const until = Date.now() + FILE_PASS_MS;
+				const claimed =
+					target && grant && covered && grant.once
+						? await useUp(db, grant.id, needsFiles ? until : null)
+						: true;
+				if (target && grant && covered && claimed) {
 					await logEvent(db, {
 						actorType: "agent",
 						actorId: me.id,
@@ -211,10 +327,21 @@ export const agentApiRouter = {
 						status: "granted" as const,
 						data: target.data,
 						wrappedKey: grant.wrappedKey,
+						...(needsFiles && {
+							files: await grantedFiles(
+								db,
+								context.secret,
+								me.id,
+								grant,
+								until,
+							),
+						}),
 					});
 					continue;
 				}
-				results.push(await ask(db, me.id, entry, input.command, asked));
+				results.push(
+					await ask(db, me.id, entry, input.command, asked, needsFiles),
+				);
 			}
 			context.notify(approvalDeliveries(db, me, asked));
 			return results;
@@ -266,6 +393,76 @@ export const agentApiRouter = {
 			);
 			context.notify(approvalDeliveries(db, me, asked));
 			return results;
+		}),
+
+	/** A chunk of a file, for a pass that resolve handed out. The first is logged. */
+	file: agentProcedure
+		.input(
+			z.object({
+				token: z.string().max(200),
+				index: z.number().int().min(0),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			const { db, agent: me } = context;
+			const expired = new ORPCError("FORBIDDEN", {
+				message: "That file pass is no longer good. Run the command again.",
+			});
+			const pass = await readPass(context.secret, me.id, input.token);
+			if (!pass) throw expired;
+			// The pass alone isn't enough: the grant it came with must still stand.
+			const [grant] = await db
+				.select()
+				.from(agentGrant)
+				.where(
+					and(eq(agentGrant.id, pass.grantId), eq(agentGrant.agentId, me.id)),
+				);
+			const now = new Date();
+			// Whichever ends first: the grant, or the run a one-time grant was used for.
+			const standing =
+				grant?.files &&
+				(!grant.expiresAt || grant.expiresAt > now) &&
+				(!grant.filesUntil || grant.filesUntil >= now);
+			if (!grant || !standing) throw expired;
+			const [row] = await db
+				.select({
+					data: attachmentChunk.data,
+					itemId: attachment.itemId,
+					vaultId: item.vaultId,
+				})
+				.from(attachmentChunk)
+				.innerJoin(attachment, eq(attachment.id, attachmentChunk.attachmentId))
+				.innerJoin(item, eq(item.id, attachment.itemId))
+				.where(
+					and(
+						eq(attachmentChunk.attachmentId, pass.fileId),
+						eq(attachmentChunk.index, input.index),
+						eq(attachment.itemId, grant.itemId),
+						isNotNull(attachment.meta),
+						lte(attachment.createdAt, grant.filesThrough ?? new Date(0)),
+						isNull(item.deletedAt),
+						// As for the item itself: only in a vault the agent's owner can open.
+						inArray(
+							item.vaultId,
+							db
+								.select({ vaultId: vaultAccess.vaultId })
+								.from(vaultAccess)
+								.where(eq(vaultAccess.userId, me.ownerId)),
+						),
+					),
+				);
+			if (!row) throw new ORPCError("NOT_FOUND", { message: "File not found" });
+			if (input.index === 0) {
+				await logEvent(db, {
+					actorType: "agent",
+					actorId: me.id,
+					action: "downloaded",
+					itemId: row.itemId,
+					vaultId: row.vaultId,
+					detail: `file:${pass.fileId}`,
+				});
+			}
+			return { data: row.data };
 		}),
 
 	poll: agentProcedure

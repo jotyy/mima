@@ -88,6 +88,8 @@ function readZip(bytes: Uint8Array): ParsedImport {
 	).length;
 	const entries = Object.keys(files);
 
+	const backup = entries.find((name) => /^vauly-backup[^/]*\.csv$/.test(name));
+	if (backup) return readBackupZip(bytes, text(backup));
 	if (files["export.data"]) {
 		const parsed = parseImport(text("export.data"));
 		return withAttachments({ ...parsed, format: "1PUX" }, attachments);
@@ -123,6 +125,24 @@ function readZip(bytes: Uint8Array): ParsedImport {
 		{ ...parsed, format: parsed.format === "JSON" ? "ZIP" : parsed.format },
 		attachments,
 	);
+}
+
+/** A vauly backup ZIP: the CSV, and the files it names, which come along with the items. */
+function readBackupZip(bytes: Uint8Array, csv: string): ParsedImport {
+	const parsed = parseImport(csv);
+	if (!parsed.files) return { ...parsed, format: "ZIP" };
+	const packed = unzipSync(bytes, {
+		filter: (file) => file.name.startsWith("files/"),
+	});
+	const files = new Map(
+		[...parsed.files].map(([item, list]) => [
+			item,
+			list
+				.map((file) => ({ ...file, data: packed[file.path] }))
+				.filter((file) => file.data),
+		]),
+	);
+	return { ...parsed, format: "ZIP", files };
 }
 
 function withAttachments(parsed: ParsedImport, count: number): ParsedImport {

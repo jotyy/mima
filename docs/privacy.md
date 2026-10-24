@@ -14,7 +14,7 @@ Last updated: October 24, 2026.
 ## Your vauly server
 
 When your team deploys vauly, it runs as a Worker with a D1 database in your Cloudflare account. Your team, not us, controls that account and what's in it. It stores:
-- **Encrypted items and keys.** Items, vault names and private keys are encrypted on your device. The server keeps ciphertext only.
+- **Encrypted items and keys.** Items, the files attached to them, vault names and private keys are encrypted on your device. The server keeps ciphertext only, and each file's size.
 - **Account details**: each person's name, email address and role, and the hash of a key derived from their master password, never the master password itself.
 - **An activity log** of who opened, copied, filled, changed or shared which item, and when. It names items by their ID; it never holds their contents or the websites they're for.
 - **Sessions**, with the IP address and the browser each one signed in from, so you can see and end them under **Settings**.

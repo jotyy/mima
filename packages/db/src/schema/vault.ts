@@ -167,6 +167,45 @@ export const shareLink = sqliteTable(
 	(table) => [index("share_link_item_idx").on(table.itemId)],
 );
 
+/**
+ * A file attached to an item. `meta` holds its name, type, size and key, sealed with the
+ * item key, and is null until the upload finishes; uploads left unfinished go after a
+ * day. `size` and `chunks` stay readable so the server can check uploads against its
+ * limits, as it sees the size of any ciphertext.
+ */
+export const attachment = sqliteTable(
+	"attachment",
+	{
+		id: text("id").primaryKey(),
+		itemId: text("item_id")
+			.notNull()
+			.references(() => item.id, { onDelete: "cascade" }),
+		meta: text("meta"),
+		size: integer("size").notNull(),
+		chunks: integer("chunks").notNull(),
+		createdBy: text("created_by").notNull(),
+		createdAt: createdAt(),
+	},
+	(table) => [index("attachment_item_idx").on(table.itemId)],
+);
+
+/**
+ * A file's contents, a chunk a row, sealed with the file key. It's base64 text rather
+ * than a BLOB because D1 hands a BLOB back as an array of numbers, which costs a Worker
+ * more CPU to read than the free plan gives a request.
+ */
+export const attachmentChunk = sqliteTable(
+	"attachment_chunk",
+	{
+		attachmentId: text("attachment_id")
+			.notNull()
+			.references(() => attachment.id, { onDelete: "cascade" }),
+		index: integer("index").notNull(),
+		data: text("data").notNull(),
+	},
+	(table) => [primaryKey({ columns: [table.attachmentId, table.index] })],
+);
+
 export type AgentKind = "mcp" | "cli" | "ci";
 
 export const agent = sqliteTable("agent", {
@@ -199,6 +238,22 @@ export const agentGrant = sqliteTable(
 		wrappedKey: text("wrapped_key").notNull(),
 		/** `once` grants are removed after their first use. */
 		once: integer("once", { mode: "boolean" }).notNull().default(false),
+		/**
+		 * Whether the agent may download the item's files too: those the item had when it
+		 * was granted (`createdAt`, renewed by each approval).
+		 */
+		files: integer("files", { mode: "boolean" }).notNull().default(false),
+		/**
+		 * The newest file the person saw when they gave the agent the item's files: it gets
+		 * that one and older ones, never a file finished later. Files are dated when their
+		 * upload finishes.
+		 */
+		filesThrough: integer("files_through", { mode: "timestamp_ms" }),
+		/**
+		 * A one-time grant that was used with files is kept, used up, until the passes its
+		 * run got expire, so the run can finish its downloads and no later.
+		 */
+		filesUntil: integer("files_until", { mode: "timestamp_ms" }),
 		expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
 		grantedBy: text("granted_by").notNull(),
 		createdAt: createdAt(),
@@ -221,6 +276,8 @@ export const accessRequest = sqliteTable(
 			.notNull()
 			.references(() => item.id, { onDelete: "cascade" }),
 		command: text("command").notNull(),
+		/** Whether the agent asked for the item's files too, for a reference to one. */
+		files: integer("files", { mode: "boolean" }).notNull().default(false),
 		status: text("status").$type<RequestStatus>().notNull().default("pending"),
 		decidedBy: text("decided_by"),
 		decidedAt: integer("decided_at", { mode: "timestamp_ms" }),
@@ -250,6 +307,11 @@ export type EventAction =
 	| "filled"
 	| "linked"
 	| "opened"
+	// A file on an item; `detail` is `file:<id>`, its name being encrypted.
+	| "attached"
+	| "downloaded"
+	| "renamed"
+	| "removed"
 	// Someone's role in a vault changed; `detail` holds the new role ("owner" for the
 	// workspace's owner, without a vault).
 	| "changed"

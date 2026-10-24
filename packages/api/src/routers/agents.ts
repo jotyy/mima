@@ -6,7 +6,7 @@ import {
 	agentGrant,
 	event,
 } from "@vauly/db/schema/vault";
-import { and, count, eq, gt, inArray } from "drizzle-orm";
+import { and, count, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { memberProcedure } from "../index";
@@ -37,6 +37,25 @@ async function requireAgent(db: Parameters<typeof logEvent>[0], id: string) {
 	if (!row) throw new ORPCError("NOT_FOUND", { message: "Agent not found" });
 	return row;
 }
+
+/**
+ * What every grant and approval sets again: when it was given, by the database's clock, as
+ * files are dated, since a grant covers the files the item had then; and not used up.
+ */
+const renewed = {
+	createdAt: sql`(cast(unixepoch('subsecond') * 1000 as integer))`,
+	filesUntil: null,
+};
+
+/**
+ * What a grant says about files: whether it covers them, and through which file, the
+ * newest the person was shown. Shown none, it covers none, so the next run asks again
+ * once there are some.
+ */
+const fileTerms = (files: boolean, through?: number | null) => ({
+	files,
+	filesThrough: files ? new Date(Math.min(through ?? 0, Date.now())) : null,
+});
 
 export const agentsRouter = {
 	list: memberProcedure.handler(async ({ context }) => {
@@ -69,9 +88,16 @@ export const agentsRouter = {
 							itemId: agentGrant.itemId,
 							once: agentGrant.once,
 							expiresAt: agentGrant.expiresAt,
+							files: agentGrant.files,
 						})
 						.from(agentGrant)
-						.where(inArray(agentGrant.itemId, itemIds))
+						// A one-time grant its run has used is gone, as far as anyone can see.
+						.where(
+							and(
+								inArray(agentGrant.itemId, itemIds),
+								isNull(agentGrant.filesUntil),
+							),
+						)
 				: Promise.resolve([]),
 			db
 				.select({ agentId: event.actorId, n: count() })
@@ -194,6 +220,10 @@ export const agentsRouter = {
 				itemId: z.string(),
 				wrappedKey: wrapped,
 				duration,
+				/** The item's files too. */
+				files: z.boolean().optional(),
+				/** The newest file on the item the person saw, in milliseconds. */
+				filesThrough: z.number().int().nullable().optional(),
 			}),
 		)
 		.handler(async ({ context, input }) => {
@@ -206,7 +236,11 @@ export const agentsRouter = {
 				await requireAgent(db, input.agentId),
 				target.vaultId,
 			);
-			const terms = grantTerms(input.duration);
+			const terms = {
+				...grantTerms(input.duration),
+				...fileTerms(input.files ?? false, input.filesThrough),
+				...renewed,
+			};
 			await db.batch([
 				db
 					.insert(agentGrant)
@@ -275,6 +309,7 @@ export const requestsRouter = {
 				agentId: accessRequest.agentId,
 				itemId: accessRequest.itemId,
 				command: accessRequest.command,
+				files: accessRequest.files,
 				createdAt: accessRequest.createdAt,
 			})
 			.from(accessRequest)
@@ -287,7 +322,17 @@ export const requestsRouter = {
 	}),
 
 	approve: memberProcedure
-		.input(z.object({ id: z.string(), wrappedKey: wrapped, duration }))
+		.input(
+			z.object({
+				id: z.string(),
+				wrappedKey: wrapped,
+				duration,
+				/** Whether the request the person saw asked for files. */
+				files: z.boolean(),
+				/** The newest file on the item they saw with it, in milliseconds. */
+				filesThrough: z.number().int().nullable().optional(),
+			}),
+		)
 		.handler(async ({ context, input }) => {
 			const { db, userId } = context;
 			const [request] = await db
@@ -307,7 +352,19 @@ export const requestsRouter = {
 				await requireAgent(db, request.agentId),
 				target.vaultId,
 			);
-			const terms = grantTerms(input.duration);
+			// What the person approves is what they saw: an agent may have asked for files
+			// since the request was shown.
+			if (request.files !== input.files) {
+				throw new ORPCError("CONFLICT", {
+					message:
+						"The request changed: it asks for the item's files now. Look at it again before you answer.",
+				});
+			}
+			const terms = {
+				...grantTerms(input.duration),
+				...fileTerms(request.files, input.filesThrough),
+				...renewed,
+			};
 			await db.batch([
 				db
 					.insert(agentGrant)

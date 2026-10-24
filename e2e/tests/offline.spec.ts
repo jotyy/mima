@@ -72,6 +72,14 @@ test.beforeAll(async ({ browser, request }) => {
 	await dialog.getByLabel("One-time code").fill(TOTP_SECRET);
 	await dialog.getByRole("button", { name: "Add item" }).click();
 	await expect(dialog).toBeHidden();
+	await page.getByLabel("File to attach").setInputFiles({
+		name: "router-backup.cfg",
+		mimeType: "text/plain",
+		buffer: Buffer.from("example router settings"),
+	});
+	await expect(
+		page.getByText("Attached router-backup.cfg", { exact: true }),
+	).toBeVisible();
 	await page.close();
 });
 
@@ -84,6 +92,7 @@ test("the copy on the device is sealed, names and all", async ({ page }) => {
 		"example-wifi-1",
 		TOTP_SECRET,
 		owner.email,
+		"router-backup.cfg",
 	]) {
 		expect(stored).not.toContain(secret);
 	}
@@ -114,6 +123,12 @@ test("offline, the app opens items from the copy, read-only", async ({
 	await expect(card.getByText(/^\d{3} \d{3}$/)).toBeVisible();
 	await card.getByRole("button", { name: "Copy password" }).click();
 	await expect(page.getByText("Copied password")).toBeVisible();
+	// Files show by name; their contents aren't in the copy.
+	const files = page.getByRole("region", { name: "Files" });
+	await files
+		.getByRole("button", { name: "Download router-backup.cfg" })
+		.click();
+	await expect(page.getByText("Files need a connection.")).toBeVisible();
 
 	// Changes wait for a connection.
 	await page.getByRole("button", { name: "New item" }).click();

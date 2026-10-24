@@ -60,6 +60,7 @@ import { CopyButton } from "./copy-button";
 import { CardFields, Field, IdentityFields, type OnUse } from "./detail-fields";
 import { GrantDialog } from "./grant-dialog";
 import { ItemDialog } from "./item-dialog";
+import { ItemFiles } from "./item-files";
 import { ItemTile, kindLabel } from "./item-tile";
 import { notify } from "./notify";
 import { OneTimeCode } from "./one-time-code";
@@ -484,6 +485,8 @@ export function ItemDetail({ item }: { item: Item }) {
 				)}
 			</dl>
 
+			<ItemFiles item={item} editable={editable} />
+
 			{links.data?.length ? (
 				<section
 					aria-label="Shared links"
@@ -574,6 +577,7 @@ export function ItemDetail({ item }: { item: Item }) {
 												: grant?.expiresAt
 													? `until ${new Date(grant.expiresAt).toLocaleString()}`
 													: "until you revoke it"}
+											{grant?.files && ", with its files"}
 										</span>
 									</div>
 									<Switch

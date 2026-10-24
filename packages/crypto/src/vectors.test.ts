@@ -10,6 +10,10 @@ import {
 	deriveMasterKeys,
 	deviceKey,
 	encodeAgentToken,
+	FILE_CHUNK,
+	type FileMeta,
+	fileChunks,
+	fileKeyOf,
 	fromBase64,
 	importPrivateKey,
 	type Kdf,
@@ -17,11 +21,16 @@ import {
 	keyToText,
 	open,
 	openDeviceCopy,
+	openFileChunk,
+	openFileMeta,
 	openJson,
 	openPasskeyKey,
 	parseTotp,
 	seal,
 	sealDeviceCopy,
+	sealedChunkLength,
+	sealFileChunk,
+	sealFileMeta,
 	sealJson,
 	sealPasskeyKey,
 	setArgon2,
@@ -122,6 +131,17 @@ type Vectors = {
 		token: string;
 		secretHash: string;
 	}[];
+	files: ({
+		fileId: string;
+		itemId: string;
+		lengths: number[];
+		chunks?: string[];
+		chunkSha256?: string[];
+		meta: FileMeta;
+		itemKey: string;
+		iv: string;
+		sealedMeta: string;
+	} & ({ plaintext: string } | { run: { start: number; length: number } }))[];
 	totp: (TotpConfig & { time: number; code: string })[];
 	parseTotp: { input: string; config: TotpConfig }[];
 };
@@ -464,4 +484,69 @@ test("fixed randomness has to be used up, in the lengths asked for", async () =>
 	// And afterwards, sealing is random again.
 	const plaintext = new Uint8Array([1]);
 	expect(await seal(key, plaintext)).not.toBe(await seal(key, plaintext));
+});
+
+describe("files", () => {
+	const sha256 = async (text: string) =>
+		Array.from(
+			new Uint8Array(
+				await crypto.subtle.digest("SHA-256", encoder.encode(text)),
+			),
+			(byte) => byte.toString(16).padStart(2, "0"),
+		).join("");
+	const plaintextOf = (vector: Vectors["files"][number]) =>
+		"plaintext" in vector
+			? fromBase64(vector.plaintext)
+			: Uint8Array.from(
+					{ length: vector.run.length },
+					(_, i) => (vector.run.start + i) & 0xff,
+				);
+
+	for (const vector of vectors.files) {
+		test(`${vector.meta.name}, ${vector.meta.size} bytes`, async () => {
+			const plaintext = plaintextOf(vector);
+			const { size, chunks } = vector.meta;
+			expect(fileChunks(size)).toBe(chunks);
+			const itemKey = await aesKey(vector.itemKey);
+			const made = await withFixedRandom(
+				{ bytes: [fromBase64(vector.iv)] },
+				() => sealFileMeta(itemKey, vector.fileId, vector.itemId, vector.meta),
+			);
+			expect(made).toBe(vector.sealedMeta);
+			const meta = await openFileMeta(
+				itemKey,
+				vector.fileId,
+				vector.itemId,
+				vector.sealedMeta,
+			);
+			expect(meta).toEqual(vector.meta);
+
+			const key = await fileKeyOf(meta);
+			const opened: Uint8Array[] = [];
+			for (let index = 0; index < chunks; index++) {
+				const part = plaintext.subarray(
+					index * FILE_CHUNK,
+					(index + 1) * FILE_CHUNK,
+				);
+				const sealed = await sealFileChunk(
+					key,
+					vector.fileId,
+					index,
+					chunks,
+					part,
+				);
+				expect(sealed.length).toBe(vector.lengths[index] as number);
+				expect(sealedChunkLength(size, index)).toBe(sealed.length);
+				if (vector.chunks) expect(sealed).toBe(vector.chunks[index] as string);
+				else
+					expect(await sha256(sealed)).toBe(
+						vector.chunkSha256?.[index] as string,
+					);
+				opened.push(
+					await openFileChunk(key, vector.fileId, index, chunks, sealed),
+				);
+			}
+			expect(Buffer.concat(opened).equals(Buffer.from(plaintext))).toBe(true);
+		});
+	}
 });

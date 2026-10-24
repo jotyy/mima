@@ -17,7 +17,7 @@ import Loader from "@/components/loader";
 import { OneTimeCode } from "@/components/one-time-code";
 import { SecretValue } from "@/components/secret-value";
 import { VaulyLogo } from "@/components/vauly-mark";
-import { timeLeft } from "@/lib/format";
+import { plural, timeLeft } from "@/lib/format";
 import { logoDomain } from "@/lib/logos";
 import { type SharedItem, websitesOf } from "@/lib/vault-data";
 import { client } from "@/utils/orpc";
@@ -228,6 +228,13 @@ function Opened({ item }: { item: SharedItem }) {
 					</Field>
 				)}
 			</dl>
+			{item.files ? (
+				<p className="border-line-subtle text-caption text-fg-subtle border-t px-4 py-3">
+					This item also has {plural(item.files, "file")}, which links don't
+					share. Ask whoever sent the link for{" "}
+					{item.files === 1 ? "it" : "them"}.
+				</p>
+			) : null}
 		</section>
 	);
 }

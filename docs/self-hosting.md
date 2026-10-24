@@ -60,14 +60,25 @@ In the Cloudflare dashboard, open the **vauly** Worker, then **Settings → Doma
 | `SETUP_CODE`                | Secret. Creating the workspace takes this code until someone has. It no longer matters once the workspace has an owner.                                                                                                                                                                                                                                                                     |
 | `BETTER_AUTH_SECRET`        | Secret, optional. Signs sessions. Without it, vauly makes one and keeps it in the database. Changing it signs everyone out.                                                                                                                                                                                                                                                                 |
 | `VITE_BRANDFETCH_CLIENT_ID` | Build variable, optional: for a one-click deploy, under the Worker's **Settings → Build → Variables and secrets**. Where website logos come from: by default the web app and the extension load them from Brandfetch with the vauly project's client ID. Use your own [Brandfetch client ID](https://developers.brandfetch.com), or `off` to show plain icons and never contact Brandfetch. |
+| `FILES_MAX_MB`              | Optional. How big a file attached to an item can be, in MB: 10 when unset.                                                                                                                                                                                                                                                                                                                  |
+| `FILES_TOTAL_MB`            | Optional. How much all files together can take, in MB: 200 when unset; `0` turns files off. See [Files](#files).                                                                                                                                                                                                                                                                            |
 | `VITE_BREACH_CHECK`         | Build variable, optional, set the same way. `off` stops the web app checking passwords against Have I Been Pwned for everyone, and hides the switch in Settings. On by default; see [Security](security.md#breached-passwords).                                                                                                                                                             |
 
-Add secrets in the dashboard under the Worker's **Settings → Variables and Secrets**, or with `bunx wrangler secret put`.
+Add secrets in the dashboard under the Worker's **Settings → Variables and Secrets**, or with `bunx wrangler secret put`. Add `FILES_MAX_MB` and `FILES_TOTAL_MB` there too, as plain text variables.
+
+## Files
+
+Files attached to items are kept in the same D1 database as everything else, encrypted, so a one-click deploy needs nothing more: no bucket, and no payment method. Chunks are stored as base64 text, which takes a third more room than the file.
+
+On Cloudflare's free plan, a D1 database holds up to 500 MB, so vauly allows 10 MB a file and 200 MB of files in all, about 270 MB stored. That leaves room for the items and the activity log, which take a few MB for most teams. Uploading a 10 MB file writes about 25 rows of the free plan's 100,000 a day. On Workers Paid, a database can hold 10 GB: raise `FILES_TOTAL_MB` to match. Settings shows everyone how much is used.
+
+The demo at demo.vauly.app takes files up to 1 MB, 10 MB in all, and its hourly reset deletes them.
 
 ## Backups
 
 - **The database.** D1 keeps a point-in-time history you can restore from (Cloudflare calls it Time Travel; how far back depends on your plan). Everything sensitive in it is encrypted, so a database copy is only useful together with your team's master passwords.
-- **Decrypted backups.** Any member can download every item they can open from **Settings → Download a backup**. The file is plain text: store it encrypted.
+- **Decrypted backups.** Any member can download every item they can open from **Settings → Download a backup**: a CSV, or a ZIP of the CSV and the items' files when there are any. The file is plain text: store it encrypted. Importing the ZIP into vauly brings the files back with their items.
+- **Files** are in the database, so its history and `wrangler d1 export` include them, encrypted.
 
 ## Removing an instance
 
