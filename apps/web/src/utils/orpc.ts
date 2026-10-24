@@ -21,6 +21,8 @@ export function createQueryClient() {
 				// Background refreshes fail quietly; only first loads tell the person, and
 				// not while offline, which the banner says once.
 				if (isOfflineError(error) || !isOnline()) return;
+				// The setup screen says it, in place of the page.
+				if ((error as { code?: string }).code === "TWO_STEP_REQUIRED") return;
 				if (query.state.data === undefined) {
 					notify.error("Couldn't load", error.message);
 				}
@@ -33,6 +35,12 @@ export const queryClient = createQueryClient();
 
 /** Fired when the server no longer knows this session: signed out elsewhere, or removed. */
 export const SESSION_ENDED = "vauly:session-ended";
+
+/**
+ * Fired when the server refuses this member for want of two-step login, which their
+ * workspace requires. A 403, never a 401: they stay signed in, to set it up.
+ */
+export const TWO_STEP_NEEDED = "vauly:two-step-needed";
 
 export const link = new RPCLink({
 	url: () => `${serverUrl()}/rpc`,
@@ -48,6 +56,17 @@ export const link = new RPCLink({
 		}
 		setOnline(true);
 		if (response.status === 401) window.dispatchEvent(new Event(SESSION_ENDED));
+		if (response.status === 403) {
+			response
+				.clone()
+				.json()
+				.then((body: { json?: { code?: string } }) => {
+					if (body.json?.code === "TWO_STEP_REQUIRED") {
+						window.dispatchEvent(new Event(TWO_STEP_NEEDED));
+					}
+				})
+				.catch(() => {});
+		}
 		return response;
 	},
 });

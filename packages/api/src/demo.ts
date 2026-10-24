@@ -14,6 +14,8 @@ export const closedInDemo: Record<string, string> = {
 	"account.confirmTwoStep":
 		"Two-step login stays off in the demo, so the next visitor can sign in.",
 	"account.updateProfile": "The demo account keeps its name.",
+	"members.setTwoStepPolicy":
+		"Two-step login stays optional in the demo, so the next visitor can sign in.",
 	"account.renameWorkspace": "The demo workspace keeps its name.",
 	"links.create":
 		"Share links are off in the demo, since anyone could open them.",

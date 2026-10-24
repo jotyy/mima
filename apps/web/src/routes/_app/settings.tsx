@@ -22,6 +22,7 @@ import { Tabs, TabsList, TabsTrigger } from "@vauly/ui/components/tabs";
 import { useTheme } from "next-themes";
 import { type ReactNode, useEffect, useState } from "react";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { notify } from "@/components/notify";
 import { Page, SectionTitle } from "@/components/page";
 import {
@@ -59,7 +60,7 @@ import {
 	useOfflineCopy,
 } from "@/lib/offline";
 import { pushEnabled, pushSupport, turnOffPush, turnOnPush } from "@/lib/push";
-import { errorMessage, useWorkspace } from "@/lib/vault-data";
+import { errorMessage, useMembers, useWorkspace } from "@/lib/vault-data";
 import { client } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_app/settings")({
@@ -134,16 +135,19 @@ function Settings() {
 					label="Two-step login"
 					hint={
 						me.twoStep
-							? `On. Signing in asks for a code from your authenticator app. ${plural(me.recoveryCodesLeft, "recovery code")} left.`
+							? `On${me.twoStepRequired ? `, as ${workspaceName} requires` : ""}. Signing in asks for a code from your authenticator app. ${plural(me.recoveryCodesLeft, "recovery code")} left.`
 							: "Ask for a code from your phone too when signing in, so a master password alone isn't enough."
 					}
 				>
-					<Button
-						variant="outline"
-						onClick={() => setTwoStep(me.twoStep ? "off" : "on")}
-					>
-						{me.twoStep ? "Turn off" : "Turn on"}
-					</Button>
+					{/* While the workspace requires it, it stays on; an admin can reset it. */}
+					{!(me.twoStep && me.twoStepRequired) && (
+						<Button
+							variant="outline"
+							onClick={() => setTwoStep(me.twoStep ? "off" : "on")}
+						>
+							{me.twoStep ? "Turn off" : "Turn on"}
+						</Button>
+					)}
 				</Row>
 				<Row
 					label="Emergency Kit"
@@ -310,6 +314,7 @@ function Settings() {
 								}}
 							/>
 						</Row>
+						<RequireTwoStep />
 					</Card>
 				</>
 			)}
@@ -567,6 +572,67 @@ function About() {
 				</a>
 			</Row>
 		</Card>
+	);
+}
+
+/**
+ * Whether everyone must use two-step login. Turning it on says first whom it holds up;
+ * the server refuses an admin who doesn't have it yet, so nobody locks themselves out.
+ */
+function RequireTwoStep() {
+	const keyring = useKeyring();
+	const members = useMembers();
+	const [confirming, setConfirming] = useState(false);
+	const required = keyring.me?.twoStepRequired ?? false;
+	const ready = keyring.me?.twoStep ?? false;
+	const without = (members.data?.members ?? []).filter((m) => !m.twoStep);
+	const change = async (next: boolean) => {
+		try {
+			await client.members.setTwoStepPolicy({ required: next });
+			await keyring.reloadMe();
+			await members.refetch();
+			notify.success(
+				next ? "Two-step login is required" : "Two-step login is optional",
+			);
+		} catch (err) {
+			notify.error("Couldn't change it", errorMessage(err));
+		}
+	};
+	return (
+		<Row
+			label="Require two-step login"
+			hint={
+				required
+					? "On. Members without it set it up at their next sign-in or unlock, and can't open a vault until they do."
+					: ready
+						? "Everyone must set up two-step login before they can open a vault, new members as they join."
+						: "Turn on two-step login for yourself first, under Account, to require it for everyone."
+			}
+		>
+			<Switch
+				aria-label="Require two-step login"
+				checked={required}
+				disabled={!required && !ready}
+				onCheckedChange={async (on) => {
+					if (!on) return change(false);
+					// Counted afresh: anyone may have set it up since the list loaded.
+					await members.refetch();
+					setConfirming(true);
+				}}
+			/>
+			<ConfirmDialog
+				open={confirming}
+				onOpenChange={setConfirming}
+				title="Require two-step login?"
+				description={
+					without.length === 0
+						? "Everyone has it already. New members set it up as they join."
+						: `${plural(without.length, "member")} ${without.length === 1 ? "doesn't" : "don't"} have it yet: ${without.map((m) => m.name).join(", ")}. They're asked to set it up at their next sign-in or unlock, and can't open a vault until they do.`
+				}
+				confirm="Require it"
+				onConfirm={() => change(true)}
+			/>
+		</Row>
 	);
 }
 

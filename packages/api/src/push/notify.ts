@@ -2,11 +2,23 @@ import type { Database } from "@vauly/db";
 import { session } from "@vauly/db/schema/auth";
 import {
 	agent,
+	member,
 	pushSubscription,
 	setting,
 	vaultAccess,
 } from "@vauly/db/schema/vault";
-import { and, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import {
+	and,
+	desc,
+	eq,
+	gt,
+	inArray,
+	isNull,
+	lt,
+	ne,
+	or,
+	sql,
+} from "drizzle-orm";
 
 import { atLeast } from "../lib";
 import {
@@ -344,6 +356,34 @@ export function approvalNotice(
 		urgent: true,
 		// `vauly run` waits five minutes; past an hour the request is old news.
 		ttl: 60 * 60,
+	};
+}
+
+/**
+ * Who hears that someone set up two-step login: the owner and admins, besides them.
+ * Whoever first signs in with only a password can set it up, so it shouldn't go unseen.
+ */
+export async function twoStepDeliveries(
+	db: Database,
+	who: { id: string; name: string },
+): Promise<Delivery[]> {
+	const admins = await db
+		.select({ userId: member.userId })
+		.from(member)
+		.where(
+			and(inArray(member.role, ["owner", "admin"]), ne(member.userId, who.id)),
+		);
+	return admins.map(({ userId }) => ({ userId, notice: twoStepNotice(who) }));
+}
+
+/** What setting up two-step login tells the workspace's admins. */
+export function twoStepNotice(who: { id: string; name: string }): Notice {
+	return {
+		title: `${who.name} set up two-step login`,
+		body: "If it wasn't them, reset it on the Members page.",
+		url: "/members",
+		tag: `two-step:${who.id}`,
+		ttl: 24 * 60 * 60,
 	};
 }
 

@@ -17,9 +17,16 @@ import {
 import { and, count, eq, gt, isNull, ne } from "drizzle-orm";
 import { z } from "zod";
 import type { Context } from "../context";
-import { adminProcedure, memberProcedure, publicProcedure } from "../index";
+import {
+	adminProcedure,
+	memberProcedure,
+	publicProcedure,
+	setupProcedure,
+	twoStepPolicy,
+} from "../index";
 import { signOutOthersAfter, swapKeys } from "../key-swap";
 import { hashToken, logEvent, newId } from "../lib";
+import { twoStepDeliveries } from "../push/notify";
 import { deleteWorkspace, removeFromWorkspace } from "../workspace";
 
 const keyFields = z.object({
@@ -168,6 +175,8 @@ export const accountRouter = {
 					email: invite.email,
 					role: invite.role,
 					invitedBy: user.name,
+					// Joining then sets up two-step login; the page says so first.
+					twoStepRequired: twoStepPolicy,
 				})
 				.from(invite)
 				.innerJoin(user, eq(user.id, invite.invitedBy))
@@ -182,7 +191,7 @@ export const accountRouter = {
 				throw new ORPCError("NOT_FOUND", {
 					message: "This invite is no longer valid",
 				});
-			return row;
+			return { ...row, twoStepRequired: Boolean(row.twoStepRequired) };
 		}),
 
 	register: publicProcedure
@@ -304,7 +313,7 @@ export const accountRouter = {
 	 * copy is older than DEVICE_UNLOCK_DAYS, nobody can get it, so the copy no longer
 	 * opens. Without `issuedAt`, a new copy starts now.
 	 */
-	devicePepper: memberProcedure
+	devicePepper: setupProcedure
 		.input(z.object({ issuedAt: z.number().int().positive().optional() }))
 		.handler(async ({ context, input }) => {
 			const now = Date.now();
@@ -322,7 +331,7 @@ export const accountRouter = {
 			return { issuedAt, pepper: btoa(String.fromCharCode(...pepper)) };
 		}),
 
-	me: memberProcedure.handler(async ({ context }) => {
+	me: setupProcedure.handler(async ({ context }) => {
 		const { member: me, session } = context;
 		await context.db
 			.update(member)
@@ -334,6 +343,8 @@ export const accountRouter = {
 			email: session.user.email,
 			role: me.role,
 			twoStep: me.totpSecret !== null,
+			// The workspace requires it: without it, nothing but setting it up is open.
+			twoStepRequired: context.twoStepRequired,
 			recoveryCodesLeft: me.recoveryCodes?.length ?? 0,
 			keys: {
 				kdfSalt: me.kdfSalt,
@@ -407,7 +418,7 @@ export const accountRouter = {
 	 * their other sessions stay signed in, since the password is the same. The web app
 	 * calls it after an unlock with the master password.
 	 */
-	upgradeKdf: memberProcedure
+	upgradeKdf: setupProcedure
 		.input(
 			z.object({
 				currentAuthKey: z.string().length(64),
@@ -492,7 +503,7 @@ export const accountRouter = {
 	 * Two-step login, step one: a new setup key for the authenticator app. It only takes
 	 * effect once a code from it is confirmed.
 	 */
-	beginTwoStep: memberProcedure.handler(async ({ context }) => {
+	beginTwoStep: setupProcedure.handler(async ({ context }) => {
 		const { db, member: me, session } = context;
 		if (me.totpSecret) {
 			throw new ORPCError("BAD_REQUEST", {
@@ -517,7 +528,7 @@ export const accountRouter = {
 	}),
 
 	/** Step two: a code from the new setup key turns it on, and returns recovery codes once. */
-	confirmTwoStep: memberProcedure
+	confirmTwoStep: setupProcedure
 		.input(z.object({ code: z.string().trim().min(6).max(12) }))
 		.handler(async ({ context, input }) => {
 			const { db, member: me } = context;
@@ -550,6 +561,12 @@ export const accountRouter = {
 					detail: "two-step login on",
 				}),
 			]);
+			context.notify(
+				twoStepDeliveries(db, {
+					id: me.userId,
+					name: context.session.user.name,
+				}),
+			);
 			return { recoveryCodes };
 		}),
 
@@ -559,6 +576,12 @@ export const accountRouter = {
 		.handler(async ({ context, input }) => {
 			const { db, member: me } = context;
 			if (!me.totpSecret) return { ok: true };
+			if (context.twoStepRequired) {
+				throw new ORPCError("FORBIDDEN", {
+					message:
+						"Your workspace requires two-step login, so it can't be turned off. An admin can reset it if you've lost your phone.",
+				});
+			}
 			const matched =
 				(await matchCode(me.totpSecret, input.code, me.totpStep ?? -1)) !==
 					null ||

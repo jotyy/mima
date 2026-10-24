@@ -117,3 +117,31 @@ describe("backups", () => {
 		expect(exported("1 protected")[1]).toContain("1 item");
 	});
 });
+
+describe("two-step login", () => {
+	const verb = (detail: string) =>
+		describeEvent(
+			{
+				id: "evt_2",
+				action: "updated",
+				actorName: "Alex",
+				detail,
+			} as VaultEvent,
+			{
+				items: new Map(),
+				vaults: new Map(),
+				agents: new Map(),
+				members: new Map(),
+			},
+		).verb;
+
+	test("setting it up, and the workspace requiring it, are named", () => {
+		expect(verb("two-step login on")).toBe("turned on two-step login");
+		expect(verb("two-step login required")).toBe(
+			"required two-step login for everyone",
+		);
+		expect(verb("two-step login not required")).toBe(
+			"made two-step login optional",
+		);
+	});
+});

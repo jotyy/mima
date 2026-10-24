@@ -168,6 +168,10 @@ function Members() {
 											className="text-success size-3.5"
 										/>
 									)}
+									{/* Required, and not set up yet: they can't open a vault until they do. */}
+									{me?.twoStepRequired && !person.twoStep && (
+										<Badge variant="warning">Needs two-step login</Badge>
+									)}
 								</div>
 								<span className="text-caption text-fg-subtle truncate">
 									{person.email}

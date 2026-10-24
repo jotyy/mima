@@ -310,6 +310,8 @@ function Items({
 	const [vaults, setVaults] = useState<VaultInfo[]>([]);
 	const [offer, setOffer] = useState<Offer | null>(null);
 	const [error, setError] = useState("");
+	// The workspace requires two-step login, and this account hasn't set it up.
+	const [twoStepNeeded, setTwoStepNeeded] = useState("");
 	const [query, setQuery] = useState("");
 	const [tab, setTab] = useState<{ id?: number; url?: string }>({});
 	const [status, setStatus] = useState("");
@@ -338,7 +340,11 @@ function Items({
 			const next = capture && offerFor(capture, loaded.entries);
 			setOffer(next ?? null);
 			if (capture && !next && tabId !== undefined) await dropCapture(tabId);
-		} catch {
+		} catch (err) {
+			// The server's own words, as the web app shows them; it's set up there.
+			if ((err as { code?: string }).code === "TWO_STEP_REQUIRED") {
+				return setTwoStepNeeded((err as Error).message);
+			}
 			setError("Couldn't load your items. Lock and unlock to try again.");
 		}
 	};
@@ -566,7 +572,20 @@ function Items({
 						{error && (
 							<p className="text-caption text-danger px-2 py-4">{error}</p>
 						)}
-						{!entries && !error && (
+						{twoStepNeeded && (
+							<div className="flex flex-col items-start gap-3 px-2 py-4">
+								<p className="text-caption text-fg text-pretty">
+									{twoStepNeeded}
+								</p>
+								<Button
+									size="sm"
+									onClick={() => browser.tabs.create({ url: connection.web })}
+								>
+									Open vauly to set it up
+								</Button>
+							</div>
+						)}
+						{!entries && !error && !twoStepNeeded && (
 							<p className="text-caption text-fg-subtle px-2 py-6 text-center">
 								Decrypting…
 							</p>

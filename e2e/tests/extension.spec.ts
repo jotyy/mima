@@ -13,10 +13,12 @@ import { parseTotp, totpCode } from "@vauly/crypto";
 
 import { WEB_PORT } from "../playwright.config";
 import {
+	apiFromPage,
 	createWorkspace,
 	openAllItems,
 	owner,
 	resetWorkspace,
+	teammate,
 } from "./helpers";
 
 // The browser extension, built and loaded into Chromium, against the e2e stack. A made-up
@@ -707,5 +709,49 @@ test("with two-step login on, signing in asks for a code", async () => {
 	await expect(
 		popup.getByRole("list", { name: "All items" }).getByText(login.name),
 	).toBeVisible();
+	await popup.close();
+});
+
+test("while the workspace requires two-step login, a member without it is told to set it up", async () => {
+	// The owner has it now, from the test before, so can require it.
+	const page = await context.newPage();
+	await page.goto("/");
+	await page.getByLabel("Master password").fill(owner.password);
+	await page.getByRole("button", { name: "Unlock" }).click();
+	expect(
+		await apiFromPage(page, "members/setTwoStepPolicy", { required: true }),
+	).toContain('"required":true');
+	await page.getByRole("link", { name: "Members" }).click();
+	await page.getByLabel("Email to invite").fill(teammate.email);
+	await page.getByRole("button", { name: "Invite" }).click();
+	const url = (
+		(await page.getByTestId("invite-link").textContent()) ?? ""
+	).trim();
+	await page.getByRole("button", { name: "Done" }).click();
+	await page.goto(url);
+	await page.getByLabel("Your name").fill(teammate.name);
+	await page.getByLabel("Master password").fill(teammate.password);
+	await page.getByLabel("Repeat it").fill(teammate.password);
+	await page.getByRole("button", { name: `Join ${owner.workspace}` }).click();
+	await expect(
+		page.getByRole("heading", { name: "Set up two-step login" }),
+	).toBeVisible();
+	await page.close();
+
+	const popup = await openPopup();
+	await popup.getByRole("button", { name: "Lock" }).click();
+	await popup.getByRole("button", { name: "Use another account" }).click();
+	await popup.getByLabel("Email").fill(teammate.email);
+	await popup.getByLabel("Master password").fill(teammate.password);
+	await popup.getByRole("button", { name: "Sign in" }).click();
+	await expect(
+		popup.getByText(
+			"Your workspace requires two-step login. Set it up to open your vaults.",
+		),
+	).toBeVisible();
+	await expect(
+		popup.getByRole("button", { name: "Open vauly to set it up" }),
+	).toBeVisible();
+	await expect(popup.getByText("Couldn't load your items")).toHaveCount(0);
 	await popup.close();
 });

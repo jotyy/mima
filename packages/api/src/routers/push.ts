@@ -3,7 +3,7 @@ import { pushSubscription } from "@vauly/db/schema/vault";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { memberProcedure } from "../index";
+import { memberProcedure, setupProcedure } from "../index";
 import { vapidKeys } from "../push/notify";
 import {
 	DEVICE_LIMIT,
@@ -63,7 +63,7 @@ export const pushRouter = {
 		}),
 
 	/** Turns them off for this device. */
-	unsubscribe: memberProcedure
+	unsubscribe: setupProcedure
 		.input(endpoint)
 		.handler(async ({ context, input }) => {
 			await context.db
