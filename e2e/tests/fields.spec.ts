@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
 import {
+	apiFromPage,
 	createWorkspace,
 	openAllItems,
 	owner,
@@ -166,4 +167,25 @@ test("the activity log names the field that was revealed", async ({ page }) => {
 	await expect(
 		page.getByRole("list", { name: "Events" }).getByText("revealed the PIN of"),
 	).toBeVisible();
+});
+
+test("the server gets a field's ID, never its label, and refuses a label", async ({
+	page,
+}) => {
+	await signIn(page, owner);
+	const { json: events } = JSON.parse(
+		await apiFromPage(page, "events/list", {}),
+	) as {
+		json: { action: string; itemId: string | null; detail: string | null }[];
+	};
+	const reveal = events.find((event) => event.action === "revealed");
+	expect(reveal?.detail).toMatch(/^field:[a-z0-9]{8}$/);
+	expect(JSON.stringify(events)).not.toContain("PIN");
+
+	const refused = await apiFromPage(page, "items/log", {
+		id: reveal?.itemId,
+		action: "revealed",
+		field: "Recovery PIN",
+	});
+	expect(refused).toContain("BAD_REQUEST");
 });

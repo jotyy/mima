@@ -34,6 +34,7 @@ import {
 	type Item,
 	type ItemFields,
 	type ItemKind,
+	newFieldId,
 	useActions,
 	useVaults,
 } from "@/lib/vault-data";
@@ -88,7 +89,10 @@ function fromItem(item?: Item, vaultId?: string): Form {
 		totp: item?.totp ?? "",
 		notes: item?.notes ?? "",
 		tags: (item?.tags ?? []).join(", "),
-		fields: (item?.fields ?? []).map((field) => ({ ...field, id: rowId() })),
+		fields: (item?.fields ?? []).map((field) => ({
+			...field,
+			id: field.id ?? newFieldId(),
+		})),
 	};
 }
 
@@ -156,7 +160,8 @@ export function ItemDialog({
 		const vault = vaults.data?.find((v) => v.id === form.vaultId);
 		if (!vault) return setError("Pick a vault.");
 		const custom = form.fields
-			.map(({ label, value, hidden }) => ({
+			.map(({ id, label, value, hidden }) => ({
+				id,
 				label: label.trim(),
 				value,
 				...(hidden && { hidden: true }),
@@ -402,7 +407,7 @@ export function ItemDialog({
 								onClick={() =>
 									set("fields", [
 										...form.fields,
-										{ id: rowId(), label: "", value: "" },
+										{ id: newFieldId(), label: "", value: "" },
 									])
 								}
 							>

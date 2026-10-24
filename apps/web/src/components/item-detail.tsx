@@ -39,6 +39,7 @@ import { ago, plural, timeLeft, toneDot } from "@/lib/format";
 import { logoDomain } from "@/lib/logos";
 import { useLookup } from "@/lib/use-lookup";
 import {
+	type CustomField,
 	canEdit,
 	errorMessage,
 	fieldsOf,
@@ -429,8 +430,8 @@ export function ItemDetail({ item }: { item: Item }) {
 								value={field.value}
 								label={field.label}
 								source={item.name}
-								onReveal={log("revealed", field.label.slice(0, 40))}
-								onCopied={log("copied", field.label.slice(0, 40))}
+								onReveal={log("revealed", fieldRef(field))}
+								onCopied={log("copied", fieldRef(field))}
 							/>
 						) : (
 							<>
@@ -442,7 +443,7 @@ export function ItemDetail({ item }: { item: Item }) {
 									label={field.label}
 									source={item.name}
 									secret={false}
-									onCopied={log("copied", field.label.slice(0, 40))}
+									onCopied={log("copied", fieldRef(field))}
 								/>
 							</>
 						)}
@@ -673,6 +674,13 @@ function EarlierSecrets({
 		</div>
 	);
 }
+
+/**
+ * How the activity log names a custom field: by its random ID, which the log looks up on
+ * the device, never by its label, which is part of the encrypted item.
+ */
+const fieldRef = (field: CustomField) =>
+	field.id ? `field:${field.id}` : "field";
 
 function hostOf(url: string) {
 	try {

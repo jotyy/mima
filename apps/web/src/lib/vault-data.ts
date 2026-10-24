@@ -51,8 +51,23 @@ export type ItemFields = {
 	passkey?: Passkey;
 };
 
-/** A labelled value on an item. Hidden ones are masked like the password. */
-export type CustomField = { label: string; value: string; hidden?: boolean };
+/**
+ * A labelled value on an item. Hidden ones are masked like the password. The ID is
+ * random, so the activity log can say which field someone revealed without its label
+ * ever reaching the server; fields saved before IDs existed get one when next saved.
+ */
+export type CustomField = {
+	id?: string;
+	label: string;
+	value: string;
+	hidden?: boolean;
+};
+
+export const newFieldId = () =>
+	Array.from(
+		crypto.getRandomValues(new Uint8Array(8)),
+		(byte) => "abcdefghijklmnopqrstuvwxyz0123456789"[byte % 36],
+	).join("");
 
 /**
  * A passkey, as the browser extension made it (apps/extension/lib/passkey.ts). The app

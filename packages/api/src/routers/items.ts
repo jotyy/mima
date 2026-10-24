@@ -17,6 +17,26 @@ const wrapped = z.string().min(20).max(1_000);
 
 const KEEP_DELETED_MS = 30 * 24 * 60 * 60 * 1000;
 
+/**
+ * What a device may say it revealed, copied or filled: one of the fields every item has,
+ * or a custom field by its random ID. Never a custom field's label, which is part of the
+ * item and stays encrypted; the activity log looks it up on the device.
+ */
+const loggedField = z.union([
+	z.enum([
+		"username",
+		"secret",
+		"one-time code",
+		"login",
+		"passkey",
+		"earlier password",
+		"earlier value",
+		"earlier private key",
+		"field",
+	]),
+	z.string().regex(/^field:[a-z0-9]{8}$/),
+]);
+
 export const itemsRouter = {
 	/** Every item in the person's vaults, including those in Recently deleted. */
 	list: memberProcedure.handler(async ({ context }) => {
@@ -276,7 +296,7 @@ export const itemsRouter = {
 			z.object({
 				id: z.string(),
 				action: z.enum(["revealed", "copied", "filled"]),
-				field: z.string().max(40),
+				field: loggedField,
 			}),
 		)
 		.handler(async ({ context, input }) => {

@@ -66,9 +66,9 @@ export function describeEvent(
 				return parts("deleted the agent", event.detail.slice(6));
 			return parts("deleted a vault");
 		case "revealed":
-			return parts(`revealed the ${field(event.detail)} of`, itemName);
+			return parts(`revealed ${field(event.detail, item)} of`, itemName);
 		case "copied":
-			return parts(`copied the ${field(event.detail)} of`, itemName);
+			return parts(`copied ${field(event.detail, item)} of`, itemName);
 		case "filled":
 			if (event.detail === "passkey")
 				return parts("signed in with the passkey of", itemName);
@@ -186,7 +186,17 @@ function linkDetail(detail: string | null | undefined) {
 	return once ? `for ${length}, one view` : `for ${length}`;
 }
 
-function field(detail: string | null | undefined) {
-	if (!detail || detail === "secret") return "password";
-	return detail;
+/**
+ * "the password", "the PIN": a custom field is logged by its ID, and its label comes from
+ * the item, decrypted here. One that's gone, or from before fields had IDs, is just "a
+ * custom field".
+ */
+function field(detail: string | null | undefined, item: Item | undefined) {
+	if (!detail || detail === "secret") return "the password";
+	if (detail === "field" || detail.startsWith("field:")) {
+		const id = detail.slice("field:".length);
+		const label = item?.fields?.find((custom) => custom.id === id)?.label;
+		return label ? `the ${label}` : "a custom field";
+	}
+	return `the ${detail}`;
 }

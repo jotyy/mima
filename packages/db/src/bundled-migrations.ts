@@ -55,4 +55,9 @@ export const migrations: readonly {
 		hash: "2261482a0d2ea227e94b0e00ad3f43b0d7d8577034156747f970a1ec5ca551ad",
 		sql: "-- Argon2's passes get a column of their own. kdf_iterations goes back to PBKDF2's rounds,\n-- 600,000 for Argon2id accounts too: an app from before Argon2id reads only that, so it\n-- derives slowly and fails, rather than send an auth key cheap to test guesses against.\nALTER TABLE `member` ADD `kdf_passes` integer;--> statement-breakpoint\nUPDATE `member` SET `kdf_passes` = `kdf_iterations`, `kdf_iterations` = 600000 WHERE `kdf` = 'argon2id';\n",
 	},
+	{
+		name: "20261024020044_logged_fields",
+		hash: "b241a915b161441f6a61a760adcd0eb23a40331ab6fac225fed308ae8c5cbb78",
+		sql: "-- Reveals and copies of a custom field were logged with the field's label, which is part of\n-- the item. Any detail that isn't one of the fields every item has, or a field's ID,\n-- becomes \"field\", which the activity log shows as \"a custom field\".\nUPDATE `event` SET `detail` = 'field'\nWHERE `action` IN ('revealed', 'copied')\n\tAND `detail` IS NOT NULL\n\tAND `detail` NOT IN ('username', 'secret', 'one-time code', 'login', 'passkey', 'earlier password', 'earlier value', 'earlier private key', 'field')\n\tAND NOT (`detail` GLOB 'field:[a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9]' AND length(`detail`) = 14);\n",
+	},
 ];
