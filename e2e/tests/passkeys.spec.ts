@@ -1,13 +1,14 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import {
+	type Browser,
 	type BrowserContext,
 	chromium,
 	expect,
-	type FrameLocator,
 	type Page,
 	type Route,
 	test,
+	type Worker,
 } from "@playwright/test";
 import {
 	generateAuthenticationOptions,
@@ -19,34 +20,43 @@ import {
 
 import { WEB_PORT } from "../playwright.config";
 import {
+	apiFromPage,
 	createWorkspace,
 	openAllItems,
 	owner,
 	resetWorkspace,
 	sidebarLink,
+	teammate,
 } from "./helpers";
 
-// Passkeys in the browser extension. A made-up site, Acme, makes and checks passkeys the
-// way a real one would, with @simplewebauthn/server standing in for its server, and the
-// browser's own passkeys are a virtual authenticator.
+// Passkeys in the browser extension. Made-up sites make and check passkeys the way a real
+// one would, with @simplewebauthn/server standing in for their servers, and the browser's
+// own passkeys are a virtual authenticator. vauly asks in a window of its own, never in
+// the site's page.
 
 test.describe.configure({ mode: "serial" });
 
 const extensionDir = path.resolve(import.meta.dirname, "../../apps/extension");
 const extensionPath = path.join(extensionDir, ".output/chrome-mv3");
-const rpID = "acme.test";
 const site = "https://login.acme.test";
 
 let context: BrowserContext;
+let worker: Worker;
 let extensionId = "";
+/** The teammate, in a browser of their own. */
+let meiBrowser: Browser;
+let mei: Page;
 
-// ── Acme's server ───────────────────────────────────────────────────────────────────
+// ── The sites' servers ──────────────────────────────────────────────────────────────
 
+/** Acme's pages are on subdomains of acme.test; any other site is its own relying party. */
+const rpIdOf = (host: string) =>
+	host === "acme.test" || host.endsWith(".acme.test") ? "acme.test" : host;
 const accounts = new Map<string, WebAuthnCredential[]>();
 let challenge = "";
 
-const acmePage = `<!doctype html>
-<title>Acme</title>
+const sitePage = `<!doctype html>
+<title>Sign in</title>
 <label>Email <input id="email" value="alex@acme.test"></label>
 <button id="create">Create a passkey</button>
 <button id="signin">Sign in with a passkey</button>
@@ -106,12 +116,14 @@ const acmePage = `<!doctype html>
 	};
 </script>`;
 
-async function acme(route: Route) {
+async function relyingParty(route: Route) {
 	const request = route.request();
-	const { pathname, origin } = new URL(request.url());
+	const { pathname, origin, hostname } = new URL(request.url());
+	const rpID = rpIdOf(hostname);
 	const json = (body: unknown) =>
 		route.fulfill({ contentType: "application/json", json: body });
 	const body = request.method() === "POST" ? request.postDataJSON() : null;
+	const account = (email: string) => `${rpID} ${email}`;
 
 	if (pathname === "/register/options") {
 		const options = await generateRegistrationOptions({
@@ -120,9 +132,9 @@ async function acme(route: Route) {
 			userName: body.email,
 			userID: new TextEncoder().encode(body.email),
 			attestationType: "none",
-			excludeCredentials: (accounts.get(body.email) ?? []).map(({ id }) => ({
-				id,
-			})),
+			excludeCredentials: (accounts.get(account(body.email)) ?? []).map(
+				({ id }) => ({ id }),
+			),
 			authenticatorSelection: { residentKey: "required" },
 			extensions: { credProps: true },
 		});
@@ -137,8 +149,8 @@ async function acme(route: Route) {
 			expectedRPID: rpID,
 		}).catch(() => null);
 		if (result?.verified && result.registrationInfo) {
-			accounts.set(body.email, [
-				...(accounts.get(body.email) ?? []),
+			accounts.set(account(body.email), [
+				...(accounts.get(account(body.email)) ?? []),
 				result.registrationInfo.credential,
 			]);
 		}
@@ -150,8 +162,10 @@ async function acme(route: Route) {
 		return json(options);
 	}
 	if (pathname === "/login/verify") {
-		const owned = [...accounts].find(([, credentials]) =>
-			credentials.some((credential) => credential.id === body.id),
+		const owned = [...accounts].find(
+			([key, credentials]) =>
+				key.startsWith(`${rpID} `) &&
+				credentials.some((credential) => credential.id === body.id),
 		);
 		const credential = owned?.[1].find(({ id }) => id === body.id);
 		if (!owned || !credential) return json({});
@@ -162,21 +176,22 @@ async function acme(route: Route) {
 			expectedRPID: rpID,
 			credential,
 		}).catch(() => null);
-		return json(result?.verified ? { email: owned[0] } : {});
+		return json(result?.verified ? { email: owned[0].split(" ")[1] } : {});
 	}
-	return route.fulfill({ contentType: "text/html", body: acmePage });
+	return route.fulfill({ contentType: "text/html", body: sitePage });
 }
 
-/** A site that asks for Acme's passkeys, which no browser or vauly should give it. */
-const otherPage = `<!doctype html>
-<title>Not Acme</title>
+/** A page that asks for a passkey straight away, with a made-up challenge. */
+const askingPage = (rpId: string) => `<!doctype html>
+<title>Asking</title>
 <button id="signin">Sign in with a passkey</button>
 <output id="result"></output>
 <script>
 	document.getElementById("signin").onclick = async () => {
 		try {
 			await navigator.credentials.get({
-				publicKey: { challenge: new Uint8Array(32), rpId: "acme.test" },
+				publicKey: { challenge: new Uint8Array(32), rpId: "${rpId}" },
+				signal: AbortSignal.timeout(3000),
 			});
 			document.getElementById("result").textContent = "Got a passkey";
 		} catch (error) {
@@ -185,10 +200,40 @@ const otherPage = `<!doctype html>
 	};
 </script>`;
 
+/** Acme's page with a frame from another site, which asks for a passkey and forges vauly's messages. */
+const framingPage = `<!doctype html>
+<title>Acme, with a widget</title>
+<iframe src="https://widget.other.test/" allow="publickey-credentials-get *"></iframe>`;
+const widgetPage = `<!doctype html>
+<title>Widget</title>
+<button id="signin">Sign in with a passkey</button>
+<button id="forge">Forge a request</button>
+<output id="result"></output>
+<script>
+	document.getElementById("signin").onclick = async () => {
+		try {
+			await navigator.credentials.get({
+				publicKey: { challenge: new Uint8Array(32), rpId: "widget.other.test" },
+				signal: AbortSignal.timeout(1500),
+			});
+			document.getElementById("result").textContent = "Got a passkey";
+		} catch (error) {
+			document.getElementById("result").textContent = error.name;
+		}
+	};
+	document.getElementById("forge").onclick = () => {
+		parent.postMessage({
+			vauly: "passkey", id: "forged", kind: "get",
+			request: { challenge: "AAAAAAAAAAAAAAAAAAAAAA", rpId: "acme.test" },
+		}, "*");
+		document.getElementById("result").textContent = "Forged";
+	};
+</script>`;
+
 // ── The browser, the extension and vauly ────────────────────────────────────────────
 
 test.beforeAll(async ({ request }) => {
-	test.setTimeout(180_000);
+	test.setTimeout(240_000);
 	execFileSync("bun", ["run", "build"], { cwd: extensionDir, stdio: "ignore" });
 	await resetWorkspace(request);
 
@@ -200,13 +245,28 @@ test.beforeAll(async ({ request }) => {
 			`--load-extension=${extensionPath}`,
 		],
 	});
-	const worker =
+	worker =
 		context.serviceWorkers()[0] ??
 		(await context.waitForEvent("serviceworker"));
 	extensionId = new URL(worker.url()).host;
-	await context.route(/^https:\/\/([a-z]+\.)?acme\.test\//, acme);
+	await context.route("https://sandboxed.acme.test/**", (route) =>
+		route.fulfill({
+			contentType: "text/html",
+			headers: { "content-security-policy": "sandbox allow-scripts" },
+			body: askingPage("acme.test"),
+		}),
+	);
+	await context.route(/^https:\/\/(login\.)?acme\.test\//, relyingParty);
+	// Routes registered later go first.
+	await context.route("https://login.acme.test/embed", (route) =>
+		route.fulfill({ contentType: "text/html", body: framingPage }),
+	);
+	await context.route("https://shop.test/**", relyingParty);
 	await context.route("https://other.test/**", (route) =>
-		route.fulfill({ contentType: "text/html", body: otherPage }),
+		route.fulfill({ contentType: "text/html", body: askingPage("acme.test") }),
+	);
+	await context.route("https://widget.other.test/**", (route) =>
+		route.fulfill({ contentType: "text/html", body: widgetPage }),
 	);
 
 	const page = await context.newPage();
@@ -221,7 +281,33 @@ test.beforeAll(async ({ request }) => {
 	await form.getByLabel("Website").fill("https://acme.test");
 	await form.getByRole("button", { name: "Add item" }).click();
 	await expect(form).toBeHidden();
+
+	// A teammate shares a vault of theirs, which the owner can edit for now.
+	await sidebarLink(page, "Members").click();
+	await page.getByLabel("Email to invite").fill(teammate.email);
+	await page.getByRole("button", { name: "Invite" }).click();
+	const inviteUrl = (
+		(await page.getByTestId("invite-link").textContent()) ?? ""
+	).trim();
 	await page.close();
+	meiBrowser = await chromium.launch();
+	mei = await meiBrowser.newPage({ baseURL: `http://localhost:${WEB_PORT}` });
+	await mei.goto(inviteUrl);
+	await mei.getByLabel("Your name").fill(teammate.name);
+	await mei.getByLabel("Master password").fill(teammate.password);
+	await mei.getByLabel("Repeat it").fill(teammate.password);
+	await mei.getByRole("button", { name: `Join ${owner.workspace}` }).click();
+	await sidebarLink(mei, "Vaults").click();
+	await mei.getByRole("button", { name: "New vault" }).click();
+	const vaultForm = mei.getByRole("dialog");
+	await vaultForm.getByLabel("Name").fill("Ops");
+	await vaultForm.getByRole("button", { name: "Create vault" }).click();
+	const access = await opsAccess();
+	await access.getByRole("combobox", { name: "What they can do" }).click();
+	await mei.getByRole("option", { name: /^Can edit/ }).click();
+	await access.getByRole("button", { name: "Give access" }).click();
+	await expect(mei.getByText(`${owner.name} can open Ops`)).toBeVisible();
+	await mei.keyboard.press("Escape");
 
 	const popup = await openPopup();
 	await popup.getByLabel("vauly address").fill(`http://localhost:${WEB_PORT}`);
@@ -235,7 +321,15 @@ test.beforeAll(async ({ request }) => {
 
 test.afterAll(async () => {
 	await context?.close();
+	await meiBrowser?.close();
 });
+
+async function opsAccess() {
+	await sidebarLink(mei, "Vaults").click();
+	await mei.getByRole("button", { name: "Ops options" }).click();
+	await mei.getByRole("menuitem", { name: "Manage access" }).click();
+	return mei.getByRole("dialog");
+}
 
 async function openPopup() {
 	const popup = await context.newPage();
@@ -259,16 +353,33 @@ async function withDeviceAuthenticator(page: Page) {
 	});
 }
 
-async function openAcme(email = "alex@acme.test") {
+async function openSite(email = "alex@acme.test", url = site) {
 	const page = await context.newPage();
-	await page.goto(`${site}/`);
+	await page.goto(`${url}/`);
 	await page.getByLabel("Email").fill(email);
 	return page;
 }
 
-const prompt = (page: Page): FrameLocator =>
-	page.frameLocator('iframe[title="vauly: passkey"]');
+const passkeyWindows = () =>
+	context.pages().filter((page) => page.url().includes("/passkey.html"));
+
+/** Clicks a button on the site, and returns the window vauly opens for it. */
+async function vaulyWindow(page: Page, button: string) {
+	const [opened] = await Promise.all([
+		context.waitForEvent("page"),
+		page.getByRole("button", { name: button }).click(),
+	]);
+	await expect(opened).toHaveURL(/\/passkey\.html#/);
+	return opened;
+}
+
 const result = (page: Page) => page.locator("#result");
+
+/** Nothing of vauly's in the site's page: whatever vauly holds, the page can't tell. */
+async function expectNothingInPage(page: Page) {
+	await expect(page.locator("vauly-frame")).toHaveCount(0);
+	await expect(page.locator("iframe[src^='chrome-extension:']")).toHaveCount(0);
+}
 
 async function openApp() {
 	const app = await context.newPage();
@@ -293,31 +404,35 @@ async function openItem(app: Page, name: string) {
 // ── Saving and signing in ───────────────────────────────────────────────────────────
 
 test("a passkey a site makes is saved in vauly, and the site accepts it", async () => {
-	const page = await openAcme();
-	await page.getByRole("button", { name: "Create a passkey" }).click();
-	const card = prompt(page).getByRole("region", { name: "Passkey" });
+	const page = await openSite();
+	const window = await vaulyWindow(page, "Create a passkey");
 	await expect(
-		card.getByRole("heading", { name: "Save a passkey for acme.test?" }),
+		window.getByRole("heading", { name: "Save a passkey for acme.test?" }),
 	).toBeVisible();
-	await expect(card.getByText("signs you in as alex@acme.test")).toBeVisible();
-	await card.getByRole("button", { name: "Save passkey" }).click();
+	await expect(window.getByText("Asked by login.acme.test")).toBeVisible();
 	await expect(
-		prompt(page).getByText("Passkey saved to Private"),
+		window.getByText("signs you in as alex@acme.test"),
 	).toBeVisible();
+	await expectNothingInPage(page);
+	await window.getByRole("button", { name: "Save passkey" }).click();
+	await window.waitForEvent("close");
 	await expect(result(page)).toHaveText("Passkey created");
-	await expect(page.locator("vauly-frame")).toHaveCount(0);
 	await page.close();
 });
 
 test("the passkey signs in, and the site checks its signature", async () => {
-	const page = await openAcme();
-	await page.getByRole("button", { name: "Sign in with a passkey" }).click();
-	const card = prompt(page).getByRole("region", { name: "Passkey" });
+	const page = await openSite();
+	const window = await vaulyWindow(page, "Sign in with a passkey");
 	await expect(
-		card.getByRole("heading", { name: "Sign in to acme.test with a passkey?" }),
+		window.getByRole("heading", {
+			name: "Sign in to acme.test with a passkey?",
+		}),
 	).toBeVisible();
-	await card.getByRole("button", { name: "Sign in as alex@acme.test" }).click();
+	await window
+		.getByRole("button", { name: "Sign in as alex@acme.test" })
+		.click();
 	await expect(result(page)).toHaveText("Signed in as alex@acme.test");
+	expect(passkeyWindows()).toHaveLength(0);
 	await page.close();
 });
 
@@ -347,9 +462,9 @@ test("the web app shows the passkey, keeps it through an edit, and logs its use"
 	await app.close();
 
 	// Still signs in after the edit.
-	const page = await openAcme();
-	await page.getByRole("button", { name: "Sign in with a passkey" }).click();
-	await prompt(page)
+	const page = await openSite();
+	const window = await vaulyWindow(page, "Sign in with a passkey");
+	await window
 		.getByRole("button", { name: "Sign in as alex@acme.test" })
 		.click();
 	await expect(result(page)).toHaveText("Signed in as alex@acme.test");
@@ -357,13 +472,12 @@ test("the web app shows the passkey, keeps it through an edit, and logs its use"
 });
 
 test("a passkey for an account with a saved login goes into that login", async () => {
-	const page = await openAcme("sam@acme.test");
-	await page.getByRole("button", { name: "Create a passkey" }).click();
-	const card = prompt(page).getByRole("region", { name: "Passkey" });
+	const page = await openSite("sam@acme.test");
+	const window = await vaulyWindow(page, "Create a passkey");
 	await expect(
-		card.getByText("It goes into your login Acme, Sam in Private."),
+		window.getByText("It goes into your login Acme, Sam in Private."),
 	).toBeVisible();
-	await card.getByRole("button", { name: "Save passkey" }).click();
+	await window.getByRole("button", { name: "Save passkey" }).click();
 	await expect(result(page)).toHaveText("Passkey created");
 	await page.close();
 
@@ -375,45 +489,113 @@ test("a passkey for an account with a saved login goes into that login", async (
 });
 
 test("a second passkey for the same account is refused, as the site asks", async () => {
-	const page = await openAcme();
-	await page.getByRole("button", { name: "Create a passkey" }).click();
-	const card = prompt(page).getByRole("region", { name: "Passkey" });
+	const page = await openSite();
+	const window = await vaulyWindow(page, "Create a passkey");
 	await expect(
-		card.getByRole("heading", {
+		window.getByRole("heading", {
 			name: "vauly has a passkey for acme.test already",
 		}),
 	).toBeVisible();
-	await card.getByRole("button", { name: "OK" }).click();
+	await window.getByRole("button", { name: "OK" }).click();
 	await expect(result(page)).toHaveText(/^InvalidStateError/);
+	await page.close();
+});
+
+test("a few minutes after the master password, vauly asks for it again", async () => {
+	// As if it was entered long ago.
+	await worker.evaluate(async () => {
+		const storage = (
+			globalThis as unknown as {
+				chrome: {
+					storage: {
+						session: {
+							get(key: string): Promise<Record<string, object>>;
+							set(items: Record<string, unknown>): Promise<void>;
+						};
+					};
+				};
+			}
+		).chrome.storage.session;
+		const { unlocked } = await storage.get("unlocked");
+		await storage.set({ unlocked: { ...unlocked, verifiedAt: 0 } });
+	});
+	const page = await openSite();
+	const window = await vaulyWindow(page, "Sign in with a passkey");
+	const password = window.getByLabel(
+		"Your master password, to confirm it's you",
+	);
+	await expect(password).toBeVisible();
+	const signIn = window.getByRole("button", {
+		name: "Sign in as alex@acme.test",
+	});
+	await signIn.click();
+	await expect(window.getByRole("alert")).toHaveText(
+		"Enter your master password first.",
+	);
+	await password.fill("not my master password");
+	await signIn.click();
+	await expect(window.getByRole("alert")).toHaveText(
+		"That's not your master password.",
+	);
+	await password.fill(owner.password);
+	await signIn.click();
+	await expect(result(page)).toHaveText("Signed in as alex@acme.test");
 	await page.close();
 });
 
 // ── The browser's own passkeys, and saying no ───────────────────────────────────────
 
 test("Use another way hands the request to the browser's own passkeys", async () => {
-	const page = await openAcme("kim@acme.test");
+	const page = await openSite("kim@acme.test");
 	await withDeviceAuthenticator(page);
-	await page.getByRole("button", { name: "Create a passkey" }).click();
-	await prompt(page).getByRole("button", { name: "Use another way" }).click();
+	let window = await vaulyWindow(page, "Create a passkey");
+	await window.getByRole("button", { name: "Use another way" }).click();
 	await expect(result(page)).toHaveText("Passkey created");
-	await expect(page.locator("vauly-frame")).toHaveCount(0);
+	expect(passkeyWindows()).toHaveLength(0);
 
-	// vauly has passkeys for acme.test, so it asks; the device's passkey still signs in.
-	await page.getByRole("button", { name: "Sign in with a passkey" }).click();
+	// The device's passkey still signs in.
+	window = await vaulyWindow(page, "Sign in with a passkey");
 	await expect(
-		prompt(page).getByRole("button", { name: "Sign in as alex@acme.test" }),
+		window.getByRole("button", { name: "Sign in as alex@acme.test" }),
 	).toBeVisible();
-	await prompt(page).getByRole("button", { name: "Use another way" }).click();
+	await window.getByRole("button", { name: "Use another way" }).click();
 	await expect(result(page)).toHaveText("Signed in as kim@acme.test");
 	await page.close();
 });
 
-test("Cancel turns the request down", async () => {
-	const page = await openAcme("lee@acme.test");
-	await page.getByRole("button", { name: "Create a passkey" }).click();
-	await prompt(page).getByRole("button", { name: "Cancel" }).click();
+test("Cancel, or closing vauly's window, turns the request down", async () => {
+	const page = await openSite("lee@acme.test");
+	let window = await vaulyWindow(page, "Create a passkey");
+	await window.getByRole("button", { name: "Cancel" }).click();
 	await expect(result(page)).toHaveText(/^NotAllowedError/);
-	await expect(page.locator("vauly-frame")).toHaveCount(0);
+
+	window = await vaulyWindow(page, "Create a passkey");
+	await window.close();
+	await expect(result(page)).toHaveText(/^NotAllowedError/);
+	await page.close();
+});
+
+test("vauly asks even where it has no passkey, so the site can't tell", async () => {
+	const page = await openSite("alex@acme.test", "https://shop.test");
+	const window = await vaulyWindow(page, "Sign in with a passkey");
+	await expect(
+		window.getByText("vauly has no passkey that shop.test accepts."),
+	).toBeVisible();
+	await expectNothingInPage(page);
+	// Nor can the page open vauly's window itself.
+	const url = window.url();
+	expect(
+		await page.evaluate(async (address) => {
+			try {
+				await fetch(address);
+				return "fetched";
+			} catch {
+				return "blocked";
+			}
+		}, url),
+	).toBe("blocked");
+	await window.getByRole("button", { name: "Cancel" }).click();
+	await expect(result(page)).toHaveText(/^NotAllowedError/);
 	await page.close();
 });
 
@@ -422,34 +604,114 @@ test("another site can't ask for Acme's passkeys", async () => {
 	await page.goto("https://other.test/");
 	await withDeviceAuthenticator(page);
 	await page.getByRole("button", { name: "Sign in with a passkey" }).click();
-	// The browser refuses it, and vauly never offers anything.
+	// The browser refuses it, and vauly never asks.
 	await expect(result(page)).toHaveText("SecurityError");
-	await expect(page.locator("vauly-frame")).toHaveCount(0);
+	expect(passkeyWindows()).toHaveLength(0);
 	await page.close();
 });
 
-test("locked, the prompt offers to unlock, then signs in", async () => {
-	let popup = await openPopup();
+test("an embedded site's frame can't ask through vauly, nor forge its messages", async () => {
+	const page = await context.newPage();
+	await page.goto(`${site}/embed`);
+	const widget = page.frameLocator("iframe");
+	await widget.getByRole("button", { name: "Forge a request" }).click();
+	await expect(widget.locator("#result")).toHaveText("Forged");
+	await widget.getByRole("button", { name: "Sign in with a passkey" }).click();
+	// Left to the browser, which gives up when the widget's signal does.
+	await expect(widget.locator("#result")).toHaveText(
+		/^(TimeoutError|AbortError|NotAllowedError)$/,
+	);
+	expect(passkeyWindows()).toHaveLength(0);
+	await page.close();
+});
+
+test("a sandboxed page, with no origin of its own, gets nothing from vauly", async () => {
+	const page = await context.newPage();
+	await page.goto("https://sandboxed.acme.test/");
+	await page.getByRole("button", { name: "Sign in with a passkey" }).click();
+	await expect(result(page)).toHaveText(/Error$/);
+	expect(passkeyWindows()).toHaveLength(0);
+	await page.close();
+});
+
+// ── Locked, and shared vaults ───────────────────────────────────────────────────────
+
+test("locked, vauly's window unlocks, then signs in", async () => {
+	const popup = await openPopup();
 	await popup.getByRole("button", { name: "Lock" }).click();
 	await expect(
 		popup.getByRole("heading", { name: "Unlock vauly" }),
 	).toBeVisible();
 	await popup.close();
 
-	const page = await openAcme();
-	await page.getByRole("button", { name: "Sign in with a passkey" }).click();
-	const card = prompt(page).getByRole("region", { name: "Passkey" });
+	const page = await openSite();
+	const window = await vaulyWindow(page, "Sign in with a passkey");
 	await expect(
-		card.getByText("vauly is locked. Unlock it to use your passkeys here."),
+		window.getByText("vauly is locked. Unlock it to use your passkeys here."),
 	).toBeVisible();
-
-	popup = await openPopup();
-	await popup.getByLabel("Master password").fill(owner.password);
-	await popup.getByRole("button", { name: "Unlock" }).click();
-	await expect(popup.getByRole("list", { name: "All items" })).toBeVisible();
-	await popup.close();
-
-	await card.getByRole("button", { name: "Sign in as alex@acme.test" }).click();
+	await window.getByLabel("Master password").fill(owner.password);
+	await window.getByRole("button", { name: "Unlock" }).click();
+	await window
+		.getByRole("button", { name: "Sign in as alex@acme.test" })
+		.click();
 	await expect(result(page)).toHaveText("Signed in as alex@acme.test");
+	await page.close();
+});
+
+test("someone who can only view a vault signs in with its passkeys, but can't save there", async () => {
+	// Saved into the teammate's vault while the owner could edit it.
+	let page = await openSite("ops@acme.test");
+	let window = await vaulyWindow(page, "Create a passkey");
+	await window.getByLabel("Vault").selectOption({ label: "Ops" });
+	await window.getByRole("button", { name: "Save passkey" }).click();
+	await expect(result(page)).toHaveText("Passkey created");
+	await page.close();
+
+	const access = await opsAccess();
+	await access
+		.getByRole("combobox", { name: `What ${owner.name} can do` })
+		.click();
+	await mei.getByRole("option", { name: /^Can view/ }).click();
+	await expect(
+		access.getByRole("combobox", { name: `What ${owner.name} can do` }),
+	).toContainText("Can view");
+	await mei.keyboard.press("Escape");
+
+	page = await openSite("ops@acme.test");
+	window = await vaulyWindow(page, "Sign in with a passkey");
+	await window
+		.getByRole("button", { name: "Sign in as ops@acme.test" })
+		.click();
+	await expect(result(page)).toHaveText("Signed in as ops@acme.test");
+
+	const app = await openApp();
+	const vaults = JSON.parse(await apiFromPage(app, "vaults/list")).json as {
+		id: string;
+		role: string;
+	}[];
+	const ops = vaults.find((vault) => vault.role === "view")?.id;
+	expect(ops).toBeTruthy();
+	await app.close();
+
+	await page.getByLabel("Email").fill("new@acme.test");
+	window = await vaulyWindow(page, "Create a passkey");
+	await expect(window.getByLabel("Vault").locator("option")).toHaveText([
+		"Private",
+	]);
+	// Asked straight, the extension refuses too.
+	const refused = await window.evaluate(
+		(vaultId) =>
+			(
+				globalThis as unknown as {
+					chrome: {
+						runtime: { sendMessage(message: unknown): Promise<unknown> };
+					};
+				}
+			).chrome.runtime.sendMessage({ type: "vauly:passkey-save", vaultId }),
+		ops,
+	);
+	expect(refused).toEqual({ ok: false, error: "Pick a vault you can add to." });
+	await window.getByRole("button", { name: "Cancel" }).click();
+	await expect(result(page)).toHaveText(/^NotAllowedError/);
 	await page.close();
 });

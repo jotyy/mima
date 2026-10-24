@@ -1,13 +1,16 @@
 import { parse } from "tldts";
 
-import { fromBase64Url, toBase64Url } from "./base64url";
+import { toBase64Url } from "./base64url";
 
 // vauly as a WebAuthn authenticator. The extension makes and uses passkeys for the sites
-// people sign in to; each one lives inside a login item, encrypted like its password.
-// Nothing here talks to a page or the server: the background calls it with the page's
-// real origin, which it takes from the browser, never from the page.
+// people sign in to; each one lives inside a login item. Nothing here talks to a page or
+// the server: the background calls it with the page's real origin, which it takes from
+// the browser, never from the page.
 
-/** A passkey as it's kept inside a login item. */
+/**
+ * A passkey as it's kept inside a login item. Its private key is sealed with the vault's
+ * key (sealPasskeyKey in @vauly/crypto), so an agent given the item can't use it.
+ */
 export type StoredPasskey = {
 	/** base64url, 16 random bytes. */
 	credentialId: string;
@@ -17,36 +20,48 @@ export type StoredPasskey = {
 	userHandle: string;
 	userName?: string;
 	userDisplayName?: string;
-	/** PKCS#8 of an ES256 (P-256) key, base64url. */
-	privateKey: string;
+	/** The PKCS#8 of an ES256 (P-256) key, sealed with the vault key. */
+	sealedKey: string;
 	createdAt: string;
 };
 
-/** What `navigator.credentials.create` asked for, with its bytes as base64url. */
+export type UserVerification = "required" | "preferred" | "discouraged";
+
+/**
+ * What `navigator.credentials.create` asked for, with its bytes as base64url, kept to
+ * what vauly uses.
+ */
 export type CreateRequest = {
 	challenge: string;
 	rp: { id?: string; name?: string };
 	user: { id: string; name?: string; displayName?: string };
 	pubKeyCredParams: { type: string; alg: number }[];
-	excludeCredentials?: { id: string; type?: string }[];
+	excludeCredentials?: string[];
 	authenticatorSelection?: {
 		authenticatorAttachment?: string;
-		residentKey?: string;
-		requireResidentKey?: boolean;
-		userVerification?: string;
+		userVerification?: UserVerification;
 	};
-	attestation?: string;
-	extensions?: Record<string, unknown>;
+	extensions?: Partial<Record<ExtensionName, true>>;
 };
 
 /** What `navigator.credentials.get` asked for, with its bytes as base64url. */
 export type GetRequest = {
 	challenge: string;
 	rpId?: string;
-	allowCredentials?: { id: string; type?: string }[];
-	userVerification?: string;
-	extensions?: Record<string, unknown>;
+	/** Only the credentials it allows; absent when it allows any. */
+	allowCredentials?: string[];
+	userVerification?: UserVerification;
+	extensions?: Partial<Record<ExtensionName, true>>;
 };
+
+/** The extensions vauly answers or turns down; it ignores the rest. */
+const extensionNames = [
+	"credProps",
+	"prf",
+	"largeBlob",
+	"hmacCreateSecret",
+] as const;
+type ExtensionName = (typeof extensionNames)[number];
 
 /** A credential in WebAuthn's JSON encoding, which the page script turns into objects. */
 export type CreatedCredential = {
@@ -81,8 +96,9 @@ export type Assertion = {
 
 const ES256 = -7;
 const P256 = { name: "ECDSA", namedCurve: "P-256" } as const;
-// User present, user verified (the vault is unlocked and a person chose), backup eligible
-// and backed up (it's in a synced vault), attested credential data included.
+// User present (a person chose in vauly's window), user verified (they entered the
+// master password a moment ago), backup eligible and backed up (it's in a synced vault),
+// attested credential data included.
 const UP = 0x01;
 const UV = 0x04;
 const BE = 0x08;
@@ -154,7 +170,7 @@ const sha256 = async (bytes: Uint8Array<ArrayBuffer>) =>
 // ── What the page sent ─────────────────────────────────────────────────────────────
 
 // The page's script turns the options into JSON; the page can send anything, so nothing
-// is used before it's checked here.
+// is used before it's checked here, and only what vauly uses is kept, within limits.
 
 type Json = Record<string, unknown>;
 const isObject = (value: unknown): value is Json =>
@@ -171,90 +187,129 @@ const host = (value: unknown) =>
 	typeof value === "string" && value.length <= 253
 		? value.toLowerCase()
 		: undefined;
+const text = (value: unknown) =>
+	typeof value === "string" ? value.slice(0, 200) : undefined;
 
+/** A challenge of up to 1 KiB, base64url. */
+const CHALLENGE = 1366;
+/** A user handle is at most 64 bytes. */
+const USER_HANDLE = 86;
+/** vauly's credential IDs are 16 bytes; longer ones are another authenticator's. */
+const OWN_CREDENTIAL = 86;
+const MAX_CREDENTIALS = 64;
+
+/** The IDs in an allow or exclude list that could be vauly's, or null for a broken list. */
 function readCredentialList(value: unknown) {
 	if (value === undefined) return [];
-	if (!Array.isArray(value) || value.length > 64) return null;
-	const list = value.filter(
-		(entry): entry is { id: string; type?: string } =>
-			isObject(entry) && isBytes(entry.id, 1366),
-	);
-	return list.length === value.length
-		? list.map(({ id, type }) => ({ id, type }))
-		: null;
+	if (!Array.isArray(value) || value.length > MAX_CREDENTIALS) return null;
+	if (!value.every((entry) => isObject(entry) && isBytes(entry.id, 1366)))
+		return null;
+	return (value as { id: string }[])
+		.map((entry) => entry.id)
+		.filter((id) => id.length <= OWN_CREDENTIAL);
 }
 
-const extensionNames = (value: unknown) =>
-	isObject(value)
-		? Object.fromEntries(Object.keys(value).map((name) => [name, true]))
+const readExtensions = (value: unknown) => {
+	if (!isObject(value)) return undefined;
+	const asked = extensionNames.filter((name) => name in value);
+	return asked.length
+		? Object.fromEntries(asked.map((name) => [name, true as const]))
+		: undefined;
+};
+
+const readVerification = (value: unknown): UserVerification | undefined =>
+	value === "required" || value === "preferred" || value === "discouraged"
+		? value
 		: undefined;
 
 export function readCreateRequest(raw: unknown): CreateRequest | null {
 	if (!isObject(raw) || !isObject(raw.rp) || !isObject(raw.user)) return null;
 	const { rp, user } = raw;
-	// A user handle is at most 64 bytes.
-	if (!isBytes(raw.challenge, 1366) || !isBytes(user.id, 86)) return null;
+	if (!isBytes(raw.challenge, CHALLENGE) || !isBytes(user.id, USER_HANDLE))
+		return null;
 	if (rp.id !== undefined && !host(rp.id)) return null;
 	if (![rp.name, user.name, user.displayName].every(optionalText)) return null;
-	if (!Array.isArray(raw.pubKeyCredParams)) return null;
+	const params = raw.pubKeyCredParams;
+	if (!Array.isArray(params) || params.length > 32) return null;
 	const excluded = readCredentialList(raw.excludeCredentials);
 	if (!excluded) return null;
 	const selection = isObject(raw.authenticatorSelection)
 		? raw.authenticatorSelection
 		: {};
+	const verification = readVerification(selection.userVerification);
 	return {
 		challenge: raw.challenge,
 		rp: {
 			...(rp.id !== undefined && { id: host(rp.id) }),
-			...(typeof rp.name === "string" && { name: rp.name.slice(0, 200) }),
+			...(text(rp.name) && { name: text(rp.name) }),
 		},
 		user: {
 			id: user.id,
-			...(typeof user.name === "string" && { name: user.name.slice(0, 200) }),
-			...(typeof user.displayName === "string" && {
-				displayName: user.displayName.slice(0, 200),
-			}),
+			...(text(user.name) && { name: text(user.name) }),
+			...(text(user.displayName) && { displayName: text(user.displayName) }),
 		},
-		pubKeyCredParams: raw.pubKeyCredParams
-			.filter(isObject)
-			.map((param) => ({ type: String(param.type), alg: Number(param.alg) })),
+		// Only the one vauly makes.
+		pubKeyCredParams: params
+			.filter(
+				(param) =>
+					isObject(param) && param.type === "public-key" && param.alg === ES256,
+			)
+			.slice(0, 1)
+			.map(() => ({ type: "public-key", alg: ES256 })),
 		excludeCredentials: excluded,
 		authenticatorSelection: {
 			...(typeof selection.authenticatorAttachment === "string" && {
-				authenticatorAttachment: selection.authenticatorAttachment,
+				authenticatorAttachment: selection.authenticatorAttachment.slice(0, 32),
 			}),
+			...(verification && { userVerification: verification }),
 		},
-		extensions: extensionNames(raw.extensions),
+		extensions: readExtensions(raw.extensions),
 	};
 }
 
 export function readGetRequest(raw: unknown): GetRequest | null {
-	if (!isObject(raw) || !isBytes(raw.challenge, 1366)) return null;
+	if (!isObject(raw) || !isBytes(raw.challenge, CHALLENGE)) return null;
 	if (raw.rpId !== undefined && !host(raw.rpId)) return null;
 	const allowed = readCredentialList(raw.allowCredentials);
 	if (!allowed) return null;
+	const verification = readVerification(raw.userVerification);
+	const restricted =
+		Array.isArray(raw.allowCredentials) && raw.allowCredentials.length > 0;
 	return {
 		challenge: raw.challenge,
 		...(raw.rpId !== undefined && { rpId: host(raw.rpId) }),
-		allowCredentials: allowed,
-		extensions: extensionNames(raw.extensions),
+		// An empty list allows any passkey; a list of none of vauly's allows none.
+		...(restricted && { allowCredentials: allowed }),
+		...(verification && { userVerification: verification }),
+		extensions: readExtensions(raw.extensions),
 	};
 }
 
 /** A passkey read back from an item, or null when the item has none, or a broken one. */
 export function readPasskey(value: unknown): StoredPasskey | null {
 	if (!isObject(value)) return null;
-	const { credentialId, rpId, userHandle, privateKey, createdAt } = value;
+	const { credentialId, rpId, userHandle, sealedKey, createdAt } = value;
 	if (
 		!isBytes(credentialId, 1366) ||
 		typeof rpId !== "string" ||
-		!isBytes(userHandle, 86) ||
-		!isBytes(privateKey, 4096) ||
+		!isBytes(userHandle, USER_HANDLE) ||
+		typeof sealedKey !== "string" ||
 		typeof createdAt !== "string"
 	)
 		return null;
 	return value as StoredPasskey;
 }
+
+/**
+ * Whether the site wants the person verified, not only present: anything but
+ * "discouraged", as the default is "preferred".
+ */
+export const wantsVerification = (
+	request: CreateRequest | GetRequest,
+): boolean =>
+	("rp" in request
+		? request.authenticatorSelection?.userVerification
+		: request.userVerification) !== "discouraged";
 
 // ── Who may ask ────────────────────────────────────────────────────────────────────
 
@@ -276,6 +331,8 @@ export function rpProblem(origin: string, rpId: string): string | null {
 	if (url.protocol !== "https:" && !(url.protocol === "http:" && local)) {
 		return "Passkeys need a secure (HTTPS) page.";
 	}
+	// A page at an IP address has no domain, so nothing below it can be its rpId.
+	if (parse(host).isIp) return "Not a site's own domain.";
 	if (rpId !== host && !host.endsWith(`.${rpId}`)) {
 		return `${host} can't use passkeys for ${rpId}.`;
 	}
@@ -320,11 +377,19 @@ export function canCreate(request: CreateRequest) {
 	);
 }
 
+/**
+ * Makes a passkey. Its private key comes back on its own, for the caller to seal with
+ * the vault key; `verified` says whether the person proved who they are just now.
+ */
 export async function createPasskey(
 	request: CreateRequest,
 	origin: string,
-	now = new Date(),
-): Promise<{ passkey: StoredPasskey; credential: CreatedCredential }> {
+	{ verified, now = new Date() }: { verified: boolean; now?: Date },
+): Promise<{
+	passkey: Omit<StoredPasskey, "sealedKey">;
+	privateKey: Uint8Array<ArrayBuffer>;
+	credential: CreatedCredential;
+}> {
 	const rpId = request.rp.id ?? new URL(origin).hostname;
 	const keys = await crypto.subtle.generateKey(P256, true, ["sign", "verify"]);
 	const credentialId = crypto.getRandomValues(new Uint8Array(16));
@@ -342,7 +407,7 @@ export async function createPasskey(
 	);
 	const authenticatorData = concat(
 		await sha256(utf8.encode(rpId)),
-		Uint8Array.of(UP | UV | BE | BS | AT),
+		Uint8Array.of(UP | (verified ? UV : 0) | BE | BS | AT),
 		new Uint8Array(4),
 		AAGUID,
 		Uint8Array.of(credentialId.length >> 8, credentialId.length & 0xff),
@@ -373,9 +438,9 @@ export async function createPasskey(
 			...(request.user.displayName && {
 				userDisplayName: request.user.displayName,
 			}),
-			privateKey: toBase64Url(pkcs8),
 			createdAt: now.toISOString(),
 		},
+		privateKey: pkcs8,
 		credential: {
 			id,
 			rawId: id,
@@ -389,7 +454,7 @@ export async function createPasskey(
 				authenticatorData: toBase64Url(authenticatorData),
 				publicKey: toBase64Url(spki),
 				publicKeyAlgorithm: ES256,
-				transports: ["hybrid", "internal"],
+				transports: ["internal"],
 			},
 			clientExtensionResults:
 				request.extensions && "credProps" in request.extensions
@@ -405,33 +470,32 @@ export function usable(
 	request: GetRequest,
 	rpId: string,
 ) {
-	const allowed = request.allowCredentials?.map((credential) => credential.id);
+	const allowed = request.allowCredentials;
 	return passkeys.filter(
 		(passkey) =>
 			passkey.rpId === rpId &&
-			(!allowed?.length || allowed.includes(passkey.credentialId)),
+			(!allowed || allowed.includes(passkey.credentialId)),
 	);
 }
 
+/** Signs in with a passkey, given its private key, opened with the vault key. */
 export async function signIn(
-	passkey: StoredPasskey,
+	passkey: Omit<StoredPasskey, "sealedKey">,
+	privateKey: Uint8Array<ArrayBuffer>,
 	request: GetRequest,
 	origin: string,
+	{ verified }: { verified: boolean },
 ): Promise<Assertion> {
 	const authenticatorData = concat(
 		await sha256(utf8.encode(passkey.rpId)),
-		Uint8Array.of(UP | UV | BE | BS),
+		Uint8Array.of(UP | (verified ? UV : 0) | BE | BS),
 		// Synced passkeys keep a counter of 0, so a shared one never needs writing back.
 		new Uint8Array(4),
 	);
 	const data = clientData("webauthn.get", request.challenge, origin);
-	const key = await crypto.subtle.importKey(
-		"pkcs8",
-		fromBase64Url(passkey.privateKey),
-		P256,
-		false,
-		["sign"],
-	);
+	const key = await crypto.subtle.importKey("pkcs8", privateKey, P256, false, [
+		"sign",
+	]);
 	const signature = new Uint8Array(
 		await crypto.subtle.sign(
 			{ name: "ECDSA", hash: "SHA-256" },

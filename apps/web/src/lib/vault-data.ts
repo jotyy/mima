@@ -10,7 +10,9 @@ import {
 	newKeypair,
 	newSecret,
 	openJson,
+	openPasskeyKey,
 	sealJson,
+	sealPasskeyKey,
 	sha256Hex,
 	unwrapKey,
 	wrapKey,
@@ -54,7 +56,8 @@ export type CustomField = { label: string; value: string; hidden?: boolean };
 
 /**
  * A passkey, as the browser extension made it (apps/extension/lib/passkey.ts). The app
- * only shows it and keeps it when the item is saved; signing in with it is the extension's.
+ * shows it, keeps it when the item is saved and reseals its key when the item moves;
+ * signing in with it is the extension's.
  */
 export type Passkey = {
 	credentialId: string;
@@ -64,8 +67,8 @@ export type Passkey = {
 	userHandle: string;
 	userName?: string;
 	userDisplayName?: string;
-	/** PKCS#8, base64url. */
-	privateKey: string;
+	/** Its PKCS#8 private key, sealed with the vault's key, which agents never get. */
+	sealedKey: string;
 	createdAt: string;
 };
 
@@ -112,6 +115,19 @@ export function fieldsOf(item: Item): ItemFields {
 export type PreviousSecret = { secret: string; until: string; by?: string };
 
 const HISTORY_LIMIT = 10;
+
+async function resealPasskey(passkey: Passkey, from?: Vault, to?: Vault) {
+	if (!from || !to) throw new Error("Open both vaults to move this passkey.");
+	const privateKey = await openPasskeyKey(
+		from.key,
+		passkey.sealedKey,
+		passkey.credentialId,
+	);
+	return {
+		...passkey,
+		sealedKey: await sealPasskeyKey(to.key, privateKey, passkey.credentialId),
+	};
+}
 
 export type VaultMeta = { name: string; description: string; tone: Tone };
 
@@ -531,6 +547,18 @@ export function useActions() {
 			/** Saves new fields; a changed password or value joins the item's history. */
 			async updateItem(item: Item, fields: ItemFields, target?: Vault) {
 				const moving = target && target.id !== item.vaultId;
+				// A passkey's key is sealed with the vault's key, so it's sealed again for the
+				// vault the item moves to.
+				const passkey =
+					moving && fields.passkey
+						? await resealPasskey(
+								fields.passkey,
+								cached<Vault[]>(["vault", "vaults"])?.find(
+									(vault) => vault.id === item.vaultId,
+								),
+								target,
+							)
+						: fields.passkey;
 				const replaced = item.secret && fields.secret !== item.secret;
 				const history = replaced
 					? [
@@ -549,6 +577,7 @@ export function useActions() {
 						data: await sealJson(item.key, {
 							...item.unknown,
 							...fields,
+							...(passkey && { passkey }),
 							...(history?.length ? { history } : {}),
 						}),
 						...(moving

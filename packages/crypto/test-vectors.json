@@ -234,6 +234,16 @@
 			"sealed": "QEFCQ0RFRkdISUpL.WqLEHyo/VaF4gKibl2J2oDn4e3IOENFocROR2sm4L8/tPpW68Ya9ROXC+1go1/gDccduttn06kNmYBhI9AGkQvGc056VT8VFwpwIctP9F0769TvcetmJr4eSj+y2KwY/x0QMND9U07CPrRoU9WaRWLWzmyJ4V4foZSCsAv0qroRbY2ntjWnEdmEyk+OW/yrL+H9hloT/TlvuaA=="
 		}
 	],
+	"passkeyKey": [
+		{
+			"vaultKey": "YGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn8=",
+			"credentialId": "wMHCw8TFxsfIycrLzM3Ozw",
+			"additionalData": "vauly/passkey\nwMHCw8TFxsfIycrLzM3Ozw",
+			"privateKey": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgvoaobZmBdtPJ0O07HX1lh2mJZaiI+WnPARBUEBYmsuShRANCAATwTv61peWYpc716U5NEYKsia0RO1nKi5BIkIOlh0XMWZGX6+cpKPM5IJet2xhuAOuUKgtaHCItPa9pxbyK08Ji",
+			"iv": "UFFSU1RVVldYWVpb",
+			"sealed": "UFFSU1RVVldYWVpb.hlCmy4aCvtXJoculZJ02cElowiZE1wVTbJia1C7YnXVjzxTy1UVCIcPOdtDQYZgJyNe1CJeNIqvaV5FTpIwW2qK3rxTQAWLvyCeyDXUQ5uKge1eSEL8caABHGRbJDcHa7+vzljdNRW0SXb4jp7ocZhkb8pDuRttSFwha/4ww+Jgi92GkJ0GWXc69MjJEyWHKNY+KPOJig2EujQ=="
+		}
+	],
 	"agentToken": [
 		{
 			"agentId": "agent_0123456789",

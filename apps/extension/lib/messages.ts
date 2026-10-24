@@ -26,9 +26,7 @@ export type PageRequest =
 			request: unknown;
 	  }
 	/** The site gave up waiting for the passkey. */
-	| { type: "vauly:passkey-abort"; id: string }
-	/** Can the site count on a passkey from vauly here? */
-	| { type: "vauly:passkey-available" };
+	| { type: "vauly:passkey-abort"; id: string };
 
 /** Asked by vauly's frame, about the tab it sits in. */
 export type FrameRequest =
@@ -37,14 +35,17 @@ export type FrameRequest =
 	| { type: "vauly:offer" }
 	| { type: "vauly:save"; vaultId: string; name: string; username: string }
 	| { type: "vauly:update" }
-	| { type: "vauly:dismiss" }
+	| { type: "vauly:dismiss" };
+
+/** Asked by vauly's passkey window, about the request it's open for. */
+export type PasskeyWindowRequest =
 	| { type: "vauly:passkey-state" }
 	| { type: "vauly:passkey-save"; vaultId: string }
 	| { type: "vauly:passkey-use"; itemId: string }
 	/** Not with vauly: with the browser's own passkeys (`another`), or not at all. */
 	| { type: "vauly:passkey-decline"; another: boolean };
 
-export type Request = PageRequest | FrameRequest;
+export type Request = PageRequest | FrameRequest | PasskeyWindowRequest;
 
 /** Sent by the background to the page script. */
 export type PageMessage =
@@ -57,7 +58,8 @@ export type PageMessage =
 
 /**
  * What becomes of a site's passkey request: the browser's own passkeys take it, vauly
- * answers with a credential or an error, or (only to the content script) vauly asks first.
+ * answers with a credential or an error, or (only to the content script) vauly's window
+ * asks the person first.
  */
 export type PasskeyOutcome =
 	| { next: "browser" }
@@ -72,39 +74,46 @@ export type PasskeyOutcome =
 /** Between the passkey script in the page and vauly's content script, by postMessage. */
 export type PasskeyCall =
 	| { vauly: "passkey"; id: string; kind: "create" | "get"; request: unknown }
-	| { vauly: "passkey"; id: string; kind: "available" }
 	| { vauly: "passkey-abort"; id: string };
 
 export type PasskeyReply =
 	/** The content script is there, and has the request. */
 	| { vauly: "passkey-ack"; id: string }
-	| { vauly: "passkey-result"; id: string; outcome: PasskeyOutcome }
-	| { vauly: "passkey-available"; id: string; available: boolean };
+	| { vauly: "passkey-result"; id: string; outcome: PasskeyOutcome };
 
-/** What vauly's passkey prompt shows; never a key. */
-export type PasskeyState =
-	| { status: "none" }
-	| { status: "locked"; kind: "create" | "get"; rpId: string }
+/** What vauly's passkey window shows; never a key. */
+export type PasskeyState = { status: "none" } | PasskeyPrompt;
+
+export type PasskeyPrompt = {
+	kind: "create" | "get";
+	/** The page that asked, as the browser reported it. */
+	site: string;
+	rpId: string;
+} & (
+	| { status: "locked"; email: string }
 	| {
 			status: "create";
-			rpId: string;
 			userName: string;
 			/** The login it goes into, when one for this account is saved already. */
 			into?: { name: string; vault: string };
 			vaults: { id: string; name: string }[];
+			/** The site wants the person verified: the master password, first. */
+			verify: boolean;
 	  }
 	/** vauly has this account's passkey already, and the site asked not to make another. */
-	| { status: "exists"; rpId: string; name: string }
+	| { status: "exists"; name: string }
 	| {
 			status: "get";
-			rpId: string;
+			/** None, when vauly has no passkey the site accepts. */
 			passkeys: {
 				itemId: string;
 				name: string;
 				userName?: string;
 				logo: string | null;
 			}[];
-	  };
+			verify: boolean;
+	  }
+);
 
 export type MenuLogin = {
 	id: string;

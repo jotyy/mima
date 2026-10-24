@@ -32,6 +32,8 @@ const keyPairs = {
 		"MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgaNrV0Wa+6KqC8dnbF9QpjTqAGdDg5Xmm8c89aVQAiF6hRANCAASDcOaVmRlefddHVYvhffRp1AldOf16jbuaqavcrHZCVKkihaDbTKXAE3t+224TsjCgqRapZ8zjyrmbAFgYcOSU",
 	agent:
 		"MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQguIlIgAcUvyQupF3/EcWWJ0zMgRrlsGuIlw3/sW6HCaahRANCAATkpNixrPNOUH9k/3y0pf+nQ0vp+qfl99WVzbqzh6GDN7eR8c8DlkXG6geDvpY9xragMGvejAsrIvraTEAImnv+",
+	passkey:
+		"MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgvoaobZmBdtPJ0O07HX1lh2mJZaiI+WnPARBUEBYmsuShRANCAATwTv61peWYpc716U5NEYKsia0RO1nKi5BIkIOlh0XMWZGX6+cpKPM5IJet2xhuAOuUKgtaHCItPa9pxbyK08Ji",
 };
 
 const itemKey = run(0x40, 32);
@@ -403,6 +405,9 @@ const deviceCopy = {
 };
 const deviceData = `vauly/device\n${deviceCopy.accountId}\n${deviceCopy.credentialId}\n${deviceCopy.publicKey}`;
 
+/** A passkey's credential ID: 16 bytes, base64url, as the browser extension makes them. */
+const passkeyCredentialId = base64Url(run(0xc0, 16)).replace(/=+$/, "");
+
 const vectors = {
 	about:
 		"Test vectors for vauly's cryptography (packages/crypto). Every value is made up. Bytes are base64 (standard alphabet, padded) unless a field says hex. docs/security.md describes the formats; regenerate with `bun run vectors` in packages/crypto.",
@@ -528,6 +533,21 @@ const vectors = {
 				iv(10),
 				fromB64(keyPairs.account),
 				encoder.encode(deviceData),
+			),
+		},
+	],
+	passkeyKey: [
+		{
+			vaultKey: b64(vaultKey),
+			credentialId: passkeyCredentialId,
+			additionalData: `vauly/passkey\n${passkeyCredentialId}`,
+			privateKey: keyPairs.passkey,
+			iv: b64(iv(11)),
+			sealed: await seal(
+				vaultKey,
+				iv(11),
+				fromB64(keyPairs.passkey),
+				encoder.encode(`vauly/passkey\n${passkeyCredentialId}`),
 			),
 		},
 	],

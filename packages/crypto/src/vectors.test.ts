@@ -18,10 +18,12 @@ import {
 	open,
 	openDeviceCopy,
 	openJson,
+	openPasskeyKey,
 	parseTotp,
 	seal,
 	sealDeviceCopy,
 	sealJson,
+	sealPasskeyKey,
 	setArgon2,
 	sha256Hex,
 	type TotpConfig,
@@ -102,6 +104,13 @@ type Vectors = {
 		accountId: string;
 		credentialId: string;
 		publicKey: string;
+		privateKey: string;
+		iv: string;
+		sealed: string;
+	}[];
+	passkeyKey: {
+		vaultKey: string;
+		credentialId: string;
 		privateKey: string;
 		iv: string;
 		sealed: string;
@@ -312,6 +321,35 @@ describe("accounts", () => {
 			).toBe(vector.authKey);
 		}
 	});
+});
+
+describe("passkeys in the extension", () => {
+	for (const vector of vectors.passkeyKey) {
+		test("the vault key seals a passkey's private key, bound to the passkey", async () => {
+			const vaultKey = await aesKey(vector.vaultKey);
+			const made = await withFixedRandom(
+				{ bytes: [fromBase64(vector.iv)] },
+				() =>
+					sealPasskeyKey(
+						vaultKey,
+						fromBase64(vector.privateKey),
+						vector.credentialId,
+					),
+			);
+			expect(made).toBe(vector.sealed);
+			const opened = await openPasskeyKey(
+				vaultKey,
+				vector.sealed,
+				vector.credentialId,
+			);
+			expect(toBase64(opened)).toBe(vector.privateKey);
+			await expect(
+				openPasskeyKey(vaultKey, vector.sealed, "another-passkey"),
+			).rejects.toThrow();
+			// Nor does it open as a wrapped item key would.
+			await expect(open(vaultKey, vector.sealed)).rejects.toThrow();
+		});
+	}
 });
 
 describe("unlocking with a passkey", () => {

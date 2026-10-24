@@ -584,6 +584,33 @@ export async function openDeviceCopy(
 	return importPrivateKey(pkcs8);
 }
 
+// --- Passkeys ---------------------------------------------------------------------
+
+const passkeyData = (credentialId: string) =>
+	encoder.encode(`vauly/passkey\n${credentialId}`);
+
+/**
+ * Seals a passkey's private key (its PKCS#8 bytes) with the key of the vault its item is
+ * in, not the item's own key: an agent given the item gets only the item key, so it can
+ * use the password but never the passkey. The additional data names the passkey, so the
+ * sealed key opens for it and nothing else.
+ */
+export function sealPasskeyKey(
+	vaultKey: CryptoKey,
+	privateKeyPkcs8: Uint8Array,
+	credentialId: string,
+): Promise<Sealed> {
+	return sealWith(vaultKey, privateKeyPkcs8, passkeyData(credentialId));
+}
+
+export function openPasskeyKey(
+	vaultKey: CryptoKey,
+	sealed: Sealed,
+	credentialId: string,
+): Promise<Bytes> {
+	return openWith(vaultKey, sealed, passkeyData(credentialId));
+}
+
 // --- Agent tokens ----------------------------------------------------------------
 
 /** `vauly_agent_<id>.<secret>.<private key>`: everything an agent needs, shown once. */

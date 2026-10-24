@@ -32,21 +32,19 @@ export default defineContentScript({
 			return viaVauly("get", options.publicKey, options.signal, native);
 		};
 
-		// Sites only offer to make a passkey where they think one can be made; vauly can.
-		const nativeAvailable =
-			PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable;
-		if (nativeAvailable) {
+		// Sites only offer to make a passkey where they think one can be made, and vauly
+		// can. The answer doesn't depend on whether vauly is signed in or unlocked.
+		if (PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
 			PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable =
-				async () =>
-					(await nativeAvailable
-						.call(PublicKeyCredential)
-						.catch(() => false)) || (await vaulyAvailable());
+				async () => true;
 		}
 	},
 });
 
 /** vauly's content script answers at once; without it, the browser takes over. */
 const ACK_MS = 1000;
+/** How long vauly's window waits for the person, within the site's own timeout. */
+const TIMEOUT = { default: 5 * 60_000, min: 30_000, max: 10 * 60_000 };
 
 function post(call: PasskeyCall) {
 	window.postMessage(call, location.origin);
@@ -59,22 +57,6 @@ function listen(id: string, onReply: (reply: PasskeyReply) => void) {
 	};
 	window.addEventListener("message", handler);
 	return () => window.removeEventListener("message", handler);
-}
-
-function vaulyAvailable() {
-	const id = crypto.randomUUID();
-	return new Promise<boolean>((resolve) => {
-		const timer = setTimeout(() => done(false), ACK_MS);
-		const stop = listen(id, (reply) => {
-			if (reply.vauly === "passkey-available") done(reply.available);
-		});
-		const done = (available: boolean) => {
-			clearTimeout(timer);
-			stop();
-			resolve(available);
-		};
-		post({ vauly: "passkey", id, kind: "available" });
-	});
 }
 
 function viaVauly(
@@ -113,6 +95,14 @@ function viaVauly(
 				),
 			);
 		};
+		const timedOut = () => {
+			post({ vauly: "passkey-abort", id });
+			settle(() =>
+				reject(
+					new DOMException("The passkey request timed out.", "NotAllowedError"),
+				),
+			);
+		};
 		const answered = (outcome: PasskeyOutcome) => {
 			if (outcome.next === "credential") {
 				settle(() => resolve(credentialFrom(outcome.credential)));
@@ -122,15 +112,30 @@ function viaVauly(
 				toBrowser();
 			}
 		};
-		const timer = setTimeout(toBrowser, ACK_MS);
+		let timer = setTimeout(toBrowser, ACK_MS);
 		const stop = listen(id, (reply) => {
-			if (reply.vauly === "passkey-ack") clearTimeout(timer);
+			if (reply.vauly === "passkey-ack") {
+				clearTimeout(timer);
+				timer = setTimeout(timedOut, timeoutOf(options));
+			}
 			if (reply.vauly === "passkey-result") answered(reply.outcome);
 		});
 		signal?.addEventListener("abort", aborted);
 		post({ vauly: "passkey", id, kind, request });
 	});
 }
+
+/** The site's timeout, kept within reason; the browser clamps its own the same way. */
+const timeoutOf = (options: { timeout?: number }) =>
+	Math.min(
+		TIMEOUT.max,
+		Math.max(
+			TIMEOUT.min,
+			Number.isFinite(options.timeout)
+				? Number(options.timeout)
+				: TIMEOUT.default,
+		),
+	);
 
 // ── The site's options as JSON, and the answer as objects ───────────────────────────
 

@@ -1,0 +1,7 @@
+@import "@vauly/ui/globals.css";
+@import "@vauly/ui/pure.css";
+
+/* A window of its own, opened by the background when a site asks for a passkey. */
+body {
+	background-color: var(--canvas);
+}
