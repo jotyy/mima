@@ -41,8 +41,11 @@ export type Delivery = {
 };
 
 /**
- * Pushes one call sends at most. Cloudflare's free plan gives a request 50 fetches and
- * 10 ms of CPU, and each push is a fetch and about a quarter of a millisecond of crypto.
+ * Pushes one call sends at most. Cloudflare's free plan allows an invocation 50
+ * "subrequests" and 1,000 "subrequests to internal services", D1 queries among them,
+ * and 10 ms of CPU (https://developers.cloudflare.com/workers/platform/limits/). Each
+ * push is one fetch to the internet, with no redirects followed, and about a quarter
+ * of a millisecond of crypto. 25 leaves half of the 50 for the rest of the request.
  */
 export const MAX_SENDS = 25;
 /** Failed sends in a row before a device is forgotten. */

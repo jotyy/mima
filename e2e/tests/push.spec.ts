@@ -4,6 +4,7 @@ import {
 	type Browser,
 	expect,
 	type Page,
+	type Route,
 	test,
 } from "@playwright/test";
 import { decryptPush } from "@vauly/api/push/receive";
@@ -313,6 +314,38 @@ test("turning notifications on stores this device's subscription", async () => {
 	});
 	expect(badKeys).toContain("That isn't a push subscription");
 	expect(pushesTo(phone)).toHaveLength(0);
+});
+
+test("another tab's check doesn't drop the subscription this one is making", async () => {
+	const page = phone.page;
+	const toggle = page.getByRole("switch", { name: "Notifications" });
+	await toggle.click();
+	await expect(toggle).not.toBeChecked();
+
+	// The browser has subscribed, and the server hasn't heard yet...
+	let held: Route | undefined;
+	await page.route("**/rpc/push/subscribe", (route) => {
+		held = route;
+	});
+	await toggle.click();
+	await expect.poll(() => held).toBeTruthy();
+	// ...when another tab opens, and checks this device's subscription as it starts.
+	const other = await page.context().newPage();
+	await other.goto("/");
+	await expect(other.getByLabel("Master password")).toBeVisible();
+	await other.waitForTimeout(1000);
+
+	await held?.continue();
+	await expect(toggle).toBeChecked();
+	await page.unroute("**/rpc/push/subscribe");
+	await expect
+		.poll(() => other.evaluate(() => localStorage.getItem("e2e.pushKey")))
+		.not.toBeNull();
+	const status = await apiFromPage(page, "push/status", {
+		endpoint: phone.endpoint,
+	});
+	expect(JSON.parse(status).json).toBe(true);
+	await other.close();
 });
 
 test("an agent's request reaches the device, naming the agent and never the item", async ({

@@ -1,7 +1,7 @@
 import type { Database } from "@vauly/db";
 import { session } from "@vauly/db/schema/auth";
 import { pushSubscription } from "@vauly/db/schema/vault";
-import { and, eq, inArray, lte, ne } from "drizzle-orm";
+import { and, eq, inArray, lte, sql } from "drizzle-orm";
 
 import { newId } from "../lib";
 import { pushServiceAllowed } from "./notify";
@@ -67,32 +67,26 @@ export async function saveSubscription(
 				inArray(pushSubscription.sessionId, expired),
 			),
 		);
-	const others = await db
-		.select({ endpoint: pushSubscription.endpoint })
-		.from(pushSubscription)
-		.where(
-			and(
-				eq(pushSubscription.userId, userId),
-				ne(pushSubscription.sessionId, sessionId),
-			),
-		);
-	if (
-		others.filter((other) => other.endpoint !== endpoint).length >= DEVICE_LIMIT
-	)
-		return "too-many";
-
 	// The person's own: from this session, or an older one on the same browser.
 	if (holder)
 		await db
 			.delete(pushSubscription)
 			.where(eq(pushSubscription.endpoint, endpoint));
-	const device = { endpoint, p256dh: keys.p256dh, auth: keys.auth };
-	await db
-		.insert(pushSubscription)
-		.values({ id: newId("psb"), userId, sessionId, ...device })
-		.onConflictDoUpdate({
-			target: pushSubscription.sessionId,
-			set: { ...device, failures: 0 },
-		});
-	return "saved";
+	// Counting and saving in one statement, so subscribes at the same moment can't pass
+	// the limit together. A session's device is replaced in place.
+	const saved = await db.all<{ id: string }>(sql`
+		INSERT INTO ${pushSubscription} (id, user_id, session_id, endpoint, p256dh, auth)
+		SELECT ${newId("psb")}, ${userId}, ${sessionId}, ${endpoint}, ${keys.p256dh}, ${keys.auth}
+		WHERE (
+			SELECT count(*) FROM ${pushSubscription}
+			WHERE user_id = ${userId} AND session_id <> ${sessionId}
+		) < ${DEVICE_LIMIT}
+		ON CONFLICT (session_id) DO UPDATE SET
+			endpoint = excluded.endpoint,
+			p256dh = excluded.p256dh,
+			auth = excluded.auth,
+			failures = 0
+		RETURNING id
+	`);
+	return saved.length > 0 ? "saved" : "too-many";
 }
