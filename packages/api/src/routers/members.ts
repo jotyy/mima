@@ -1,5 +1,5 @@
 import { ORPCError } from "@orpc/server";
-import { user } from "@vauly/db/schema/auth";
+import { session, user } from "@vauly/db/schema/auth";
 import {
 	invite,
 	member,
@@ -188,7 +188,10 @@ export const membersRouter = {
 			});
 		}),
 
-	/** For someone who lost their phone and their recovery codes. */
+	/**
+	 * For someone who lost their phone and their recovery codes. It signs them out
+	 * everywhere, to sign in again with their master password and set it up anew.
+	 */
 	resetTwoStep: adminProcedure
 		.input(z.object({ userId: z.string() }))
 		.handler(async ({ context, input }) => {
@@ -214,6 +217,9 @@ export const membersRouter = {
 						recoveryCodes: null,
 					})
 					.where(eq(member.userId, input.userId)),
+				// Their sessions end with it, so one opened by whoever set it up in their
+				// name ends too, rather than set it up again.
+				db.delete(session).where(eq(session.userId, input.userId)),
 				logEvent(db, {
 					actorType: "member",
 					actorId: userId,

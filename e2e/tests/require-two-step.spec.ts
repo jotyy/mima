@@ -1,6 +1,7 @@
 import { type Browser, expect, type Page, test } from "@playwright/test";
 import { parseTotp, totpCode } from "@vauly/crypto";
 
+import { API_URL } from "../playwright.config";
 import {
 	apiFromPage,
 	createWorkspace,
@@ -27,6 +28,8 @@ const newcomer = {
 let admin: Page;
 let mei: Page;
 let sam: Page;
+/** Mei elsewhere, signed in with her password alone. */
+let meiElsewhere: Page;
 
 async function codeFor(secret: string) {
 	const config = parseTotp(secret);
@@ -80,6 +83,15 @@ async function join(
 const setupScreen = (page: Page) =>
 	page.getByRole("heading", { name: "Set up two-step login" });
 
+/** The password alone, which signs in a member who hasn't set up two-step login. */
+async function signInToSetUp(page: Page, person: typeof teammate) {
+	await page.goto("/login");
+	await page.getByLabel("Email").fill(person.email);
+	await page.getByLabel("Master password").fill(person.password);
+	await page.getByRole("button", { name: "Sign in" }).click();
+	await expect(setupScreen(page)).toBeVisible();
+}
+
 async function unlock(page: Page, password: string) {
 	await page.getByLabel("Master password").fill(password);
 	await page.getByRole("button", { name: "Unlock" }).click();
@@ -96,7 +108,9 @@ test.beforeAll(async ({ browser, request }) => {
 });
 
 test.afterAll(async () => {
-	for (const page of [admin, mei, sam]) await page?.context().close();
+	for (const page of [admin, mei, sam, meiElsewhere]) {
+		await page?.context().close();
+	}
 });
 
 test("an admin needs two-step login before requiring it", async () => {
@@ -141,35 +155,61 @@ test("turning it on says who it holds up, and Members marks them", async () => {
 test("a member without it is sent to set it up, and the server refuses the rest", async ({
 	browser,
 }) => {
-	// Signing in afresh leads there too.
-	const fresh = await (await browser.newContext()).newPage();
-	await fresh.goto("/login");
-	await fresh.getByLabel("Email").fill(teammate.email);
-	await fresh.getByLabel("Master password").fill(teammate.password);
-	await fresh.getByRole("button", { name: "Sign in" }).click();
-	await expect(setupScreen(fresh)).toBeVisible();
-	await fresh.context().close();
-
-	await mei.reload();
+	// With the app open, the next request is refused, and the app shows why.
+	await sidebarLink(mei, "Activity").click();
 	await expect(setupScreen(mei)).toBeVisible();
 	// Still signed in, to set it up: this isn't a session that ended.
 	await expect(mei.getByText("You were signed out")).toHaveCount(0);
-	for (const path of ["vaults/list", "items/list", "members/list"]) {
+	for (const path of [
+		"vaults/list",
+		"items/list",
+		"members/list",
+		"account/upgradeKdf",
+		"account/devicePepper",
+	]) {
 		expect(await apiFromPage(mei, path), path).toContain("TWO_STEP_REQUIRED");
 	}
 	expect(await apiFromPage(mei, "account/me")).toContain(
 		'"twoStepRequired":true',
 	);
+	// Better Auth's own routes for the password and the profile are closed.
+	for (const path of ["change-password", "update-user"]) {
+		const status = await mei.evaluate(
+			async (url) =>
+				(
+					await fetch(url, {
+						method: "POST",
+						credentials: "include",
+						headers: { "content-type": "application/json" },
+						body: "{}",
+					})
+				).status,
+			`${API_URL}/api/auth/${path}`,
+		);
+		expect(status, path).toBe(404);
+	}
+
+	// Signing in afresh leads there too.
+	meiElsewhere = await (await browser.newContext()).newPage();
+	await signInToSetUp(meiElsewhere, teammate);
 });
 
-test("setting it up opens the vaults", async () => {
+test("setting it up opens the vaults, and signs out the sessions without it", async () => {
 	await mei.getByRole("button", { name: "Set up two-step login" }).click();
 	await finishSetup(mei);
-	await unlock(mei, teammate.password);
+	// Still unlocked from before, it opens where it was.
+	await expectSignedIn(mei);
 	await expect(setupScreen(mei)).toHaveCount(0);
+
+	// The other session gave the password alone, so it doesn't pass for one that gave a code.
+	await meiElsewhere.reload();
+	await expect(meiElsewhere.getByLabel("Email")).toBeVisible();
+	expect(await apiFromPage(meiElsewhere, "vaults/list")).toContain(
+		"UNAUTHORIZED",
+	);
 });
 
-test("a reset sends them back to set it up, even with the app open", async () => {
+test("a reset signs them out everywhere, to sign in and set it up again", async () => {
 	// Members loads afresh, now that Mei has it.
 	await sidebarLink(admin, "Activity").click();
 	await sidebarLink(admin, "Members").click();
@@ -182,10 +222,10 @@ test("a reset sends them back to set it up, even with the app open", async () =>
 		.click();
 	await expect(admin.getByText("Needs two-step login")).toHaveCount(1);
 
-	// Mei's next request is refused, and the app shows why.
-	await sidebarLink(mei, "Activity").click();
-	await expect(setupScreen(mei)).toBeVisible();
-	await expect(mei.getByText("You were signed out")).toHaveCount(0);
+	// Whoever set it up in Mei's name is signed out with her, rather than set it up again.
+	await sidebarLink(mei, "Members").click();
+	await expect(mei.getByText("You were signed out")).toBeVisible();
+	await signInToSetUp(mei, teammate);
 });
 
 test("a new member hears about it as they join, then sets it up", async ({

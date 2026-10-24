@@ -19,7 +19,8 @@ const requireAuth = o.middleware(async ({ context, next }) => {
 	});
 });
 
-export const protectedProcedure = publicProcedure.use(requireAuth);
+/** Not exported: whatever acts for a member is setupProcedure or memberProcedure. */
+const protectedProcedure = publicProcedure.use(requireAuth);
 
 /** The setting that, while it's "1", has every member set up two-step login first. */
 export const REQUIRE_TWO_STEP = "require_two_step";
@@ -61,8 +62,8 @@ export const findMember = o.middleware(async ({ context, next }) => {
 
 /**
  * Refuses a member without two-step login while their workspace requires it: a 403,
- * as a 401 would sign them out. Everything a member does goes through this, but what
- * setupProcedure lists.
+ * as a 401 would sign them out. Everything a member does goes through this, but the
+ * steps of setting it up (setupProcedure).
  */
 export const requireTwoStep = o
 	.$context<{
@@ -80,9 +81,9 @@ export const requireTwoStep = o
 	});
 
 /**
- * Only for what a member needs to set up two-step login, and to unlock, which their
- * workspace may require first. Keep it to those: everything else is memberProcedure.
- * gate.test.ts lists what may use it.
+ * Only for what a member needs to set up two-step login, which their workspace may
+ * require first. Keep it to those: everything else is memberProcedure. gate.test.ts
+ * lists what may use it, and checks every other route.
  */
 export const setupProcedure = protectedProcedure.use(findMember);
 

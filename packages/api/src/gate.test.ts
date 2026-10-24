@@ -9,17 +9,28 @@ import { appRouter } from "./routers/index";
 import { testDb } from "./test-db";
 
 // Requiring two-step login is only as good as the routes it covers. This walks every
-// procedure in the router: each one a member calls refuses a member without two-step
-// login while their workspace requires it, except what setting it up and unlocking need.
-// A route added later is refused unless it's added here.
+// procedure in the router. Each one is public, or for agents, which use their own token,
+// as listed here; or it refuses a member without two-step login while their workspace
+// requires it, but for the steps of setting it up. A route added later is refused
+// unless it's added to a list.
+
+/** What needs no member's session: these are open to anyone, or take an agent's token. */
+const PUBLIC = [
+	"account.invite",
+	"account.prelogin",
+	"account.register",
+	"account.status",
+	"healthCheck",
+	"links.open",
+	"links.peek",
+];
+const forAgents = (path: string) => path.startsWith("agent.");
 
 /** What a member without two-step login may still call while their workspace requires it. */
 const OPEN_FOR_SETUP = [
 	"account.beginTwoStep",
 	"account.confirmTwoStep",
-	"account.devicePepper",
 	"account.me",
-	"account.upgradeKdf",
 	"push.unsubscribe",
 ];
 
@@ -32,13 +43,23 @@ function walk(node: unknown, path: string[] = []): [string, AnyProcedure][] {
 }
 
 const procedures = walk(appRouter);
+const paths = procedures.map(([path]) => path).sort();
 const uses = (procedure: AnyProcedure, middleware: unknown) =>
 	(procedure["~orpc"].middlewares as unknown[]).includes(middleware);
-/** Every procedure that acts for a member, whatever else it checks. */
-const forMembers = procedures
-	.filter(([, procedure]) => uses(procedure, findMember))
-	.map(([path]) => path)
-	.sort();
+const usingAll = (...middlewares: unknown[]) =>
+	procedures
+		.filter(([, procedure]) =>
+			middlewares.every((middleware) => uses(procedure, middleware)),
+		)
+		.map(([path]) => path)
+		.sort();
+/** Everything else, which must refuse a member without two-step login. */
+const gated = paths.filter(
+	(path) =>
+		!PUBLIC.includes(path) &&
+		!forAgents(path) &&
+		!OPEN_FOR_SETUP.includes(path),
+);
 
 function workspace(options: { required: boolean; twoStep: boolean }) {
 	const { sqlite, db } = testDb();
@@ -83,21 +104,20 @@ async function refused(context: Context) {
 }
 
 describe("requiring two-step login", () => {
-	test("covers every member's procedure but what setting it up needs", () => {
-		for (const path of OPEN_FOR_SETUP) expect(forMembers).toContain(path);
-		const gated = procedures
-			.filter(([, procedure]) => uses(procedure, requireTwoStep))
-			.map(([path]) => path)
-			.sort();
-		expect(gated).toEqual(
-			forMembers.filter((path) => !OPEN_FOR_SETUP.includes(path)),
-		);
+	test("covers every route but the public ones, the agents' and setting it up", () => {
+		for (const path of [...PUBLIC, ...OPEN_FOR_SETUP]) {
+			expect(paths).toContain(path);
+		}
+		expect(usingAll(requireTwoStep)).toEqual(gated);
+		expect(
+			usingAll(findMember).filter((path) => !gated.includes(path)),
+		).toEqual([...OPEN_FOR_SETUP].sort());
 	});
 
 	test("refuses them all while it's required and the member hasn't set it up", async () => {
 		expect(
 			await refused(workspace({ required: true, twoStep: false })),
-		).toEqual(forMembers.filter((path) => !OPEN_FOR_SETUP.includes(path)));
+		).toEqual(gated);
 	});
 
 	test("refuses none once they've set it up, or while it isn't required", async () => {
@@ -107,6 +127,18 @@ describe("requiring two-step login", () => {
 		expect(
 			await refused(workspace({ required: false, twoStep: false })),
 		).toEqual([]);
+	});
+
+	test("the agents' routes take an agent's token, not a member's session", async () => {
+		const context = workspace({ required: false, twoStep: true });
+		const agentRoutes = procedures.filter(([path]) => forAgents(path));
+		expect(agentRoutes.length).toBeGreaterThan(0);
+		for (const [path, procedure] of agentRoutes) {
+			const error = await call(procedure, {}, { context }).catch(
+				(caught: { code?: string }) => caught,
+			);
+			expect((error as { code?: string }).code, path).toBe("UNAUTHORIZED");
+		}
 	});
 
 	test("an admin can't require it before setting it up themselves", async () => {

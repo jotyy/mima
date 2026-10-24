@@ -6,7 +6,7 @@ import {
 	newSetupKey,
 } from "@vauly/auth/two-step";
 import { ARGON2ID, kdfAllowed } from "@vauly/crypto";
-import { account, user } from "@vauly/db/schema/auth";
+import { account, session, user } from "@vauly/db/schema/auth";
 import {
 	invite,
 	member,
@@ -14,7 +14,7 @@ import {
 	vault,
 	vaultAccess,
 } from "@vauly/db/schema/vault";
-import { and, count, eq, gt, isNull, ne } from "drizzle-orm";
+import { and, count, eq, gt, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Context } from "../context";
 import {
@@ -70,6 +70,9 @@ const changedElsewhere = () =>
 		message:
 			"Your master password just changed on another device. Reload, then try again.",
 	});
+
+const twoStepOnAlready = () =>
+	new ORPCError("BAD_REQUEST", { message: "Two-step login is on already" });
 
 async function hmac(secret: string, message: string) {
 	const key = await crypto.subtle.importKey(
@@ -313,7 +316,7 @@ export const accountRouter = {
 	 * copy is older than DEVICE_UNLOCK_DAYS, nobody can get it, so the copy no longer
 	 * opens. Without `issuedAt`, a new copy starts now.
 	 */
-	devicePepper: setupProcedure
+	devicePepper: memberProcedure
 		.input(z.object({ issuedAt: z.number().int().positive().optional() }))
 		.handler(async ({ context, input }) => {
 			const now = Date.now();
@@ -418,7 +421,7 @@ export const accountRouter = {
 	 * their other sessions stay signed in, since the password is the same. The web app
 	 * calls it after an unlock with the master password.
 	 */
-	upgradeKdf: setupProcedure
+	upgradeKdf: memberProcedure
 		.input(
 			z.object({
 				currentAuthKey: z.string().length(64),
@@ -501,66 +504,95 @@ export const accountRouter = {
 
 	/**
 	 * Two-step login, step one: a new setup key for the authenticator app. It only takes
-	 * effect once a code from it is confirmed.
+	 * effect once a code from it is confirmed, and only while two-step login is off, as
+	 * the update checks: a new key can't slip in after another request turned it on.
 	 */
 	beginTwoStep: setupProcedure.handler(async ({ context }) => {
-		const { db, member: me, session } = context;
-		if (me.totpSecret) {
-			throw new ORPCError("BAD_REQUEST", {
-				message: "Two-step login is on already",
-			});
-		}
+		const { db, member: me } = context;
 		const secret = newSetupKey();
-		await db
-			.update(member)
-			.set({ totpPending: secret })
-			.where(eq(member.userId, me.userId));
+		const started = me.totpSecret
+			? []
+			: await db
+					.update(member)
+					.set({ totpPending: secret })
+					.where(and(eq(member.userId, me.userId), isNull(member.totpSecret)))
+					.returning({ userId: member.userId });
+		if (started.length === 0) throw twoStepOnAlready();
 		const [workspace] = await db
 			.select({ value: setting.value })
 			.from(setting)
 			.where(eq(setting.key, "workspace_name"));
 		const issuer = `vauly ${workspace?.value ?? ""}`.trim();
-		const label = encodeURIComponent(`${issuer}:${session.user.email}`);
+		const label = encodeURIComponent(`${issuer}:${context.session.user.email}`);
 		return {
 			secret,
 			uri: `otpauth://totp/${label}?secret=${secret}&issuer=${encodeURIComponent(issuer)}`,
 		};
 	}),
 
-	/** Step two: a code from the new setup key turns it on, and returns recovery codes once. */
+	/**
+	 * Step two: a code from the new setup key turns it on, and returns recovery codes once.
+	 * It signs out the person's other sessions: one opened with the password alone mustn't
+	 * pass for one that gave the second step. Both happen only if two-step login is still
+	 * off and the setup key is still this one, so of two requests at once, one wins.
+	 */
 	confirmTwoStep: setupProcedure
 		.input(z.object({ code: z.string().trim().min(6).max(12) }))
 		.handler(async ({ context, input }) => {
 			const { db, member: me } = context;
-			if (!me.totpPending) {
+			if (me.totpSecret) throw twoStepOnAlready();
+			const pending = me.totpPending;
+			if (!pending) {
 				throw new ORPCError("BAD_REQUEST", { message: "Start again" });
 			}
-			const step = await matchCode(me.totpPending, input.code);
+			const step = await matchCode(pending, input.code);
 			if (step === null) {
 				throw new ORPCError("BAD_REQUEST", {
 					message: "That code didn't work. Check the time on your phone.",
 				});
 			}
 			const recoveryCodes = newRecoveryCodes();
-			await db.batch([
+			const [turnedOn] = await db.batch([
 				db
 					.update(member)
 					.set({
-						totpSecret: me.totpPending,
+						totpSecret: pending,
 						totpPending: null,
 						totpStep: step,
 						recoveryCodes: await Promise.all(
 							recoveryCodes.map(hashRecoveryCode),
 						),
 					})
-					.where(eq(member.userId, me.userId)),
-				logEvent(db, {
-					actorType: "member",
-					actorId: me.userId,
-					action: "updated",
-					detail: "two-step login on",
-				}),
+					.where(
+						and(
+							eq(member.userId, me.userId),
+							isNull(member.totpSecret),
+							eq(member.totpPending, pending),
+						),
+					)
+					.returning({ userId: member.userId }),
+				db
+					.delete(session)
+					.where(
+						and(
+							eq(session.userId, me.userId),
+							ne(session.id, context.session.session.id),
+							sql`exists (select 1 from ${member} where ${and(eq(member.userId, me.userId), eq(member.totpSecret, pending))})`,
+						),
+					),
 			]);
+			if (turnedOn.length === 0) {
+				throw new ORPCError("CONFLICT", {
+					message:
+						"Two-step login just changed on another device. Reload, then try again.",
+				});
+			}
+			await logEvent(db, {
+				actorType: "member",
+				actorId: me.userId,
+				action: "updated",
+				detail: "two-step login on",
+			});
 			context.notify(
 				twoStepDeliveries(db, {
 					id: me.userId,

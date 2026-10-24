@@ -142,7 +142,8 @@ export function TurnOnTwoStepDialog({
 					<DialogTitle>Turn on two-step login</DialogTitle>
 					<DialogDescription>
 						Signing in will ask for a code from an authenticator app too, so a
-						master password alone isn't enough.
+						master password alone isn't enough. Turning it on signs out your
+						other devices.
 					</DialogDescription>
 				</DialogHeader>
 				<form onSubmit={confirm} className="flex flex-col gap-4">

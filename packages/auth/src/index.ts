@@ -48,6 +48,10 @@ export function createAuth(
 			maxPasswordLength: 64,
 		},
 		session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24 },
+		// A new master password goes through `account.changePassword`, which swaps the
+		// sealed keys with the auth hash, and a new name through `account.updateProfile`.
+		// Better Auth's own routes for them would skip that, and the workspace's rules.
+		disabledPaths: ["/change-password", "/update-user"],
 		secret: env.BETTER_AUTH_SECRET,
 		baseURL: env.BETTER_AUTH_URL,
 		hooks: {

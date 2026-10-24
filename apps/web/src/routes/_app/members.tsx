@@ -324,7 +324,7 @@ function Members() {
 				open={Boolean(resetting)}
 				onOpenChange={(open) => !open && setResetting(null)}
 				title={`Reset two-step login for ${resetting?.name}?`}
-				description="For when they lost their phone and their recovery codes. Their master password alone signs them in again, until they turn two-step login back on."
+				description="For when they lost their phone and their recovery codes. It signs them out everywhere, and their master password alone signs them in again, until they turn two-step login back on."
 				confirm="Reset"
 				onConfirm={async () => {
 					if (resetting) {
