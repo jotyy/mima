@@ -28,7 +28,9 @@ import { KeyDerivationError } from "@/lib/argon2";
 import { fileSize, uploadFile, useFileUsage } from "@/lib/files";
 import { plural } from "@/lib/format";
 import {
+	fileBytes,
 	ImportError,
+	type ImportedFile,
 	type Leftover,
 	LockedExport,
 	type ParsedImport,
@@ -98,9 +100,8 @@ export function ImportDialog({
 	const actions = useActions();
 	const queryClient = useQueryClient();
 	const usage = useFileUsage(open);
-	const fits = (file: { data?: Uint8Array }) =>
-		(file.data?.length ?? 0) <=
-		(usage.data?.maxFile ?? Number.POSITIVE_INFINITY);
+	const fits = (file: ImportedFile) =>
+		fileBytes(file) <= (usage.data?.maxFile ?? Number.POSITIVE_INFINITY);
 	const [step, setStep] = useState<Step>({ name: "apps" });
 	// Items go only where this person can add them.
 	const writable = (vaults.data ?? []).filter(canEdit);
@@ -164,6 +165,8 @@ export function ImportDialog({
 			const parsed = await step.locked.open(password, {
 				keyFile: keyFile ? await keyFile.arrayBuffer() : undefined,
 				signal: controller.signal,
+				// A database's attachments over this vauly's limit aren't sent, only named.
+				fileLimit: usage.data?.maxFile,
 			});
 			if (mine !== attempt.current) return;
 			if (parsed.items.length === 0) {
@@ -791,12 +794,9 @@ function Review({
 	const usage = useFileUsage();
 	const maxFile = usage.data?.maxFile ?? Number.POSITIVE_INFINITY;
 	const all = fresh.flatMap((item) => parsed.files?.get(item) ?? []);
-	const files = all.filter((file) => (file.data?.length ?? 0) <= maxFile);
-	const tooBig = all.filter((file) => (file.data?.length ?? 0) > maxFile);
-	const fileBytes = files.reduce(
-		(total, file) => total + (file.data?.length ?? 0),
-		0,
-	);
+	const files = all.filter((file) => fileBytes(file) <= maxFile);
+	const tooBig = all.filter((file) => fileBytes(file) > maxFile);
+	const filesSize = files.reduce((total, file) => total + fileBytes(file), 0);
 
 	return (
 		<div className="flex flex-col gap-3">
@@ -863,7 +863,7 @@ function Review({
 				<ul className="text-caption text-fg-muted flex flex-col gap-1">
 					{files.length > 0 && (
 						<li>
-							{plural(files.length, "file")} ({fileSize(fileBytes)}) come
+							{plural(files.length, "file")} ({fileSize(filesSize)}) come
 							{files.length === 1 ? "s" : ""} with them, encrypted on this
 							device.
 						</li>

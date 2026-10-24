@@ -1,5 +1,6 @@
 import type { KdbxRequest, KdbxResponse } from "./kdbx.worker";
-import { ImportError } from "./parsed";
+import type { KdbxAttachment } from "./kdbx-open";
+import { ImportError, type OpenWith } from "./parsed";
 
 // Opens a KeePass database in the import worker (kdbx.worker.ts), which hands it back as
 // KeePass XML for the XML import to read. The worker gets the file, the password and the
@@ -22,9 +23,8 @@ const TIMEOUT_MS = 5 * 60 * 1000;
 export function openKdbxInWorker(
 	file: ArrayBuffer,
 	password: string,
-	keyFile?: ArrayBuffer,
-	signal?: AbortSignal,
-): Promise<{ xml: string; attachments: number }> {
+	{ keyFile, signal, fileLimit }: OpenWith = {},
+): Promise<{ xml: string; files: KdbxAttachment[] }> {
 	return new Promise((resolve, reject) => {
 		if (signal?.aborted) {
 			return reject(new DOMException("Cancelled", "AbortError"));
@@ -69,7 +69,7 @@ export function openKdbxInWorker(
 			);
 		// Moved, not copied: the caller hands over buffers of its own for each try.
 		worker.postMessage(
-			{ file, password, keyFile } satisfies KdbxRequest,
+			{ file, password, keyFile, fileLimit } satisfies KdbxRequest,
 			keyFile ? [file, keyFile] : [file],
 		);
 	});

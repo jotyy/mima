@@ -30,7 +30,7 @@ Each app exports in its own way, so use the richest format it offers. The sectio
 | Identities and addresses                                   | Identities                            |
 | Passport, licence and ID numbers on an identity            | Hidden fields on the identity         |
 
-Cards and identities come over from 1Password's 1PUX, Bitwarden's JSON, Proton Pass, Enpass, Keeper's JSON and Dashlane's ZIP. CSV exports leave out their details, so the review says to use one of those instead. vauly doesn't store bank accounts, or passports and other documents as items of their own, so those stay behind. Files come over from 1Password's 1PUX (Documents and the files attached to items) and Bitwarden's ZIP with attachments, up to your vauly's limit on files; the review names any that are too big. Other apps' attachments stay behind, and so do passkeys (vauly's browser extension makes new ones), Proton Pass email aliases and items in the trash. Before you import, the review lists everything that stays behind.
+Cards and identities come over from 1Password's 1PUX, Bitwarden's JSON, Proton Pass, Enpass, Keeper's JSON and Dashlane's ZIP. CSV exports leave out their details, so the review says to use one of those instead. vauly doesn't store bank accounts, or passports and other documents as items of their own, so those stay behind. Files come over from 1Password's 1PUX (Documents and the files attached to items), Bitwarden's ZIP with attachments, and KeePass and KeePassXC (databases and XML exports alike), up to your vauly's limit on files; the review names any that are too big. Other apps' attachments stay behind, and so do passkeys (vauly's browser extension makes new ones), Proton Pass email aliases and items in the trash. Before you import, the review lists everything that stays behind.
 
 Favorites, sharing and permissions don't come over either. Share vaults with your team in vauly once your items are in.
 
@@ -115,18 +115,18 @@ The export holds only the vaults you own. Each item is tagged with its vault and
 
 ## KeePass
 
-Bring the `.kdbx` database itself; there's nothing to export. It keeps groups, tags, custom fields, one-time codes and earlier passwords.
+Bring the `.kdbx` database itself; there's nothing to export. It keeps groups, tags, custom fields, one-time codes, earlier passwords and attachments, which come as files.
 1. Close the database in KeePass, so everything is saved.
 2. Drop its `.kdbx` file into vauly.
 3. Enter its password, and choose its key file if it has one.
 
-vauly opens the database in your browser, in a worker that can't connect anywhere, and the password never leaves it. It reads KDBX 3.1 and 4, with AES-KDF or Argon2. A database whose key settings ask for more than 1 GiB of memory, 100 Argon2 passes, 16 lanes or 200 million AES-KDF rounds is turned away, with the setting to lower under **Database Settings › Security**.
+vauly opens the database in your browser, in a worker that can't connect anywhere, and the password never leaves it. It reads KDBX 3.1 and 4, with AES-KDF or Argon2, but not KDBX 2.x, from KeePass before 2.20: open such a database in a current KeePass or KeePassXC and save it first. A database whose key settings ask for more than 1 GiB of memory, 100 Argon2 passes, 16 lanes or 200 million AES-KDF rounds is turned away, with the setting to lower under **Database Settings › Security**.
 
-A database that needs your Windows user account can't be opened outside KeePass. For that one, choose **File › Export › KeePass XML (2.x)** and bring that file instead; it keeps the same things. Entries in the Recycle Bin stay behind either way, and so do attachments for now; the review counts them. **KeePass CSV (1.x)** works too, but it has only titles, usernames, passwords, websites and notes. [KeePass's help](https://keepass.info/help/base/importexport.html)
+A database that needs your Windows user account can't be opened outside KeePass. For that one, choose **File › Export › KeePass XML (2.x)** and bring that file instead; it keeps the same things. Entries in the Recycle Bin stay behind either way, and so do attachments on an entry's earlier versions. **KeePass CSV (1.x)** works too, but it has only titles, usernames, passwords, websites and notes. [KeePass's help](https://keepass.info/help/base/importexport.html)
 
 ## KeePassXC
 
-Bring the `.kdbx` database itself, as for [KeePass](#keepass): close it in KeePassXC, drop the file into vauly, and enter its password and key file. It keeps groups, tags, custom fields, one-time codes and earlier passwords.
+Bring the `.kdbx` database itself, as for [KeePass](#keepass): close it in KeePassXC, drop the file into vauly, and enter its password and key file. It keeps groups, tags, custom fields, one-time codes, earlier passwords and attachments.
 
 A database that needs a YubiKey (challenge-response) can't be opened outside KeePassXC. For that one, choose **Database › Export › XML File…** and bring that file instead. KeePassXC's CSV works too, with one-time codes but without tags and custom fields. [KeePassXC's user guide](https://keepassxc.org/docs/KeePassXC_UserGuide)
 

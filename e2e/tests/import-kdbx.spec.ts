@@ -7,6 +7,7 @@ import {
 	openAllItems,
 	owner,
 	resetWorkspace,
+	sidebarLink,
 	signIn,
 } from "./helpers";
 
@@ -119,4 +120,51 @@ test("a database that's slow to open can be cancelled", async ({ page }) => {
 	).toBeEnabled({ timeout: 2_000 });
 	await expect(dialog.getByRole("alert")).toHaveCount(0);
 	await expect(dialog.getByText(/^KeePass database ·/)).toHaveCount(0);
+});
+
+test("a database's attachments come as files on their items", async ({
+	page,
+}) => {
+	// A vault of its own: the same entries are in Private already.
+	await signIn(page, owner);
+	await sidebarLink(page, "Vaults").click();
+	await page.getByRole("button", { name: "New vault" }).click();
+	const create = page.getByRole("dialog");
+	await create.getByLabel("Name").fill("Servers");
+	await create.getByRole("button", { name: "Create vault" }).click();
+	await expect(create).toBeHidden();
+
+	await openAllItems(page);
+	await page.getByRole("button", { name: "Import", exact: true }).click();
+	const dialog = page.getByRole("dialog");
+	await dialog
+		.getByLabel("Export file")
+		.setInputFiles(fixture("attachments.kdbx"));
+	await dialog.getByLabel("Database password").fill("example-keepass-password");
+	await dialog.getByRole("button", { name: "Open the database" }).click();
+	await dialog.getByRole("combobox", { name: "Vault" }).click();
+	await page.getByRole("option", { name: "Servers" }).click();
+	// The entry's two; not its earlier version's, nor the Recycle Bin's.
+	await expect(
+		dialog.getByText(/^2 files \(41 bytes\) come with them/),
+	).toBeVisible();
+	await dialog.getByRole("button", { name: "Import 2 items" }).click();
+	await expect(dialog.getByText("Imported 2 items into Servers")).toBeVisible({
+		timeout: 30_000,
+	});
+	await dialog.getByRole("button", { name: "Show the items" }).click();
+
+	await page
+		.getByRole("region", { name: "Items" })
+		.getByRole("link", { name: /^GitHub/ })
+		.click();
+	const files = page.getByRole("region", { name: "Files" });
+	await expect(files.getByText("server.p12")).toBeVisible();
+	const [download] = await Promise.all([
+		page.waitForEvent("download"),
+		files.getByRole("button", { name: "Download recovery.txt" }).click(),
+	]);
+	expect(readFileSync((await download.path()) ?? "", "utf8")).toBe(
+		"example recovery codes",
+	);
 });

@@ -5,7 +5,7 @@ import { parseCsvExport, parseDashlane } from "./csv";
 import { parseJsonExport } from "./json";
 import { openKdbxInWorker } from "./kdbx";
 import { checkKdbxHeader } from "./kdbx-header";
-import { parseKeePassXml } from "./keepass";
+import { type KeePassFile, parseKeePassXml } from "./keepass";
 import { ImportError, LockedExport, type ParsedImport } from "./parsed";
 import {
 	type Argon2Lanes,
@@ -22,7 +22,9 @@ import { decodeEntities } from "./xml";
 
 export { parseCsv } from "./csv";
 export {
+	fileBytes,
 	ImportError,
+	type ImportedFile,
 	type ImportSource,
 	type Leftover,
 	LockedExport,
@@ -46,16 +48,17 @@ export function readImport(bytes: Uint8Array): ParsedImport {
 		// its password and key file, then read as KeePass's XML export is.
 		checkKdbxHeader(bytes);
 		throw new LockedExport("KeePass", async (password, more) => {
-			const { xml, attachments } = await openKdbxInWorker(
+			const { xml, files } = await openKdbxInWorker(
 				bytes.slice().buffer,
 				password,
-				more?.keyFile,
-				more?.signal,
+				more,
 			);
-			return withAttachments(
-				{ ...parseKeePassXml(xml), format: "KDBX" },
-				attachments,
-			);
+			const byEntry = new Map<string, KeePassFile[]>();
+			for (const { entry, name, size, data } of files) {
+				const file = { name, size, data: data && new Uint8Array(data) };
+				byEntry.set(entry, [...(byEntry.get(entry) ?? []), file]);
+			}
+			return { ...parseKeePassXml(xml, byEntry), format: "KDBX" };
 		});
 	}
 	return parseImport(decodeText(bytes));

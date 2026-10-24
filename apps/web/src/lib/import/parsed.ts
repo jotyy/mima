@@ -30,8 +30,20 @@ export type Leftover =
 	| "trashed"
 	| "empty";
 
-/** A file that comes with an item; `data` is filled in from the ZIP that holds it. */
-export type ImportedFile = { name: string; path: string; data?: Uint8Array };
+/**
+ * A file that comes with an item; `data` is filled in from the ZIP or database that holds
+ * it. A file over this vauly's limit may come with only its `size`, for the review to name.
+ */
+export type ImportedFile = {
+	name: string;
+	path: string;
+	data?: Uint8Array;
+	size?: number;
+};
+
+/** A file's size, whether its bytes came along or not. */
+export const fileBytes = (file: ImportedFile) =>
+	file.size ?? file.data?.length ?? 0;
 
 export type ParsedImport = {
 	source: ImportSource;
@@ -41,7 +53,7 @@ export type ParsedImport = {
 	left: Partial<Record<Leftover, number>>;
 	/** Folders, vaults or collections, which come over as tags. */
 	folders: string[];
-	/** The files each item brings, from a vauly backup ZIP. */
+	/** The files each item brings: from a ZIP, or a KeePass database or XML export. */
 	files?: Map<ItemFields, ImportedFile[]>;
 };
 
@@ -55,6 +67,8 @@ export type OpenWith = {
 	keyFile?: ArrayBuffer;
 	/** Ends the opening: a KeePass database can take minutes to derive its key. */
 	signal?: AbortSignal;
+	/** The largest file this vauly takes: a database's bigger attachments aren't sent. */
+	fileLimit?: number;
 };
 
 /**

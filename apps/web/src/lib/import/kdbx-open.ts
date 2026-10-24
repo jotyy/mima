@@ -15,7 +15,7 @@ import {
 // page may not, and can't connect anywhere. A database says how hard its key is to
 // derive: one that asks for more than a database needs is refused before anything runs.
 // What it unpacks to is capped as well (kdbxweb is patched for that: patches/), and its
-// attachments are counted and left out, so the XML holds only what the import reads.
+// attachments are taken out and sent beside the XML, as bytes, rather than in it.
 
 export type KdbxFailure =
 	| "wrong-key"
@@ -146,15 +146,26 @@ function failure(error: unknown): KdbxOpenError {
 	}
 }
 
+/** An entry's attachment: its bytes, or only its size when it's over the file limit. */
+export type KdbxAttachment = {
+	/** The entry's UUID, as the XML's <UUID> has it. */
+	entry: string;
+	name: string;
+	size: number;
+	data?: ArrayBuffer;
+};
+
 /**
  * The database as KeePass XML, protected values included, as KeePass's own export has it,
- * but without its attachments: how many of those stay behind is counted instead.
+ * and its attachments beside it. Those over `fileLimit` come without their bytes, so the
+ * import can name them.
  */
 export async function openKdbx(
 	file: ArrayBuffer,
 	password: string,
 	keyFile?: ArrayBuffer,
-): Promise<{ xml: string; attachments: number }> {
+	fileLimit = Number.POSITIVE_INFINITY,
+): Promise<{ xml: string; files: KdbxAttachment[] }> {
 	if (file.byteLength > KDBX_LIMITS.fileSize) {
 		throw new KdbxOpenError("too-costly", tooBig);
 	}
@@ -162,12 +173,12 @@ export async function openKdbx(
 	const key = keyFile ? await keyFileKey(keyFile) : null;
 	try {
 		const db = await load(file, password, key);
-		const attachments = leaveAttachments(db);
+		const files = takeAttachments(db, fileLimit);
 		// kdbxweb writes its own name as the generator; the import reads the app's there.
 		const generator = db.meta.generator ?? "";
 		const xml = await db.saveXml();
 		return {
-			attachments,
+			files,
 			xml: xml.replace(
 				/<Generator>[^<]*<\/Generator>/,
 				`<Generator>${escapeXml(generator)}</Generator>`,
@@ -211,27 +222,49 @@ async function load(
 
 /**
  * Takes every attachment out before the database is written as XML, which would carry
- * each one as base64, and counts those on entries the import brings: not the Recycle
- * Bin's or the templates'. Earlier versions' attachments go too, uncounted, as the
- * import brings only an entry's earlier passwords. Custom icons go as well: unused.
+ * each one as base64, and keeps those on entries the import brings: not the Recycle
+ * Bin's or the templates'. Earlier versions' attachments go, as the import brings only
+ * an entry's earlier passwords. Custom icons go as well: unused.
  */
-function leaveAttachments(db: kdbxweb.Kdbx) {
+function takeAttachments(db: kdbxweb.Kdbx, fileLimit: number) {
 	const skipped = new Set<kdbxweb.KdbxEntry>();
 	for (const uuid of [db.meta.recycleBinUuid, db.meta.entryTemplatesGroup]) {
 		const group = uuid ? db.getGroup(uuid) : undefined;
 		for (const entry of group?.allEntries() ?? []) skipped.add(entry);
 	}
-	let count = 0;
+	const files: KdbxAttachment[] = [];
 	for (const group of db.groups) {
 		for (const entry of group.allEntries()) {
-			if (!skipped.has(entry)) count += entry.binaries.size;
+			for (const [name, binary] of skipped.has(entry) ? [] : entry.binaries) {
+				const bytes = binaryBytes(binary);
+				if (!bytes) continue;
+				const size = bytes.byteLength;
+				files.push({
+					entry: entry.uuid.id,
+					name,
+					size,
+					// A copy of its own for each: entries can share one, and each is moved to the page.
+					...(size <= fileLimit && { data: bytes.slice().buffer }),
+				});
+			}
 			entry.binaries.clear();
 			for (const earlier of entry.history) earlier.binaries.clear();
 		}
 	}
 	db.binaries = new kdbxweb.KdbxBinaries();
 	db.meta.customIcons.clear();
-	return count;
+	return files;
+}
+
+function binaryBytes(
+	binary:
+		| kdbxweb.KdbxBinary
+		| kdbxweb.KdbxBinaryWithHash
+		| kdbxweb.KdbxBinaryRef,
+): Uint8Array | undefined {
+	if (binary instanceof kdbxweb.ProtectedValue) return binary.getBinary();
+	if (binary instanceof ArrayBuffer) return new Uint8Array(binary);
+	return "value" in binary ? binaryBytes(binary.value) : undefined;
 }
 
 /**
