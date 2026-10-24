@@ -30,7 +30,7 @@ vauly is for small teams who want one place for their shared logins, API keys an
 - **End-to-end encrypted.** Your master password never leaves your device. The server stores ciphertext, wrapped keys and public keys, nothing it can read.
 - **Two-step login.** Optionally ask for a code from an authenticator app too, with recovery codes for a lost phone. Admins can reset it for a teammate.
 - **Vaults for sharing.** Everyone gets a private vault. Shared vaults are opened to people one by one, each able to view, edit or manage it, and taking someone out takes the vault away from them.
-- **The items a team actually keeps.** Logins with one-time codes (TOTP) and as many websites as they're used on, API keys, SSH keys and secure notes, each with fields of its own, such as an account number or a hidden PIN. A password generator and a strength check come with them.
+- **The items a team actually keeps.** Logins with one-time codes (TOTP) and as many websites as they're used on, API keys, SSH keys and secure notes, each with fields of its own, such as an account number or a hidden PIN. A generator for random passwords or passphrases, and a strength check, come with them.
 - **Password health.** The Overview points out passwords found in data breaches, weak passwords, logins that share one, and items someone could see before they left a vault or the team. It's worked out on your device, because only it can read them: breaches are checked with Have I Been Pwned, and only the first five characters of a password's hash leave the device.
 - **Share links for everyone else.** Send one item to a contractor or a friend through a link that expires, optionally after a single view. It's encrypted on your device and the key travels only in the link.
 - **Hard to lose things.** Deleting an item moves it to Recently deleted for 30 days, with Undo right in the notification. A changed password stays under Earlier.
@@ -122,3 +122,5 @@ Found a security problem? Please don't open an issue. Report it privately as des
 ## License
 
 vauly is free software under the [GNU Affero General Public License v3.0](LICENSE). If you run a modified version for other people over a network, you must offer them its source code.
+
+The passphrase generator's words come from the [EFF's large wordlist](https://www.eff.org/dice), © Electronic Frontier Foundation, under [CC BY 3.0 US](https://creativecommons.org/licenses/by/3.0/us/).

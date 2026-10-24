@@ -40,6 +40,7 @@ import { client } from "@/utils/orpc";
 
 import { Field, FormError, PasswordInput } from "./auth-layout";
 import { notify } from "./notify";
+import { PassphraseSuggestion } from "./passphrase-suggestion";
 
 export function ChangePasswordDialog({
 	open,
@@ -132,6 +133,15 @@ export function ChangePasswordDialog({
 					onChange={set("next")}
 				/>
 			</Field>
+			<PassphraseSuggestion
+				onUse={(passphrase) =>
+					setForm((value) => ({
+						...value,
+						next: passphrase,
+						repeat: passphrase,
+					}))
+				}
+			/>
 			<Field label="Repeat the new one">
 				<PasswordInput
 					required

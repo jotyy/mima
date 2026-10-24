@@ -12,6 +12,7 @@ import {
 	SubmitButton,
 } from "@/components/auth-layout";
 import Loader from "@/components/loader";
+import { PassphraseSuggestion } from "@/components/passphrase-suggestion";
 import { useKeyring } from "@/lib/keyring";
 import { newMasterPasswordProblem } from "@/lib/secrets";
 import { errorMessage, useWorkspace } from "@/lib/vault-data";
@@ -126,6 +127,15 @@ function Setup() {
 						onChange={set("password")}
 					/>
 				</Field>
+				<PassphraseSuggestion
+					onUse={(passphrase) =>
+						setForm((value) => ({
+							...value,
+							password: passphrase,
+							confirm: passphrase,
+						}))
+					}
+				/>
 				<Field label="Repeat it">
 					<PasswordInput
 						className="h-10"

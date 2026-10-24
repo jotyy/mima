@@ -109,7 +109,7 @@ test("a breached password is changed from its item", async ({ page }) => {
 		dialog.getByText("Leaked: seen 24 times in data breaches"),
 	).toBeVisible();
 	await dialog.getByRole("button", { name: "Generate a password" }).click();
-	await expect(dialog.getByText("Strong", { exact: true })).toBeVisible();
+	await expect(dialog.getByText(/^Strong · \d+ bits$/)).toBeVisible();
 	await dialog.getByRole("button", { name: "Save" }).click();
 	await expect(dialog).toBeHidden();
 	await expect(page.getByText(/in data breaches/)).toHaveCount(0);

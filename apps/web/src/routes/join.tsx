@@ -19,6 +19,7 @@ import {
 	SubmitButton,
 } from "@/components/auth-layout";
 import Loader from "@/components/loader";
+import { PassphraseSuggestion } from "@/components/passphrase-suggestion";
 import { useKeyring } from "@/lib/keyring";
 import { newMasterPasswordProblem } from "@/lib/secrets";
 import { errorMessage, useWorkspace } from "@/lib/vault-data";
@@ -118,6 +119,12 @@ function Join() {
 						onChange={(event) => setPassword(event.target.value)}
 					/>
 				</Field>
+				<PassphraseSuggestion
+					onUse={(passphrase) => {
+						setPassword(passphrase);
+						setConfirm(passphrase);
+					}}
+				/>
 				<Field label="Repeat it">
 					<PasswordInput
 						className="h-10"

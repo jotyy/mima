@@ -1,10 +1,4 @@
-import {
-	ArrowsClockwiseIcon,
-	EyeIcon,
-	EyeSlashIcon,
-	PlusIcon,
-	XIcon,
-} from "@phosphor-icons/react";
+import { EyeIcon, EyeSlashIcon, PlusIcon, XIcon } from "@phosphor-icons/react";
 import { Button } from "@vauly/ui/components/button";
 import {
 	Dialog,
@@ -32,7 +26,7 @@ import { cn } from "@vauly/ui/lib/utils";
 import { type ReactNode, useEffect, useState } from "react";
 
 import { timesSeen, useDraftBreaches } from "@/lib/breaches";
-import { generatePassword, parseTotp, passwordStrength } from "@/lib/secrets";
+import { parseTotp, passwordStrength } from "@/lib/secrets";
 import {
 	type CustomField,
 	canEdit,
@@ -46,6 +40,7 @@ import {
 
 import { Morph } from "./morph";
 import { notify } from "./notify";
+import { type Generated, PasswordGenerator } from "./password-generator";
 
 const kinds: { value: ItemKind; label: string }[] = [
 	{ value: "login", label: "Login" },
@@ -563,6 +558,8 @@ function SecretInput({
 	onChange: (value: string) => void;
 }) {
 	const [visible, setVisible] = useState(kind !== "login");
+	// What the generator last made, while it's still the value: its strength in bits.
+	const [generated, setGenerated] = useState<Generated | null>(null);
 	const breaches = useDraftBreaches(value, kind === "login");
 	if (kind === "ssh-key") {
 		return (
@@ -576,6 +573,8 @@ function SecretInput({
 		);
 	}
 	const strength = kind === "login" && value ? passwordStrength(value) : null;
+	const bits =
+		generated?.value === value ? ` · ${Math.round(generated.bits)} bits` : "";
 	return (
 		<>
 			<div className="flex gap-1.5">
@@ -600,25 +599,13 @@ function SecretInput({
 					</Button>
 				</div>
 				{kind === "login" && (
-					<Tooltip>
-						<TooltipTrigger
-							render={
-								<Button
-									type="button"
-									variant="outline"
-									size="icon"
-									aria-label="Generate a password"
-									onClick={() => {
-										onChange(generatePassword());
-										setVisible(true);
-									}}
-								/>
-							}
-						>
-							<ArrowsClockwiseIcon />
-						</TooltipTrigger>
-						<TooltipContent>Generate a strong password</TooltipContent>
-					</Tooltip>
+					<PasswordGenerator
+						onGenerate={(secret) => {
+							onChange(secret.value);
+							setGenerated(secret);
+							setVisible(true);
+						}}
+					/>
 				)}
 			</div>
 			{breaches ? (
@@ -635,10 +622,10 @@ function SecretInput({
 					)}
 				>
 					{strength === "weak"
-						? "Weak: easy to guess"
+						? `Weak${bits}: easy to guess`
 						: strength === "fair"
-							? "Fair: longer is better"
-							: "Strong"}
+							? `Fair${bits}: longer is better`
+							: `Strong${bits}`}
 				</span>
 			) : null}
 		</>
