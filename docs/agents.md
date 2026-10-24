@@ -156,7 +156,7 @@ The action in this repository installs the CLI from a release and runs a step un
     run: npx wrangler deploy
 ```
 
-`run` is the step's script, in bash or, with `shell: sh`, sh. Only the script gets the values, and they show as `<hidden>` in its output. References can go in the step's own `env:` as well.
+`run` is the step's script, in bash or, with `shell: sh`, sh. Only the script gets the values, and they show as `<hidden>` in its output. References can go in the step's own `env:` as well. Every vauly:// reference in the step's environment is resolved, including any in the job's or the workflow's `env:`, so keep them to the steps that need them.
 
 To hand values to the steps after this one, set `export: true` with `env` and no `run`. Each value goes into `GITHUB_ENV`, masked in the log first. Every later step, and every action those steps use, can then read it, so prefer `run`.
 

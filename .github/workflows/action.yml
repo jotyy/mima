@@ -77,14 +77,16 @@ jobs:
           VAULY_E2E_STACK: started
           VAULY_ACTION_SEED: ${{ runner.temp }}/seed
         run: bunx playwright test --config action.config.ts
+      # Item IDs only: `vauly run` resolves every vauly:// reference in its environment,
+      # so each step names just the ones it uses.
       - name: Hand the seed to the steps below
         run: |
           seed="$RUNNER_TEMP/seed"
           echo "::add-mask::$(cat "$seed/token")"
           {
             echo "SEED_TOKEN=$(cat "$seed/token")"
-            echo "SEED_REFERENCE=$(cat "$seed/reference")"
-            echo "SEED_OTHER=$(cat "$seed/other")"
+            echo "SEED_ITEM=$(sed 's|^vauly://||' "$seed/reference")"
+            echo "SEED_OTHER_ITEM=$(sed 's|^vauly://||' "$seed/other")"
             echo "SEED_SHA256=$(cat "$seed/sha256")"
           } >> "$GITHUB_ENV"
 
@@ -95,7 +97,7 @@ jobs:
           token: ${{ env.SEED_TOKEN }}
           download-url: file://${{ github.workspace }}/apps/cli/dist
           env: |
-            DEPLOY_TOKEN=${{ env.SEED_REFERENCE }}
+            DEPLOY_TOKEN=vauly://${{ env.SEED_ITEM }}
           run: |
             test "$(printf %s "$DEPLOY_TOKEN" | sha256sum | cut -d ' ' -f 1)" = "$SEED_SHA256"
             echo "The script has the deploy token: $DEPLOY_TOKEN"
@@ -109,7 +111,7 @@ jobs:
           download-url: file://${{ github.workspace }}/apps/cli/dist
           export: true
           env: |
-            DEPLOY_TOKEN=${{ env.SEED_REFERENCE }}
+            DEPLOY_TOKEN=vauly://${{ env.SEED_ITEM }}
       - name: A later step reads the exported value
         run: |
           test "$(printf %s "$DEPLOY_TOKEN" | sha256sum | cut -d ' ' -f 1)" = "$SEED_SHA256"
@@ -125,7 +127,7 @@ jobs:
           download-url: file://${{ github.workspace }}/apps/cli/dist
           approval-timeout: 5
           env: |
-            STAGING_KEY=${{ env.SEED_OTHER }}
+            STAGING_KEY=vauly://${{ env.SEED_OTHER_ITEM }}
           run: echo "This never runs."
       - name: The step without approval failed
         if: steps.unapproved.outcome != 'failure'
