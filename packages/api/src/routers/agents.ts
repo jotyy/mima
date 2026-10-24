@@ -54,7 +54,10 @@ const renewed = {
  */
 const fileTerms = (files: boolean, through?: number | null) => ({
 	files,
-	filesThrough: files ? new Date(Math.min(through ?? 0, Date.now())) : null,
+	// Never later than now, by the database's clock, as files are dated.
+	filesThrough: files
+		? sql`min(${Math.max(0, Math.floor(through ?? 0))}, cast(unixepoch('subsecond') * 1000 as integer))`
+		: null,
 });
 
 export const agentsRouter = {

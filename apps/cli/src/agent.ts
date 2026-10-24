@@ -1,10 +1,11 @@
 import { spawn } from "node:child_process";
 import {
+	lstatSync,
 	mkdirSync,
 	mkdtempSync,
 	readdirSync,
+	readFileSync,
 	rmSync,
-	statSync,
 	writeFileSync,
 } from "node:fs";
 import { hostname, tmpdir } from "node:os";
@@ -260,20 +261,51 @@ export function cleanUpOnExit({ signals = true } = {}) {
 
 /**
  * Folders an earlier run couldn't remove, because it was killed outright: anything of
- * ours a day old. A run going on now is younger than that.
+ * ours a day old whose process has ended. A long run keeps its files while it goes on.
  */
-function clearStaleFolders(now = Date.now()) {
+export function clearStaleFolders(now = Date.now(), root = tmpdir()) {
+	let names: string[];
 	try {
-		for (const name of readdirSync(tmpdir())) {
-			if (!name.startsWith("vauly-")) continue;
-			const path = join(tmpdir(), name);
-			const { mtimeMs, uid } = statSync(path);
-			if (uid === process.getuid?.() && now - mtimeMs > 24 * 60 * 60 * 1000) {
-				rmSync(path, { recursive: true, force: true });
-			}
-		}
+		names = readdirSync(root);
 	} catch {
-		// Not ours to read, or gone already: nothing to clear.
+		return;
+	}
+	for (const name of names) {
+		if (!name.startsWith("vauly-")) continue;
+		// Each on its own: one that can't be read or removed doesn't stop the rest.
+		try {
+			const path = join(root, name);
+			// A real folder of ours: lstat, so a link is never taken for what it points at.
+			const entry = lstatSync(path);
+			if (!entry.isDirectory()) continue;
+			if (entry.uid !== process.getuid?.()) continue;
+			if (now - entry.mtimeMs <= 24 * 60 * 60 * 1000) continue;
+			if (stillRunning(join(path, OWNER_FILE))) continue;
+			rmSync(path, { recursive: true, force: true });
+		} catch {
+			// Not ours to read, or gone already.
+		}
+	}
+}
+
+/** The file in each folder that names the process it was written for. */
+const OWNER_FILE = "owner.pid";
+
+/** Whether the process a folder names is still running: its command may still need it. */
+function stillRunning(ownerFile: string) {
+	let pid: number;
+	try {
+		pid = Number(readFileSync(ownerFile, "utf8"));
+	} catch {
+		return false;
+	}
+	if (!Number.isInteger(pid) || pid <= 0) return false;
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch (error) {
+		// Running, as someone else: still not ours to clear.
+		return (error as NodeJS.ErrnoException).code === "EPERM";
 	}
 }
 
@@ -313,6 +345,8 @@ export function writeFiles(refs: Reference[], values: Map<string, ItemFields>) {
 	// Known before anything is written, so an exit at any point removes it.
 	written.add(cleanup);
 	try {
+		// So a later run's sweep leaves it alone while this process lives.
+		writeFileSync(join(dir, OWNER_FILE), String(process.pid), { mode: 0o600 });
 		for (const [index, ref] of named.entries()) {
 			const fields = values.get(ref.itemId);
 			const wanted = ref.label?.trim().toLowerCase();
@@ -485,6 +519,8 @@ export function capture(
 			finish({ exitCode: 127, stdout: "", stderr: error.message, timedOut });
 		});
 		child.on("exit", (code) => {
+			// It's gone: a SIGKILL now could reach a process given its PID since.
+			clearTimeout(killer);
 			onExit?.();
 			// Its own children can hold its output open: don't wait on them for long.
 			drain = setTimeout(() => {
