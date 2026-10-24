@@ -449,9 +449,12 @@ test("a device signed out from another one hears nothing more", async ({
 	expect(pushesTo(phone)).toHaveLength(2);
 
 	// The phone finds out on its next request, and its browser stops listening too.
-	await sidebarLink(phone.page, "Agents").click();
 	// Opening Agents sends several requests, and they all find the session gone: it says
-	// so once.
+	// so once. A request of its own may find out first, and then there's no Agents link
+	// left to click.
+	await sidebarLink(phone.page, "Agents")
+		.click({ timeout: 5_000 })
+		.catch(() => {});
 	const signedOut = phone.page.getByText("You were signed out");
 	await expect(signedOut).toBeVisible();
 	await phone.page.waitForTimeout(1000);
