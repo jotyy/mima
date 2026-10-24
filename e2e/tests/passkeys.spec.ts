@@ -373,6 +373,20 @@ async function vaulyWindow(page: Page, button: string) {
 	return opened;
 }
 
+/** Chooses in vauly's window, which closes as soon as the choice is made. */
+async function choose(window: Page, button: string) {
+	await Promise.all([
+		window.waitForEvent("close"),
+		window
+			.getByRole("button", { name: button })
+			.click()
+			.catch((error) => {
+				// Closing mid-click is the window doing its job.
+				if (!window.isClosed()) throw error;
+			}),
+	]);
+}
+
 const result = (page: Page) => page.locator("#result");
 
 /** Nothing of vauly's in the site's page: whatever vauly holds, the page can't tell. */
@@ -414,8 +428,7 @@ test("a passkey a site makes is saved in vauly, and the site accepts it", async 
 		window.getByText("signs you in as alex@acme.test"),
 	).toBeVisible();
 	await expectNothingInPage(page);
-	await window.getByRole("button", { name: "Save passkey" }).click();
-	await window.waitForEvent("close");
+	await choose(window, "Save passkey");
 	await expect(result(page)).toHaveText("Passkey created");
 	await page.close();
 });
@@ -428,9 +441,7 @@ test("the passkey signs in, and the site checks its signature", async () => {
 			name: "Sign in to acme.test with a passkey?",
 		}),
 	).toBeVisible();
-	await window
-		.getByRole("button", { name: "Sign in as alex@acme.test" })
-		.click();
+	await choose(window, "Sign in as alex@acme.test");
 	await expect(result(page)).toHaveText("Signed in as alex@acme.test");
 	expect(passkeyWindows()).toHaveLength(0);
 	await page.close();
@@ -464,9 +475,7 @@ test("the web app shows the passkey, keeps it through an edit, and logs its use"
 	// Still signs in after the edit.
 	const page = await openSite();
 	const window = await vaulyWindow(page, "Sign in with a passkey");
-	await window
-		.getByRole("button", { name: "Sign in as alex@acme.test" })
-		.click();
+	await choose(window, "Sign in as alex@acme.test");
 	await expect(result(page)).toHaveText("Signed in as alex@acme.test");
 	await page.close();
 });
@@ -477,7 +486,7 @@ test("a passkey for an account with a saved login goes into that login", async (
 	await expect(
 		window.getByText("It goes into your login Acme, Sam in Private."),
 	).toBeVisible();
-	await window.getByRole("button", { name: "Save passkey" }).click();
+	await choose(window, "Save passkey");
 	await expect(result(page)).toHaveText("Passkey created");
 	await page.close();
 
@@ -496,7 +505,7 @@ test("a second passkey for the same account is refused, as the site asks", async
 			name: "vauly has a passkey for acme.test already",
 		}),
 	).toBeVisible();
-	await window.getByRole("button", { name: "OK" }).click();
+	await choose(window, "OK");
 	await expect(result(page)).toHaveText(/^InvalidStateError/);
 	await page.close();
 });
@@ -538,7 +547,7 @@ test("a few minutes after the master password, vauly asks for it again", async (
 		"That's not your master password.",
 	);
 	await password.fill(owner.password);
-	await signIn.click();
+	await choose(window, "Sign in as alex@acme.test");
 	await expect(result(page)).toHaveText("Signed in as alex@acme.test");
 	await page.close();
 });
@@ -549,7 +558,7 @@ test("Use another way hands the request to the browser's own passkeys", async ()
 	const page = await openSite("kim@acme.test");
 	await withDeviceAuthenticator(page);
 	let window = await vaulyWindow(page, "Create a passkey");
-	await window.getByRole("button", { name: "Use another way" }).click();
+	await choose(window, "Use another way");
 	await expect(result(page)).toHaveText("Passkey created");
 	expect(passkeyWindows()).toHaveLength(0);
 
@@ -558,7 +567,7 @@ test("Use another way hands the request to the browser's own passkeys", async ()
 	await expect(
 		window.getByRole("button", { name: "Sign in as alex@acme.test" }),
 	).toBeVisible();
-	await window.getByRole("button", { name: "Use another way" }).click();
+	await choose(window, "Use another way");
 	await expect(result(page)).toHaveText("Signed in as kim@acme.test");
 	await page.close();
 });
@@ -566,7 +575,7 @@ test("Use another way hands the request to the browser's own passkeys", async ()
 test("Cancel, or closing vauly's window, turns the request down", async () => {
 	const page = await openSite("lee@acme.test");
 	let window = await vaulyWindow(page, "Create a passkey");
-	await window.getByRole("button", { name: "Cancel" }).click();
+	await choose(window, "Cancel");
 	await expect(result(page)).toHaveText(/^NotAllowedError/);
 
 	window = await vaulyWindow(page, "Create a passkey");
@@ -594,7 +603,7 @@ test("vauly asks even where it has no passkey, so the site can't tell", async ()
 			}
 		}, url),
 	).toBe("blocked");
-	await window.getByRole("button", { name: "Cancel" }).click();
+	await choose(window, "Cancel");
 	await expect(result(page)).toHaveText(/^NotAllowedError/);
 	await page.close();
 });
@@ -651,9 +660,7 @@ test("locked, vauly's window unlocks, then signs in", async () => {
 	).toBeVisible();
 	await window.getByLabel("Master password").fill(owner.password);
 	await window.getByRole("button", { name: "Unlock" }).click();
-	await window
-		.getByRole("button", { name: "Sign in as alex@acme.test" })
-		.click();
+	await choose(window, "Sign in as alex@acme.test");
 	await expect(result(page)).toHaveText("Signed in as alex@acme.test");
 	await page.close();
 });
@@ -663,7 +670,7 @@ test("someone who can only view a vault signs in with its passkeys, but can't sa
 	let page = await openSite("ops@acme.test");
 	let window = await vaulyWindow(page, "Create a passkey");
 	await window.getByLabel("Vault").selectOption({ label: "Ops" });
-	await window.getByRole("button", { name: "Save passkey" }).click();
+	await choose(window, "Save passkey");
 	await expect(result(page)).toHaveText("Passkey created");
 	await page.close();
 
@@ -679,9 +686,7 @@ test("someone who can only view a vault signs in with its passkeys, but can't sa
 
 	page = await openSite("ops@acme.test");
 	window = await vaulyWindow(page, "Sign in with a passkey");
-	await window
-		.getByRole("button", { name: "Sign in as ops@acme.test" })
-		.click();
+	await choose(window, "Sign in as ops@acme.test");
 	await expect(result(page)).toHaveText("Signed in as ops@acme.test");
 
 	const app = await openApp();
@@ -711,7 +716,7 @@ test("someone who can only view a vault signs in with its passkeys, but can't sa
 		ops,
 	);
 	expect(refused).toEqual({ ok: false, error: "Pick a vault you can add to." });
-	await window.getByRole("button", { name: "Cancel" }).click();
+	await choose(window, "Cancel");
 	await expect(result(page)).toHaveText(/^NotAllowedError/);
 	await page.close();
 });
