@@ -514,6 +514,9 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 		const ended = () => {
 			if (statusRef.current !== "locked" && statusRef.current !== "unlocked")
 				return;
+			// Every request in flight fails the same way: the first one says it, before the
+			// next render would.
+			statusRef.current = "signed-out";
 			sessionId.current = null;
 			setOfflineAccount(null);
 			forgetDevice();

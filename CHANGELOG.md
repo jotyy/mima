@@ -11,6 +11,7 @@ Notable changes to vauly. The format follows [Keep a Changelog](https://keepacha
 ### Fixed
 
 - The service worker is the same wherever the web app is built, so `vauly verify --against` a release's manifest matches every instance of that release. It used to list its files in the order the build machine's file system gave them. CI now builds the app on macOS as well as Linux and compares.
+- After another device signs this one out, the app says "You were signed out" once, not once for every request that was on its way.
 
 ## 0.1.0 - 2026-10-23
 
