@@ -67,7 +67,7 @@ export const migrations: readonly {
 	},
 	{
 		name: "20261024041216_push_limits",
-		hash: "4094c99f19a1d4c90119bbfe0a57601f340f260d994c66b6492ef0f0411ab879",
-		sql: "ALTER TABLE `agent` ADD `notified_at` integer;--> statement-breakpoint\nALTER TABLE `push_subscription` ADD `failures` integer DEFAULT 0 NOT NULL;--> statement-breakpoint\nCREATE UNIQUE INDEX `push_subscription_session_idx` ON `push_subscription` (`session_id`);",
+		hash: "47552309c7f0bd9788b93bac9c3d68c7160faa4acf2bb5c8d15b57a42e53fe88",
+		sql: "ALTER TABLE `agent` ADD `notified_at` integer;--> statement-breakpoint\nALTER TABLE `push_subscription` ADD `failures` integer DEFAULT 0 NOT NULL;--> statement-breakpoint\n-- A database that ran the first version of the table may have more than one device on a session: keep the newest.\nDELETE FROM `push_subscription` WHERE rowid NOT IN (SELECT max(rowid) FROM `push_subscription` GROUP BY `session_id`);--> statement-breakpoint\nCREATE UNIQUE INDEX `push_subscription_session_idx` ON `push_subscription` (`session_id`);",
 	},
 ];

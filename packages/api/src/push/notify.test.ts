@@ -221,6 +221,56 @@ describe("notify", () => {
 		expect(failuresOf("sam")).toBe(1);
 	});
 
+	test("a late answer for an endpoint the device has since replaced leaves it alone", async () => {
+		const old = "https://fcm.googleapis.com/fcm/send/laptop";
+		globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+			// The device subscribes again while its old endpoint's push is out.
+			if (String(input) === old)
+				sqlite.run(
+					"UPDATE push_subscription SET endpoint = 'https://fcm.googleapis.com/fcm/send/laptop-2' WHERE id = 'psb_laptop'",
+				);
+			return new Response(null, { status: String(input) === old ? 410 : 201 });
+		}) as unknown as typeof fetch;
+		await send([{ userId: "usr_alex", notice }]);
+		expect(failuresOf("laptop")).toBe(0);
+	});
+
+	test("the server's own failures, and slow answers, don't count against a device", async () => {
+		sqlite.run(
+			`INSERT INTO setting (key, value) VALUES ('vapid_keys', '{"publicKey":"x","privateKey":{"kty":"EC"}}')`,
+		);
+		await send([{ userId: "usr_sam", notice }]);
+		expect(sent).toHaveLength(0);
+		expect(failuresOf("sam")).toBe(0);
+
+		sqlite.run("DELETE FROM setting WHERE key = 'vapid_keys'");
+		globalThis.fetch = mock(async () => {
+			throw new DOMException("The operation timed out.", "TimeoutError");
+		}) as unknown as typeof fetch;
+		await send([{ userId: "usr_sam", notice }]);
+		expect(failuresOf("sam")).toBe(0);
+	});
+
+	test("six pushes in flight at most, as many connections as a Worker opens", async () => {
+		for (let i = 0; i < 8; i++)
+			addDevice(
+				`extra-${i}`,
+				"usr_alex",
+				`https://fcm.googleapis.com/fcm/send/extra-${i}`,
+			);
+		let inFlight = 0;
+		let most = 0;
+		globalThis.fetch = mock(async () => {
+			inFlight++;
+			most = Math.max(most, inFlight);
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			inFlight--;
+			return new Response(null, { status: 201 });
+		}) as unknown as typeof fetch;
+		await send([{ userId: "usr_alex", notice }]);
+		expect(most).toBe(6);
+	});
+
 	test("working out who gets it can fail without failing anything else", async () => {
 		await send(Promise.reject(new Error("D1 is down")));
 		expect(sent).toHaveLength(0);

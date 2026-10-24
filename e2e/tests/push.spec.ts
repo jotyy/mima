@@ -340,35 +340,44 @@ test("an agent's request reaches the device, naming the agent and never the item
 	await ask(request, [items.deploy]);
 	await ask(request, [items.staging]);
 
-	// The service worker shows it, as the browser would on a push.
+	// The service worker shows it, as the browser would on a push. It has to be running
+	// first: the dev server builds it on demand, and a push before then is lost.
+	const scope = await phone.page.evaluate(
+		async () => (await navigator.serviceWorker.ready).scope,
+	);
 	const cdp = await phone.page.context().newCDPSession(phone.page);
 	const registrations = new Promise<string>((resolve) => {
 		cdp.on("ServiceWorker.workerRegistrationUpdated", ({ registrations }) => {
 			const mine = registrations.find(
 				(registration) =>
-					registration.scopeURL.startsWith(APP) && !registration.isDeleted,
+					registration.scopeURL === scope && !registration.isDeleted,
 			);
 			if (mine) resolve(mine.registrationId);
 		});
 	});
 	await cdp.send("ServiceWorker.enable");
-	await cdp.send("ServiceWorker.deliverPushMessage", {
-		origin: APP,
-		registrationId: await registrations,
-		data: text,
-	});
-	await expect
-		.poll(() =>
-			phone.page.evaluate(async () => {
-				const registration = await navigator.serviceWorker.ready;
-				return (await registration.getNotifications()).map(
-					(shown) => `${shown.title} · ${shown.body}`,
-				);
-			}),
-		)
-		.toContain(
-			"CI deploy wants to use 1 item · Open vauly to approve or deny.",
-		);
+	const registrationId = await registrations;
+	await expect(async () => {
+		await cdp.send("ServiceWorker.deliverPushMessage", {
+			origin: APP,
+			registrationId,
+			data: text,
+		});
+		await expect
+			.poll(
+				() =>
+					phone.page.evaluate(async () => {
+						const registration = await navigator.serviceWorker.ready;
+						return (await registration.getNotifications()).map(
+							(shown) => `${shown.title} · ${shown.body}`,
+						);
+					}),
+				{ timeout: 3_000 },
+			)
+			.toContain(
+				"CI deploy wants to use 1 item · Open vauly to approve or deny.",
+			);
+	}).toPass({ timeout: 30_000 });
 	await cdp.detach();
 });
 
@@ -408,7 +417,10 @@ test("a device signed out from another one hears nothing more", async ({
 
 	// The phone finds out on its next request, and its browser stops listening too.
 	await sidebarLink(phone.page, "Agents").click();
-	await expect(phone.page.getByText("You were signed out")).toBeVisible();
+	// Each request that finds the session gone says so; one is enough here.
+	await expect(
+		phone.page.getByText("You were signed out").first(),
+	).toBeVisible();
 	await expect
 		.poll(() => phone.page.evaluate(() => localStorage.getItem("e2e.pushKey")))
 		.toBeNull();

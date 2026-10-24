@@ -6,7 +6,7 @@ import {
 	setting,
 	vaultAccess,
 } from "@vauly/db/schema/vault";
-import { and, desc, eq, gt, inArray, isNull, lt, or } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 
 import { atLeast } from "../lib";
 import {
@@ -50,6 +50,8 @@ export const MAX_FAILURES = 3;
 /** Every push is padded to this many bytes, so its size doesn't give its words away. */
 export const PAD_TO = 640;
 const TIMEOUT = 5_000;
+/** Pushes in flight at once: a Worker opens six connections, and queues the rest. */
+const CONNECTIONS = 6;
 
 const KEYS = "vapid_keys";
 
@@ -196,13 +198,20 @@ export async function notify(
 			}
 			return header;
 		};
-		const results = await Promise.allSettled(
-			sends.map(({ device, notice }) =>
-				send(db, device, notice, authorization(device.endpoint)),
-			),
+		// A few at a time, so the timeout measures the push service, not the queue.
+		let next = 0;
+		await Promise.all(
+			Array.from({ length: Math.min(CONNECTIONS, sends.length) }, async () => {
+				for (let item = sends[next++]; item; item = sends[next++]) {
+					await send(
+						db,
+						item.device,
+						item.notice,
+						authorization(item.device.endpoint),
+					).catch((error: unknown) => console.error(error));
+				}
+			}),
 		);
-		for (const result of results)
-			if (result.status === "rejected") console.error(result.reason);
 	} catch (error) {
 		console.error(error);
 	}
@@ -215,17 +224,19 @@ async function send(
 	authorization: Promise<string>,
 ) {
 	const { ttl, urgent, ...shown } = notice;
-	const body = await encryptPush(
-		new TextEncoder().encode(JSON.stringify(shown)),
-		device,
-		{ padTo: PAD_TO },
-	);
+	// The server's own part first: if it fails, that's no fault of the device.
+	const [body, signed] = await Promise.all([
+		encryptPush(new TextEncoder().encode(JSON.stringify(shown)), device, {
+			padTo: PAD_TO,
+		}),
+		authorization,
+	]);
 	let status = 0;
 	try {
 		const response = await fetch(device.endpoint, {
 			method: "POST",
 			headers: {
-				Authorization: await authorization,
+				Authorization: signed,
 				"Content-Encoding": "aes128gcm",
 				"Content-Type": "application/octet-stream",
 				TTL: String(ttl),
@@ -238,30 +249,34 @@ async function send(
 		});
 		status = response.status;
 		await response.body?.cancel();
-	} catch {
-		// Unreachable or too slow: a failure like any other.
+	} catch (error) {
+		// Slow says nothing sure about the device; unreachable counts as a failure.
+		if (error instanceof Error && error.name === "TimeoutError") return;
 	}
-	const forget = () =>
-		db.delete(pushSubscription).where(eq(pushSubscription.id, device.id));
+	// The row as it was read: a resubscribe since keeps its ID but not its endpoint.
+	const same = and(
+		eq(pushSubscription.id, device.id),
+		eq(pushSubscription.endpoint, device.endpoint),
+	);
 	if (status >= 200 && status < 300) {
 		if (device.failures > 0)
-			await db
-				.update(pushSubscription)
-				.set({ failures: 0 })
-				.where(eq(pushSubscription.id, device.id));
+			await db.update(pushSubscription).set({ failures: 0 }).where(same);
 		return;
 	}
-	if (status === 404 || status === 410) return forget();
+	if (status === 404 || status === 410)
+		return db.delete(pushSubscription).where(same);
 	// Too many pushes for now isn't the device's fault.
 	if (status === 429) return;
 	console.error(
 		`Push to ${new URL(device.endpoint).host} failed: ${status || "no answer"}`,
 	);
-	if (device.failures + 1 >= MAX_FAILURES) return forget();
-	await db
+	const [counted] = await db
 		.update(pushSubscription)
-		.set({ failures: device.failures + 1 })
-		.where(eq(pushSubscription.id, device.id));
+		.set({ failures: sql`${pushSubscription.failures} + 1` })
+		.where(same)
+		.returning({ failures: pushSubscription.failures });
+	if (counted && counted.failures >= MAX_FAILURES)
+		await db.delete(pushSubscription).where(same);
 }
 
 /** How often an agent's requests may notify: a stolen token can't keep phones buzzing. */
