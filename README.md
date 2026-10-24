@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <a href="https://demo.vauly.app"><strong>Try the demo</strong></a> · <a href="https://vauly.app/docs/">Docs</a> · <a href="https://vauly.app/docs/self-hosting/">Deploy your own</a>
+  <a href="https://demo.vauly.app"><strong>Try the demo</strong></a> · <a href="https://vauly.app/docs/">Docs</a> · <a href="https://vauly.app/docs/self-hosting/">Deploy your own</a> · <a href="README.zh-CN.md">简体中文</a>
 </p>
 
 <picture>
