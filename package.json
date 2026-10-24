@@ -73,5 +73,11 @@
 				"description": "A code only you know, so nobody else can claim your vauly before you do. Once it's deployed, open `/setup?code=` followed by this code on your vauly's address to create the workspace. Leave it empty and whoever opens your vauly first becomes its owner."
 			}
 		}
+	},
+	"patchedDependencies": {
+		"kdbxweb@2.1.1": "patches/kdbxweb@2.1.1.patch"
+	},
+	"overrides": {
+		"@xmldom/xmldom": "0.8.15"
 	}
 }

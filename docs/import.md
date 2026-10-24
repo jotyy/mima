@@ -122,7 +122,7 @@ Bring the `.kdbx` database itself; there's nothing to export. It keeps groups, t
 
 vauly opens the database in your browser, in a worker that can't connect anywhere, and the password never leaves it. It reads KDBX 3.1 and 4, with AES-KDF or Argon2. A database whose key settings ask for more than 1 GiB of memory, 100 Argon2 passes, 16 lanes or 200 million AES-KDF rounds is turned away, with the setting to lower under **Database Settings › Security**.
 
-A database that needs your Windows user account can't be opened outside KeePass. For that one, choose **File › Export › KeePass XML (2.x)** and bring that file instead; it keeps the same things. Entries in the Recycle Bin stay behind either way. **KeePass CSV (1.x)** works too, but it has only titles, usernames, passwords, websites and notes. [KeePass's help](https://keepass.info/help/base/importexport.html)
+A database that needs your Windows user account can't be opened outside KeePass. For that one, choose **File › Export › KeePass XML (2.x)** and bring that file instead; it keeps the same things. Entries in the Recycle Bin stay behind either way, and so do attachments for now; the review counts them. **KeePass CSV (1.x)** works too, but it has only titles, usernames, passwords, websites and notes. [KeePass's help](https://keepass.info/help/base/importexport.html)
 
 ## KeePassXC
 

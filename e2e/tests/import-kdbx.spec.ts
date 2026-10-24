@@ -104,3 +104,19 @@ test("a database with a key file needs it", async ({ page }) => {
 		dialog.getByText("2 items already in this vault are left out."),
 	).toBeVisible();
 });
+
+test("a database that's slow to open can be cancelled", async ({ page }) => {
+	const dialog = await openImport(page);
+	// Argon2d at 64 MiB and 100 passes: seconds, even on a fast laptop.
+	await dialog.getByLabel("Export file").setInputFiles(fixture("slow.kdbx"));
+	await dialog.getByLabel("Database password").fill("example-keepass-password");
+	await dialog.getByRole("button", { name: "Open the database" }).click();
+	await expect(dialog.getByRole("button", { name: "Opening…" })).toBeDisabled();
+	await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+	// Back to the password, with nothing opened and nothing gone wrong.
+	await expect(
+		dialog.getByRole("button", { name: "Open the database" }),
+	).toBeEnabled({ timeout: 2_000 });
+	await expect(dialog.getByRole("alert")).toHaveCount(0);
+	await expect(dialog.getByText(/^KeePass database ·/)).toHaveCount(0);
+});

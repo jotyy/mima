@@ -24,7 +24,7 @@ export function openKdbxInWorker(
 	password: string,
 	keyFile?: ArrayBuffer,
 	signal?: AbortSignal,
-): Promise<string> {
+): Promise<{ xml: string; attachments: number }> {
 	return new Promise((resolve, reject) => {
 		if (signal?.aborted) {
 			return reject(new DOMException("Cancelled", "AbortError"));
@@ -56,7 +56,7 @@ export function openKdbxInWorker(
 		worker.onmessage = ({ data }: MessageEvent<KdbxResponse>) => {
 			if ("xml" in data) {
 				done();
-				resolve(data.xml);
+				resolve(data);
 			} else {
 				fail(new KdbxError(data.message, data.failure === "wrong-key"));
 			}
@@ -67,8 +67,10 @@ export function openKdbxInWorker(
 					"vauly couldn't start opening the database. Reload the page and try again.",
 				),
 			);
-		worker.postMessage({ file, password, keyFile } satisfies KdbxRequest, [
-			file,
-		]);
+		// Moved, not copied: the caller hands over buffers of its own for each try.
+		worker.postMessage(
+			{ file, password, keyFile } satisfies KdbxRequest,
+			keyFile ? [file, keyFile] : [file],
+		);
 	});
 }

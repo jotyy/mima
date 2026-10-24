@@ -1,22 +1,21 @@
 import { argon2d, argon2id } from "hash-wasm";
 import * as kdbxweb from "kdbxweb";
 
+import {
+	KDBX_LIMITS,
+	keyFileTooBig,
+	tooBig,
+	tooCostly as tooCostlyMessage,
+	unpacksTooBig,
+} from "./kdbx-limits";
+
 // Opens a KeePass database (.kdbx, versions 3.1 and 4) with its password and key file,
 // and hands it back as KeePass XML, held in memory only, for the XML import to read.
 // It runs in the import worker (kdbx.worker.ts), which may compile WebAssembly, as the
 // page may not, and can't connect anywhere. A database says how hard its key is to
 // derive: one that asks for more than a database needs is refused before anything runs.
-
-export const KDBX_LIMITS = {
-	/** Argon2's memory, in KiB: 1 GiB. */
-	memory: 1024 * 1024,
-	passes: 100,
-	lanes: 16,
-	/** AES-KDF's rounds: about a minute on a slow laptop. */
-	aesRounds: 200_000_000,
-	/** The file itself, in bytes. */
-	fileSize: 100 * 1024 * 1024,
-};
+// What it unpacks to is capped as well (kdbxweb is patched for that: patches/), and its
+// attachments are counted and left out, so the XML holds only what the import reads.
 
 export type KdbxFailure =
 	| "wrong-key"
@@ -36,10 +35,7 @@ export class KdbxOpenError extends Error {
 }
 
 const tooCostly = (what: string) =>
-	new KdbxOpenError(
-		"too-costly",
-		`This database asks for ${what}, more than vauly's import allows. In KeePass, lower it under Database Settings › Security, save, and try again; or export to XML.`,
-	);
+	new KdbxOpenError("too-costly", tooCostlyMessage(what));
 
 function checkArgon2(memory: number, passes: number, lanes: number) {
 	if (memory > KDBX_LIMITS.memory) {
@@ -133,6 +129,9 @@ function failure(error: unknown): KdbxOpenError {
 				"not-kdbx",
 				"That isn't a KeePass database. Choose the .kdbx file, or export to XML.",
 			);
+		// patches/kdbxweb@2.1.1.patch: past KDBX_LIMITS.unpacked, nothing more is unpacked.
+		case "InflateLimit":
+			return new KdbxOpenError("too-costly", unpacksTooBig);
 		case kdbxweb.Consts.ErrorCodes.InvalidVersion:
 		case kdbxweb.Consts.ErrorCodes.Unsupported:
 			return new KdbxOpenError(
@@ -147,35 +146,156 @@ function failure(error: unknown): KdbxOpenError {
 	}
 }
 
-/** The database as KeePass XML, protected values included, as KeePass's own export has it. */
+/**
+ * The database as KeePass XML, protected values included, as KeePass's own export has it,
+ * but without its attachments: how many of those stay behind is counted instead.
+ */
 export async function openKdbx(
 	file: ArrayBuffer,
 	password: string,
 	keyFile?: ArrayBuffer,
-): Promise<string> {
+): Promise<{ xml: string; attachments: number }> {
 	if (file.byteLength > KDBX_LIMITS.fileSize) {
-		throw new KdbxOpenError(
-			"too-costly",
-			"That database is bigger than vauly's import takes (100 MB). Export it to XML instead.",
-		);
+		throw new KdbxOpenError("too-costly", tooBig);
 	}
 	checkHeader(file);
+	const key = keyFile ? await keyFileKey(keyFile) : null;
 	try {
-		const credentials = new kdbxweb.KdbxCredentials(
-			password ? kdbxweb.ProtectedValue.fromString(password) : null,
-			keyFile ?? null,
-		);
-		const db = await kdbxweb.Kdbx.load(file, credentials);
+		const db = await load(file, password, key);
+		const attachments = leaveAttachments(db);
 		// kdbxweb writes its own name as the generator; the import reads the app's there.
 		const generator = db.meta.generator ?? "";
 		const xml = await db.saveXml();
-		return xml.replace(
-			/<Generator>[^<]*<\/Generator>/,
-			`<Generator>${escapeXml(generator)}</Generator>`,
-		);
+		return {
+			attachments,
+			xml: xml.replace(
+				/<Generator>[^<]*<\/Generator>/,
+				`<Generator>${escapeXml(generator)}</Generator>`,
+			),
+		};
 	} catch (error) {
 		throw failure(error);
 	}
+}
+
+/**
+ * Loads the database, with what it may unpack capped for each try. With a key file and
+ * no password, KeePassXC leaves the password out of the key, and KeePass may count an
+ * empty one: both are tried, as KeePassXC does.
+ */
+async function load(
+	file: ArrayBuffer,
+	password: string,
+	key: ArrayBuffer | null,
+) {
+	const attempt = (withPassword: boolean) => {
+		kdbxweb.setInflateLimit(KDBX_LIMITS.unpacked);
+		return kdbxweb.Kdbx.load(
+			file,
+			new kdbxweb.KdbxCredentials(
+				withPassword ? kdbxweb.ProtectedValue.fromString(password) : null,
+				// A copy for each try: kdbxweb protects the key it's given in place.
+				key?.slice(0) ?? null,
+			),
+		);
+	};
+	if (password || !key) return attempt(true);
+	try {
+		return await attempt(false);
+	} catch (error) {
+		const code = error instanceof kdbxweb.KdbxError ? error.code : "";
+		if (code !== kdbxweb.Consts.ErrorCodes.InvalidKey) throw error;
+		return attempt(true);
+	}
+}
+
+/**
+ * Takes every attachment out before the database is written as XML, which would carry
+ * each one as base64, and counts those on entries the import brings: not the Recycle
+ * Bin's or the templates'. Earlier versions' attachments go too, uncounted, as the
+ * import brings only an entry's earlier passwords. Custom icons go as well: unused.
+ */
+function leaveAttachments(db: kdbxweb.Kdbx) {
+	const skipped = new Set<kdbxweb.KdbxEntry>();
+	for (const uuid of [db.meta.recycleBinUuid, db.meta.entryTemplatesGroup]) {
+		const group = uuid ? db.getGroup(uuid) : undefined;
+		for (const entry of group?.allEntries() ?? []) skipped.add(entry);
+	}
+	let count = 0;
+	for (const group of db.groups) {
+		for (const entry of group.allEntries()) {
+			if (!skipped.has(entry)) count += entry.binaries.size;
+			entry.binaries.clear();
+			for (const earlier of entry.history) earlier.binaries.clear();
+		}
+	}
+	db.binaries = new kdbxweb.KdbxBinaries();
+	db.meta.customIcons.clear();
+	return count;
+}
+
+/**
+ * The 32 bytes a key file stands for, as KeePass reads one: a KeePass XML key file's
+ * key (version 1 or 2, its check verified when it has one), 32 bytes as they are, 64
+ * hex characters, or else the SHA-256 of the whole file, whatever it is.
+ */
+export async function keyFileKey(keyFile: ArrayBuffer): Promise<ArrayBuffer> {
+	if (keyFile.byteLength > KDBX_LIMITS.keyFileSize) {
+		throw new KdbxOpenError("too-costly", keyFileTooBig);
+	}
+	const bytes = new Uint8Array(keyFile);
+	const fromXml = await xmlKeyFile(bytes);
+	if (fromXml) return fromXml;
+	if (bytes.byteLength === 32) return keyFile.slice(0);
+	if (bytes.byteLength === 64) {
+		const text = new TextDecoder().decode(bytes);
+		if (/^[a-f\d]{64}$/i.test(text))
+			return copy(kdbxweb.ByteUtils.hexToBytes(text));
+	}
+	return crypto.subtle.digest("SHA-256", bytes);
+}
+
+const copy = (bytes: Uint8Array) => new Uint8Array(bytes).buffer;
+
+/** A KeePass XML key file's key, or undefined for any other file, which is hashed. */
+async function xmlKeyFile(bytes: Uint8Array) {
+	let root: Element | null;
+	try {
+		const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes).trim();
+		if (!text.startsWith("<")) return undefined;
+		root = kdbxweb.XmlUtils.parse(text).documentElement;
+	} catch {
+		return undefined;
+	}
+	if (root?.nodeName !== "KeyFile") return undefined;
+	const child = (node: Node | null, name: string) =>
+		node ? kdbxweb.XmlUtils.getChildNode(node, name) : null;
+	const version = child(child(root, "Meta"), "Version")?.textContent?.trim();
+	const data = child(child(root, "Key"), "Data") as Element | null;
+	const text = data?.textContent?.replace(/\s+/g, "");
+	if (!version || !data || !text) return undefined;
+	const major = version.split(".")[0];
+	if (major === "1") {
+		const key = kdbxweb.ByteUtils.base64ToBytes(text);
+		return key.byteLength === 32 ? copy(key) : undefined;
+	}
+	if (major !== "2" || !/^[a-f\d]{64}$/i.test(text)) return undefined;
+	const key = copy(kdbxweb.ByteUtils.hexToBytes(text));
+	// Its first four bytes of SHA-256, when it has them, catch a key typed in wrong.
+	const check = data.getAttribute("Hash")?.trim();
+	if (check) {
+		const digest = await crypto.subtle.digest("SHA-256", key);
+		const expected = kdbxweb.ByteUtils.bytesToHex(
+			new Uint8Array(digest).subarray(0, 4),
+		);
+		if (check.toLowerCase() !== expected.toLowerCase()) {
+			throw new KdbxOpenError(
+				"corrupt",
+				"That key file is damaged: its check doesn't match its key. Choose a backup of the key file.",
+			);
+		}
+	}
+	return key;
 }
 
 const escapeXml = (text: string) =>

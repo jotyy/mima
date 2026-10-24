@@ -12,15 +12,13 @@ export type KdbxRequest = {
 	keyFile?: ArrayBuffer;
 };
 export type KdbxResponse =
-	| { xml: string }
+	| { xml: string; attachments: number }
 	| { failure: KdbxOpenError["reason"]; message: string };
 
 self.onmessage = async ({ data }: MessageEvent<KdbxRequest>) => {
 	let response: KdbxResponse;
 	try {
-		response = {
-			xml: await openKdbx(data.file, data.password, data.keyFile),
-		};
+		response = await openKdbx(data.file, data.password, data.keyFile);
 	} catch (error) {
 		response =
 			error instanceof KdbxOpenError

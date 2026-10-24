@@ -1,16 +1,20 @@
 /// <reference types="bun" />
 
 import { describe, expect, test } from "bun:test";
+import { gzipSync } from "fflate";
+import * as kdbxweb from "kdbxweb";
 
-import { LockedExport, parseImport, readImport } from ".";
+import { ImportError, LockedExport, parseImport, readImport } from ".";
 import { fixture } from "./fixtures";
-import { KdbxOpenError, openKdbx } from "./kdbx-open";
+import { KDBX_LIMITS } from "./kdbx-limits";
+import { KdbxOpenError, keyFileKey, openKdbx } from "./kdbx-open";
 
 // KeePass databases opened in place of an XML export: written by fixtures/kdbx/make.ts
 // with each app's settings, then read the way the import worker reads them.
 
 const buffer = (bytes: Uint8Array) => new Uint8Array(bytes).buffer;
 const file = (name: string) => buffer(fixture(`kdbx/${name}`));
+const xml = async (opening: ReturnType<typeof openKdbx>) => (await opening).xml;
 
 async function failure(work: Promise<unknown>) {
 	try {
@@ -44,7 +48,7 @@ describe("KeePass databases", () => {
 			expect((error as LockedExport).app).toBe("KeePass");
 		}
 		const result = parseImport(
-			await openKdbx(buffer(bytes), "example-keepass-password"),
+			await xml(openKdbx(buffer(bytes), "example-keepass-password")),
 		);
 		expect(result.source).toBe("KeePass");
 		expect(result.left).toEqual({ trashed: 1 });
@@ -68,10 +72,8 @@ describe("KeePass databases", () => {
 	test("KeePassXC: Argon2id and a key file", async () => {
 		const keyFile = file("keepassxc.keyx");
 		const result = parseImport(
-			await openKdbx(
-				file("keepassxc.kdbx"),
-				"example-keepassxc-password",
-				keyFile,
+			await xml(
+				openKdbx(file("keepassxc.kdbx"), "example-keepassxc-password", keyFile),
 			),
 		);
 		// kdbxweb wrote the fixture, so it's the generator; a KeePassXC file names KeePassXC.
@@ -91,7 +93,7 @@ describe("KeePass databases", () => {
 
 	test("KDBX 3.1 with AES-KDF", async () => {
 		const result = parseImport(
-			await openKdbx(file("keepass-3.1.kdbx"), "example-kdbx3-password"),
+			await xml(openKdbx(file("keepass-3.1.kdbx"), "example-kdbx3-password")),
 		);
 		expect(result.items.map((item) => item.name)).toEqual([
 			"Door codes",
@@ -136,5 +138,130 @@ describe("KeePass databases", () => {
 			openKdbx(buffer(new TextEncoder().encode("not a database at all")), "x"),
 		);
 		expect(error.reason).toBe("not-kdbx");
+	});
+
+	test("settings past the limits are refused before the password is asked for", () => {
+		const marker = [0x05, 0x01, 0x00, 0x00, 0x00, 0x4d, 0x08, 0x00, 0x00, 0x00];
+		const greedy = new Uint8Array(
+			patched(fixture("kdbx/keepass.kdbx"), marker, 4n * 1024n * 1024n * 1024n),
+		);
+		expect(() => readImport(greedy)).toThrow(ImportError);
+		expect(() => readImport(greedy)).toThrow("4096 MiB of memory");
+		const slow = new Uint8Array(
+			patched(
+				fixture("kdbx/keepass-3.1.kdbx"),
+				[0x06, 0x08, 0x00],
+				10_000_000_000n,
+			),
+		);
+		expect(() => readImport(slow)).toThrow("10,000,000,000 AES-KDF rounds");
+		// KeePass 1's .kdb starts the same way, then says so.
+		const kdb = fixture("kdbx/keepass.kdbx").slice(0, 64);
+		kdb.set([0x65, 0xfb, 0x4b, 0xb5], 4);
+		expect(() => readImport(kdb)).toThrow("KeePass 1 database");
+		// So does KDBX 2, from KeePass before 2.20, which kdbxweb doesn't read.
+		const old = fixture("kdbx/keepass.kdbx").slice();
+		old.set([0x04, 0x00, 0x02, 0x00], 8);
+		expect(() => readImport(old)).toThrow("(KDBX 2)");
+	});
+
+	test("attachments are counted and left out, so the XML stays small", async () => {
+		const { xml: text, attachments } = await openKdbx(
+			file("attachments.kdbx"),
+			"example-keepass-password",
+		);
+		// The entry's two. Not its earlier version's, nor the Recycle Bin's.
+		expect(attachments).toBe(2);
+		expect(text).not.toContain("<Binary");
+		expect(parseImport(text).left).toEqual({ trashed: 1 });
+	});
+
+	test("a small file that unpacks past the limit is refused before it unpacks", async () => {
+		for (const name of ["unpacks-big.kdbx", "unpacks-big-3.1.kdbx"]) {
+			expect(fixture(`kdbx/${name}`).byteLength).toBeLessThan(1024 * 1024);
+			const error = await failure(
+				openKdbx(file(name), "example-keepass-password"),
+			);
+			expect(error.reason).toBe("too-costly");
+			expect(error.message).toContain("more than 256 MB once it's unpacked");
+		}
+	});
+
+	test("an attachment compressed inside the XML counts towards the limit too", () => {
+		// What a GZIP stream says it unpacks to is all that's read before refusing.
+		const stream = gzipSync(new TextEncoder().encode("small"));
+		new DataView(stream.buffer).setUint32(
+			stream.byteLength - 4,
+			300 * 1024 * 1024,
+			true,
+		);
+		const node = kdbxweb.XmlUtils.parse(
+			`<Binary Compressed="True">${kdbxweb.ByteUtils.bytesToBase64(stream)}</Binary>`,
+		).documentElement;
+		kdbxweb.setInflateLimit(KDBX_LIMITS.unpacked);
+		expect(() => kdbxweb.XmlUtils.getProtectedBinary(node)).toThrow(
+			"InflateLimit",
+		);
+	});
+
+	test("a key file can be any file, and a database may have no password", async () => {
+		const result = parseImport(
+			await xml(
+				openKdbx(file("key-file-only.kdbx"), "", file("key-file-only.xml")),
+			),
+		);
+		expect(result.items).toHaveLength(2);
+	});
+
+	test("an empty password can count, beside a version 2 key file without its check", async () => {
+		const result = parseImport(
+			await xml(
+				openKdbx(file("empty-password.kdbx"), "", file("empty-password.keyx")),
+			),
+		);
+		expect(result.items).toHaveLength(2);
+	});
+
+	test("key files are read as KeePass reads them", async () => {
+		const hex = (key: ArrayBuffer) => kdbxweb.ByteUtils.bytesToHex(key);
+		const key = "0123456789abcdef".repeat(4);
+		const text = (value: string) => buffer(new TextEncoder().encode(value));
+		const v2 = (hash?: string) =>
+			text(
+				`<KeyFile><Meta><Version>2.0</Version></Meta><Key><Data${hash ? ` Hash="${hash}"` : ""}>${key}</Data></Key></KeyFile>`,
+			);
+		const digest = hex(
+			await crypto.subtle.digest(
+				"SHA-256",
+				buffer(kdbxweb.ByteUtils.hexToBytes(key)),
+			),
+		);
+		expect(hex(await keyFileKey(v2()))).toBe(key);
+		expect(hex(await keyFileKey(v2(digest.slice(0, 8).toUpperCase())))).toBe(
+			key,
+		);
+		expect((await failure(keyFileKey(v2("DEADBEEF")))).message).toContain(
+			"key file is damaged",
+		);
+		// Version 1: the key as base64.
+		const raw = kdbxweb.ByteUtils.hexToBytes(key);
+		expect(
+			hex(
+				await keyFileKey(
+					text(
+						`<KeyFile><Meta><Version>1.00</Version></Meta><Key><Data>${kdbxweb.ByteUtils.bytesToBase64(raw)}</Data></Key></KeyFile>`,
+					),
+				),
+			),
+		).toBe(key);
+		// 32 bytes as they are, 64 hex characters, and anything else hashed.
+		expect(hex(await keyFileKey(buffer(raw)))).toBe(key);
+		expect(hex(await keyFileKey(text(key)))).toBe(key);
+		const other = text("<notes>not a key file</notes>");
+		expect(hex(await keyFileKey(other))).toBe(
+			hex(await crypto.subtle.digest("SHA-256", other)),
+		);
+		const huge = new ArrayBuffer(KDBX_LIMITS.keyFileSize + 1);
+		expect((await failure(keyFileKey(huge))).reason).toBe("too-costly");
 	});
 });

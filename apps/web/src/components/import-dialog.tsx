@@ -37,6 +37,7 @@ import {
 	WrongPasswordError,
 } from "@/lib/import";
 import { appFor, type ImportApp, importApps } from "@/lib/import/apps";
+import { KDBX_LIMITS, keyFileTooBig } from "@/lib/import/kdbx-limits";
 import { appMarks } from "@/lib/import/marks";
 import { logoDomain } from "@/lib/logos";
 import {
@@ -119,8 +120,14 @@ export function ImportDialog({
 			attempt.current++;
 			setStep({ name: "apps" });
 			setVaultId(fallbackVault);
+		} else {
+			// Closed, however it closed: a database still opening is stopped.
+			opening.current?.abort();
 		}
 	}, [open, fallbackVault]);
+
+	// And when the dialog goes away altogether.
+	useEffect(() => () => opening.current?.abort(), []);
 
 	const read = async (file: File, app?: ImportApp) => {
 		attempt.current++;
@@ -441,7 +448,9 @@ function Unlock({
 }) {
 	const [password, setPassword] = useState("");
 	const [keyFile, setKeyFile] = useState<File>();
+	const [keyFileError, setKeyFileError] = useState<string>();
 	const [busy, setBusy] = useState(false);
+	const error = keyFileError ?? step.error;
 	const proton = step.locked.app === "Proton Pass";
 	const keePass = step.locked.app === "KeePass";
 	return (
@@ -473,7 +482,7 @@ function Unlock({
 					autoComplete="off"
 					value={password}
 					onChange={(event) => setPassword(event.target.value)}
-					aria-invalid={step.error ? true : undefined}
+					aria-invalid={error ? true : undefined}
 				/>
 			</Field>
 			{keePass && (
@@ -485,17 +494,24 @@ function Unlock({
 						type="file"
 						disabled={busy}
 						className="text-caption text-fg-muted file:border-line file:bg-surface file:text-fg file:mr-3 file:rounded-md file:border file:px-2.5 file:py-1"
-						onChange={(event) => setKeyFile(event.target.files?.[0])}
+						onChange={(event) => {
+							const chosen = event.target.files?.[0];
+							// Refused before it's read: a key file is a few hundred bytes.
+							const tooBig = (chosen?.size ?? 0) > KDBX_LIMITS.keyFileSize;
+							setKeyFileError(tooBig ? keyFileTooBig : undefined);
+							setKeyFile(tooBig ? undefined : chosen);
+							if (tooBig) event.target.value = "";
+						}}
 					/>
 				</Field>
 			)}
-			{step.error && (
+			{error && (
 				<p
 					role="alert"
 					className="text-caption text-danger flex items-start gap-1.5"
 				>
 					<WarningIcon className="mt-0.5 size-3.5 shrink-0" />
-					{step.error}
+					{error}
 				</p>
 			)}
 			<DialogFooter>
