@@ -237,3 +237,19 @@ export function useFileActions() {
 		};
 	}, [queryClient]);
 }
+
+/**
+ * What a person approving an agent is shown of an item's files: how many, and the newest
+ * one's date. The grant covers those, and none finished after.
+ */
+export function filesSeen(files: ItemFile[] | undefined) {
+	const list = files ?? [];
+	return {
+		count: list.length,
+		through: list.length
+			? Math.max(...list.map((file) => file.createdAt.getTime()))
+			: null,
+	};
+}
+
+export type FilesSeen = ReturnType<typeof filesSeen>;

@@ -107,7 +107,8 @@ export function backupFileName(date = new Date(), extension = "csv") {
 	return `vauly-backup-${date.toISOString().slice(0, 10)}.${extension}`;
 }
 
-const reserved = /^(con|prn|aux|nul|com\d|lpt\d|conin\$|conout\$)$/i;
+const reserved =
+	/^(con|prn|aux|nul|com[0-9¹²³]|lpt[0-9¹²³]|conin\$|conout\$)$/i;
 
 /**
  * Where a file goes in the ZIP: a folder of its own, so two files can share a name, and a

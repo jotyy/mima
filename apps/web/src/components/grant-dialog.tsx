@@ -18,7 +18,7 @@ import {
 } from "@vauly/ui/components/select";
 import { Tabs, TabsList, TabsTrigger } from "@vauly/ui/components/tabs";
 import { useEffect, useState } from "react";
-import { useFiles } from "@/lib/files";
+import { filesSeen, useFiles } from "@/lib/files";
 import {
 	type Duration,
 	errorMessage,
@@ -198,7 +198,12 @@ export function GrantDialog({
 							if (!agent) return;
 							setBusy(true);
 							try {
-								await actions.grant(agent, item, duration, files);
+								await actions.grant(
+									agent,
+									item,
+									duration,
+									files ? { through: filesSeen(itemFiles).through } : undefined,
+								);
 								notify.success(`${agent.name} can use ${item.name}`);
 								onOpenChange(false);
 							} catch (err) {

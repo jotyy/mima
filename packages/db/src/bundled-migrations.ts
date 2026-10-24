@@ -75,4 +75,9 @@ export const migrations: readonly {
 		hash: "d875106e9af58f3fc6e3b834cba97a9b6cb1e6d76fea66bf1616040d1838a2b8",
 		sql: "CREATE TABLE `attachment` (\n\t`id` text PRIMARY KEY,\n\t`item_id` text NOT NULL,\n\t`meta` text,\n\t`size` integer NOT NULL,\n\t`chunks` integer NOT NULL,\n\t`created_by` text NOT NULL,\n\t`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,\n\tCONSTRAINT `fk_attachment_item_id_item_id_fk` FOREIGN KEY (`item_id`) REFERENCES `item`(`id`) ON DELETE CASCADE\n);\n--> statement-breakpoint\nCREATE TABLE `attachment_chunk` (\n\t`attachment_id` text NOT NULL,\n\t`index` integer NOT NULL,\n\t`data` text NOT NULL,\n\tCONSTRAINT `attachment_chunk_pk` PRIMARY KEY(`attachment_id`, `index`),\n\tCONSTRAINT `fk_attachment_chunk_attachment_id_attachment_id_fk` FOREIGN KEY (`attachment_id`) REFERENCES `attachment`(`id`) ON DELETE CASCADE\n);\n--> statement-breakpoint\nALTER TABLE `access_request` ADD `files` integer DEFAULT false NOT NULL;--> statement-breakpoint\nALTER TABLE `agent_grant` ADD `files` integer DEFAULT false NOT NULL;--> statement-breakpoint\nALTER TABLE `agent_grant` ADD `files_until` integer;--> statement-breakpoint\nCREATE INDEX `attachment_item_idx` ON `attachment` (`item_id`);",
 	},
+	{
+		name: "20261024061917_grant_files_through",
+		hash: "9c9b382edd77afdaa021095ceb54def732c8af8d23cfe24d69b9578afb0703f6",
+		sql: "ALTER TABLE `agent_grant` ADD `files_through` integer;",
+	},
 ];

@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 
 import {
+	capture,
 	type ItemFields,
 	prepareEnv,
 	safeFileName,
@@ -150,9 +151,40 @@ describe("files on disk", () => {
 		expect(safeFileName("CON")).toBe("_CON");
 		expect(safeFileName("nul.txt")).toBe("_nul.txt");
 		expect(safeFileName("com1.pem")).toBe("_com1.pem");
+		expect(safeFileName("COM¹.txt")).toBe("_COM¹.txt");
+		expect(safeFileName("lpt³")).toBe("_lpt³");
 		expect(safeFileName("notes. . ")).toBe("notes");
 		expect(safeFileName("...")).toBe("file");
 		expect(safeFileName("server.p12")).toBe("server.p12");
 		expect(safeFileName("con-notes.txt")).toBe("con-notes.txt");
+	});
+});
+
+describe("capture", () => {
+	const run = (command: string, timeoutMs: number, onExit?: () => void) =>
+		capture(command, {
+			env: process.env,
+			secrets: [],
+			cwd: tmpdir(),
+			timeoutMs,
+			limit: 10_000,
+			onExit,
+			killGraceMs: 200,
+		});
+
+	test("a command that ignores being asked to stop is stopped anyway", async () => {
+		let exited = false;
+		const result = await run("trap '' TERM; sleep 30", 200, () => {
+			exited = true;
+		});
+		expect(result.timedOut).toBe(true);
+		expect(exited).toBe(true);
+	});
+
+	test("a child left holding the output doesn't keep it waiting", async () => {
+		const started = Date.now();
+		const result = await run("sleep 30 & echo done", 10_000);
+		expect(result.stdout).toContain("done");
+		expect(Date.now() - started).toBeLessThan(4_000);
 	});
 });

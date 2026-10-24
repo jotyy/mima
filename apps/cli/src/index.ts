@@ -65,9 +65,10 @@ async function run(args: string[]) {
 
 	let secrets: string[] = [];
 	let filled: Record<string, string | undefined> = { ...env };
+	let cleanup = () => {};
 	delete filled.VAULY_TOKEN;
-	// Files written for the command go when vauly exits, however it exits. Signals go to
-	// the command below, and vauly exits when it does.
+	// Files written for the command go when it exits, or when vauly does, however it
+	// exits. Signals go to the command below, and vauly exits when it does.
 	cleanUpOnExit({ signals: false });
 	if (refs.length > 0) {
 		const values = await resolveAll(config(), refs, command, {
@@ -81,7 +82,7 @@ async function run(args: string[]) {
 				? new CliError("Nobody approved the request in time.")
 				: error;
 		});
-		({ env: filled, secrets } = prepareEnv(env, refs, values));
+		({ env: filled, secrets, cleanup } = prepareEnv(env, refs, values));
 	}
 
 	const [bin, ...rest] = commandArgs as [string, ...string[]];
@@ -105,6 +106,7 @@ async function run(args: string[]) {
 		process.stderr.write(`vauly: couldn't start ${bin}: ${error.message}\n`);
 		process.exit(127);
 	});
+	child.on("exit", () => cleanup());
 	child.on("close", (code) => process.exit(code ?? 1));
 }
 

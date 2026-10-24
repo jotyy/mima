@@ -1,6 +1,11 @@
 import { existsSync } from "node:fs";
 
-import { type APIRequestContext, expect, test } from "@playwright/test";
+import {
+	type APIRequestContext,
+	expect,
+	type Page,
+	test,
+} from "@playwright/test";
 
 import { API_URL } from "../playwright.config";
 import { vauly } from "./cli";
@@ -398,6 +403,104 @@ test("a one-time grant lets its run finish downloading, and no other run", async
 			index: 0,
 		}),
 	).toContain('"data"');
+});
+
+test("the Overview says a request wants files, and approving it there covers the files shown", async ({
+	page,
+	request,
+}) => {
+	await signIn(page, owner);
+	const needs = page.getByRole("region", { name: "Needs you" });
+	await expect(needs.getByText("Claude Code wants Internal CA")).toBeVisible();
+	await expect(needs.getByText(/with its 1 file/)).toBeVisible();
+	await needs.getByRole("button", { name: "Allow once" }).click();
+	await expect(page.getByText("Allowed Claude Code once")).toBeVisible();
+	const granted = await resolve(request, true);
+	expect(granted?.status).toBe("granted");
+	expect(granted?.files).toHaveLength(1);
+});
+
+/** The pending request for the CA item's files, as the people who approve it see it. */
+async function pendingFilesRequest(page: Page) {
+	const { json } = JSON.parse(await apiFromPage(page, "requests/list")) as {
+		json: { id: string; itemId: string; files: boolean }[];
+	};
+	return json.find((row) => row.itemId === caItem && row.files);
+}
+
+test("files finished after what the approver saw aren't covered", async ({
+	page,
+	request,
+}) => {
+	// The one-time grant is used up: the next run asks again.
+	expect((await resolve(request, true))?.status).toBe("pending");
+	await signIn(page, owner);
+	const { json: files } = JSON.parse(await apiFromPage(page, "files/list")) as {
+		json: { id: string; itemId: string; createdAt: string }[];
+	};
+	const seen = files.find((file) => file.itemId === caItem);
+	await openAllItems(page);
+	await page
+		.getByRole("region", { name: "Items" })
+		.getByRole("link", { name: /^Internal CA/ })
+		.click();
+	await page.getByLabel("File to attach").setInputFiles({
+		name: "ca2.pem",
+		mimeType: "application/x-pem-file",
+		buffer: Buffer.from("a second example cert"),
+	});
+	await expect(
+		page.getByText("Attached ca2.pem", { exact: true }),
+	).toBeVisible();
+
+	// Approved as someone who saw only the first file.
+	const pending = await pendingFilesRequest(page);
+	expect(
+		await apiFromPage(page, "requests/approve", {
+			id: pending?.id,
+			wrappedKey: "x".repeat(40),
+			duration: "hour",
+			files: true,
+			filesThrough: new Date(seen?.createdAt ?? 0).getTime(),
+		}),
+	).not.toContain("error");
+	expect((await resolve(request, true))?.status).toBe("pending");
+});
+
+test("a file uploading while access was granted isn't covered once it's finished", async ({
+	page,
+	request,
+}) => {
+	await signIn(page, owner);
+	// Started before the approval...
+	const { json: started } = JSON.parse(
+		await apiFromPage(page, "files/create", {
+			itemId: caItem,
+			size: 3,
+			chunks: 1,
+		}),
+	) as { json: { id: string } };
+	await apiFromPage(page, "files/put", {
+		id: started.id,
+		index: 0,
+		data: "A".repeat(28),
+	});
+	const pending = await pendingFilesRequest(page);
+	await apiFromPage(page, "requests/approve", {
+		id: pending?.id,
+		wrappedKey: "x".repeat(40),
+		duration: "hour",
+		files: true,
+		filesThrough: Date.now(),
+	});
+	expect((await resolve(request, true))?.status).toBe("granted");
+	// ...and finished after it.
+	await apiFromPage(page, "files/finish", {
+		id: started.id,
+		meta: "x".repeat(40),
+	});
+	expect((await resolve(request, true))?.status).toBe("pending");
+	await apiFromPage(page, "files/remove", { id: started.id });
 });
 
 test("the activity log shows each agent run and decision", async ({ page }) => {

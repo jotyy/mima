@@ -315,6 +315,8 @@ async function runWithSecrets(context: Context, args: Record<string, unknown>) {
 		cwd,
 		timeoutMs: timeout * 1000,
 		limit: OUTPUT_LIMIT,
+		// The files go once the command is done with them, not when its output closes.
+		onExit: cleanup,
 	}).finally(cleanup);
 	const summary = result.timedOut
 		? `Stopped after ${timeout} seconds.`

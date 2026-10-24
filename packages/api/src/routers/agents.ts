@@ -41,6 +41,16 @@ const renewed = {
 	filesUntil: null,
 };
 
+/**
+ * What a grant says about files: whether it covers them, and through which file, the
+ * newest the person was shown. Shown none, it covers none, so the next run asks again
+ * once there are some.
+ */
+const fileTerms = (files: boolean, through?: number | null) => ({
+	files,
+	filesThrough: files ? new Date(Math.min(through ?? 0, Date.now())) : null,
+});
+
 export const agentsRouter = {
 	list: memberProcedure.handler(async ({ context }) => {
 		const { db, userId } = context;
@@ -206,6 +216,8 @@ export const agentsRouter = {
 				duration,
 				/** The item's files too. */
 				files: z.boolean().optional(),
+				/** The newest file on the item the person saw, in milliseconds. */
+				filesThrough: z.number().int().nullable().optional(),
 			}),
 		)
 		.handler(async ({ context, input }) => {
@@ -216,7 +228,7 @@ export const agentsRouter = {
 			await requireAgent(db, input.agentId);
 			const terms = {
 				...grantTerms(input.duration),
-				files: input.files ?? false,
+				...fileTerms(input.files ?? false, input.filesThrough),
 				...renewed,
 			};
 			await db.batch([
@@ -307,6 +319,8 @@ export const requestsRouter = {
 				duration,
 				/** Whether the request the person saw asked for files. */
 				files: z.boolean(),
+				/** The newest file on the item they saw with it, in milliseconds. */
+				filesThrough: z.number().int().nullable().optional(),
 			}),
 		)
 		.handler(async ({ context, input }) => {
@@ -333,7 +347,7 @@ export const requestsRouter = {
 			}
 			const terms = {
 				...grantTerms(input.duration),
-				files: request.files,
+				...fileTerms(request.files, input.filesThrough),
 				...renewed,
 			};
 			await db.batch([

@@ -32,6 +32,7 @@ import {
 import { notify } from "@/components/notify";
 import { Page, SectionTitle } from "@/components/page";
 import { useBreached } from "@/lib/breaches";
+import { filesSeen, useFiles } from "@/lib/files";
 import { ago, plural } from "@/lib/format";
 import { useKeyring } from "@/lib/keyring";
 import { logoDomain } from "@/lib/logos";
@@ -269,6 +270,7 @@ type NeedRowProps = {
 function useNeeds() {
 	const { me } = useKeyring();
 	const requests = useRequests();
+	const allFiles = useFiles();
 	const items = useItems();
 	const agents = useAgents();
 	const members = useMembers();
@@ -307,6 +309,10 @@ function useNeeds() {
 			const agent = lookup.agents.get(request.agentId);
 			const item = lookup.items.get(request.itemId);
 			const id = `approval-${request.id}`;
+			// What the row shows of the item's files is what an approval covers.
+			const seen = filesSeen(
+				(allFiles.data ?? []).filter((file) => file.itemId === request.itemId),
+			);
 			return {
 				id,
 				icon: ShieldCheckIcon,
@@ -317,7 +323,7 @@ function useNeeds() {
 						wants <span className="font-medium">{item?.name ?? "an item"}</span>
 					</>
 				),
-				meta: `for ${request.command} · ${ago(request.createdAt)}`,
+				meta: `for ${request.command}${request.files ? `, with its ${plural(seen.count, "file")}` : ""} · ${ago(request.createdAt)}`,
 				actions: (
 					<>
 						<Button
@@ -341,7 +347,11 @@ function useNeeds() {
 							onClick={() =>
 								run(
 									id,
-									() => actions.approve(request, "once"),
+									() =>
+										actions.approve(request, "once", {
+											files: request.files,
+											through: seen.through,
+										}),
 									`Allowed ${agent?.name ?? "the agent"} once`,
 								)
 							}

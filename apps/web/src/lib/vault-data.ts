@@ -794,11 +794,12 @@ export function useActions() {
 			) => after(client.agents.update({ id, ...change })),
 			deleteAgent: (id: string) => after(client.agents.remove({ id })),
 
+			/** With `files`, the grant covers the files the person was shown, through `through`. */
 			grant: async (
 				agent: Agent,
 				item: Item,
 				duration: Duration,
-				files = false,
+				files?: { through: number | null },
 			) =>
 				after(
 					client.agents.grant({
@@ -806,14 +807,23 @@ export function useActions() {
 						itemId: item.id,
 						wrappedKey: await wrapKeyFor(agent.publicKey, item.key),
 						duration,
-						files,
+						files: Boolean(files),
+						filesThrough: files?.through ?? null,
 					}),
 				),
 
 			revoke: (agentId: string, itemId: string) =>
 				after(client.agents.revoke({ agentId, itemId })),
 
-			async approve(request: AccessRequest, duration: Duration) {
+			/**
+			 * Approves what the person was shown: whether the request asked for files, and the
+			 * newest file they saw. If the agent asked for more meanwhile, it's refused.
+			 */
+			async approve(
+				request: AccessRequest,
+				duration: Duration,
+				shown: { files: boolean; through: number | null },
+			) {
 				const items = cached<Item[]>(["vault", "items"]);
 				const agents = cached<Agent[]>(["vault", "agents"]);
 				const item = items?.find((row) => row.id === request.itemId);
@@ -825,8 +835,8 @@ export function useActions() {
 						id: request.id,
 						wrappedKey: await wrapKeyFor(agent.publicKey, item.key),
 						duration,
-						// What the person saw: if the agent asks for more meanwhile, it's refused.
-						files: request.files,
+						files: shown.files,
+						filesThrough: shown.through,
 					}),
 				);
 			},

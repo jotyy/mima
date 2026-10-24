@@ -244,6 +244,12 @@ export const agentGrant = sqliteTable(
 		 */
 		files: integer("files", { mode: "boolean" }).notNull().default(false),
 		/**
+		 * The newest file the person saw when they gave the agent the item's files: it gets
+		 * that one and older ones, never a file finished later. Files are dated when their
+		 * upload finishes.
+		 */
+		filesThrough: integer("files_through", { mode: "timestamp_ms" }),
+		/**
 		 * A one-time grant that was used with files is kept, used up, until the passes its
 		 * run got expire, so the run can finish its downloads and no later.
 		 */

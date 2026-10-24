@@ -1,5 +1,12 @@
 import { spawn } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+	mkdirSync,
+	mkdtempSync,
+	readdirSync,
+	rmSync,
+	statSync,
+	writeFileSync,
+} from "node:fs";
 import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -236,6 +243,7 @@ let exitHooked = false;
 export function cleanUpOnExit({ signals = true } = {}) {
 	if (exitHooked) return;
 	exitHooked = true;
+	clearStaleFolders();
 	process.on("exit", () => {
 		for (const cleanup of written) cleanup();
 	});
@@ -250,7 +258,27 @@ export function cleanUpOnExit({ signals = true } = {}) {
 	}
 }
 
-const reserved = /^(con|prn|aux|nul|com\d|lpt\d|conin\$|conout\$)$/i;
+/**
+ * Folders an earlier run couldn't remove, because it was killed outright: anything of
+ * ours a day old. A run going on now is younger than that.
+ */
+function clearStaleFolders(now = Date.now()) {
+	try {
+		for (const name of readdirSync(tmpdir())) {
+			if (!name.startsWith("vauly-")) continue;
+			const path = join(tmpdir(), name);
+			const { mtimeMs, uid } = statSync(path);
+			if (uid === process.getuid?.() && now - mtimeMs > 24 * 60 * 60 * 1000) {
+				rmSync(path, { recursive: true, force: true });
+			}
+		}
+	} catch {
+		// Not ours to read, or gone already: nothing to clear.
+	}
+}
+
+const reserved =
+	/^(con|prn|aux|nul|com[0-9¹²³]|lpt[0-9¹²³]|conin\$|conout\$)$/i;
 
 /**
  * A file's name made safe on every system: no separators or characters Windows forbids
@@ -388,6 +416,9 @@ export function withValues(
 	return { env: filled, secrets };
 }
 
+const KILL_GRACE_MS = 5_000;
+const DRAIN_MS = 2_000;
+
 /** Runs a shell command and collects what it prints, masked, keeping the last `limit` characters of each stream. */
 export function capture(
 	command: string,
@@ -397,12 +428,17 @@ export function capture(
 		cwd,
 		timeoutMs,
 		limit,
+		onExit,
+		killGraceMs = KILL_GRACE_MS,
 	}: {
 		env: Record<string, string | undefined>;
 		secrets: string[];
 		cwd: string;
 		timeoutMs: number;
 		limit: number;
+		/** When the command itself exits, before its output has necessarily closed. */
+		onExit?: () => void;
+		killGraceMs?: number;
 	},
 ) {
 	return new Promise<{
@@ -428,17 +464,35 @@ export function capture(
 			stream.on("end", () => keep(masker.flush()));
 		}
 		let timedOut = false;
+		let killer: ReturnType<typeof setTimeout> | undefined;
+		let drain: ReturnType<typeof setTimeout> | undefined;
+		// Stopped on time: asked first, then made to, if it ignores the asking.
 		const timer = setTimeout(() => {
 			timedOut = true;
 			child.kill("SIGTERM");
+			killer = setTimeout(() => child.kill("SIGKILL"), killGraceMs);
 		}, timeoutMs);
+		let settled = false;
+		const finish = (result: Parameters<typeof resolve>[0]) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timer);
+			clearTimeout(killer);
+			clearTimeout(drain);
+			resolve(result);
+		};
 		child.on("error", (error) => {
-			clearTimeout(timer);
-			resolve({ exitCode: 127, stdout: "", stderr: error.message, timedOut });
+			finish({ exitCode: 127, stdout: "", stderr: error.message, timedOut });
 		});
-		child.on("close", (code) => {
-			clearTimeout(timer);
-			resolve({ exitCode: code, ...out, timedOut });
+		child.on("exit", (code) => {
+			onExit?.();
+			// Its own children can hold its output open: don't wait on them for long.
+			drain = setTimeout(() => {
+				child.stdout.destroy();
+				child.stderr.destroy();
+				finish({ exitCode: code, ...out, timedOut });
+			}, DRAIN_MS);
 		});
+		child.on("close", (code) => finish({ exitCode: code, ...out, timedOut }));
 	});
 }

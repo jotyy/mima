@@ -2,7 +2,7 @@ import { Badge } from "@vauly/ui/components/badge";
 import { Button } from "@vauly/ui/components/button";
 import { useState } from "react";
 
-import { useFiles } from "@/lib/files";
+import { filesSeen, useFiles } from "@/lib/files";
 import { ago, plural } from "@/lib/format";
 import type { useLookup } from "@/lib/use-lookup";
 import {
@@ -29,7 +29,8 @@ export function ApprovalCard({
 	const item = lookup.items.get(request.itemId);
 	const agentName = agent?.name ?? "An agent";
 	const itemName = item?.name ?? "an item";
-	const files = useFiles(request.itemId).data?.length ?? 0;
+	const seen = filesSeen(useFiles(request.itemId).data);
+	const files = seen.count;
 
 	const decide = async (work: () => Promise<unknown>, message: string) => {
 		setBusy(true);
@@ -44,7 +45,11 @@ export function ApprovalCard({
 	};
 	const allow = (duration: Duration, label: string) =>
 		decide(
-			() => actions.approve(request, duration),
+			() =>
+				actions.approve(request, duration, {
+					files: request.files,
+					through: seen.through,
+				}),
 			`${agentName} can use ${itemName} ${label}`,
 		);
 

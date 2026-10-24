@@ -81,6 +81,22 @@ type Grant = typeof agentGrant.$inferSelect;
 const isLive = (grant: Grant, now = new Date()) =>
 	(!grant.expiresAt || grant.expiresAt > now) && !grant.filesUntil;
 
+/**
+ * Uses up a one-time grant, if no other run has: with files, it's kept until `filesUntil`
+ * for the run's downloads; without, it goes. Whether this run got it.
+ */
+async function useUp(db: Database, grantId: string, filesUntil: number | null) {
+	const result = filesUntil
+		? await db
+				.update(agentGrant)
+				.set({ filesUntil: new Date(filesUntil) })
+				.where(and(eq(agentGrant.id, grantId), isNull(agentGrant.filesUntil)))
+		: await db
+				.delete(agentGrant)
+				.where(and(eq(agentGrant.id, grantId), isNull(agentGrant.filesUntil)));
+	return result.meta.changes === 1;
+}
+
 /** Whether the item has finished files newer than `since`. */
 async function filesSince(db: Database, itemId: string, since: Date) {
 	const [row] = await db
@@ -120,7 +136,7 @@ async function grantedFiles(
 			and(
 				eq(attachment.itemId, grant.itemId),
 				isNotNull(attachment.meta),
-				lte(attachment.createdAt, grant.createdAt),
+				lte(attachment.createdAt, grant.filesThrough ?? new Date(0)),
 			),
 		);
 	return Promise.all(
@@ -267,19 +283,16 @@ export const agentApiRouter = {
 				// since, a person approves again, having seen them.
 				const covered =
 					!needsFiles ||
-					(grant?.files && !(await filesSince(db, id, grant.createdAt)));
-				if (target && grant && covered) {
-					const until = Date.now() + FILE_PASS_MS;
-					// A one-time grant is used up now. Its run may still need its files' passes,
-					// so with files it stays, used up, until they expire.
-					if (grant.once && needsFiles) {
-						await db
-							.update(agentGrant)
-							.set({ filesUntil: new Date(until) })
-							.where(eq(agentGrant.id, grant.id));
-					} else if (grant.once) {
-						await db.delete(agentGrant).where(eq(agentGrant.id, grant.id));
-					}
+					(grant?.files &&
+						!(await filesSince(db, id, grant.filesThrough ?? new Date(0))));
+				// A one-time grant is used up now, by one run only: whichever claims it first.
+				// With files it stays, used up, until its run's passes expire.
+				const until = Date.now() + FILE_PASS_MS;
+				const claimed =
+					target && grant && covered && grant.once
+						? await useUp(db, grant.id, needsFiles ? until : null)
+						: true;
+				if (target && grant && covered && claimed) {
 					await logEvent(db, {
 						actorType: "agent",
 						actorId: me.id,
@@ -384,11 +397,11 @@ export const agentApiRouter = {
 					and(eq(agentGrant.id, pass.grantId), eq(agentGrant.agentId, me.id)),
 				);
 			const now = new Date();
+			// Whichever ends first: the grant, or the run a one-time grant was used for.
 			const standing =
 				grant?.files &&
-				(grant.filesUntil
-					? grant.filesUntil >= now
-					: !grant.expiresAt || grant.expiresAt > now);
+				(!grant.expiresAt || grant.expiresAt > now) &&
+				(!grant.filesUntil || grant.filesUntil >= now);
 			if (!grant || !standing) throw expired;
 			const [row] = await db
 				.select({
@@ -405,7 +418,7 @@ export const agentApiRouter = {
 						eq(attachmentChunk.index, input.index),
 						eq(attachment.itemId, grant.itemId),
 						isNotNull(attachment.meta),
-						lte(attachment.createdAt, grant.createdAt),
+						lte(attachment.createdAt, grant.filesThrough ?? new Date(0)),
 						isNull(item.deletedAt),
 					),
 				);

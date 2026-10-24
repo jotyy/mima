@@ -2,7 +2,7 @@ import { ORPCError } from "@orpc/server";
 import { fileChunks, sealedChunkLength } from "@vauly/crypto";
 import type { Database } from "@vauly/db";
 import { attachment, attachmentChunk, item } from "@vauly/db/schema/vault";
-import { and, count, eq, inArray, isNotNull, sum } from "drizzle-orm";
+import { and, count, eq, inArray, isNotNull, sql, sum } from "drizzle-orm";
 import { z } from "zod";
 
 import type { Context } from "../context";
@@ -206,9 +206,14 @@ export const filesRouter = {
 				});
 			}
 			await db.batch([
+				// A file is dated when it's finished, by the database's clock as grants are:
+				// a grant given while it was uploading doesn't cover it.
 				db
 					.update(attachment)
-					.set({ meta: input.meta })
+					.set({
+						meta: input.meta,
+						createdAt: sql`(cast(unixepoch('subsecond') * 1000 as integer))`,
+					})
 					.where(eq(attachment.id, file.id)),
 				logEvent(db, {
 					actorType: "member",
