@@ -1,4 +1,5 @@
 import { addressLines } from "@vauly/ui/lib/identity";
+import { strToU8, type Zippable, zipSync } from "fflate";
 
 import { type ItemFields, websitesOf } from "./vault-data";
 
@@ -7,7 +8,8 @@ import { type ItemFields, websitesOf } from "./vault-data";
 // was there. Bitwarden's own columns hold every website (comma-separated) and the custom
 // fields as "label: value" lines; vauly_fields keeps them whole, hidden ones marked.
 // A card or an identity is a note to other apps, its details among the fields;
-// vauly_details keeps them as vauly has them.
+// vauly_details keeps them as vauly has them. A backup with files is a ZIP of the CSV
+// and a files/ folder, and vauly_files says which files are each item's.
 
 const columns = [
 	"folder",
@@ -25,6 +27,7 @@ const columns = [
 	"vauly_tags",
 	"vauly_fields",
 	"vauly_details",
+	"vauly_files",
 ] as const;
 
 /** A card's or an identity's details as labelled lines, the way other apps keep fields. */
@@ -54,7 +57,12 @@ function detailLines(row: ItemFields) {
 	);
 }
 
-export type BackupRow = ItemFields & { vault: string; favorite?: boolean };
+export type BackupRow = ItemFields & {
+	vault: string;
+	favorite?: boolean;
+	/** Where the backup ZIP keeps the item's files. */
+	files?: string[];
+};
 
 export function toBackupCsv(rows: BackupRow[]) {
 	const lines = rows.map((row) => {
@@ -84,6 +92,7 @@ export function toBackupCsv(rows: BackupRow[]) {
 				: row.identity
 					? JSON.stringify({ identity: row.identity })
 					: "",
+			vauly_files: row.files?.length ? JSON.stringify(row.files) : "",
 		};
 		return columns.map((column) => quote(values[column])).join(",");
 	});
@@ -94,6 +103,36 @@ function quote(value: string) {
 	return /[",\n\r]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
 }
 
-export function backupFileName(date = new Date()) {
-	return `vauly-backup-${date.toISOString().slice(0, 10)}.csv`;
+export function backupFileName(date = new Date(), extension = "csv") {
+	return `vauly-backup-${date.toISOString().slice(0, 10)}.${extension}`;
+}
+
+const reserved =
+	/^(con|prn|aux|nul|com[0-9¹²³]|lpt[0-9¹²³]|conin\$|conout\$)$/i;
+
+/**
+ * Where a file goes in the ZIP: a folder of its own, so two files can share a name, and a
+ * name that's safe to unpack anywhere: no separators or characters Windows forbids, no
+ * trailing dots or spaces, and no device name such as CON.
+ */
+export function backupFilePath(index: number, name: string) {
+	const safe = Array.from(name, (char) =>
+		char.charCodeAt(0) < 32 || '\\/:*?"<>|'.includes(char) ? "_" : char,
+	)
+		.join("")
+		.replace(/[. ]+$/, "")
+		.replace(/^\.+/, "_");
+	const stem = safe.split(".")[0]?.trim() ?? "";
+	return `files/${index}/${!safe ? "file" : reserved.test(stem) ? `_${safe}` : safe}`;
+}
+
+/** The CSV and the files, in a ZIP. Files are stored as they are: most don't shrink. */
+export function toBackupZip(
+	csvName: string,
+	rows: BackupRow[],
+	files: Map<string, Uint8Array>,
+) {
+	const entries: Zippable = { [csvName]: strToU8(toBackupCsv(rows)) };
+	for (const [path, data] of files) entries[path] = [data, { level: 0 }];
+	return zipSync(entries);
 }

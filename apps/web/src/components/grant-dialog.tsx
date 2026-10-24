@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Button } from "@vauly/ui/components/button";
+import { Checkbox } from "@vauly/ui/components/checkbox";
 import {
 	Dialog,
 	DialogContent,
@@ -17,7 +18,7 @@ import {
 } from "@vauly/ui/components/select";
 import { Tabs, TabsList, TabsTrigger } from "@vauly/ui/components/tabs";
 import { useEffect, useState } from "react";
-
+import { filesSeen, useFiles } from "@/lib/files";
 import {
 	type Duration,
 	errorMessage,
@@ -48,10 +49,16 @@ export function GrantDialog({
 	);
 	const [agentId, setAgentId] = useState("");
 	const [duration, setDuration] = useState<Duration>("always");
+	const [files, setFiles] = useState(false);
 	const [busy, setBusy] = useState(false);
+	const itemFiles = useFiles(item.id).data ?? [];
+	const hasFiles = itemFiles.length > 0;
 
 	useEffect(() => {
-		if (open) setAgentId(available[0]?.id ?? "");
+		if (open) {
+			setAgentId(available[0]?.id ?? "");
+			setFiles(false);
+		}
 	}, [open, available[0]?.id]);
 
 	const choices = available.map((agent) => ({
@@ -99,6 +106,31 @@ export function GrantDialog({
 						})}
 					</div>
 				) : null}
+				{hasFiles && (
+					<div className="flex flex-col gap-1">
+						<p className="text-caption text-fg-muted">
+							Or one of its files, which the command gets as a path:
+						</p>
+						{itemFiles.map((file) => {
+							const fileReference = `${reference}/files/${encodeURIComponent(file.name)}`;
+							return (
+								<div
+									key={file.id}
+									className="border-line bg-surface-sunken flex items-center gap-2 rounded-lg border py-1 pr-1 pl-3"
+								>
+									<code className="text-caption text-fg min-w-0 flex-1 truncate font-mono">
+										{fileReference}
+									</code>
+									<CopyButton
+										value={fileReference}
+										label={`reference to ${file.name}`}
+										secret={false}
+									/>
+								</div>
+							);
+						})}
+					</div>
+				)}
 				<div className="mt-2 flex flex-col gap-0.5">
 					<h3 className="text-body-sm text-fg">Skip the approval</h3>
 					<p className="text-caption text-fg-muted">
@@ -142,6 +174,16 @@ export function GrantDialog({
 								<TabsTrigger value="always">Until I revoke it</TabsTrigger>
 							</TabsList>
 						</Tabs>
+						{hasFiles && (
+							// biome-ignore lint/a11y/noLabelWithoutControl: the checkbox inside is the control
+							<label className="text-body-sm text-fg flex items-center gap-2.5">
+								<Checkbox
+									checked={files}
+									onCheckedChange={(checked) => setFiles(checked === true)}
+								/>
+								Its files too, for references to them
+							</label>
+						)}
 					</div>
 				)}
 				<DialogFooter>
@@ -156,7 +198,12 @@ export function GrantDialog({
 							if (!agent) return;
 							setBusy(true);
 							try {
-								await actions.grant(agent, item, duration);
+								await actions.grant(
+									agent,
+									item,
+									duration,
+									files ? { through: filesSeen(itemFiles).through } : undefined,
+								);
 								notify.success(`${agent.name} can use ${item.name}`);
 								onOpenChange(false);
 							} catch (err) {

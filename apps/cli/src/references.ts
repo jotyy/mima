@@ -1,26 +1,28 @@
 // vauly://<item id>[/<field>] in environment values and .env files. A custom field is
 // vauly://<item id>/fields/<its label>, the label URL-encoded: …/fields/Security%20answer.
+// A file on the item is vauly://<item id>/files/<its name>; the command gets its path.
 
-export type Field = "secret" | "username" | "url" | "notes" | "custom";
+export type Field = "secret" | "username" | "url" | "notes" | "custom" | "file";
 
 export type Reference = {
 	name: string;
 	itemId: string;
 	field: Field;
-	/** The custom field's label, for `field: "custom"`. */
+	/** The custom field's label, for `field: "custom"`, or the file's name, for "file". */
 	label?: string;
 };
 
 const pattern =
-	/^vauly:\/\/(itm_[a-z0-9]+)(?:\/(password|secret|value|username|url|notes)|\/fields\/([^/]+))?$/;
+	/^vauly:\/\/(itm_[a-z0-9]+)(?:\/(password|secret|value|username|url|notes)|\/(fields|files)\/([^/]+))?$/;
 
 export function parseReference(value: string): Omit<Reference, "name"> | null {
 	const match = pattern.exec(value.trim());
 	if (!match?.[1]) return null;
-	if (match[3]) {
+	if (match[4]) {
 		try {
-			const label = decodeURIComponent(match[3]);
-			return label.trim() ? { itemId: match[1], field: "custom", label } : null;
+			const label = decodeURIComponent(match[4]);
+			const field = match[3] === "files" ? "file" : "custom";
+			return label.trim() ? { itemId: match[1], field, label } : null;
 		} catch {
 			return null;
 		}
@@ -39,8 +41,9 @@ export function parseReference(value: string): Omit<Reference, "name"> | null {
 export function formatReference(ref: Omit<Reference, "name">) {
 	const base = `vauly://${ref.itemId}`;
 	if (ref.field === "secret") return base;
-	if (ref.field === "custom") {
-		return `${base}/fields/${encodeURIComponent(ref.label ?? "")}`;
+	if (ref.field === "custom" || ref.field === "file") {
+		const kind = ref.field === "file" ? "files" : "fields";
+		return `${base}/${kind}/${encodeURIComponent(ref.label ?? "")}`;
 	}
 	return `${base}/${ref.field}`;
 }

@@ -351,6 +351,132 @@ export async function unwrapKey(
 	);
 }
 
+// --- Files ----------------------------------------------------------------------
+//
+// A file attached to an item has a key of its own, which only encrypts that file. Its
+// name, type, size and key are sealed with the item key; its contents are split into
+// chunks of FILE_CHUNK bytes, each sealed with the file key under a nonce made from its
+// index, and additional data that names the file, the index and how many chunks there
+// are. A chunk can't be moved, dropped or swapped into another file without failing.
+
+/** Plaintext bytes per chunk of a file; the last chunk may be shorter. */
+export const FILE_CHUNK = 1024 * 1024;
+
+/** What `meta` holds, sealed with the item key. */
+export type FileMeta = {
+	v: 1;
+	name: string;
+	type: string;
+	size: number;
+	chunks: number;
+	/** The file key, raw, in base64. */
+	key: string;
+};
+
+/** How many chunks a file of `size` bytes takes. An empty file is one empty chunk. */
+export const fileChunks = (size: number) =>
+	Math.max(1, Math.ceil(size / FILE_CHUNK));
+
+/**
+ * The length of chunk `index`, sealed and in base64, for a file of `size` bytes. The
+ * server checks each upload against it.
+ */
+export function sealedChunkLength(size: number, index: number) {
+	const last = fileChunks(size) - 1;
+	if (index < 0 || index > last) return 0;
+	const plain = index < last ? FILE_CHUNK : size - last * FILE_CHUNK;
+	return Math.ceil((plain + 16) / 3) * 4;
+}
+
+const fileNonce = (index: number) => {
+	const nonce = new Uint8Array(12);
+	new DataView(nonce.buffer).setBigUint64(4, BigInt(index));
+	return nonce;
+};
+
+const chunkData = (fileId: string, index: number, chunks: number) =>
+	encoder.encode(`vauly/file\n${fileId}\n${index}\n${chunks}`);
+
+const metaData = (fileId: string, itemId: string) =>
+	encoder.encode(`vauly/file-meta\n${fileId}\n${itemId}`);
+
+export const newFileKey = newDataKey;
+
+/** Seals chunk `index` of `chunks`: base64 of the ciphertext and its tag, no IV. */
+export async function sealFileChunk(
+	key: CryptoKey,
+	fileId: string,
+	index: number,
+	chunks: number,
+	plaintext: Uint8Array,
+): Promise<string> {
+	const ciphertext = await crypto.subtle.encrypt(
+		{
+			name: "AES-GCM",
+			iv: fileNonce(index),
+			additionalData: chunkData(fileId, index, chunks),
+		},
+		key,
+		plaintext as Bytes,
+	);
+	return toBase64(new Uint8Array(ciphertext));
+}
+
+export async function openFileChunk(
+	key: CryptoKey,
+	fileId: string,
+	index: number,
+	chunks: number,
+	sealed: string,
+): Promise<Bytes> {
+	return new Uint8Array(
+		await crypto.subtle.decrypt(
+			{
+				name: "AES-GCM",
+				iv: fileNonce(index),
+				additionalData: chunkData(fileId, index, chunks),
+			},
+			key,
+			fromBase64(sealed),
+		),
+	);
+}
+
+export async function sealFileMeta(
+	itemKey: CryptoKey,
+	fileId: string,
+	itemId: string,
+	meta: FileMeta,
+): Promise<Sealed> {
+	return sealWith(
+		itemKey,
+		encoder.encode(JSON.stringify(meta)),
+		metaData(fileId, itemId),
+	);
+}
+
+export async function openFileMeta(
+	itemKey: CryptoKey,
+	fileId: string,
+	itemId: string,
+	sealed: Sealed,
+): Promise<FileMeta> {
+	const meta = JSON.parse(
+		decoder.decode(await openWith(itemKey, sealed, metaData(fileId, itemId))),
+	) as FileMeta;
+	if (meta.v !== 1 || meta.chunks !== fileChunks(meta.size)) {
+		throw new Error("Unknown file format");
+	}
+	return meta;
+}
+
+/** The file key from its `meta`. */
+export const fileKeyOf = (meta: FileMeta) =>
+	crypto.subtle.importKey("raw", fromBase64(meta.key), AES, true, [
+		"encrypt",
+		"decrypt",
+	]);
+
 // --- Share links ----------------------------------------------------------------
 
 /** A data key as URL-safe base64, to travel in a share link's #fragment. */

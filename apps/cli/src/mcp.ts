@@ -8,9 +8,10 @@ import {
 	type Config,
 	call,
 	capture,
+	cleanUpOnExit,
 	config,
+	prepareEnv,
 	resolveAll,
-	withValues,
 } from "./agent";
 import {
 	findReferences,
@@ -264,6 +265,7 @@ async function runWithSecrets(context: Context, args: Record<string, unknown>) {
 	let filled: Record<string, string | undefined> = { ...env };
 	delete filled.VAULY_TOKEN;
 	let secrets: string[] = [];
+	let cleanup = () => {};
 	if (refs.length > 0) {
 		const started = Date.now();
 		let ticker: ReturnType<typeof setInterval> | undefined;
@@ -288,7 +290,8 @@ async function runWithSecrets(context: Context, args: Record<string, unknown>) {
 					},
 				},
 			);
-			({ env: filled, secrets } = withValues(env, refs, values));
+			// The files are gone before this throws, and when the command ends below.
+			({ env: filled, secrets, cleanup } = prepareEnv(env, refs, values));
 		} catch (error) {
 			if (error instanceof ApprovalPending) {
 				return text(
@@ -312,7 +315,9 @@ async function runWithSecrets(context: Context, args: Record<string, unknown>) {
 		cwd,
 		timeoutMs: timeout * 1000,
 		limit: OUTPUT_LIMIT,
-	});
+		// The files go once the command is done with them, not when its output closes.
+		onExit: cleanup,
+	}).finally(cleanup);
 	const summary = result.timedOut
 		? `Stopped after ${timeout} seconds.`
 		: `Exit code ${result.exitCode}.`;
@@ -451,6 +456,8 @@ export async function handle(
 
 /** Reads JSON-RPC messages, one per line, from stdin and writes answers to stdout. */
 export async function serve() {
+	// Files a run wrote go if the agent's client stops the server mid-run.
+	cleanUpOnExit();
 	const context: Context = {
 		cwd: process.cwd(),
 		env: process.env,

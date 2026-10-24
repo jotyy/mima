@@ -30,6 +30,9 @@ export type Leftover =
 	| "trashed"
 	| "empty";
 
+/** A file that comes with an item; `data` is filled in from the ZIP that holds it. */
+export type ImportedFile = { name: string; path: string; data?: Uint8Array };
+
 export type ParsedImport = {
 	source: ImportSource;
 	/** How the file was read: "1PUX", "JSON", "CSV", "XML" or "ZIP". */
@@ -38,6 +41,8 @@ export type ParsedImport = {
 	left: Partial<Record<Leftover, number>>;
 	/** Folders, vaults or collections, which come over as tags. */
 	folders: string[];
+	/** The files each item brings, from a vauly backup ZIP. */
+	files?: Map<ItemFields, ImportedFile[]>;
 };
 
 export class ImportError extends Error {}
@@ -61,13 +66,28 @@ export function collect(source: ImportSource, format: string) {
 	return {
 		result,
 		leave,
-		add({ folder, ...draft }: Draft) {
+		add({ folder, files, ...draft }: Draft) {
 			const path = folder?.trim();
-			const item = toItem(
-				path ? { ...draft, tags: [path, ...(draft.tags ?? [])] } : draft,
-			);
+			// An item that holds nothing but files still comes over, for them.
+			const item =
+				toItem(
+					path ? { ...draft, tags: [path, ...(draft.tags ?? [])] } : draft,
+				) ??
+				(files?.length
+					? { kind: "note" as const, name: draft.name?.trim() || "Files" }
+					: null);
 			if (!item) return leave("empty");
 			result.items.push(item);
+			if (files?.length) {
+				result.files ??= new Map();
+				result.files.set(
+					item,
+					files.map((file) => ({
+						path: file,
+						name: file.split("/").pop() || "file",
+					})),
+				);
+			}
 			if (path && !folders.has(path)) {
 				folders.add(path);
 				result.folders.push(path);

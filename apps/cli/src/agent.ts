@@ -1,9 +1,21 @@
 import { spawn } from "node:child_process";
-import { hostname } from "node:os";
+import {
+	mkdirSync,
+	mkdtempSync,
+	readdirSync,
+	rmSync,
+	statSync,
+	writeFileSync,
+} from "node:fs";
+import { hostname, tmpdir } from "node:os";
+import { join } from "node:path";
 
 import {
 	decodeAgentToken,
+	fileKeyOf,
 	importPrivateKey,
+	openFileChunk,
+	openFileMeta,
 	openJson,
 	unwrapKeyFrom,
 } from "@vauly/crypto";
@@ -62,8 +74,17 @@ export async function call<T>(
 	return body?.json as T;
 }
 
+/** A file on a granted item: its sealed name and key, and a pass to download it. */
+type GrantedFile = { id: string; meta: string; chunks: number; token: string };
+
 type Resolved =
-	| { itemId: string; status: "granted"; data: string; wrappedKey: string }
+	| {
+			itemId: string;
+			status: "granted";
+			data: string;
+			wrappedKey: string;
+			files?: GrantedFile[];
+	  }
 	| { itemId: string; status: "pending"; requestId: string }
 	| { itemId: string; status: "denied" | "missing" };
 
@@ -74,6 +95,8 @@ export type ItemFields = {
 	url?: string;
 	notes?: string;
 	fields?: { label: string; value: string; hidden?: boolean }[];
+	/** The files the references name, downloaded and decrypted. */
+	files?: { name: string; data: Uint8Array }[];
 };
 
 /** A custom field by its label, whatever its case and surrounding spaces. */
@@ -107,6 +130,12 @@ export async function resolveAll(
 	);
 	const privateKey = await importPrivateKey(cfg.privateKeyRaw);
 	const itemIds = [...new Set(refs.map((ref) => ref.itemId))];
+	// Items whose files a reference names: only for those does the agent ask for files.
+	const files = [
+		...new Set(
+			refs.filter((ref) => ref.field === "file").map((ref) => ref.itemId),
+		),
+	];
 	const values = new Map<string, ItemFields>();
 	const started = Date.now();
 	let announced = false;
@@ -116,6 +145,9 @@ export async function resolveAll(
 		const results = await call<Resolved[]>(cfg, "resolve", {
 			itemIds: missing,
 			command,
+			...(files.length > 0 && {
+				files: files.filter((id) => missing.includes(id)),
+			}),
 		});
 		const pending: string[] = [];
 		for (const result of results) {
@@ -125,7 +157,20 @@ export async function resolveAll(
 					me.publicKey,
 					result.wrappedKey,
 				);
-				values.set(result.itemId, await openJson<ItemFields>(key, result.data));
+				const fields = await openJson<ItemFields>(key, result.data);
+				const named = refs.filter(
+					(ref) => ref.itemId === result.itemId && ref.field === "file",
+				);
+				if (named.length > 0) {
+					fields.files = await downloadFiles(
+						cfg,
+						key,
+						result.itemId,
+						result.files ?? [],
+						named.map((ref) => ref.label ?? ""),
+					);
+				}
+				values.set(result.itemId, fields);
 			} else if (result.status === "pending") {
 				pending.push(result.requestId);
 			} else if (result.status === "denied") {
@@ -159,6 +204,157 @@ export async function resolveAll(
 	return values;
 }
 
+/** Downloads and decrypts the files with these names, whatever their case. */
+async function downloadFiles(
+	cfg: Config,
+	itemKey: CryptoKey,
+	itemId: string,
+	granted: GrantedFile[],
+	names: string[],
+) {
+	const wanted = new Set(names.map((name) => name.trim().toLowerCase()));
+	const files: { name: string; data: Uint8Array }[] = [];
+	for (const file of granted) {
+		const meta = await openFileMeta(itemKey, file.id, itemId, file.meta);
+		if (!wanted.has(meta.name.trim().toLowerCase())) continue;
+		const key = await fileKeyOf(meta);
+		const parts: Uint8Array[] = [];
+		for (let index = 0; index < meta.chunks; index++) {
+			const { data } = await call<{ data: string }>(cfg, "file", {
+				token: file.token,
+				index,
+			});
+			parts.push(await openFileChunk(key, file.id, index, meta.chunks, data));
+		}
+		files.push({ name: meta.name, data: Buffer.concat(parts) });
+	}
+	return files;
+}
+
+/** Folders of decrypted files still on disk, each removed by its cleanup or at exit. */
+const written = new Set<() => void>();
+let exitHooked = false;
+
+/**
+ * Removes every folder of files when the process exits, however it exits: including on
+ * a signal, which otherwise ends the process without an exit event. Commands that have
+ * a child of their own forward signals to it instead, and exit when it does.
+ */
+export function cleanUpOnExit({ signals = true } = {}) {
+	if (exitHooked) return;
+	exitHooked = true;
+	clearStaleFolders();
+	process.on("exit", () => {
+		for (const cleanup of written) cleanup();
+	});
+	if (!signals) return;
+	for (const [signal, code] of [
+		["SIGINT", 130],
+		["SIGTERM", 143],
+		["SIGHUP", 129],
+		["SIGQUIT", 131],
+	] as const) {
+		process.on(signal, () => process.exit(code));
+	}
+}
+
+/**
+ * Folders an earlier run couldn't remove, because it was killed outright: anything of
+ * ours a day old. A run going on now is younger than that.
+ */
+function clearStaleFolders(now = Date.now()) {
+	try {
+		for (const name of readdirSync(tmpdir())) {
+			if (!name.startsWith("vauly-")) continue;
+			const path = join(tmpdir(), name);
+			const { mtimeMs, uid } = statSync(path);
+			if (uid === process.getuid?.() && now - mtimeMs > 24 * 60 * 60 * 1000) {
+				rmSync(path, { recursive: true, force: true });
+			}
+		}
+	} catch {
+		// Not ours to read, or gone already: nothing to clear.
+	}
+}
+
+const reserved =
+	/^(con|prn|aux|nul|com[0-9¹²³]|lpt[0-9¹²³]|conin\$|conout\$)$/i;
+
+/**
+ * A file's name made safe on every system: no separators or characters Windows forbids
+ * (`a:b` would be a hidden stream), no trailing dots or spaces, and no name a device
+ * owns, such as CON, which would print the file instead of writing it.
+ */
+export function safeFileName(name: string) {
+	const cleaned = Array.from(name, (char) =>
+		char.charCodeAt(0) < 32 || '<>:"/\\|?*'.includes(char) ? "_" : char,
+	)
+		.join("")
+		.replace(/[. ]+$/, "")
+		.replace(/^\.+/, "_");
+	const stem = cleaned.split(".")[0] ?? "";
+	if (!cleaned) return "file";
+	return reserved.test(stem.trim()) ? `_${cleaned}` : cleaned;
+}
+
+/**
+ * Writes the files the references name into a new directory only this user can read,
+ * each in a folder of its own. Returns each variable's path, and a way to delete them all.
+ */
+export function writeFiles(refs: Reference[], values: Map<string, ItemFields>) {
+	const named = refs.filter((ref) => ref.field === "file");
+	const paths = new Map<string, string>();
+	if (named.length === 0) return { paths, cleanup: () => {} };
+	const dir = mkdtempSync(join(tmpdir(), "vauly-"));
+	const cleanup = () => {
+		rmSync(dir, { recursive: true, force: true });
+		written.delete(cleanup);
+	};
+	// Known before anything is written, so an exit at any point removes it.
+	written.add(cleanup);
+	try {
+		for (const [index, ref] of named.entries()) {
+			const fields = values.get(ref.itemId);
+			const wanted = ref.label?.trim().toLowerCase();
+			const file = fields?.files?.find(
+				(candidate) => candidate.name.trim().toLowerCase() === wanted,
+			);
+			if (!fields || !file) {
+				throw new CliError(
+					`${fields?.name ?? ref.itemId} has no file called ${ref.label}.`,
+				);
+			}
+			const folder = join(dir, String(index));
+			mkdirSync(folder, { mode: 0o700 });
+			const path = join(folder, safeFileName(file.name));
+			writeFileSync(path, file.data, { mode: 0o600 });
+			paths.set(ref.name, path);
+		}
+	} catch (error) {
+		cleanup();
+		throw error;
+	}
+	return { paths, cleanup };
+}
+
+/**
+ * The command's environment, with files written for it: everything withValues gives, and
+ * the cleanup for the files. If anything fails, the files are gone before it throws.
+ */
+export function prepareEnv(
+	env: Record<string, string | undefined>,
+	refs: Reference[],
+	values: Map<string, ItemFields>,
+) {
+	const { paths, cleanup } = writeFiles(refs, values);
+	try {
+		return { ...withValues(env, refs, values, paths), cleanup };
+	} catch (error) {
+		cleanup();
+		throw error;
+	}
+}
+
 export function pick(
 	fields: ItemFields,
 	ref: Pick<Reference, "field" | "label">,
@@ -169,6 +365,11 @@ export function pick(
 			throw new CliError(`${fields.name} has no field called ${ref.label}.`);
 		}
 		return custom.value;
+	}
+	if (ref.field === "file") {
+		throw new CliError(
+			`vauly://…/files/${ref.label} is a file: it goes to a command as a path.`,
+		);
 	}
 	const value = fields[ref.field];
 	if (value === undefined)
@@ -195,12 +396,18 @@ export function withValues(
 	env: Record<string, string | undefined>,
 	refs: Reference[],
 	values: Map<string, ItemFields>,
+	paths = new Map<string, string>(),
 ) {
 	const filled = { ...env };
 	const secrets: string[] = [];
 	for (const ref of refs) {
 		const fields = values.get(ref.itemId);
 		if (!fields) throw new CliError(`Couldn't open ${ref.itemId}.`);
+		// A file is handed over as its path, written by writeFiles.
+		if (ref.field === "file") {
+			filled[ref.name] = paths.get(ref.name);
+			continue;
+		}
 		const value = pick(fields, ref);
 		filled[ref.name] = value;
 		if (isSecret(fields, ref)) secrets.push(value);
@@ -208,6 +415,9 @@ export function withValues(
 	delete filled.VAULY_TOKEN;
 	return { env: filled, secrets };
 }
+
+const KILL_GRACE_MS = 5_000;
+const DRAIN_MS = 2_000;
 
 /** Runs a shell command and collects what it prints, masked, keeping the last `limit` characters of each stream. */
 export function capture(
@@ -218,12 +428,17 @@ export function capture(
 		cwd,
 		timeoutMs,
 		limit,
+		onExit,
+		killGraceMs = KILL_GRACE_MS,
 	}: {
 		env: Record<string, string | undefined>;
 		secrets: string[];
 		cwd: string;
 		timeoutMs: number;
 		limit: number;
+		/** When the command itself exits, before its output has necessarily closed. */
+		onExit?: () => void;
+		killGraceMs?: number;
 	},
 ) {
 	return new Promise<{
@@ -249,17 +464,35 @@ export function capture(
 			stream.on("end", () => keep(masker.flush()));
 		}
 		let timedOut = false;
+		let killer: ReturnType<typeof setTimeout> | undefined;
+		let drain: ReturnType<typeof setTimeout> | undefined;
+		// Stopped on time: asked first, then made to, if it ignores the asking.
 		const timer = setTimeout(() => {
 			timedOut = true;
 			child.kill("SIGTERM");
+			killer = setTimeout(() => child.kill("SIGKILL"), killGraceMs);
 		}, timeoutMs);
+		let settled = false;
+		const finish = (result: Parameters<typeof resolve>[0]) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timer);
+			clearTimeout(killer);
+			clearTimeout(drain);
+			resolve(result);
+		};
 		child.on("error", (error) => {
-			clearTimeout(timer);
-			resolve({ exitCode: 127, stdout: "", stderr: error.message, timedOut });
+			finish({ exitCode: 127, stdout: "", stderr: error.message, timedOut });
 		});
-		child.on("close", (code) => {
-			clearTimeout(timer);
-			resolve({ exitCode: code, ...out, timedOut });
+		child.on("exit", (code) => {
+			onExit?.();
+			// Its own children can hold its output open: don't wait on them for long.
+			drain = setTimeout(() => {
+				child.stdout.destroy();
+				child.stderr.destroy();
+				finish({ exitCode: code, ...out, timedOut });
+			}, DRAIN_MS);
 		});
+		child.on("close", (code) => finish({ exitCode: code, ...out, timedOut }));
 	});
 }

@@ -1,6 +1,7 @@
 import { FingerprintIcon, WarningIcon } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@vauly/ui/components/button";
+import { Checkbox } from "@vauly/ui/components/checkbox";
 import {
 	Dialog,
 	DialogContent,
@@ -18,12 +19,19 @@ import {
 	useState,
 } from "react";
 
-import { backupFileName, toBackupCsv } from "@/lib/backup";
+import {
+	type BackupRow,
+	backupFileName,
+	backupFilePath,
+	toBackupCsv,
+	toBackupZip,
+} from "@/lib/backup";
 import {
 	DeviceUnlockUnavailable,
 	type Enrolment,
 	isCancel,
 } from "@/lib/device-unlock";
+import { fileSize, readFile, saveBlob, useFiles } from "@/lib/files";
 import { plural } from "@/lib/format";
 import { useKeyring, WrongPasswordError } from "@/lib/keyring";
 import { newMasterPasswordProblem } from "@/lib/secrets";
@@ -324,15 +332,23 @@ export function ExportDialog({
 	const keyring = useKeyring();
 	const items = useItems();
 	const vaults = useVaults();
+	const files = useFiles();
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState("");
 	const [busy, setBusy] = useState(false);
+	const [withFiles, setWithFiles] = useState(true);
 	const count = items.data?.length ?? 0;
+	// Files on items in Recently deleted aren't in the backup, as their items aren't.
+	const live = new Set((items.data ?? []).map((item) => item.id));
+	const attached = (files.data ?? []).filter((file) => live.has(file.itemId));
+	const attachedBytes = attached.reduce((total, file) => total + file.size, 0);
+	const zipped = withFiles && attached.length > 0;
 
 	useEffect(() => {
 		if (open) {
 			setPassword("");
 			setError("");
+			setWithFiles(true);
 		}
 	}, [open]);
 
@@ -346,26 +362,47 @@ export function ExportDialog({
 				return;
 			}
 			const names = new Map((vaults.data ?? []).map((v) => [v.id, v.name]));
-			const csv = toBackupCsv(
-				(items.data ?? []).map((item) => ({
-					vault: names.get(item.vaultId) ?? "",
-					favorite: item.favorite,
-					kind: item.kind,
-					name: item.name,
-					username: item.username,
-					secret: item.secret,
-					url: item.url,
-					moreUrls: item.moreUrls,
-					totp: item.totp,
-					notes: item.notes,
-					tags: item.tags,
-					fields: item.fields,
-					card: item.card,
-					identity: item.identity,
-				})),
-			);
-			const file = backupFileName();
-			download(file, csv);
+			// Each file in a folder of its own in the ZIP, decrypted here.
+			const packed = new Map<string, Uint8Array>();
+			const pathsOf = new Map<string, string[]>();
+			if (zipped) {
+				for (const [index, file] of attached.entries()) {
+					const path = backupFilePath(index + 1, file.name);
+					packed.set(
+						path,
+						new Uint8Array(await (await readFile(file)).arrayBuffer()),
+					);
+					pathsOf.set(file.itemId, [...(pathsOf.get(file.itemId) ?? []), path]);
+				}
+			}
+			const rows: BackupRow[] = (items.data ?? []).map((item) => ({
+				vault: names.get(item.vaultId) ?? "",
+				favorite: item.favorite,
+				kind: item.kind,
+				name: item.name,
+				username: item.username,
+				secret: item.secret,
+				url: item.url,
+				moreUrls: item.moreUrls,
+				totp: item.totp,
+				notes: item.notes,
+				tags: item.tags,
+				fields: item.fields,
+				card: item.card,
+				identity: item.identity,
+				files: pathsOf.get(item.id),
+			}));
+			const file = backupFileName(new Date(), zipped ? "zip" : "csv");
+			if (zipped) {
+				saveBlob(
+					file,
+					new Blob([toBackupZip(backupFileName(), rows, packed)], {
+						type: "application/zip",
+					}),
+				);
+			} else {
+				download(file, toBackupCsv(rows));
+			}
 			await client.account.exported({ count });
 			notify.success(
 				"Backup downloaded",
@@ -384,7 +421,7 @@ export function ExportDialog({
 			open={open}
 			onOpenChange={(next) => !busy && onOpenChange(next)}
 			title="Download a backup"
-			description={`All ${count} ${count === 1 ? "item" : "items"} you can open, in one CSV file. Your team sees in the activity log that you made one.`}
+			description={`All ${count} ${count === 1 ? "item" : "items"} you can open, in one ${zipped ? "ZIP" : "CSV"} file. Your team sees in the activity log that you made one.`}
 			onSubmit={submit}
 			footer={
 				<>
@@ -403,9 +440,28 @@ export function ExportDialog({
 		>
 			<p className="border-warning-line bg-warning-soft text-caption text-warning flex gap-2 rounded-lg border px-3 py-2.5">
 				<WarningIcon className="mt-px size-4 shrink-0" />
-				The file holds every password in plain text. Store it encrypted, or
-				delete it once you're done.
+				The file holds every password{zipped ? " and file" : ""} in plain text.
+				Store it encrypted, or delete it once you're done.
 			</p>
+			{attached.length > 0 && (
+				<>
+					{/* biome-ignore lint/a11y/noLabelWithoutControl: the checkbox inside is the control */}
+					<label className="text-body-sm text-fg flex items-center gap-2.5">
+						<Checkbox
+							checked={withFiles}
+							onCheckedChange={(checked) => setWithFiles(checked === true)}
+						/>
+						Include {plural(attached.length, "file")} ({fileSize(attachedBytes)}
+						)
+					</label>
+					{!withFiles && (
+						<p className="text-caption text-fg-muted">
+							The CSV leaves out {plural(attached.length, "file")}. Download
+							them from their items, or include them here.
+						</p>
+					)}
+				</>
+			)}
 			<Field label="Master password">
 				<PasswordInput
 					required

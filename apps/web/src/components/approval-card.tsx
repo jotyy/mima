@@ -2,7 +2,8 @@ import { Badge } from "@vauly/ui/components/badge";
 import { Button } from "@vauly/ui/components/button";
 import { useState } from "react";
 
-import { ago } from "@/lib/format";
+import { filesSeen, useFiles } from "@/lib/files";
+import { ago, plural } from "@/lib/format";
 import type { useLookup } from "@/lib/use-lookup";
 import {
 	type AccessRequest,
@@ -28,6 +29,8 @@ export function ApprovalCard({
 	const item = lookup.items.get(request.itemId);
 	const agentName = agent?.name ?? "An agent";
 	const itemName = item?.name ?? "an item";
+	const seen = filesSeen(useFiles(request.itemId).data);
+	const files = seen.count;
 
 	const decide = async (work: () => Promise<unknown>, message: string) => {
 		setBusy(true);
@@ -42,7 +45,11 @@ export function ApprovalCard({
 	};
 	const allow = (duration: Duration, label: string) =>
 		decide(
-			() => actions.approve(request, duration),
+			() =>
+				actions.approve(request, duration, {
+					files: request.files,
+					through: seen.through,
+				}),
 			`${agentName} can use ${itemName} ${label}`,
 		);
 
@@ -75,10 +82,18 @@ export function ApprovalCard({
 				{item && (
 					<span className="text-fg-subtle">injects {itemReference(item)}</span>
 				)}
+				{request.files && (
+					<span className="text-fg-subtle">
+						and writes its {plural(files, "file")} for the command: every file
+						the item has now
+					</span>
+				)}
 			</div>
 			<div className="rounded-b-window border-line-subtle bg-surface-sunken flex items-center justify-end gap-2 border-t px-3.5 py-2.5">
 				<span className="text-caption text-fg-subtle mr-auto">
-					The value goes into the command, never to the agent.
+					{request.files
+						? "Its value and files go into the command, never to the agent."
+						: "The value goes into the command, never to the agent."}
 				</span>
 				<Button
 					variant="ghost"

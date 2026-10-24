@@ -19,12 +19,15 @@ export const OFFLINE_DAYS = 30;
 
 export type VaultRow = Awaited<ReturnType<typeof client.vaults.list>>[number];
 export type ItemRow = Awaited<ReturnType<typeof client.items.list>>[number];
+export type FileRow = Awaited<ReturnType<typeof client.files.list>>[number];
 
 /** What's inside the seal. */
 export type Contents = {
 	profile: Omit<Me, "keys">;
 	vaults: VaultRow[];
 	items: ItemRow[];
+	/** The files' sealed names and keys, never their contents. Older copies have none. */
+	files?: FileRow[];
 };
 
 /** What's stored. Only `sealed` and `cacheKey` are secret, and both are sealed. */

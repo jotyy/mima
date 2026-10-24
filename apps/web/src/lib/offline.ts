@@ -7,6 +7,7 @@ import { isOfflineError } from "./connection";
 import { objectStore } from "./idb";
 import {
 	type Contents,
+	type FileRow,
 	type ItemRow,
 	isFresh,
 	openSnapshot,
@@ -90,7 +91,7 @@ type Account = { id: string; sessionId: string; keys: AccountKeys } & {
 };
 
 let account: Account | null = null;
-let latest: { vaults?: VaultRow[]; items?: ItemRow[] } = {};
+let latest: { vaults?: VaultRow[]; items?: ItemRow[]; files?: FileRow[] } = {};
 /** The opened copy while unlocked, to fall back on when the server can't be reached. */
 let opened: Promise<Contents | null> = Promise.resolve(null);
 
@@ -146,13 +147,14 @@ export function closeOfflineCopy() {
 }
 
 async function save() {
-	const { vaults, items } = latest;
+	const { vaults, items, files } = latest;
 	if (!account || !vaults || !items || !offlineCopyEnabled()) return;
 	try {
 		const snapshot = await sealSnapshot(account, {
 			profile: account.profile,
 			vaults,
 			items,
+			...(files && { files }),
 		});
 		await request("readwrite", (store) => store.put(snapshot));
 		update({ syncedAt: snapshot.syncedAt });
@@ -184,6 +186,20 @@ export async function itemRows(): Promise<ItemRow[]> {
 	} catch (err) {
 		const copy = isOfflineError(err) ? await opened : null;
 		if (copy) return copy.items;
+		throw err;
+	}
+}
+
+/** The files on those items: their sealed names and keys, the same way. Never contents. */
+export async function fileRows(): Promise<FileRow[]> {
+	try {
+		const rows = await client.files.list();
+		latest = { ...latest, files: rows };
+		await save();
+		return rows;
+	} catch (err) {
+		const copy = isOfflineError(err) ? await opened : null;
+		if (copy) return copy.files ?? [];
 		throw err;
 	}
 }
