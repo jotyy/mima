@@ -171,10 +171,23 @@ export default defineConfig(() => {
 			securityTxtFile(),
 			VitePWA({
 				registerType: "autoUpdate",
+				// The icons are cached with the other files below; added again here, they'd come
+				// after the sorted list, in the file system's order.
+				includeManifestIcons: false,
 				workbox: {
 					globPatterns: ["**/*.{js,css,html,png,svg,ico}"],
 					// When one Worker serves the app and the API, the API's pages aren't the app's.
 					navigateFallbackDenylist: [/^\/api/, /^\/rpc/, /^\/vauly\.json/],
+					// Workbox lists the files in the order the file system hands them over, which
+					// differs from one machine to the next. Sorted, sw.js is the same wherever
+					// it's built, and `vauly verify --against` a release's manifest can match it.
+					manifestTransforms: [
+						(entries) => ({
+							manifest: [...entries].sort((a, b) =>
+								a.url < b.url ? -1 : a.url > b.url ? 1 : 0,
+							),
+						}),
+					],
 				},
 				manifest: {
 					name: "vauly",

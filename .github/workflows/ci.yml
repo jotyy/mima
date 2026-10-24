@@ -101,8 +101,10 @@ jobs:
           diff -r first/apps/web/dist "$RUNNER_TEMP/second-copy/apps/web/dist"
           echo "Both builds are byte-identical."
       # Production and the demo are built by `alchemy deploy`, with Alchemy's own build
-      # function and the stage's settings, so that build has to serve the same files.
-      - name: Build the way alchemy deploy does, and compare
+      # function and the stage's settings, a separate API among them, so that build has to
+      # serve the same files as the plain one, which has no server URL. Only vauly.json and
+      # _headers may differ.
+      - name: Build the way alchemy deploy does, with a server URL, and compare
         working-directory: ${{ runner.temp }}/second-copy/packages/infra
         env:
           VITE_SERVER_URL: https://api.example.test
@@ -111,6 +113,35 @@ jobs:
         with:
           name: vauly-build
           path: first/apps/web/dist/.well-known/vauly-build.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: web-dist
+          path: first/apps/web/dist
+          include-hidden-files: true
+
+  # A release's manifest is built on Linux, and an instance may be built anywhere: on
+  # another machine and another system, the build has to come out the same.
+  reproducible-macos:
+    name: Reproducible web build, on macOS
+    needs: reproducible
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+        working-directory: apps/web
+      - uses: actions/download-artifact@v7
+        with:
+          name: web-dist
+          path: ${{ runner.temp }}/linux-dist
+      - name: Compare with the Linux build
+        run: |
+          diff -r "$RUNNER_TEMP/linux-dist" apps/web/dist
+          echo "The macOS build and the Linux build are byte-identical."
 
   site:
     name: Website
@@ -229,7 +260,8 @@ jobs:
   passed:
     name: CI passed
     if: always()
-    needs: [changes, check, reproducible, site, e2e, one-worker]
+    needs:
+      [changes, check, reproducible, reproducible-macos, site, e2e, one-worker]
     runs-on: ubuntu-24.04
     steps:
       - name: Every job passed or was skipped
