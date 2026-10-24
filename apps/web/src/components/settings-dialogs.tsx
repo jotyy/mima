@@ -360,6 +360,8 @@ export function ExportDialog({
 					notes: item.notes,
 					tags: item.tags,
 					fields: item.fields,
+					card: item.card,
+					identity: item.identity,
 				})),
 			);
 			const file = backupFileName();

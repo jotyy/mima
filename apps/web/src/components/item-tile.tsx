@@ -1,5 +1,7 @@
 import {
+	CreditCardIcon,
 	GlobeIcon,
+	IdentificationCardIcon,
 	KeyIcon,
 	NoteIcon,
 	RobotIcon,
@@ -12,20 +14,28 @@ import { useState } from "react";
 import { logoUrl, useLogosShown } from "@/lib/logos";
 import type { ItemKind } from "@/lib/vault-data";
 
-const kindIcon = {
+const kindIcon: Record<ItemKind | "agent", typeof GlobeIcon> = {
 	login: GlobeIcon,
 	"api-key": KeyIcon,
 	note: NoteIcon,
 	"ssh-key": TerminalWindowIcon,
+	card: CreditCardIcon,
+	identity: IdentificationCardIcon,
 	agent: RobotIcon,
-} as const;
+};
 
-export const kindLabel: Record<ItemKind, string> = {
+const kindLabels: Record<ItemKind, string> = {
 	login: "Login",
 	"api-key": "API key",
 	note: "Secure note",
 	"ssh-key": "SSH key",
+	card: "Card",
+	identity: "Identity",
 };
+
+/** What a kind is called; an item from a newer vauly, of a kind this one doesn't know, is an item. */
+export const kindLabel = (kind: string) =>
+	kindLabels[kind as ItemKind] ?? "Item";
 
 const sizes = {
 	sm: { tile: "size-6 rounded-full", icon: "size-3.5", px: 24 },
@@ -45,7 +55,8 @@ export function ItemTile({
 	logo?: string | null;
 	className?: string;
 }) {
-	const Icon = kindIcon[kind];
+	// A kind from a newer vauly gets the plain icon rather than breaking the list.
+	const Icon = kindIcon[kind] ?? NoteIcon;
 	const shown = useLogosShown();
 	const [missing, setMissing] = useState<string | null>(null);
 	const withLogo = Boolean(logo) && shown && missing !== logo;

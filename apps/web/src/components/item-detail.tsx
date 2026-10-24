@@ -31,8 +31,9 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@vauly/ui/components/tooltip";
+import { cardBrand } from "@vauly/ui/lib/cards";
 import { cn } from "@vauly/ui/lib/utils";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 
 import { timesSeen, useBreached } from "@/lib/breaches";
 import { ago, plural, timeLeft, toneDot } from "@/lib/format";
@@ -56,6 +57,7 @@ import {
 
 import { ActivityRow } from "./activity-row";
 import { CopyButton } from "./copy-button";
+import { CardFields, Field, IdentityFields, type OnUse } from "./detail-fields";
 import { GrantDialog } from "./grant-dialog";
 import { ItemDialog } from "./item-dialog";
 import { ItemTile, kindLabel } from "./item-tile";
@@ -64,7 +66,7 @@ import { OneTimeCode } from "./one-time-code";
 import { SecretValue } from "./secret-value";
 import { ShareLinkDialog } from "./share-link-dialog";
 
-const secretLabel: Record<Item["kind"], string> = {
+const secretLabel: Partial<Record<Item["kind"], string>> = {
 	login: "Password",
 	"api-key": "Value",
 	note: "Value",
@@ -103,9 +105,10 @@ export function ItemDetail({ item }: { item: Item }) {
 	const withAccess = (agents.data ?? []).filter((agent) =>
 		agent.grants.some((grant) => grant.itemId === item.id),
 	);
-	const label = secretLabel[item.kind];
+	const label = secretLabel[item.kind] ?? "Value";
+	const use: OnUse = (action, field) => actions.logUse(item, action, field);
 	const log = (action: "revealed" | "copied", field: string) => () =>
-		actions.logUse(item, action, field);
+		use(action, field);
 
 	const run = async (work: Promise<unknown>, message: string) => {
 		try {
@@ -150,7 +153,9 @@ export function ItemDetail({ item }: { item: Item }) {
 								{vault.name}
 							</Badge>
 						)}
-						<Badge variant="secondary">{kindLabel[item.kind]}</Badge>
+						<Badge variant="secondary">
+							{cardBrand(item.card?.number)?.name ?? kindLabel(item.kind)}
+						</Badge>
 						{breaches ? (
 							// However long it is, a leaked password isn't strong.
 							<Badge variant="destructive">Leaked</Badge>
@@ -377,6 +382,16 @@ export function ItemDetail({ item }: { item: Item }) {
 							onCopied={log("copied", "secret")}
 						/>
 					</Field>
+				)}
+				{item.card && (
+					<CardFields card={item.card} source={item.name} onUse={use} />
+				)}
+				{item.identity && (
+					<IdentityFields
+						identity={item.identity}
+						source={item.name}
+						onUse={use}
+					/>
 				)}
 				{item.history?.length ? (
 					<EarlierSecrets
@@ -688,13 +703,4 @@ function hostOf(url: string) {
 	} catch {
 		return url;
 	}
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-	return (
-		<div className="flex min-h-11 items-center gap-4 py-2">
-			<dt className="text-caption text-fg-subtle w-28 shrink-0">{label}</dt>
-			<dd className="flex min-w-0 flex-1 items-center gap-1">{children}</dd>
-		</div>
-	);
 }

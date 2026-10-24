@@ -1,7 +1,17 @@
+import {
+	type Card,
+	cardBrand,
+	digitsOf,
+	lastFour,
+	normalizeExpiry,
+} from "@vauly/ui/lib/cards";
+import type { Identity } from "@vauly/ui/lib/identity";
+
 import type { ItemFields, ItemKind, PreviousSecret } from "../vault-data";
 
 // What every format reads an item into before it becomes vauly's item fields: one
-// secret and one one-time code, any number of websites and custom fields.
+// secret and one one-time code, any number of websites and custom fields, and a card's
+// or an identity's details.
 
 /** A custom field. Hidden ones were concealed, protected or sensitive in the other app. */
 export type Field = { label: string; value: string; hidden?: boolean };
@@ -20,7 +30,39 @@ export type Draft = {
 	folder?: string;
 	fields?: Field[];
 	history?: PreviousSecret[];
+	card?: Card;
+	identity?: Identity;
 };
+
+/** The details that were given, trimmed, without the empty ones. */
+function given<T extends object>(details: T | undefined): T | undefined {
+	const kept = Object.entries(details ?? {})
+		.map(([key, value]) => [key, typeof value === "string" ? value.trim() : ""])
+		.filter(([, value]) => value);
+	return kept.length > 0 ? (Object.fromEntries(kept) as T) : undefined;
+}
+
+/** A card with its number as digits and its expiry as MM/YYYY, when it reads as one. */
+function cleanCard(details?: Card) {
+	const card = given(details);
+	return given<Card>(
+		card && {
+			...card,
+			number: digitsOf(card.number ?? ""),
+			expiry: normalizeExpiry(card.expiry ?? "") || card.expiry,
+		},
+	);
+}
+
+/** What a card or an identity is called when the other app gave it no name. */
+function detailsName(card?: Card, identity?: Identity) {
+	if (card) {
+		const four = lastFour(card.number);
+		const brand = cardBrand(card.number)?.name ?? "Card";
+		return four ? `${brand} •••• ${four}` : card.cardholder || brand;
+	}
+	return identity?.name || identity?.company || identity?.email || "Identity";
+}
 
 const HISTORY_LIMIT = 10;
 
@@ -48,6 +90,19 @@ export function toItem(draft: Draft): ItemFields | null {
 	};
 
 	const kind = draft.kind ?? "login";
+	if (kind === "card" || kind === "identity") {
+		const card = kind === "card" ? cleanCard(draft.card) : undefined;
+		const identity =
+			kind === "identity" ? given<Identity>(draft.identity) : undefined;
+		if (!card && !identity && !notes && fields.length === 0) return null;
+		return {
+			kind,
+			name: draft.name?.trim() || detailsName(card, identity),
+			...(card && { card }),
+			...(identity && { identity }),
+			...optional,
+		};
+	}
 	if (kind === "note" || (!secret.trim() && !username && !first)) {
 		if (!notes && fields.length === 0) return null;
 		return {

@@ -1,3 +1,6 @@
+import { type Card, normalizeExpiry } from "@vauly/ui/lib/cards";
+import type { Identity } from "@vauly/ui/lib/identity";
+
 import type { ItemKind } from "../vault-data";
 import { type Draft, type Field, splitTags } from "./item";
 import {
@@ -85,13 +88,22 @@ const formats: CsvFormat[] = [
 				(field) =>
 					typeof field?.label === "string" && typeof field.value === "string",
 			);
+			const details = jsonObject(row.get("vauly_details"));
+			const card = isObject(details.card) ? (details.card as Card) : undefined;
+			const identity = isObject(details.identity)
+				? (details.identity as Identity)
+				: undefined;
+			const withDetails = kind === "card" || kind === "identity";
 			return {
 				...draft,
 				folder: undefined,
 				kind: isKind(kind) ? kind : draft.kind,
 				tags: splitTags(row.get("vauly_tags"), /;/),
 				// The exact fields, hidden ones marked; older backups have only Bitwarden's.
-				...(fields.length > 0 && { fields }),
+				// Bitwarden's column also holds a card's or an identity's details as lines.
+				...((fields.length > 0 || withDetails) && { fields }),
+				...(card && { card }),
+				...(identity && { identity }),
 			};
 		},
 	},
@@ -358,14 +370,116 @@ export function parseDashlane(files: Record<string, string>): ParsedImport {
 		"ZIP",
 		into,
 	);
-	const payments = table("payments.csv");
-	const typeIndex = payments.names.indexOf("type");
-	for (const values of payments.rows) {
-		into.leave(values[typeIndex] === "bank" ? "record" : "card");
+	for (const get of rowsOf(table("payments.csv"))) {
+		if (get("type") !== "payment_card") {
+			into.leave("record");
+			continue;
+		}
+		into.add({
+			kind: "card",
+			name: get("account_name"),
+			card: {
+				cardholder: get("account_holder"),
+				number: get("cc_number"),
+				expiry: normalizeExpiry(
+					get("expiration_month"),
+					get("expiration_year"),
+				),
+				code: get("code"),
+			},
+			fields: [
+				{ label: "Issuing bank", value: get("issuing_bank") },
+				{ label: "Country", value: get("country") },
+			],
+		});
 	}
-	into.leave("record", table("ids.csv").rows.length);
-	if (table("personalinfo.csv").rows.length > 0) into.leave("identity");
+	const identity = dashlaneIdentity(
+		rowsOf(table("personalinfo.csv")),
+		rowsOf(table("ids.csv")),
+	);
+	if (identity) into.add(identity);
 	return into.result;
+}
+
+/** A table's rows, each as a lookup by column name. */
+function rowsOf(table: { names: string[]; rows: string[][] }) {
+	return table.rows.map(
+		(values) => (name: string) =>
+			(values[table.names.indexOf(name)] ?? "").trim(),
+	);
+}
+
+/** Dashlane's ID documents, as the hidden fields they become on the identity. */
+const dashlaneDocuments: Record<string, string> = {
+	passport: "Passport number",
+	id_card: "ID card number",
+	driver_license: "Driving licence number",
+	license: "Driving licence number",
+	social_security: "Social security number",
+	tax_number: "Tax number",
+};
+
+/**
+ * Dashlane keeps a person's details a row each (a name, an email, a phone, an address)
+ * and their ID documents apart, so they come together as one identity.
+ */
+function dashlaneIdentity(
+	info: ((name: string) => string)[],
+	ids: ((name: string) => string)[],
+): Draft | null {
+	if (info.length === 0 && ids.length === 0) return null;
+	const identity: Identity = {};
+	const fields: Field[] = [];
+	for (const get of info) {
+		const type = get("type");
+		if (type === "name" && !identity.name) {
+			identity.name = [
+				get("title"),
+				get("first_name"),
+				get("middle_name"),
+				get("last_name"),
+			]
+				.filter(Boolean)
+				.join(" ");
+		} else if (type === "email" && !identity.email) {
+			identity.email = get("email");
+		} else if (type === "phone" && !identity.phone) {
+			identity.phone = get("phone_number");
+		} else if (type === "address" && !identity.address) {
+			identity.address = [
+				get("address_recipient"),
+				get("address"),
+				get("address_building"),
+				get("address_apartment"),
+			]
+				.filter(Boolean)
+				.join("\n");
+			identity.city = get("city");
+			identity.region = get("state");
+			identity.postalCode = get("zip");
+			identity.country = get("country");
+		} else if (type === "company" && !identity.company) {
+			identity.company = get("item_name") || get("title");
+		} else {
+			const value =
+				get("email") || get("phone_number") || get("url") || get("item_name");
+			fields.push({ label: get("item_name") || type, value });
+		}
+	}
+	for (const get of ids) {
+		const type = get("type");
+		const label = dashlaneDocuments[type] ?? `${type || "ID"} number`;
+		if (
+			(type === "social_security" || type === "tax_number") &&
+			!identity.taxNumber
+		) {
+			identity.taxNumber = get("number");
+		} else {
+			fields.push({ label, value: get("number"), hidden: true });
+		}
+		if (!identity.name) identity.name = get("name");
+	}
+	return { kind: "identity", identity, fields };
 }
 
 function dashlaneRow(row: Row): Draft {
@@ -614,5 +728,20 @@ function jsonList<T>(text: string): T[] {
 }
 
 function isKind(value: string): value is ItemKind {
-	return ["login", "api-key", "note", "ssh-key"].includes(value);
+	return ["login", "api-key", "note", "ssh-key", "card", "identity"].includes(
+		value,
+	);
 }
+
+/** A JSON object from a column, or an empty one when it holds anything else. */
+function jsonObject(value: string): Record<string, unknown> {
+	try {
+		const parsed: unknown = JSON.parse(value);
+		return isObject(parsed) ? parsed : {};
+	} catch {
+		return {};
+	}
+}
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+	Boolean(value) && typeof value === "object" && !Array.isArray(value);

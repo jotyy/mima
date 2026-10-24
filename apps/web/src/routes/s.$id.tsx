@@ -11,6 +11,7 @@ import { Button } from "@vauly/ui/components/button";
 import { type ReactNode, useState } from "react";
 
 import { CopyButton } from "@/components/copy-button";
+import { CardFields, Field, IdentityFields } from "@/components/detail-fields";
 import { ItemTile } from "@/components/item-tile";
 import Loader from "@/components/loader";
 import { OneTimeCode } from "@/components/one-time-code";
@@ -180,6 +181,10 @@ function Opened({ item }: { item: SharedItem }) {
 						<OneTimeCode secret={item.totp} source={item.name} />
 					</Field>
 				)}
+				{item.card && <CardFields card={item.card} source={item.name} />}
+				{item.identity && (
+					<IdentityFields identity={item.identity} source={item.name} />
+				)}
 				{websitesOf(item).map((url) => (
 					<Field key={url} label="Website">
 						<a
@@ -224,14 +229,5 @@ function Opened({ item }: { item: SharedItem }) {
 				)}
 			</dl>
 		</section>
-	);
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-	return (
-		<div className="flex min-h-11 items-center gap-4 py-2">
-			<dt className="text-caption text-fg-subtle w-28 shrink-0">{label}</dt>
-			<dd className="flex min-w-0 flex-1 items-center gap-1">{children}</dd>
-		</div>
 	);
 }

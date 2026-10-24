@@ -1,3 +1,6 @@
+import { type Card, normalizeExpiry } from "@vauly/ui/lib/cards";
+import type { Identity } from "@vauly/ui/lib/identity";
+
 import type { ItemKind, PreviousSecret } from "../vault-data";
 import { keeperLabel } from "./csv";
 import { type Draft, type Field, isoDate } from "./item";
@@ -26,6 +29,19 @@ const text = (value: unknown) =>
 		: typeof value === "number" || typeof value === "boolean"
 			? String(value)
 			: "";
+
+/** Words given apart, such as a name's parts, as one: "Alex J Example". */
+const joined = (...parts: unknown[]) =>
+	parts
+		.map((part) => text(part).trim())
+		.filter(Boolean)
+		.join(" ");
+/** Lines given apart, such as an address's, as one value of several lines. */
+const lines = (...parts: unknown[]) =>
+	parts
+		.map((part) => text(part).trim())
+		.filter(Boolean)
+		.join("\n");
 
 export function parseJsonExport(data: unknown): ParsedImport {
 	const root = obj(data);
@@ -64,15 +80,7 @@ function parseBitwarden(root: Json) {
 		const login = obj(item.login);
 		into.leave("passkey", list(login.fido2Credentials).length);
 		const type = item.type;
-		if (type === 3) {
-			into.leave("card");
-			continue;
-		}
-		if (type === 4) {
-			into.leave("identity");
-			continue;
-		}
-		if (type !== 1 && type !== 2 && type !== 5) {
+		if (type !== 1 && type !== 2 && type !== 3 && type !== 4 && type !== 5) {
 			into.leave("record");
 			continue;
 		}
@@ -83,16 +91,82 @@ function parseBitwarden(root: Json) {
 		]
 			.map((id) => names.get(id) ?? "")
 			.filter(Boolean);
-		into.add({
-			kind: type === 2 ? "note" : type === 5 ? "ssh-key" : "login",
+		const custom = objs(item.fields)
+			// Linked fields only point at the username or password.
+			.filter((field) => field.type !== 3)
+			.map((field) => ({
+				label: text(field.name) || "Field",
+				value: text(field.value),
+				// Type 1 is Bitwarden's hidden field.
+				hidden: field.type === 1,
+			}));
+		const common = {
 			name: text(item.name),
+			notes: text(item.notes),
+			folder,
+			tags: [...collections, ...(item.archivedDate ? ["Archived"] : [])],
+		};
+		if (type === 3) {
+			const card = obj(item.card);
+			into.add({
+				...common,
+				kind: "card",
+				card: {
+					cardholder: text(card.cardholderName),
+					number: text(card.number),
+					expiry: normalizeExpiry(text(card.expMonth), text(card.expYear)),
+					code: text(card.code),
+				},
+				fields: custom,
+			});
+			continue;
+		}
+		if (type === 4) {
+			const person = obj(item.identity);
+			into.add({
+				...common,
+				kind: "identity",
+				identity: {
+					name: joined(
+						person.title,
+						person.firstName,
+						person.middleName,
+						person.lastName,
+					),
+					company: text(person.company),
+					email: text(person.email),
+					phone: text(person.phone),
+					address: lines(person.address1, person.address2, person.address3),
+					city: text(person.city),
+					region: text(person.state),
+					postalCode: text(person.postalCode),
+					country: text(person.country),
+					taxNumber: text(person.ssn),
+				},
+				fields: [
+					{ label: "Username", value: text(person.username) },
+					{
+						label: "Passport number",
+						value: text(person.passportNumber),
+						hidden: true,
+					},
+					{
+						label: "Licence number",
+						value: text(person.licenseNumber),
+						hidden: true,
+					},
+					...custom,
+				],
+			});
+			continue;
+		}
+		into.add({
+			...common,
+			kind: type === 2 ? "note" : type === 5 ? "ssh-key" : "login",
 			username: text(login.username),
 			secret: type === 5 ? text(ssh.privateKey) : text(login.password),
 			urls: objs(login.uris).map((uri) => text(uri.uri)),
 			totp: text(login.totp),
-			notes: text(item.notes),
-			folder,
-			tags: [...collections, ...(item.archivedDate ? ["Archived"] : [])],
 			fields: [
 				...(type === 5
 					? [
@@ -100,15 +174,7 @@ function parseBitwarden(root: Json) {
 							{ label: "Fingerprint", value: text(ssh.keyFingerprint) },
 						]
 					: []),
-				...objs(item.fields)
-					// Linked fields only point at the username or password.
-					.filter((field) => field.type !== 3)
-					.map((field) => ({
-						label: text(field.name) || "Field",
-						value: text(field.value),
-						// Type 1 is Bitwarden's hidden field.
-						hidden: field.type === 1,
-					})),
+				...custom,
 			],
 			history: newestFirst(
 				objs(item.passwordHistory).map((entry) => ({
@@ -124,8 +190,6 @@ function parseBitwarden(root: Json) {
 // 1Password: https://support.1password.com/1pux-format/
 
 const onePasswordLeftovers: Record<string, Leftover | "skip"> = {
-	"002": "card",
-	"004": "identity",
 	// A Document is a file, counted with the other attachments.
 	"006": "skip",
 	"101": "record",
@@ -136,6 +200,15 @@ const onePasswordLeftovers: Record<string, Leftover | "skip"> = {
 	"107": "record",
 	"108": "record",
 	"113": "record",
+};
+
+/** Which of a 1Password Credit Card's fields hold the card itself. */
+const onePasswordCard: Record<string, keyof Card> = {
+	cardholder: "cardholder",
+	ccnum: "number",
+	cvv: "code",
+	expiry: "expiry",
+	pin: "pin",
 };
 
 /** Where each kind of 1Password item keeps its username, secret and address. */
@@ -171,7 +244,13 @@ function parseOnePassword(root: Json) {
 							? "api-key"
 							: category === "114"
 								? "ssh-key"
-								: "login",
+								: category === "002"
+									? "card"
+									: category === "004"
+										? "identity"
+										: "login",
+				...(category === "002" && { card: {} }),
+				...(category === "004" && { identity: {} }),
 				name: text(overview.title),
 				secret: text(details.password),
 				urls: [
@@ -237,6 +316,39 @@ function readOnePasswordField(
 		return;
 	}
 	const value = onePasswordValue(kind, raw);
+	const card = draft.card;
+	if (card) {
+		const role = onePasswordCard[id];
+		if (role && !card[role]) {
+			card[role] = value;
+			return;
+		}
+		// The brand comes from the number.
+		if (id === "type") return;
+	}
+	const identity = draft.identity;
+	if (identity) {
+		if (id === "firstname" || id === "initial" || id === "lastname") {
+			identity.name = joined(identity.name, value);
+			return;
+		}
+		if (kind === "address" && !identity.address) {
+			const place = obj(raw);
+			identity.address = text(place.street);
+			identity.city = text(place.city);
+			identity.region = text(place.state);
+			identity.postalCode = text(place.zip);
+			identity.country = text(place.country).toUpperCase();
+			return;
+		}
+		const role = (
+			{ company: "company", email: "email", defphone: "phone" } as const
+		)[id];
+		if (role && !identity[role]) {
+			identity[role] = value;
+			return;
+		}
+	}
 	// Items other than logins keep their username, secret and address in sections.
 	if (category !== "001" && !section) {
 		if (onePasswordRoles.username?.includes(id) && !draft.username) {
@@ -295,14 +407,6 @@ function parseProtonPass(root: Json) {
 			const metadata = obj(data.metadata);
 			into.leave("passkey", list(content.passkeys).length);
 			const type = text(data.type);
-			if (type === "creditCard") {
-				into.leave("card");
-				continue;
-			}
-			if (type === "identity") {
-				into.leave("identity");
-				continue;
-			}
 			if (type === "alias") {
 				into.leave("alias");
 				continue;
@@ -346,7 +450,27 @@ function parseProtonPass(root: Json) {
 				folder: path.join("/"),
 				fields,
 			};
-			if (type === "login") {
+			if (type === "creditCard") {
+				into.add({
+					...draft,
+					kind: "card",
+					card: {
+						cardholder: text(content.cardholderName),
+						number: text(content.number),
+						expiry: text(content.expirationDate),
+						code: text(content.verificationNumber),
+						pin: text(content.pin),
+					},
+				});
+			} else if (type === "identity") {
+				const { identity, fields: more } = protonIdentity(content);
+				into.add({
+					...draft,
+					kind: "identity",
+					identity,
+					fields: [...more, ...fields],
+				});
+			} else if (type === "login") {
 				const username = text(content.itemUsername) || text(content.username);
 				const email = text(content.itemEmail);
 				const autofill = objs(content.autofillUrls).map((url) => text(url.url));
@@ -406,6 +530,70 @@ function parseProtonPass(root: Json) {
 	return into.result;
 }
 
+/** What Proton Pass's identity holds that vauly's has no place for: it becomes fields. */
+const protonFields: [string, string, boolean?][] = [
+	["passportNumber", "Passport number", true],
+	["licenseNumber", "Licence number", true],
+	["birthdate", "Date of birth"],
+	["gender", "Gender"],
+	["jobTitle", "Job title"],
+	["workEmail", "Work email"],
+	["workPhoneNumber", "Work phone"],
+	["secondPhoneNumber", "Other phone"],
+	["website", "Website"],
+	["personalWebsite", "Personal website"],
+	["xHandle", "X"],
+	["linkedin", "LinkedIn"],
+	["facebook", "Facebook"],
+	["instagram", "Instagram"],
+	["reddit", "Reddit"],
+	["yahoo", "Yahoo"],
+	["floor", "Floor"],
+	["county", "County"],
+];
+
+function protonIdentity(content: Json): {
+	identity: Identity;
+	fields: Field[];
+} {
+	const extra = [
+		"extraPersonalDetails",
+		"extraAddressDetails",
+		"extraContactDetails",
+		"extraWorkDetails",
+	].flatMap((key) =>
+		objs(content[key]).map((field) => ({
+			label: text(field.fieldName),
+			value: text(obj(field.data).content),
+			hidden: field.type === "hidden",
+		})),
+	);
+	return {
+		identity: {
+			name:
+				text(content.fullName) ||
+				joined(content.firstName, content.middleName, content.lastName),
+			company: text(content.company) || text(content.organization),
+			email: text(content.email),
+			phone: text(content.phoneNumber),
+			address: text(content.streetAddress),
+			city: text(content.city),
+			region: text(content.stateOrProvince),
+			postalCode: text(content.zipOrPostalCode),
+			country: text(content.countryOrRegion),
+			taxNumber: text(content.socialSecurityNumber),
+		},
+		fields: [
+			...protonFields.map(([key, label, hidden]) => ({
+				label,
+				value: text(content[key]),
+				hidden,
+			})),
+			...extra,
+		],
+	};
+}
+
 function protonDate(value: unknown) {
 	const seconds = obj(value).seconds ?? value;
 	return isoDate(typeof seconds === "string" ? Number(seconds) : seconds).slice(
@@ -435,14 +623,6 @@ function parseEnpass(root: Json) {
 		}
 		into.leave("attachment", list(item.attachments).length);
 		const category = text(item.category);
-		if (category === "creditcard") {
-			into.leave("card");
-			continue;
-		}
-		if (category === "identity") {
-			into.leave("identity");
-			continue;
-		}
 		if (category === "finance" || category === "travel") {
 			into.leave("record");
 			continue;
@@ -452,12 +632,28 @@ function parseEnpass(root: Json) {
 			notes: text(item.note),
 			urls: [],
 			fields: [],
+			...(category === "creditcard" && { card: {} }),
+			...(category === "identity" && { identity: {} }),
 		};
 		for (const field of objs(item.fields)) {
 			const type = text(field.type);
 			const value = text(field.value);
 			if (field.deleted === 1 || type === "section" || !value.trim()) continue;
-			if ((type === "username" || type === "email") && !draft.username) {
+			if (draft.card && readEnpassCard(draft.card, type, value)) continue;
+			if (
+				draft.identity &&
+				readEnpassIdentity(draft.identity, type, text(field.label), value)
+			) {
+				continue;
+			}
+			// On a card or an identity, a login's username and password are fields too.
+			if (draft.card || draft.identity) {
+				draft.fields.push({
+					label: text(field.label) || type,
+					value,
+					hidden: field.sensitive === 1 || type === "password",
+				});
+			} else if ((type === "username" || type === "email") && !draft.username) {
 				draft.username = value;
 			} else if (type === "password" && !draft.secret) {
 				draft.secret = value;
@@ -478,12 +674,15 @@ function parseEnpass(root: Json) {
 		const [folder, ...tags] = list(item.folders)
 			.map((id) => folderPath(text(id)))
 			.filter(Boolean);
-		const kind: ItemKind =
-			category === "note" || category === "license"
-				? "note"
-				: !draft.secret && !draft.username
+		const kind: ItemKind = draft.card
+			? "card"
+			: draft.identity
+				? "identity"
+				: category === "note" || category === "license"
 					? "note"
-					: "login";
+					: !draft.secret && !draft.username
+						? "note"
+						: "login";
 		into.add({
 			...draft,
 			kind,
@@ -497,12 +696,73 @@ function parseEnpass(root: Json) {
 	return into.result;
 }
 
+/** Reads an Enpass Credit Card field into the card, by its type; false for the others. */
+function readEnpassCard(card: Card, type: string, value: string) {
+	const role = (
+		{
+			ccName: "cardholder",
+			ccNumber: "number",
+			ccCvc: "code",
+			ccPin: "pin",
+			ccExpiry: "expiry",
+		} as const
+	)[type];
+	if (role && !card[role]) {
+		card[role] = value;
+		return true;
+	}
+	// The brand comes from the number.
+	return type === "ccType";
+}
+
+/**
+ * Reads an Enpass Identity field into the identity. Its fields are mostly plain text, so
+ * they're known by their labels in Enpass's own template; false for the others.
+ */
+function readEnpassIdentity(
+	identity: Identity,
+	type: string,
+	label: string,
+	value: string,
+) {
+	const name = label.toLowerCase();
+	if (/^(first|middle|last)\s*name$|^(full\s*)?name$/.test(name)) {
+		identity.name = joined(identity.name, value);
+		return true;
+	}
+	const role: keyof Identity | undefined =
+		type === "email" || name === "email"
+			? "email"
+			: type === "phone" || /^(phone|mobile|telephone)/.test(name)
+				? "phone"
+				: /^(company|organi[sz]ation)$/.test(name)
+					? "company"
+					: /^(address|street)/.test(name)
+						? "address"
+						: /^(city|town)$/.test(name)
+							? "city"
+							: /^(state|province|region|county)$/.test(name)
+								? "region"
+								: /^(zip|post\s*code|postal\s*code|zip\s*code)$/.test(name)
+									? "postalCode"
+									: name === "country"
+										? "country"
+										: /social security|^ssn$|tax/.test(name)
+											? "taxNumber"
+											: undefined;
+	if (!role) return false;
+	if (role === "address" && identity.address) {
+		identity.address = lines(identity.address, value);
+		return true;
+	}
+	if (identity[role]) return false;
+	identity[role] = value;
+	return true;
+}
+
 // Keeper: https://docs.keeper.io/en/user-guides/import-records-1/import-json
 
 const keeperLeftovers: Record<string, Leftover> = {
-	bankCard: "card",
-	address: "identity",
-	contact: "identity",
 	bankAccount: "record",
 	birthCertificate: "record",
 	driverLicense: "record",
@@ -516,11 +776,17 @@ const keeperLeftovers: Record<string, Leftover> = {
 
 function parseKeeper(root: Json) {
 	const into = collect("Keeper", "JSON");
-	for (const record of objs(root.records)) {
+	const records = objs(root.records);
+	const byUid = new Map(records.map((record) => [text(record.uid), record]));
+	for (const record of records) {
 		const type = text(record.$type);
 		const leftover = keeperLeftovers[type];
 		if (leftover) {
 			into.leave(leftover);
+			continue;
+		}
+		if (type === "bankCard" || type === "address" || type === "contact") {
+			into.add(keeperDetails(record, type, byUid));
 			continue;
 		}
 		const draft: Draft & { fields: Field[]; urls: string[] } = {
@@ -588,6 +854,99 @@ function parseKeeper(root: Json) {
 		into.add({ ...draft, folder, tags: more });
 	}
 	return into.result;
+}
+
+/** The value of a Keeper field such as "$text:cardholderName" or "$address::1". */
+function keeperValue(fields: Json, base: string, label = "") {
+	for (const [key, value] of Object.entries(fields)) {
+		const [type = "", name = ""] = key.split(":");
+		if (type === base && (!label || name === label)) {
+			return list(value).length > 0 ? list(value)[0] : value;
+		}
+	}
+	return undefined;
+}
+
+/** Keeper's address field as an identity's. */
+function keeperAddress(value: unknown): Identity {
+	const place = obj(value);
+	return {
+		address: lines(place.street1, place.street2),
+		city: text(place.city),
+		region: text(place.state),
+		postalCode: text(place.zip),
+		country: text(place.country),
+	};
+}
+
+const keeperUsed = new Set([
+	"$paymentCard",
+	"$pinCode",
+	"$address",
+	"$name",
+	"$email",
+	"$phone",
+]);
+
+/**
+ * A Keeper Payment Card, Address or Contact as a card or an identity. A contact's address
+ * is another record it refers to. Everything else on it becomes fields.
+ */
+function keeperDetails(
+	record: Json,
+	type: "bankCard" | "address" | "contact",
+	byUid: Map<string, Json>,
+): Draft {
+	const fields = obj(record.custom_fields);
+	const payment = obj(keeperValue(fields, "$paymentCard"));
+	const person = obj(keeperValue(fields, "$name"));
+	const referenced = byUid.get(
+		text(keeperValue(obj(record.references), "$addressRef")),
+	);
+	const address = keeperAddress(
+		keeperValue(fields, "$address") ??
+			keeperValue(obj(referenced?.custom_fields), "$address"),
+	);
+	const rest: Field[] = Object.entries(fields)
+		.filter(([key]) => {
+			const [base = "", label = ""] = key.split(":");
+			if (keeperUsed.has(base)) return false;
+			return !(
+				base === "$text" &&
+				(label === "cardholderName" || label === "company")
+			);
+		})
+		.map(([key, value]) => ({ label: keeperLabel(key), value: show(value) }));
+	const draft: Draft = {
+		name: text(record.title),
+		notes: text(record.notes),
+		urls: [text(record.login_url)],
+		fields: rest,
+	};
+	if (type === "bankCard") {
+		return {
+			...draft,
+			kind: "card",
+			card: {
+				cardholder: text(keeperValue(fields, "$text", "cardholderName")),
+				number: text(payment.cardNumber),
+				expiry: text(payment.cardExpirationDate),
+				code: text(payment.cardSecurityCode),
+				pin: text(keeperValue(fields, "$pinCode")),
+			},
+		};
+	}
+	return {
+		...draft,
+		kind: "identity",
+		identity: {
+			name: joined(person.first, person.middle, person.last),
+			company: text(keeperValue(fields, "$text", "company")),
+			email: text(keeperValue(fields, "$email")),
+			phone: text(obj(keeperValue(fields, "$phone")).number),
+			...address,
+		},
+	};
 }
 
 /** A value of any shape as text: lists one per line, objects as their values. */

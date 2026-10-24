@@ -26,8 +26,11 @@ Each app exports in its own way, so use the richest format it offers. The sectio
 | Archived items                                             | Items tagged `Archived`               |
 | More websites, custom fields, security questions           | Lines in the notes                    |
 | Earlier passwords (1Password, Bitwarden, KeePass)          | Earlier passwords                     |
+| Payment cards                                              | Cards                                 |
+| Identities and addresses                                   | Identities                            |
+| Passport, licence and ID numbers on an identity            | Hidden fields on the identity         |
 
-vauly doesn't store payment cards, identities, bank accounts, passports or other personal documents, so those stay behind. So do attachments, passkeys (vauly's browser extension makes new ones), Proton Pass email aliases and items in the trash. Before you import, the review lists everything that stays behind.
+Cards and identities come over from 1Password's 1PUX, Bitwarden's JSON, Proton Pass, Enpass, Keeper's JSON and Dashlane's ZIP. CSV exports leave out their details, so the review says to use one of those instead. vauly doesn't store bank accounts, or passports and other documents as items of their own, so those stay behind. So do attachments, passkeys (vauly's browser extension makes new ones), Proton Pass email aliases and items in the trash. Before you import, the review lists everything that stays behind.
 
 Favorites, sharing and permissions don't come over either. Share vaults with your team in vauly once your items are in.
 

@@ -17,12 +17,27 @@ import {
 	wrapKey,
 } from "@vauly/crypto";
 
+import type { Card } from "@vauly/ui/lib/cards";
+import type { Identity } from "@vauly/ui/lib/identity";
+
 import { readPasskey, type StoredPasskey } from "./passkey";
 import type { Connection, Unlocked } from "./storage";
 
+/** A card's or an identity's details, if the item holds an object of them. */
+const details = <T>(value: unknown) =>
+	value && typeof value === "object" && !Array.isArray(value)
+		? (value as T)
+		: undefined;
+
 // Talks to the vauly API and decrypts on this device, like the web app does.
 
-export type ItemKind = "login" | "api-key" | "note" | "ssh-key";
+export type ItemKind =
+	| "login"
+	| "api-key"
+	| "note"
+	| "ssh-key"
+	| "card"
+	| "identity";
 
 export type Entry = {
 	id: string;
@@ -38,6 +53,10 @@ export type Entry = {
 	totp?: string;
 	/** A passkey vauly made for the site, which signs in instead of the password. */
 	passkey?: StoredPasskey;
+	/** A payment card's details, which fill a checkout form. */
+	card?: Card;
+	/** An identity's details, which fill an address or contact form. */
+	identity?: Identity;
 	favorite: boolean;
 };
 
@@ -249,6 +268,8 @@ export async function loadVault(
 					),
 					totp: fields.totp as string | undefined,
 					passkey: readPasskey(fields.passkey) ?? undefined,
+					card: details<Card>(fields.card),
+					identity: details<Identity>(fields.identity),
 				};
 			}),
 	);

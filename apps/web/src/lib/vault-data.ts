@@ -18,6 +18,8 @@ import {
 	wrapKey,
 	wrapKeyFor,
 } from "@vauly/crypto";
+import { type Card, cardBrand, lastFour } from "@vauly/ui/lib/cards";
+import type { Identity } from "@vauly/ui/lib/identity";
 import { useMemo } from "react";
 
 import { client } from "@/utils/orpc";
@@ -28,7 +30,14 @@ import { passwordStrength, type Strength } from "./secrets";
 
 // Queries decrypt on this device; actions encrypt before anything leaves it.
 
-export type ItemKind = "login" | "api-key" | "note" | "ssh-key";
+export type ItemKind =
+	| "login"
+	| "api-key"
+	| "note"
+	| "ssh-key"
+	| "card"
+	| "identity";
+export type { Card, Identity };
 export type Tone = "blue" | "teal" | "amber" | "violet";
 
 export type ItemFields = {
@@ -49,6 +58,10 @@ export type ItemFields = {
 	history?: PreviousSecret[];
 	/** A passkey the browser extension saved for the site; only the extension uses it. */
 	passkey?: Passkey;
+	/** A payment card's details, on a card. */
+	card?: Card;
+	/** A person's or a company's details, on an identity. */
+	identity?: Identity;
 };
 
 /**
@@ -100,6 +113,8 @@ const knownKeys = new Set<string>([
 	"fields",
 	"history",
 	"passkey",
+	"card",
+	"identity",
 ]);
 
 /** Every website a login is used on, the first one first. */
@@ -124,6 +139,8 @@ export function fieldsOf(item: Item): ItemFields {
 		tags,
 		fields: item.fields,
 		passkey: item.passkey,
+		card: item.card,
+		identity: item.identity,
 	};
 }
 
@@ -213,13 +230,34 @@ export type SharedItem = Pick<
 	| "totp"
 	| "notes"
 	| "fields"
+	| "card"
+	| "identity"
 >;
 
 export const itemReference = (item: { id: string }) => `vauly://${item.id}`;
 
 /**
+ * The line under an item's name in a list: its username or website, a card's brand and
+ * last four digits, or an identity's name.
+ */
+export function itemSubtitle(item: ItemFields) {
+	if (item.kind === "card") {
+		const brand = cardBrand(item.card?.number)?.name ?? "Card";
+		const four = lastFour(item.card?.number);
+		return four ? `${brand} •••• ${four}` : brand;
+	}
+	if (item.kind === "identity") {
+		const { name, company, email } = item.identity ?? {};
+		return name || company || email;
+	}
+	return item.username ?? item.url ?? item.notes;
+}
+
+/**
  * Whether an item's name, username, websites, tags or visible fields contain the
- * (lowercase) query. Hidden fields aren't searched, like the password.
+ * (lowercase) query. Hidden fields aren't searched, like the password; nor are a card's
+ * number, security code and PIN, or an identity's tax number. A card is found by its
+ * cardholder and brand, an identity by its name, company and email.
  */
 export const itemMatches = (item: Item, query: string) =>
 	[
@@ -230,6 +268,11 @@ export const itemMatches = (item: Item, query: string) =>
 		...(item.fields ?? []).flatMap((field) =>
 			field.hidden ? [field.label] : [field.label, field.value],
 		),
+		item.card?.cardholder,
+		cardBrand(item.card?.number)?.name,
+		item.identity?.name,
+		item.identity?.company,
+		item.identity?.email,
 	].some((value) => value?.toLowerCase().includes(query));
 
 function useVaultQueryOptions() {
@@ -624,6 +667,8 @@ export function useActions() {
 					moreUrls: item.moreUrls,
 					notes: item.notes,
 					fields: item.fields,
+					card: item.card,
+					identity: item.identity,
 					totp: options.totp ? item.totp : undefined,
 				};
 				const { id, expiresAt } = await after(

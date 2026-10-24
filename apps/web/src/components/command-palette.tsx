@@ -17,13 +17,20 @@ import {
 	DialogTitle,
 } from "@vauly/ui/components/dialog";
 import { Kbd } from "@vauly/ui/components/kbd";
+import { digitsOf } from "@vauly/ui/lib/cards";
 import { cn } from "@vauly/ui/lib/utils";
 import { type ComponentType, type ReactNode, useMemo, useState } from "react";
 
 import { toneDot } from "@/lib/format";
 import { importApps } from "@/lib/import/apps";
 import { logoDomain } from "@/lib/logos";
-import { itemMatches, useActions, useItems, useVaults } from "@/lib/vault-data";
+import {
+	itemMatches,
+	itemSubtitle,
+	useActions,
+	useItems,
+	useVaults,
+} from "@/lib/vault-data";
 
 import { ItemTile } from "./item-tile";
 import { copyToClipboard } from "./notify";
@@ -92,7 +99,12 @@ export function CommandPalette({
 				id: item.id,
 				group: "Items",
 				label: item.name,
-				hint: [item.username, vaultName.get(item.vaultId)]
+				hint: [
+					item.kind === "card" || item.kind === "identity"
+						? itemSubtitle(item)
+						: item.username,
+					vaultName.get(item.vaultId),
+				]
 					.filter(Boolean)
 					.join(" · "),
 				icon: (
@@ -115,7 +127,15 @@ export function CommandPalette({
 							});
 							actions.logUse(item, "copied", "secret");
 						}
-					: undefined,
+					: item.card?.number
+						? () => {
+								copyToClipboard(digitsOf(item.card?.number ?? ""), {
+									label: "card number",
+									source: item.name,
+								});
+								actions.logUse(item, "copied", "card number");
+							}
+						: undefined,
 			}));
 
 		const vaultResults = (vaults.data ?? [])

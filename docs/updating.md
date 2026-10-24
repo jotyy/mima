@@ -41,7 +41,7 @@ Deploying an older version is possible, but it doesn't undo database migrations,
 ### Copies deployed before October 24, 2026
 
 This update brings the import from other password managers, passkeys, vault roles, Argon2id and more. Four things to know:
-1. **Update the browser extension along with the server.** Each person's master password moves from PBKDF2 to Argon2id the next time they sign in or unlock in the web app. An extension built before this update can't unlock an account that has moved.
+1. **Update the browser extension along with the server.** Each person's master password moves from PBKDF2 to Argon2id the next time they sign in or unlock in the web app. An extension built before this update can't unlock an account that has moved, and its list of items stops working once a vault you can open holds a payment card or an identity.
 2. **Add one line to `wrangler.jsonc`.** Under `"assets"`, add `"binding": "ASSETS"`, then commit it, which deploys again:
 
    ```jsonc
@@ -57,6 +57,6 @@ This update brings the import from other password managers, passkeys, vault role
    - Everyone keeps the access they had to shared vaults, as **manage**, the new role with every right.
    - Agents that belonged to someone who had already left the workspace are deleted, along with what they were granted.
    - The key derivation settings get columns of their own.
-4. **Don't go back past this update** once people have signed in. An older version can't unlock an account that has moved to Argon2id. Restore the database as well if you have to go back.
+4. **Don't go back past this update** once people have signed in. An older version can't unlock an account that has moved to Argon2id, or show payment cards and identities. Restore the database as well if you have to go back.
 
 The web app also sends a strict Content-Security-Policy now, and other sites can't show it in a frame. If you added scripts or embeds of your own to the app, they're blocked.

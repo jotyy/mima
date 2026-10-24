@@ -36,7 +36,7 @@
     },
     "apps/extension": {
       "name": "extension",
-      "version": "0.0.0",
+      "version": "0.1.0",
       "dependencies": {
         "@orpc/client": "catalog:",
         "@phosphor-icons/react": "^2.1.10",
@@ -263,6 +263,7 @@
       },
       "devDependencies": {
         "@tailwindcss/postcss": "^4.3.3",
+        "@types/bun": "^1.3.14",
         "@types/react": "^19.2.18",
         "@types/react-dom": "^19.2.7",
         "@vauly/config": "workspace:*",

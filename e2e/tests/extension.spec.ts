@@ -294,6 +294,121 @@ test("a login with another website fills there too", async () => {
 	await page.close();
 });
 
+const checkoutPage = `<!doctype html>
+<title>Example checkout</title>
+<form>
+	<label>Name on card <input autocomplete="cc-name"></label>
+	<label>Card number <input autocomplete="cc-number" inputmode="numeric"></label>
+	<label>Expiry <input autocomplete="cc-exp" placeholder="MM / YY"></label>
+	<label>CVC <input autocomplete="cc-csc"></label>
+	<button>Pay</button>
+</form>`;
+// No autocomplete names here: the fields are found by their names.
+const addressPage = `<!doctype html>
+<title>Example address</title>
+<form>
+	<label>First name <input name="first_name"></label>
+	<label>Last name <input name="last_name"></label>
+	<label>Email <input name="email" type="email"></label>
+	<label>Address line 1 <input name="address1"></label>
+	<label>Address line 2 <input name="address2"></label>
+	<label>City <input name="city"></label>
+	<label>ZIP <input name="zip"></label>
+	<label>Country <select name="country">
+		<option value="">Choose…</option>
+		<option value="GB">United Kingdom</option>
+		<option value="US">United States</option>
+	</select></label>
+	<button>Continue</button>
+</form>`;
+
+test("a card fills a checkout form, and an identity an address form", async () => {
+	await context.route("https://checkout.example.test/**", (route) =>
+		route.fulfill({ contentType: "text/html", body: checkoutPage }),
+	);
+	await context.route("https://address.example.test/**", (route) =>
+		route.fulfill({ contentType: "text/html", body: addressPage }),
+	);
+	const app = await context.newPage();
+	await app.goto("/items");
+	await app.getByLabel("Master password").fill(owner.password);
+	await app.getByRole("button", { name: "Unlock", exact: true }).click();
+	const form = app.getByRole("dialog");
+	await app.getByRole("button", { name: "New item" }).click();
+	await form.getByRole("tab", { name: "Card", exact: true }).click();
+	await form.getByLabel("Name", { exact: true }).fill("Travel card");
+	await form.getByLabel("Cardholder").fill("Alex Example");
+	await form
+		.getByLabel("Card number", { exact: true })
+		.fill("4242 4242 4242 4242");
+	await form.getByLabel("Expires").fill("06/30");
+	await form.getByLabel("Security code", { exact: true }).fill("737");
+	await form.getByRole("button", { name: "Add item" }).click();
+	await expect(form).toBeHidden();
+	await app.getByRole("button", { name: "New item" }).click();
+	await form.getByRole("tab", { name: "Identity" }).click();
+	await form.getByLabel("Name", { exact: true }).fill("Home");
+	await form.getByLabel("Full name").fill("Alex Example");
+	await form.getByLabel("Email").fill("alex@example.test");
+	await form.getByLabel("Address").fill("1 Example Street\nFlat 2");
+	await form.getByLabel("City").fill("Springfield");
+	await form.getByLabel("Postal code").fill("00000");
+	await form.getByLabel("Country").fill("US");
+	await form.getByRole("button", { name: "Add item" }).click();
+	await expect(form).toBeHidden();
+	await app.close();
+
+	const checkout = await context.newPage();
+	await checkout.goto("https://checkout.example.test/");
+	let popup = await openPopup(await tabIdOf("https://checkout.example.test"));
+	const details = popup.getByRole("list", { name: "Cards and identities" });
+	await expect(details.getByText("Visa •••• 4242")).toBeVisible();
+	await details.getByRole("button", { name: "Fill Travel card" }).click();
+	await expect(checkout.getByLabel("Name on card")).toHaveValue("Alex Example");
+	await expect(checkout.getByLabel("Card number")).toHaveValue(
+		"4242424242424242",
+	);
+	await expect(checkout.getByLabel("Expiry")).toHaveValue("06/30");
+	await expect(checkout.getByLabel("CVC")).toHaveValue("737");
+	await popup.close();
+	await checkout.close();
+
+	const address = await context.newPage();
+	await address.goto("https://address.example.test/");
+	popup = await openPopup(await tabIdOf("https://address.example.test"));
+	await popup
+		.getByRole("list", { name: "Cards and identities" })
+		.getByRole("button", { name: "Fill Home" })
+		.click();
+	await expect(address.getByLabel("First name")).toHaveValue("Alex");
+	await expect(address.getByLabel("Last name")).toHaveValue("Example");
+	await expect(address.getByLabel("Email")).toHaveValue("alex@example.test");
+	await expect(address.getByLabel("Address line 1")).toHaveValue(
+		"1 Example Street",
+	);
+	await expect(address.getByLabel("Address line 2")).toHaveValue("Flat 2");
+	await expect(address.getByLabel("City")).toHaveValue("Springfield");
+	await expect(address.getByLabel("ZIP")).toHaveValue("00000");
+	await expect(address.getByLabel("Country")).toHaveValue("US");
+	await popup.close();
+	await address.close();
+});
+
+test("a card's details are never filled into a login form", async () => {
+	const page = await context.newPage();
+	await page.goto(`${site}/`);
+	const popup = await openPopup(await tabIdOf(site));
+	await popup
+		.getByRole("list", { name: "Cards and identities" })
+		.getByRole("button", { name: "Fill Travel card" })
+		.click();
+	await expect(popup.getByText("No card fields on this page")).toBeVisible();
+	await expect(page.getByLabel("Email")).toHaveValue("");
+	await expect(page.getByLabel("Password")).toHaveValue("");
+	await popup.close();
+	await page.close();
+});
+
 test("website logos can be turned off, and follow an instance that turned them off", async () => {
 	let popup = await openPopup();
 	const logos = () => popup.getByRole("switch", { name: "Show website logos" });

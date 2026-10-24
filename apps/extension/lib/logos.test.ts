@@ -25,6 +25,25 @@ describe("website logos in the extension", () => {
 		expect(logoFor(github, { instance: "off", shown: true })).toBeNull();
 	});
 
+	test("a card shows its brand's, never anything from its number", () => {
+		expect(
+			logoFor(
+				{
+					kind: "card",
+					name: "Travel card",
+					card: { number: "4242424242424242" },
+				},
+				{ instance: "", shown: true },
+			),
+		).toContain("cdn.brandfetch.io/visa.com/");
+		expect(
+			logoFor(
+				{ kind: "card", name: "Store card", card: { number: "9999" } },
+				{ instance: "", shown: true },
+			),
+		).toBeNull();
+	});
+
 	test("none for a private address", () => {
 		expect(
 			logoFor(

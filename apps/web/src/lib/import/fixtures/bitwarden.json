@@ -1,6 +1,11 @@
 {
 	"encrypted": false,
-	"folders": [{ "id": "f1", "name": "Work/Servers" }],
+	"folders": [
+		{
+			"id": "f1",
+			"name": "Work/Servers"
+		}
+	],
 	"items": [
 		{
 			"id": "a1",
@@ -11,19 +16,42 @@
 			"notes": "primary",
 			"favorite": true,
 			"fields": [
-				{ "name": "port", "value": "5432", "type": 0 },
-				{ "name": "api key", "value": "k_example", "type": 1 },
-				{ "name": "", "value": null, "type": 3, "linkedId": 100 }
+				{
+					"name": "port",
+					"value": "5432",
+					"type": 0
+				},
+				{
+					"name": "api key",
+					"value": "k_example",
+					"type": 1
+				},
+				{
+					"name": "",
+					"value": null,
+					"type": 3,
+					"linkedId": 100
+				}
 			],
 			"login": {
 				"uris": [
-					{ "uri": "https://db.example.test", "match": null },
-					{ "uri": "https://db2.example.test", "match": 1 }
+					{
+						"uri": "https://db.example.test",
+						"match": null
+					},
+					{
+						"uri": "https://db2.example.test",
+						"match": 1
+					}
 				],
 				"username": "admin",
 				"password": "example-pass-1",
 				"totp": "JBSWY3DPEHPK3PXP",
-				"fido2Credentials": [{ "credentialId": "example" }]
+				"fido2Credentials": [
+					{
+						"credentialId": "example"
+					}
+				]
 			},
 			"passwordHistory": [
 				{
@@ -53,21 +81,57 @@
 			"type": 2,
 			"name": "Wi-Fi",
 			"notes": "guest network: example-only",
-			"secureNote": { "type": 0 }
+			"secureNote": {
+				"type": 0
+			}
 		},
 		{
 			"id": "a4",
 			"folderId": null,
 			"type": 3,
 			"name": "Visa",
-			"card": { "number": "4111111111111111" }
+			"card": {
+				"cardholderName": "Alex Example",
+				"brand": "Visa",
+				"number": "4111111111111111",
+				"expMonth": "6",
+				"expYear": "2030",
+				"code": "123"
+			},
+			"fields": [
+				{
+					"name": "Issuing bank",
+					"value": "Example Bank",
+					"type": 0,
+					"linkedId": null
+				}
+			]
 		},
 		{
 			"id": "a5",
 			"folderId": null,
 			"type": 4,
 			"name": "Me",
-			"identity": { "firstName": "Alex" }
+			"identity": {
+				"title": "Mx",
+				"firstName": "Alex",
+				"middleName": "J",
+				"lastName": "Example",
+				"address1": "1 Example Street",
+				"address2": "Unit 2",
+				"address3": null,
+				"city": "Springfield",
+				"state": "IL",
+				"postalCode": "00000",
+				"country": "US",
+				"company": "Acme Ltd",
+				"email": "alex@example.test",
+				"phone": "555-0100",
+				"ssn": "000-00-0000",
+				"username": "alexample",
+				"passportNumber": "X0000000",
+				"licenseNumber": "D0000000"
+			}
 		}
 	]
 }

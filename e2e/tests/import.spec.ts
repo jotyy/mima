@@ -170,7 +170,7 @@ test("the activity log records one import, not one row per item", async ({
 	await expect(events.getByText("4 items")).toBeVisible();
 });
 
-test("a 1Password .1pux brings one-time codes, API keys and SSH keys", async ({
+test("a 1Password .1pux brings one-time codes, keys, cards and identities", async ({
 	page,
 }) => {
 	const dialog = await openImport(page);
@@ -181,16 +181,16 @@ test("a 1Password .1pux brings one-time codes, API keys and SSH keys", async ({
 	).toBeVisible();
 	await expect(
 		dialog.getByText(
-			"1Password export · 2 logins, 1 note, 1 API key, 1 SSH key",
+			"1Password export · 2 logins, 1 note, 1 API key, 1 SSH key, 1 payment card, 1 identity",
 		),
 	).toBeVisible();
 	await expect(dialog.getByText("2 folders become tags.")).toBeVisible();
 	const left = dialog.getByRole("region", { name: "Not imported" });
-	await expect(left).toContainText("1 payment card");
 	await expect(left).toContainText("1 attached file");
+	await expect(left).not.toContainText("payment card");
 
-	await dialog.getByRole("button", { name: "Import 5 items" }).click();
-	await expect(dialog.getByText("Imported 5 items into Private")).toBeVisible();
+	await dialog.getByRole("button", { name: "Import 7 items" }).click();
+	await expect(dialog.getByText("Imported 7 items into Private")).toBeVisible();
 	await dialog.getByRole("button", { name: "Show the items" }).click();
 
 	const items = page.getByRole("region", { name: "Items" });
@@ -208,4 +208,11 @@ test("a 1Password .1pux brings one-time codes, API keys and SSH keys", async ({
 	await expect(items.getByRole("link", { name: /Stripe key/ })).toBeVisible();
 	await page.getByRole("tab", { name: "SSH keys" }).click();
 	await expect(items.getByRole("link", { name: /deploy@prod/ })).toBeVisible();
+	await page.getByRole("tab", { name: "Cards" }).click();
+	await expect(items.getByRole("link")).toHaveCount(1);
+	await expect(
+		items.getByRole("link", { name: /Company card.*Visa •••• 1111/ }),
+	).toBeVisible();
+	await page.getByRole("tab", { name: "Identities" }).click();
+	await expect(items.getByRole("link", { name: /Alex Example/ })).toBeVisible();
 });

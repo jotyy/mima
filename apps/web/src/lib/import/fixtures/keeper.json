@@ -22,12 +22,21 @@
 				"$url::1": ["https://gist.example.test"],
 				"$text:Team:1": "Ops",
 				"$securityQuestion::1": [
-					{ "question": "First pet?", "answer": "example-answer" }
+					{
+						"question": "First pet?",
+						"answer": "example-answer"
+					}
 				]
 			},
 			"folders": [
-				{ "folder": "Work\\Dev" },
-				{ "shared_folder": "Team\\Ops", "can_edit": true, "can_share": false }
+				{
+					"folder": "Work\\Dev"
+				},
+				{
+					"shared_folder": "Team\\Ops",
+					"can_edit": true,
+					"can_share": false
+				}
 			]
 		},
 		{
@@ -39,10 +48,17 @@
 					"cardNumber": "4111111111111111",
 					"cardExpirationDate": "06/2030",
 					"cardSecurityCode": "123"
-				}
+				},
+				"$text:cardholderName": "Alex Example",
+				"$pinCode": "0000",
+				"$text:Issuing bank": "Example Bank"
 			},
 			"folders": [
-				{ "shared_folder": "Team\\Ops", "can_edit": true, "can_share": false }
+				{
+					"shared_folder": "Team\\Ops",
+					"can_edit": true,
+					"can_share": false
+				}
 			]
 		},
 		{
@@ -56,16 +72,60 @@
 					"publicKey": "ssh-ed25519 AAAAexample",
 					"privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\nnot-a-real-key\n-----END OPENSSH PRIVATE KEY-----"
 				},
-				"$host::1": { "hostName": "build.example.test", "port": "22" }
+				"$host::1": {
+					"hostName": "build.example.test",
+					"port": "22"
+				}
 			},
-			"folders": [{ "shared_folder": "Team\\Ops", "folder": "Servers" }]
+			"folders": [
+				{
+					"shared_folder": "Team\\Ops",
+					"folder": "Servers"
+				}
+			]
 		},
 		{
 			"uid": "aB4",
 			"title": "Alarm code",
 			"$type": "encryptedNotes",
 			"notes": "example-1234",
-			"custom_fields": { "$date::1": 1893456000000 }
+			"custom_fields": {
+				"$date::1": 1893456000000
+			}
+		},
+		{
+			"uid": "aB3",
+			"title": "Office",
+			"$type": "address",
+			"custom_fields": {
+				"$address::1": {
+					"country": "US",
+					"street1": "1 Example Street",
+					"street2": "Unit 2",
+					"city": "Springfield",
+					"state": "IL",
+					"zip": "00000"
+				}
+			}
+		},
+		{
+			"uid": "aB4",
+			"title": "Alex Example",
+			"$type": "contact",
+			"custom_fields": {
+				"$name::1": {
+					"first": "Alex",
+					"last": "Example"
+				},
+				"$text:company:1": "Acme Ltd",
+				"$email::1": "alex@example.test",
+				"$phone::1": {
+					"number": "555-0100"
+				}
+			},
+			"references": {
+				"$addressRef::1": ["aB3"]
+			}
 		}
 	]
 }

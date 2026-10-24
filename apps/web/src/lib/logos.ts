@@ -1,12 +1,28 @@
+import { cardBrand } from "@vauly/ui/lib/cards";
 import {
 	BRANDFETCH_CLIENT_ID,
 	logoUrl as brandLogoUrl,
+	logoDomain as serviceLogo,
 } from "@vauly/ui/lib/logos";
 import { useSyncExternalStore } from "react";
 
 import { instance } from "../config";
 
-export { brandDomain, logoDomain } from "@vauly/ui/lib/logos";
+export { brandDomain } from "@vauly/ui/lib/logos";
+
+/**
+ * The domain whose logo stands for an item: a card's brand, found from its number on
+ * this device, or the service a login or key belongs to.
+ */
+export const logoDomain = (item: {
+	kind: string;
+	name: string;
+	url?: string;
+	card?: { number?: string };
+}) =>
+	item.kind === "card"
+		? (cardBrand(item.card?.number)?.domain ?? null)
+		: serviceLogo(item);
 
 // The browser asks Brandfetch for a logo by domain, so Brandfetch learns which brands'
 // logos this device shows, and the address of this vauly (its Referer, which it

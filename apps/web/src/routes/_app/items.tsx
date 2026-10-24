@@ -32,6 +32,7 @@ import {
 	type Item,
 	type ItemKind,
 	itemMatches,
+	itemSubtitle,
 	useExposed,
 	useItems,
 	useVaults,
@@ -60,6 +61,8 @@ const kinds = [
 	{ value: "api-key", label: "API keys" },
 	{ value: "note", label: "Notes" },
 	{ value: "ssh-key", label: "SSH keys" },
+	{ value: "card", label: "Cards" },
+	{ value: "identity", label: "Identities" },
 ];
 
 const healthLabel = {
@@ -114,7 +117,7 @@ function Items() {
 		if (search.health === "exposed" && people) {
 			return `${people.map((person) => person.name).join(", ")} could see it`;
 		}
-		return item.username ?? item.url ?? item.notes ?? " ";
+		return itemSubtitle(item) ?? " ";
 	};
 	const selected =
 		visible.find((item) => item.id === search.id) ?? visible[0] ?? null;

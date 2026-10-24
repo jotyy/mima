@@ -1,3 +1,4 @@
+import { cardBrand } from "@vauly/ui/lib/cards";
 import { BRANDFETCH_CLIENT_ID, logoDomain, logoUrl } from "@vauly/ui/lib/logos";
 
 // Logos come from Brandfetch's CDN, so Brandfetch learns which brands' logos this browser
@@ -42,14 +43,19 @@ export async function refreshInstance(web: string | undefined) {
 	}
 }
 
-/** The logo to show for an item, as an address, or null for the icon of its kind. */
+/**
+ * The logo to show for an item, as an address, or null for the icon of its kind. A card
+ * shows its brand's.
+ */
 export function logoFor(
-	item: Parameters<typeof logoDomain>[0],
+	item: Parameters<typeof logoDomain>[0] & { card?: { number?: string } },
 	settings: LogoSettings,
 	size = 28,
 ) {
 	if (!settings.shown || settings.instance === "off") return null;
-	const domain = logoDomain(item);
+	const domain = item.card
+		? cardBrand(item.card.number)?.domain
+		: logoDomain(item);
 	return domain
 		? logoUrl(domain, size, settings.instance || BRANDFETCH_CLIENT_ID)
 		: null;

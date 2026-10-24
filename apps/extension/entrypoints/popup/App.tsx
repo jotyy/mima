@@ -3,8 +3,10 @@ import {
 	ArrowSquareOutIcon,
 	ClockCountdownIcon,
 	CopyIcon,
+	CreditCardIcon,
 	GearSixIcon,
 	GlobeIcon,
+	IdentificationCardIcon,
 	KeyIcon,
 	LockSimpleIcon,
 	MagnifyingGlassIcon,
@@ -16,6 +18,7 @@ import { parseTotp, totpCode, totpSecondsLeft } from "@vauly/crypto";
 import { Button } from "@vauly/ui/components/button";
 import { Input } from "@vauly/ui/components/input";
 import { Switch } from "@vauly/ui/components/switch";
+import { cardBrand, lastFour } from "@vauly/ui/lib/cards";
 import { cn } from "@vauly/ui/lib/utils";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 
@@ -29,7 +32,7 @@ import {
 	offerFor,
 	viewOf,
 } from "@/lib/capture";
-import { fillLoginForm } from "@/lib/fill";
+import { fillAddressForm, fillCardForm, fillLoginForm } from "@/lib/fill";
 import {
 	getLogoSettings,
 	type LogoSettings,
@@ -360,6 +363,14 @@ function Items({
 
 	const host = hostOf(tab.url);
 	const here = (entries ?? []).filter((entry) => matchesPage(entry, tab.url));
+	// Cards and identities fill on any page: checkouts and address forms.
+	const details = (entries ?? []).filter(
+		(entry) => entry.kind === "card" || entry.kind === "identity",
+	);
+	const fillsHere = (entry: Entry) =>
+		entry.kind === "card" || entry.kind === "identity"
+			? Boolean(host)
+			: matchesPage(entry, tab.url);
 	const q = query.trim().toLowerCase();
 	const results = q
 		? (entries ?? []).filter(
@@ -398,8 +409,53 @@ function Items({
 		}
 	};
 
+	/**
+	 * Fills the page's checkout or address form with a card or an identity. Only what forms
+	 * ask for goes to the page: never a PIN, a tax number or a registration number.
+	 */
+	const fillDetails = async (entry: Entry, tabId: number) => {
+		await touch();
+		const { pin: _, ...card } = entry.card ?? {};
+		const {
+			taxNumber: _tax,
+			registrationNumber: _registration,
+			...identity
+		} = entry.identity ?? {};
+		const [result] = entry.card
+			? await browser.scripting.executeScript({
+					target: { tabId },
+					func: fillCardForm,
+					args: [card],
+				})
+			: await browser.scripting.executeScript({
+					target: { tabId },
+					func: fillAddressForm,
+					args: [identity],
+				});
+		const { filled = 0 } = (result?.result as { filled?: number }) ?? {};
+		if (filled === 0) {
+			flash(
+				entry.card
+					? "No card fields on this page"
+					: "No address fields on this page",
+			);
+			return;
+		}
+		await client.items
+			.log({
+				id: entry.id,
+				action: "filled",
+				field: entry.card ? "card" : "address",
+			})
+			.catch(() => {});
+		window.close();
+	};
+
 	const fill = async (entry: Entry) => {
 		if (tab.id === undefined) return;
+		if (entry.kind === "card" || entry.kind === "identity") {
+			return fillDetails(entry, tab.id);
+		}
 		// The next page usually asks for the one-time code: copy it now, while the click
 		// still counts as the person's action, so it's ready to paste.
 		const code = await oneTimeCode(entry);
@@ -525,7 +581,7 @@ function Items({
 											key={entry.id}
 											logos={logos}
 											entry={entry}
-											canFill={matchesPage(entry, tab.url)}
+											canFill={fillsHere(entry)}
 											onFill={fill}
 											onCopy={copy}
 										/>
@@ -551,6 +607,20 @@ function Items({
 												/>
 											))
 										)}
+									</Section>
+								)}
+								{host && details.length > 0 && (
+									<Section label="Cards and identities">
+										{details.map((entry) => (
+											<Row
+												key={entry.id}
+												entry={entry}
+												logos={logos}
+												canFill
+												onFill={fill}
+												onCopy={copy}
+											/>
+										))}
 									</Section>
 								)}
 								<Section label="All items">
@@ -700,12 +770,29 @@ async function oneTimeCode(entry: Entry) {
 	}
 }
 
-const kindIcon = {
+const kindIcon: Record<string, typeof GlobeIcon> = {
 	login: GlobeIcon,
 	"api-key": KeyIcon,
 	note: NoteIcon,
 	"ssh-key": TerminalWindowIcon,
+	card: CreditCardIcon,
+	identity: IdentificationCardIcon,
 };
+
+/** The line under an entry's name: who or what it is, never a card's number. */
+function subtitleOf(entry: Entry) {
+	if (entry.card) {
+		const four = lastFour(entry.card.number);
+		const brand = cardBrand(entry.card.number)?.name ?? "Card";
+		return four ? `${brand} •••• ${four}` : brand;
+	}
+	if (entry.identity) {
+		return (
+			entry.identity.name || entry.identity.company || entry.identity.email
+		);
+	}
+	return entry.username || hostOf(entry.url);
+}
 
 function Row({
 	entry,
@@ -724,12 +811,12 @@ function Row({
 		<li className="hover:bg-tint/4 flex items-center gap-2.5 rounded-lg px-2 py-1.5">
 			<ItemLogo
 				logo={logos ? logoFor(entry, logos) : null}
-				icon={kindIcon[entry.kind]}
+				icon={kindIcon[entry.kind] ?? NoteIcon}
 			/>
 			<div className="flex min-w-0 flex-1 flex-col">
 				<span className="text-body-sm text-fg truncate">{entry.name}</span>
 				<span className="text-caption text-fg-subtle truncate">
-					{entry.username || hostOf(entry.url) || entry.vault}
+					{subtitleOf(entry) || entry.vault}
 				</span>
 			</div>
 			{entry.username && (
@@ -765,16 +852,19 @@ function Row({
 					<ClockCountdownIcon />
 				</Button>
 			)}
-			{canFill && entry.kind === "login" && entry.secret && (
-				<Button
-					variant="brand"
-					size="xs"
-					aria-label={`Fill ${entry.name}`}
-					onClick={() => onFill(entry)}
-				>
-					Fill
-				</Button>
-			)}
+			{canFill &&
+				((entry.kind === "login" && entry.secret) ||
+					entry.card ||
+					entry.identity) && (
+					<Button
+						variant="brand"
+						size="xs"
+						aria-label={`Fill ${entry.name}`}
+						onClick={() => onFill(entry)}
+					>
+						Fill
+					</Button>
+				)}
 		</li>
 	);
 }

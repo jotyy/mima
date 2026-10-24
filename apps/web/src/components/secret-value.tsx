@@ -12,12 +12,15 @@ import { CopyButton } from "./copy-button";
 
 export function SecretValue({
 	value,
+	display,
 	label,
 	source,
 	onReveal,
 	onCopied,
 }: {
 	value: string;
+	/** How it reads when revealed, such as a card number in groups; copying takes `value`. */
+	display?: string;
 	label: string;
 	source?: string;
 	onReveal?: () => void;
@@ -39,7 +42,7 @@ export function SecretValue({
 						: "text-fg-subtle truncate tracking-widest",
 				)}
 			>
-				{revealed ? value : "•".repeat(Math.min(value.length, 16))}
+				{revealed ? (display ?? value) : "•".repeat(Math.min(value.length, 16))}
 			</span>
 			<Tooltip>
 				<TooltipTrigger

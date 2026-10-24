@@ -22,15 +22,24 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@vauly/ui/components/tooltip";
+import {
+	cardBrand,
+	digitsOf,
+	luhnValid,
+	normalizeExpiry,
+	shortExpiry,
+} from "@vauly/ui/lib/cards";
 import { cn } from "@vauly/ui/lib/utils";
 import { type ReactNode, useEffect, useState } from "react";
 
 import { timesSeen, useDraftBreaches } from "@/lib/breaches";
 import { parseTotp, passwordStrength } from "@/lib/secrets";
 import {
+	type Card,
 	type CustomField,
 	canEdit,
 	errorMessage,
+	type Identity,
 	type Item,
 	type ItemFields,
 	type ItemKind,
@@ -48,6 +57,8 @@ const kinds: { value: ItemKind; label: string }[] = [
 	{ value: "api-key", label: "API key" },
 	{ value: "note", label: "Note" },
 	{ value: "ssh-key", label: "SSH key" },
+	{ value: "card", label: "Card" },
+	{ value: "identity", label: "Identity" },
 ];
 
 const secretLabel: Record<ItemKind, string> = {
@@ -55,7 +66,54 @@ const secretLabel: Record<ItemKind, string> = {
 	"api-key": "Value",
 	note: "",
 	"ssh-key": "Private key",
+	card: "",
+	identity: "",
 };
+
+/** The kinds that keep a username and a secret; cards and identities have their own. */
+const hasSecret = (kind: ItemKind) =>
+	kind === "login" || kind === "api-key" || kind === "ssh-key";
+
+const namePlaceholder: Partial<Record<ItemKind, string>> = {
+	login: "GitHub",
+	card: "Company Visa",
+	identity: "Acme Ltd",
+};
+
+// A card's and an identity's fields as the form edits them: every one a string.
+type CardForm = Required<Card>;
+type IdentityForm = Required<Identity>;
+
+const cardForm = (card?: Card): CardForm => ({
+	cardholder: card?.cardholder ?? "",
+	number: card?.number ?? "",
+	expiry: card?.expiry ? shortExpiry(card.expiry) : "",
+	code: card?.code ?? "",
+	pin: card?.pin ?? "",
+});
+
+const identityForm = (identity?: Identity): IdentityForm => ({
+	name: identity?.name ?? "",
+	company: identity?.company ?? "",
+	email: identity?.email ?? "",
+	phone: identity?.phone ?? "",
+	address: identity?.address ?? "",
+	city: identity?.city ?? "",
+	region: identity?.region ?? "",
+	postalCode: identity?.postalCode ?? "",
+	country: identity?.country ?? "",
+	taxNumber: identity?.taxNumber ?? "",
+	registrationNumber: identity?.registrationNumber ?? "",
+});
+
+/** The values given, trimmed, without the empty ones. */
+function filled<T extends Record<string, string>>(values: T): Partial<T> {
+	return Object.fromEntries(
+		Object.entries(values)
+			.map(([key, value]) => [key, value.trim()])
+			.filter(([, value]) => value),
+	) as Partial<T>;
+}
 
 // Rows the form adds and removes carry an id, so React keeps each input with its row.
 type Website = { id: string; value: string };
@@ -73,6 +131,8 @@ type Form = {
 	notes: string;
 	tags: string;
 	fields: FieldRow[];
+	card: CardForm;
+	identity: IdentityForm;
 };
 
 const rowId = () => crypto.randomUUID();
@@ -93,6 +153,8 @@ function fromItem(item?: Item, vaultId?: string): Form {
 			...field,
 			id: field.id ?? newFieldId(),
 		})),
+		card: cardForm(item?.card),
+		identity: identityForm(item?.identity),
 	};
 }
 
@@ -147,7 +209,7 @@ export function ItemDialog({
 		value: v.id,
 		label: v.name,
 	}));
-	const showSecret = form.kind !== "note";
+	const showSecret = hasSecret(form.kind);
 
 	const save = async () => {
 		setError("");
@@ -159,6 +221,16 @@ export function ItemDialog({
 		}
 		const vault = vaults.data?.find((v) => v.id === form.vaultId);
 		if (!vault) return setError("Pick a vault.");
+		const expiry = normalizeExpiry(form.card.expiry);
+		if (form.kind === "card" && form.card.expiry.trim() && !expiry) {
+			return setError("Write the expiry as month and year, such as 06/30.");
+		}
+		const card: Card = filled({
+			...form.card,
+			number: digitsOf(form.card.number),
+			expiry,
+		});
+		const identity: Identity = filled(form.identity);
 		const custom = form.fields
 			.map(({ id, label, value, hidden }) => ({
 				id,
@@ -185,8 +257,12 @@ export function ItemDialog({
 		const fields: ItemFields = {
 			kind: form.kind,
 			name: form.name.trim(),
-			...(form.username.trim() && { username: form.username.trim() }),
+			...(showSecret &&
+				form.username.trim() && { username: form.username.trim() }),
 			...(showSecret && form.secret && { secret: form.secret }),
+			...(form.kind === "card" && Object.keys(card).length > 0 && { card }),
+			...(form.kind === "identity" &&
+				Object.keys(identity).length > 0 && { identity }),
 			...(url && { url }),
 			...(moreUrls.length > 0 && { moreUrls }),
 			...(form.kind === "login" &&
@@ -274,13 +350,25 @@ export function ItemDialog({
 								autoFocus
 								required
 								value={form.name}
-								placeholder={
-									form.kind === "login" ? "GitHub" : "Postgres · staging"
-								}
+								placeholder={namePlaceholder[form.kind] ?? "Postgres · staging"}
 								onChange={(event) => set("name", event.target.value)}
 							/>
 						</Row>
-						{form.kind !== "note" && (
+						{form.kind === "card" && (
+							<CardInputs
+								card={form.card}
+								onChange={(card) => set("card", { ...form.card, ...card })}
+							/>
+						)}
+						{form.kind === "identity" && (
+							<IdentityInputs
+								identity={form.identity}
+								onChange={(identity) =>
+									set("identity", { ...form.identity, ...identity })
+								}
+							/>
+						)}
+						{showSecret && (
 							<Row label="Username" optional={form.kind !== "login"}>
 								<Input
 									value={form.username}
@@ -453,6 +541,164 @@ export function ItemDialog({
 				</form>
 			</DialogContent>
 		</Dialog>
+	);
+}
+
+/** A card's details. The number, security code and PIN are typed masked, like a password. */
+function CardInputs({
+	card,
+	onChange,
+}: {
+	card: CardForm;
+	onChange: (card: Partial<CardForm>) => void;
+}) {
+	const digits = digitsOf(card.number);
+	const brand = cardBrand(digits);
+	const mistyped = digits.length >= 12 && !luhnValid(digits);
+	return (
+		<>
+			<Row label="Cardholder" optional>
+				<Input
+					value={card.cardholder}
+					autoComplete="off"
+					onChange={(event) => onChange({ cardholder: event.target.value })}
+				/>
+			</Row>
+			<Row label="Number" optional>
+				<HiddenInput
+					label="Card number"
+					value={card.number}
+					inputMode="numeric"
+					onChange={(number) => onChange({ number })}
+				/>
+				{mistyped ? (
+					<span className="text-caption text-warning">
+						That number doesn't check out. Look for a mistyped digit.
+					</span>
+				) : brand ? (
+					<span className="text-caption text-fg-subtle">{brand.name}</span>
+				) : null}
+			</Row>
+			<div className="grid grid-cols-3 gap-4">
+				<Row label="Expires" optional>
+					<Input
+						value={card.expiry}
+						placeholder="MM/YY"
+						inputMode="numeric"
+						autoComplete="off"
+						onChange={(event) => onChange({ expiry: event.target.value })}
+					/>
+				</Row>
+				<Row label="Security code" optional>
+					<HiddenInput
+						label="Security code"
+						value={card.code}
+						inputMode="numeric"
+						onChange={(code) => onChange({ code })}
+					/>
+				</Row>
+				<Row label="PIN" optional>
+					<HiddenInput
+						label="PIN"
+						value={card.pin}
+						inputMode="numeric"
+						onChange={(pin) => onChange({ pin })}
+					/>
+				</Row>
+			</div>
+		</>
+	);
+}
+
+/** An identity's details, named as the forms that ask for them name them. */
+function IdentityInputs({
+	identity,
+	onChange,
+}: {
+	identity: IdentityForm;
+	onChange: (identity: Partial<IdentityForm>) => void;
+}) {
+	const text = (key: keyof IdentityForm, label: string, type = "text") => (
+		<Row label={label} optional>
+			<Input
+				value={identity[key]}
+				type={type}
+				autoComplete="off"
+				onChange={(event) => onChange({ [key]: event.target.value })}
+			/>
+		</Row>
+	);
+	return (
+		<>
+			<div className="grid gap-4 md:grid-cols-2">
+				{text("name", "Full name")}
+				{text("company", "Company")}
+				{text("email", "Email", "email")}
+				{text("phone", "Phone", "tel")}
+			</div>
+			<Row label="Address" optional>
+				<Textarea
+					value={identity.address}
+					className="min-h-16"
+					onChange={(event) => onChange({ address: event.target.value })}
+				/>
+			</Row>
+			<div className="grid gap-4 md:grid-cols-2">
+				{text("city", "City")}
+				{text("region", "State or region")}
+				{text("postalCode", "Postal code")}
+				{text("country", "Country")}
+			</div>
+			<div className="grid gap-4 md:grid-cols-2">
+				<Row label="Tax number" optional>
+					<HiddenInput
+						label="Tax number"
+						value={identity.taxNumber}
+						onChange={(taxNumber) => onChange({ taxNumber })}
+					/>
+				</Row>
+				{text("registrationNumber", "Registration number")}
+			</div>
+		</>
+	);
+}
+
+/** A value typed masked, with a button to show it. It names itself, like SecretInput. */
+function HiddenInput({
+	label,
+	value,
+	inputMode,
+	onChange,
+}: {
+	label: string;
+	value: string;
+	inputMode?: "numeric";
+	onChange: (value: string) => void;
+}) {
+	const [visible, setVisible] = useState(false);
+	const name = label.toLowerCase();
+	return (
+		<div className="relative">
+			<Input
+				aria-label={label}
+				value={value}
+				type={visible ? "text" : "password"}
+				inputMode={inputMode}
+				autoComplete="off"
+				className="pr-9 font-mono"
+				onChange={(event) => onChange(event.target.value)}
+			/>
+			<Button
+				type="button"
+				variant="ghost"
+				size="icon-xs"
+				className="absolute top-1/2 right-1 -translate-y-1/2"
+				aria-label={visible ? `Hide ${name}` : `Show ${name}`}
+				onClick={() => setVisible((shown) => !shown)}
+			>
+				{visible ? <EyeSlashIcon /> : <EyeIcon />}
+			</Button>
+		</div>
 	);
 }
 

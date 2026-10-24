@@ -12,6 +12,10 @@ import {
 	protonPassZip,
 } from "./fixtures";
 
+/** Everything but cards and identities, which "cards and identities" below checks. */
+const others = <T extends { kind: string }>(items: T[]) =>
+	items.filter((item) => item.kind !== "card" && item.kind !== "identity");
+
 const privateKey =
 	"-----BEGIN OPENSSH PRIVATE KEY-----\nnot-a-real-key\n-----END OPENSSH PRIVATE KEY-----";
 
@@ -27,6 +31,8 @@ describe("1Password .1pux", () => {
 			"Stripe key",
 			"deploy@prod",
 			"Door codes",
+			"Company card",
+			"Alex Example",
 			"Postgres staging",
 		]);
 	});
@@ -64,7 +70,7 @@ describe("1Password .1pux", () => {
 	});
 
 	test("API credentials, SSH keys, notes and databases find their kind", () => {
-		const [, stripe, deploy, door, postgres] = result.items;
+		const [, stripe, deploy, door, postgres] = others(result.items);
 		expect(stripe).toEqual({
 			kind: "api-key",
 			name: "Stripe key",
@@ -105,8 +111,8 @@ describe("1Password .1pux", () => {
 		});
 	});
 
-	test("cards and files are named, not imported", () => {
-		expect(result.left).toEqual({ card: 1, attachment: 1 });
+	test("files are named, not imported", () => {
+		expect(result.left).toEqual({ attachment: 1 });
 	});
 });
 
@@ -114,8 +120,8 @@ describe("Bitwarden JSON", () => {
 	test("logins, SSH keys and notes, with folders, fields and history", () => {
 		const result = parseImport(fixtureText("bitwarden.json"));
 		expect(result.source).toBe("Bitwarden");
-		expect(result.left).toEqual({ passkey: 1, card: 1, identity: 1 });
-		expect(result.items).toEqual([
+		expect(result.left).toEqual({ passkey: 1 });
+		expect(others(result.items)).toEqual([
 			{
 				kind: "login",
 				name: "prod-db",
@@ -216,9 +222,8 @@ describe("Proton Pass", () => {
 			passkey: 1,
 			trashed: 1,
 			alias: 1,
-			card: 1,
 		});
-		expect(result.items).toEqual([
+		expect(others(result.items)).toEqual([
 			{
 				kind: "login",
 				name: "Shop",
@@ -295,8 +300,9 @@ describe("Dashlane", () => {
 	test("the ZIP of CSVs", () => {
 		const result = readImport(dashlaneZip());
 		expect(result.source).toBe("Dashlane");
-		expect(result.left).toEqual({ card: 1, record: 2, identity: 1 });
-		expect(result.items).toEqual([
+		// The bank account stays behind; the passport joins the identity.
+		expect(result.left).toEqual({ record: 1 });
+		expect(others(result.items)).toEqual([
 			{
 				kind: "login",
 				name: "GitHub",
@@ -336,8 +342,8 @@ describe("Dashlane", () => {
 test("Enpass: tags, one-time codes, archived and trashed items", () => {
 	const result = parseImport(fixtureText("enpass.json"));
 	expect(result.source).toBe("Enpass");
-	expect(result.left).toEqual({ card: 1, trashed: 1 });
-	expect(result.items).toEqual([
+	expect(result.left).toEqual({ trashed: 1 });
+	expect(others(result.items)).toEqual([
 		{
 			kind: "login",
 			name: "Social",
@@ -384,8 +390,8 @@ test("Enpass: tags, one-time codes, archived and trashed items", () => {
 test("Keeper JSON: record types, shared folders and key pairs", () => {
 	const result = parseImport(fixtureText("keeper.json"));
 	expect(result.source).toBe("Keeper");
-	expect(result.left).toEqual({ card: 1 });
-	expect(result.items).toEqual([
+	expect(result.left).toEqual({});
+	expect(others(result.items)).toEqual([
 		{
 			kind: "login",
 			name: "GitHub",
@@ -442,4 +448,180 @@ test("Keeper JSON: record types, shared folders and key pairs", () => {
 test("JSON nobody wrote is turned away", () => {
 	expect(() => parseImport('{"hello":"world"}')).toThrow(ImportError);
 	expect(() => parseImport("{not json")).toThrow(ImportError);
+});
+
+describe("cards and identities", () => {
+	const card = {
+		cardholder: "Alex Example",
+		number: "4111111111111111",
+		expiry: "06/2030",
+		code: "123",
+	};
+	const details = <T extends { kind: string }>(items: T[]) => ({
+		cards: items.filter((item) => item.kind === "card"),
+		identities: items.filter((item) => item.kind === "identity"),
+	});
+
+	test("Bitwarden: types 3 and 4, with passport and licence numbers hidden", () => {
+		const { cards, identities } = details(
+			parseImport(fixtureText("bitwarden.json")).items,
+		);
+		expect(cards).toEqual([
+			{
+				kind: "card",
+				name: "Visa",
+				card,
+				fields: [{ label: "Issuing bank", value: "Example Bank" }],
+			},
+		]);
+		expect(identities).toEqual([
+			{
+				kind: "identity",
+				name: "Me",
+				identity: {
+					name: "Mx Alex J Example",
+					company: "Acme Ltd",
+					email: "alex@example.test",
+					phone: "555-0100",
+					address: "1 Example Street\nUnit 2",
+					city: "Springfield",
+					region: "IL",
+					postalCode: "00000",
+					country: "US",
+					taxNumber: "000-00-0000",
+				},
+				fields: [
+					{ label: "Username", value: "alexample" },
+					{ label: "Passport number", value: "X0000000", hidden: true },
+					{ label: "Licence number", value: "D0000000", hidden: true },
+				],
+			},
+		]);
+	});
+
+	test("1Password: a Credit Card and an Identity, the rest as fields", () => {
+		const { cards, identities } = details(readImport(onePux()).items);
+		expect(cards).toEqual([
+			{
+				kind: "card",
+				name: "Company card",
+				card: { ...card, pin: "0000" },
+				tags: ["Private"],
+				fields: [
+					{ label: "Additional Details · issuing bank", value: "Example Bank" },
+				],
+			},
+		]);
+		expect(identities[0]).toMatchObject({
+			name: "Alex Example",
+			identity: {
+				name: "Alex J Example",
+				company: "Acme Ltd",
+				email: "alex@example.test",
+				phone: "555-0100",
+				address: "1 Example Street",
+				city: "Springfield",
+				region: "IL",
+				postalCode: "00000",
+				country: "US",
+			},
+			fields: [
+				{ label: "Identification · job title", value: "Engineer" },
+				{ label: "Address · mobile", value: "555-0101" },
+			],
+		});
+	});
+
+	test("Proton Pass: its social security number is the tax number", () => {
+		const { cards, identities } = details(readImport(protonPassZip()).items);
+		expect(cards[0]?.card).toEqual({ ...card, pin: "0000" });
+		expect(identities[0]).toMatchObject({
+			name: "Acme Ltd",
+			identity: {
+				name: "Alex Example",
+				company: "Acme Ltd",
+				taxNumber: "000-00-0000",
+				country: "US",
+			},
+			fields: [
+				{ label: "Passport number", value: "X0000000", hidden: true },
+				{ label: "Job title", value: "Engineer" },
+				{ label: "Billing contact", value: "accounts@acme.test" },
+			],
+		});
+	});
+
+	test("Enpass: a card's online banking login stays with it, as fields", () => {
+		const { cards, identities } = details(
+			parseImport(fixtureText("enpass.json")).items,
+		);
+		expect(cards[0]).toMatchObject({
+			card: { ...card, pin: "0000" },
+			fields: [
+				{ label: "Username", value: "alexample" },
+				{ label: "Login password", value: "example-bank-pass", hidden: true },
+				{ label: "Issuing bank", value: "Example Bank" },
+			],
+		});
+		expect(identities[0]).toMatchObject({
+			identity: {
+				name: "Alex Example",
+				company: "Acme Ltd",
+				email: "alex@example.test",
+				postalCode: "00000",
+			},
+			fields: [{ label: "Passport number", value: "X0000000", hidden: true }],
+		});
+	});
+
+	test("Keeper: a Payment Card, an Address, and a Contact", () => {
+		const { cards, identities } = details(
+			parseImport(fixtureText("keeper.json")).items,
+		);
+		expect(cards[0]).toMatchObject({
+			card: { ...card, pin: "0000" },
+			fields: [{ label: "Issuing bank", value: "Example Bank" }],
+		});
+		expect(identities.map((item) => item.identity)).toEqual([
+			{
+				address: "1 Example Street\nUnit 2",
+				city: "Springfield",
+				region: "IL",
+				postalCode: "00000",
+				country: "US",
+			},
+			{
+				name: "Alex Example",
+				company: "Acme Ltd",
+				email: "alex@example.test",
+				phone: "555-0100",
+				// The Contact points at the Address record.
+				address: "1 Example Street\nUnit 2",
+				city: "Springfield",
+				region: "IL",
+				postalCode: "00000",
+				country: "US",
+			},
+		]);
+	});
+
+	test("Dashlane: a payment card, and one identity from the personal info", () => {
+		const { cards, identities } = details(readImport(dashlaneZip()).items);
+		expect(cards).toEqual([
+			{
+				kind: "card",
+				name: "Visa",
+				card,
+				fields: [{ label: "Country", value: "US" }],
+			},
+		]);
+		expect(identities).toEqual([
+			{
+				kind: "identity",
+				name: "Alex Example",
+				identity: { name: "Alex Example", email: "alex@example.test" },
+				fields: [{ label: "Passport number", value: "X0000000", hidden: true }],
+			},
+		]);
+	});
 });

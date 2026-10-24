@@ -5,10 +5,21 @@
 		"s1": {
 			"name": "Personal",
 			"description": "",
-			"display": { "color": 1, "icon": 1 },
+			"display": {
+				"color": 1,
+				"icon": 1
+			},
 			"folders": [
-				{ "folderId": "fo1", "parentFolderId": null, "name": "Work" },
-				{ "folderId": "fo2", "parentFolderId": "fo1", "name": "Shops" }
+				{
+					"folderId": "fo1",
+					"parentFolderId": null,
+					"name": "Work"
+				},
+				{
+					"folderId": "fo2",
+					"parentFolderId": "fo1",
+					"name": "Shops"
+				}
 			],
 			"items": [
 				{
@@ -31,7 +42,9 @@
 							{
 								"fieldName": "PIN",
 								"type": "hidden",
-								"data": { "content": "0420" }
+								"data": {
+									"content": "0420"
+								}
 							}
 						],
 						"content": {
@@ -40,11 +53,21 @@
 							"password": "example-pass-1",
 							"urls": ["https://shop.example.test"],
 							"autofillUrls": [
-								{ "url": "https://shop.example.test", "mode": 0 },
-								{ "url": "https://checkout.example.test", "mode": 2 }
+								{
+									"url": "https://shop.example.test",
+									"mode": 0
+								},
+								{
+									"url": "https://checkout.example.test",
+									"mode": 2
+								}
 							],
 							"totpUri": "otpauth://totp/Shop:alex?secret=JBSWY3DPEHPK3PXP&issuer=Shop",
-							"passkeys": [{ "keyId": "example" }]
+							"passkeys": [
+								{
+									"keyId": "example"
+								}
+							]
 						}
 					}
 				},
@@ -57,7 +80,10 @@
 					"modifyTime": 1707735222,
 					"data": {
 						"type": "note",
-						"metadata": { "name": "Old note", "note": "trashed" },
+						"metadata": {
+							"name": "Old note",
+							"note": "trashed"
+						},
 						"extraFields": [],
 						"content": {}
 					}
@@ -71,7 +97,10 @@
 					"modifyTime": 1707735222,
 					"data": {
 						"type": "wifi",
-						"metadata": { "name": "Office Wi-Fi", "note": "" },
+						"metadata": {
+							"name": "Office Wi-Fi",
+							"note": ""
+						},
 						"extraFields": [],
 						"content": {
 							"ssid": "AcmeGuest",
@@ -90,7 +119,10 @@
 					"modifyTime": 1707735222,
 					"data": {
 						"type": "alias",
-						"metadata": { "name": "Newsletter alias", "note": "" },
+						"metadata": {
+							"name": "Newsletter alias",
+							"note": ""
+						},
 						"extraFields": [],
 						"content": {}
 					},
@@ -111,7 +143,10 @@
 					"modifyTime": 1707735222,
 					"data": {
 						"type": "custom",
-						"metadata": { "name": "Mail API", "note": "" },
+						"metadata": {
+							"name": "Mail API",
+							"note": ""
+						},
 						"extraFields": [],
 						"content": {
 							"sections": [
@@ -121,12 +156,16 @@
 										{
 											"fieldName": "Host",
 											"type": "text",
-											"data": { "content": "smtp.example.test" }
+											"data": {
+												"content": "smtp.example.test"
+											}
 										},
 										{
 											"fieldName": "API key",
 											"type": "hidden",
-											"data": { "content": "key_example_1" }
+											"data": {
+												"content": "key_example_1"
+											}
 										}
 									]
 								}
@@ -143,7 +182,10 @@
 					"modifyTime": 1707735222,
 					"data": {
 						"type": "sshKey",
-						"metadata": { "name": "Backup server", "note": "" },
+						"metadata": {
+							"name": "Backup server",
+							"note": ""
+						},
 						"extraFields": [],
 						"content": {
 							"privateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\nnot-a-real-key\n-----END OPENSSH PRIVATE KEY-----",
@@ -161,9 +203,82 @@
 					"modifyTime": 1707735222,
 					"data": {
 						"type": "creditCard",
-						"metadata": { "name": "Company card", "note": "" },
+						"metadata": {
+							"name": "Company card",
+							"note": ""
+						},
 						"extraFields": [],
-						"content": { "number": "4111111111111111" }
+						"content": {
+							"cardholderName": "Alex Example",
+							"cardType": 0,
+							"number": "4111111111111111",
+							"verificationNumber": "123",
+							"expirationDate": "2030-06",
+							"pin": "0000"
+						}
+					}
+				},
+				{
+					"itemId": "i8",
+					"shareId": "s2",
+					"state": 1,
+					"pinned": false,
+					"createTime": 1706621831,
+					"modifyTime": 1707735222,
+					"data": {
+						"type": "identity",
+						"metadata": {
+							"name": "Acme Ltd",
+							"note": ""
+						},
+						"extraFields": [],
+						"content": {
+							"fullName": "Alex Example",
+							"email": "alex@example.test",
+							"phoneNumber": "555-0100",
+							"firstName": "Alex",
+							"middleName": "",
+							"lastName": "Example",
+							"birthdate": "",
+							"gender": "",
+							"extraPersonalDetails": [],
+							"organization": "Acme Ltd",
+							"streetAddress": "1 Example Street",
+							"zipOrPostalCode": "00000",
+							"city": "Springfield",
+							"stateOrProvince": "IL",
+							"countryOrRegion": "US",
+							"floor": "",
+							"county": "",
+							"extraAddressDetails": [],
+							"socialSecurityNumber": "000-00-0000",
+							"passportNumber": "X0000000",
+							"licenseNumber": "",
+							"website": "",
+							"xHandle": "",
+							"secondPhoneNumber": "",
+							"linkedin": "",
+							"reddit": "",
+							"facebook": "",
+							"yahoo": "",
+							"instagram": "",
+							"extraContactDetails": [
+								{
+									"fieldName": "Billing contact",
+									"type": "text",
+									"data": {
+										"content": "accounts@acme.test"
+									}
+								}
+							],
+							"company": "Acme Ltd",
+							"jobTitle": "Engineer",
+							"personalWebsite": "",
+							"workPhoneNumber": "",
+							"workEmail": "",
+							"extraWorkDetails": [],
+							"extraSections": []
+						}
 					}
 				}
 			]

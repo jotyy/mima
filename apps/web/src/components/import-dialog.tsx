@@ -465,17 +465,20 @@ function DropZone({
 	);
 }
 
-const kindNouns: Record<ItemKind, string> = {
-	login: "login",
-	note: "note",
-	"api-key": "API key",
-	"ssh-key": "SSH key",
+const kindNouns: Record<ItemKind, (n: number) => string> = {
+	login: (n) => plural(n, "login"),
+	note: (n) => plural(n, "note"),
+	"api-key": (n) => plural(n, "API key"),
+	"ssh-key": (n) => plural(n, "SSH key"),
+	card: (n) => plural(n, "payment card"),
+	identity: (n) => `${n} ${n === 1 ? "identity" : "identities"}`,
 };
 
 const leftoverText: Record<Leftover, (n: number) => string> = {
-	card: (n) => `${plural(n, "payment card")}: vauly doesn't store cards.`,
+	card: (n) =>
+		`${plural(n, "payment card")}: this kind of export leaves out their details. Export to JSON, or ZIP for Dashlane, to bring them.`,
 	identity: (n) =>
-		`${n} ${n === 1 ? "identity" : "identities"}: vauly doesn't store personal details.`,
+		`${n} ${n === 1 ? "identity" : "identities"}: this kind of export leaves out their details. Export to JSON, or ZIP for Dashlane, to bring them.`,
 	record: (n) =>
 		`${plural(n, "other record")}, like bank accounts and IDs: vauly doesn't store those.`,
 	alias: (n) =>
@@ -513,7 +516,7 @@ function Review({
 			count: fresh.filter((item) => item.kind === kind).length,
 		}))
 		.filter(({ count }) => count > 0)
-		.map(({ kind, count }) => plural(count, kindNouns[kind]));
+		.map(({ kind, count }) => kindNouns[kind](count));
 	const left = (Object.keys(leftoverText) as Leftover[]).flatMap((reason) => {
 		const count = parsed.left[reason] ?? 0;
 		return count > 0 ? [leftoverText[reason](count)] : [];

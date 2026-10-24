@@ -8,7 +8,7 @@ export const BRANDFETCH_CLIENT_ID = "1idzU4xXvIcwxy_dNwT";
 /** Where the logos load from, which the web app's Content-Security-Policy allows. */
 export const LOGO_ORIGIN = "https://cdn.brandfetch.io";
 
-type Kind = "login" | "api-key" | "note" | "ssh-key";
+type Kind = string;
 
 /** Well-known services, found by name for items without a website (API keys, mostly). */
 const brands: [RegExp, string][] = [
@@ -104,6 +104,8 @@ export function brandDomain(host: string) {
 
 /** The domain whose logo stands for an item, or null to keep the plain icon. */
 export function logoDomain(item: { kind: Kind; name: string; url?: string }) {
+	// Cards and identities are named by people, not services (see the web app's logos.ts).
+	if (item.kind === "card" || item.kind === "identity") return null;
 	if (item.url) {
 		const domain = brandDomain(hostOf(item.url));
 		if (domain) return domain;

@@ -165,9 +165,81 @@
 			"fields": [
 				{
 					"uid": 1,
+					"label": "Cardholder",
+					"type": "ccName",
+					"value": "Alex Example",
+					"sensitive": 0,
+					"deleted": 0
+				},
+				{
+					"uid": 2,
+					"label": "Type",
+					"type": "ccType",
+					"value": "Visa",
+					"sensitive": 0,
+					"deleted": 0
+				},
+				{
+					"uid": 3,
 					"label": "Number",
 					"type": "ccNumber",
-					"value": "4111111111111111",
+					"value": "4111 1111 1111 1111",
+					"sensitive": 0,
+					"deleted": 0
+				},
+				{
+					"uid": 4,
+					"label": "CVC",
+					"type": "ccCvc",
+					"value": "123",
+					"sensitive": 1,
+					"deleted": 0
+				},
+				{
+					"uid": 5,
+					"label": "PIN",
+					"type": "ccPin",
+					"value": "0000",
+					"sensitive": 1,
+					"deleted": 0
+				},
+				{
+					"uid": 6,
+					"label": "Expiry date",
+					"type": "ccExpiry",
+					"value": "06/30",
+					"sensitive": 0,
+					"deleted": 0
+				},
+				{
+					"uid": 7,
+					"label": "INTERNET BANKING",
+					"type": "section",
+					"value": "",
+					"sensitive": 0,
+					"deleted": 0
+				},
+				{
+					"uid": 8,
+					"label": "Username",
+					"type": "username",
+					"value": "alexample",
+					"sensitive": 0,
+					"deleted": 0
+				},
+				{
+					"uid": 9,
+					"label": "Login password",
+					"type": "password",
+					"value": "example-bank-pass",
+					"sensitive": 1,
+					"deleted": 0
+				},
+				{
+					"uid": 10,
+					"label": "Issuing bank",
+					"type": "ccBankname",
+					"value": "Example Bank",
 					"sensitive": 0,
 					"deleted": 0
 				}
@@ -188,6 +260,106 @@
 					"label": "Password",
 					"type": "password",
 					"value": "example-gone",
+					"sensitive": 1,
+					"deleted": 0
+				}
+			]
+		},
+		{
+			"uuid": "e9",
+			"title": "Alex Example",
+			"category": "identity",
+			"template_type": "identity.default",
+			"favorite": 0,
+			"archived": 0,
+			"trashed": 0,
+			"note": "",
+			"fields": [
+				{
+					"uid": 1,
+					"label": "First name",
+					"type": "text",
+					"value": "Alex",
+					"sensitive": 0,
+					"deleted": 0
+				},
+				{
+					"uid": 2,
+					"label": "Last name",
+					"type": "text",
+					"value": "Example",
+					"sensitive": 0,
+					"deleted": 0
+				},
+				{
+					"uid": 3,
+					"label": "Company",
+					"type": "text",
+					"value": "Acme Ltd",
+					"sensitive": 0,
+					"deleted": 0
+				},
+				{
+					"uid": 4,
+					"label": "Email",
+					"type": "email",
+					"value": "alex@example.test",
+					"sensitive": 0,
+					"deleted": 0
+				},
+				{
+					"uid": 5,
+					"label": "Phone",
+					"type": "phone",
+					"value": "555-0100",
+					"sensitive": 0,
+					"deleted": 0
+				},
+				{
+					"uid": 6,
+					"label": "Address",
+					"type": "text",
+					"value": "1 Example Street",
+					"sensitive": 0,
+					"deleted": 0
+				},
+				{
+					"uid": 7,
+					"label": "City",
+					"type": "text",
+					"value": "Springfield",
+					"sensitive": 0,
+					"deleted": 0
+				},
+				{
+					"uid": 8,
+					"label": "State",
+					"type": "text",
+					"value": "IL",
+					"sensitive": 0,
+					"deleted": 0
+				},
+				{
+					"uid": 9,
+					"label": "Zip",
+					"type": "text",
+					"value": "00000",
+					"sensitive": 0,
+					"deleted": 0
+				},
+				{
+					"uid": 10,
+					"label": "Country",
+					"type": "text",
+					"value": "US",
+					"sensitive": 0,
+					"deleted": 0
+				},
+				{
+					"uid": 11,
+					"label": "Passport number",
+					"type": "text",
+					"value": "X0000000",
 					"sensitive": 1,
 					"deleted": 0
 				}

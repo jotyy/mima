@@ -18,9 +18,9 @@ const wrapped = z.string().min(20).max(1_000);
 const KEEP_DELETED_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
- * What a device may say it revealed, copied or filled: one of the fields every item has,
- * or a custom field by its random ID. Never a custom field's label, which is part of the
- * item and stays encrypted; the activity log looks it up on the device.
+ * What a device may say it revealed, copied or filled: one of the fields an item of its
+ * kind has, or a custom field by its random ID. Never a custom field's label, which is
+ * part of the item and stays encrypted; the activity log looks it up on the device.
  */
 const loggedField = z.union([
 	z.enum([
@@ -33,6 +33,20 @@ const loggedField = z.union([
 		"earlier value",
 		"earlier private key",
 		"field",
+		// Cards and identities.
+		"card",
+		"cardholder",
+		"card number",
+		"expiry",
+		"security code",
+		"PIN",
+		"name",
+		"company",
+		"email",
+		"phone",
+		"address",
+		"tax number",
+		"registration number",
 	]),
 	z.string().regex(/^field:[a-z0-9]{8}$/),
 ]);

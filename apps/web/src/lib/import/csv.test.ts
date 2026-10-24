@@ -332,9 +332,57 @@ test("a vauly backup imports back to the same items", () => {
 			name: "Door codes",
 			notes: "Front: example-0000",
 		},
+		{
+			vault: "Engineering",
+			kind: "card",
+			name: "Company Visa",
+			card: {
+				cardholder: "Alex Example",
+				number: "4111111111111111",
+				expiry: "06/2030",
+				code: "123",
+				pin: "0000",
+			},
+			fields: [{ label: "Issuing bank", value: "Example Bank" }],
+		},
+		{
+			vault: "Engineering",
+			kind: "identity",
+			name: "Acme Ltd",
+			identity: {
+				company: "Acme Ltd",
+				email: "billing@acme.test",
+				address: "1 Example Street\nUnit 2",
+				city: "Springfield",
+				postalCode: "00000",
+				country: "US",
+				taxNumber: "00-0000000",
+			},
+		},
 	];
-	const result = parseImport(toBackupCsv(items));
+	const csv = toBackupCsv(items);
+	// Other apps get a card as a note with its details among the fields.
+	expect(csv).toContain("Number: 4111111111111111");
+	const result = parseImport(csv);
 	expect(result.source).toBe("vauly");
 	expect(result.left).toEqual({});
 	expect(result.items).toEqual(items.map(({ vault: _, ...fields }) => fields));
+});
+
+test("a backup's card details that aren't text are left out", () => {
+	const csv = toBackupCsv([
+		{
+			vault: "Private",
+			kind: "card",
+			name: "Odd card",
+			card: { cardholder: "Alex" },
+		},
+	]).replace(
+		'{""cardholder"":""Alex""}',
+		'{""number"":4111,""cardholder"":""Alex"",""code"":null}',
+	);
+	expect(csv).toContain('""number"":4111');
+	const [item] = parseImport(csv).items;
+	expect(item).toMatchObject({ kind: "card", card: { cardholder: "Alex" } });
+	expect(item?.card).toEqual({ cardholder: "Alex" });
 });
