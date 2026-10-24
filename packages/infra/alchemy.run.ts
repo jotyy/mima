@@ -28,8 +28,12 @@ export const server = Cloudflare.Worker("server", {
 				: Config.String("CORS_ORIGIN"),
 		BETTER_AUTH_SECRET: Config.Redacted("BETTER_AUTH_SECRET"),
 		BETTER_AUTH_URL: Cloudflare.Worker.URL,
-		// Only the e2e stack sets this; without it the reset route does not exist.
-		E2E_RESET_TOKEN: process.env.VAULY_E2E_RESET_TOKEN ?? "",
+		// Only the e2e stack sets this; without it the reset route does not exist. Only a
+		// local stack (`bun run dev`) takes it, so a deploy never carries the reset route,
+		// whatever the deployer's shell holds.
+		E2E_RESET_TOKEN: process.env.VAULY_LOCAL_STATE
+			? (process.env.VAULY_E2E_RESET_TOKEN ?? "")
+			: "",
 		// When set, creating the workspace needs the setup link with this code.
 		SETUP_CODE: process.env.VAULY_SETUP_CODE ?? "",
 		// Only the demo at demo.vauly.app sets this: it holds the routes that save and
