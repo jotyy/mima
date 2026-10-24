@@ -7,6 +7,7 @@ import { parseKeePassXml } from "./keepass";
 import { ImportError, LockedExport, type ParsedImport } from "./parsed";
 import {
 	type Argon2Lanes,
+	checkBitwardenExport,
 	isBitwardenProtected,
 	openBitwardenExport,
 	openProtonPass,
@@ -69,6 +70,8 @@ export function parseImport(text: string): ParsedImport {
 			isBitwardenProtected(data as Record<string, unknown>)
 		) {
 			const root = data as Record<string, unknown>;
+			// A file vauly won't open is refused now, not after its password.
+			checkBitwardenExport(root);
 			throw new LockedExport(
 				"Bitwarden",
 				async (password, argon2 = keyWorker) =>

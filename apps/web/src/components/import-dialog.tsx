@@ -23,7 +23,7 @@ import {
 	SelectValue,
 } from "@vauly/ui/components/select";
 import { cn } from "@vauly/ui/lib/utils";
-import { type DragEvent, useEffect, useId, useState } from "react";
+import { type DragEvent, useEffect, useId, useRef, useState } from "react";
 import { KeyDerivationError } from "@/lib/argon2";
 import { fileSize, uploadFile } from "@/lib/files";
 import { plural } from "@/lib/format";
@@ -105,15 +105,19 @@ export function ImportDialog({
 		writable[0]?.id ??
 		"";
 	const [vaultId, setVaultId] = useState(fallbackVault);
+	// Opening a protected file takes a while; whatever happens in between wins over it.
+	const attempt = useRef(0);
 
 	useEffect(() => {
 		if (open) {
+			attempt.current++;
 			setStep({ name: "apps" });
 			setVaultId(fallbackVault);
 		}
 	}, [open, fallbackVault]);
 
 	const read = async (file: File, app?: ImportApp) => {
+		attempt.current++;
 		const fail = (error: string) =>
 			setStep(app ? { name: "export", app, error } : { name: "apps", error });
 		try {
@@ -139,8 +143,10 @@ export function ImportDialog({
 		step: Extract<Step, { name: "unlock" }>,
 		password: string,
 	) => {
+		const mine = ++attempt.current;
 		try {
 			const parsed = await step.locked.open(password);
+			if (mine !== attempt.current) return;
 			if (parsed.items.length === 0) {
 				return setStep({
 					...step,
@@ -149,14 +155,13 @@ export function ImportDialog({
 			}
 			setStep({ name: "review", app: step.app, file: step.file, parsed });
 		} catch (err) {
+			if (mine !== attempt.current) return;
 			setStep({
 				...step,
 				error:
-					err instanceof KeyDerivationError && err.reason === "memory"
-						? "Opening this file takes more memory than this device has free. Close other tabs or apps and try again, or open it on a computer."
-						: err instanceof WrongPasswordError ||
-								err instanceof ImportError ||
-								err instanceof KeyDerivationError
+					err instanceof KeyDerivationError
+						? openingFailures[err.reason]
+						: err instanceof WrongPasswordError || err instanceof ImportError
 							? err.message
 							: "That file couldn't be opened. Export it again and choose the new file.",
 			});
@@ -293,11 +298,12 @@ export function ImportDialog({
 						key={step.file}
 						step={step}
 						onUnlock={(password) => unlock(step, password)}
-						onBack={() =>
+						onBack={() => {
+							attempt.current++;
 							setStep(
 								step.app ? { name: "export", app: step.app } : { name: "apps" },
-							)
-						}
+							);
+						}}
 					/>
 				)}
 
@@ -383,6 +389,19 @@ export function ImportDialog({
 	);
 }
 
+/** Why the file's key couldn't be derived on this device, for an import. */
+const openingFailures: Record<KeyDerivationError["reason"], string> = {
+	memory:
+		"Opening this file takes more memory than this device has free. Close other tabs or apps and try again, or open it on a computer.",
+	timeout:
+		"Opening this file took too long on this device. Try again, or open it on a computer.",
+	blocked:
+		"This browser stopped the code that opens the file from running. A browser extension or a network filter may be changing vauly's security settings.",
+	load: "vauly couldn't load the code that opens the file. Reload the page, then try again.",
+	failed:
+		"vauly couldn't open the file on this device. Try again, or open it on a computer.",
+};
+
 /** The password a protected export was made with, asked for until it opens the file. */
 function Unlock({
 	step,
@@ -428,7 +447,7 @@ function Unlock({
 				</p>
 			)}
 			<DialogFooter>
-				<Button type="button" variant="ghost" onClick={onBack}>
+				<Button type="button" variant="ghost" disabled={busy} onClick={onBack}>
 					Choose another file
 				</Button>
 				<Button type="submit" disabled={!password || busy}>

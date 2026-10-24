@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { argon2idLanes } from "@vauly/crypto/argon2-lanes";
 import { zipSync } from "fflate";
+import * as openpgp from "openpgp";
 
 import { fixture, fixtureText } from "./fixtures";
 import { PASSWORD } from "./fixtures/make-protected";
@@ -55,7 +56,7 @@ describe("Bitwarden's password-protected export", () => {
 		});
 	}
 
-	test("refuses key settings Bitwarden itself doesn't use, before deriving", async () => {
+	test("refuses key settings Bitwarden itself doesn't use, before asking for the password", () => {
 		const argon2 = JSON.parse(fixtureText("bitwarden-protected-argon2id.json"));
 		const pbkdf2 = JSON.parse(fixtureText("bitwarden-protected-pbkdf2.json"));
 		for (const file of [
@@ -68,23 +69,29 @@ describe("Bitwarden's password-protected export", () => {
 			{ ...pbkdf2, kdfIterations: 2_000_001 },
 			{ ...pbkdf2, kdfIterations: 600_000.5 },
 			{ ...pbkdf2, kdfType: 2 },
-		]) {
-			let derived = false;
-			await expect(
-				(async () => {
-					try {
-						readImport(new TextEncoder().encode(JSON.stringify(file)));
-					} catch (error) {
-						if (!(error instanceof LockedExport)) throw error;
-						await error.open(PASSWORD, async () => {
-							derived = true;
-							return new Uint8Array(32);
-						});
-					}
-				})(),
-			).rejects.toThrow("key settings Bitwarden itself doesn't use");
-			expect(derived).toBe(false);
-		}
+		])
+			expect(() =>
+				readImport(new TextEncoder().encode(JSON.stringify(file))),
+			).toThrow("key settings Bitwarden itself doesn't use");
+	});
+
+	test("refuses a file whose salt or encrypted parts aren't Bitwarden's, before asking", () => {
+		const file = JSON.parse(fixtureText("bitwarden-protected-pbkdf2.json"));
+		for (const broken of [
+			{ ...file, salt: "" },
+			{ ...file, salt: "x".repeat(65) },
+			{ ...file, data: "0.not|an|encstring" },
+			{ ...file, encKeyValidation_DO_NOT_EDIT: "2.only|two" },
+		])
+			expect(() =>
+				readImport(new TextEncoder().encode(JSON.stringify(broken))),
+			).toThrow("isn't one vauly can read");
+	});
+
+	test("a password of only spaces is a wrong one", async () => {
+		await expect(
+			unlock(fixture("bitwarden-protected-pbkdf2.json"), "   "),
+		).rejects.toBeInstanceOf(WrongPasswordError);
 	});
 
 	test("refuses a file changed after it was exported", async () => {
@@ -138,6 +145,37 @@ describe("Proton Pass's PGP-encrypted export", () => {
 			PASSWORD,
 		);
 		expect(parsed.items).toEqual(plain());
+	});
+
+	test("anything but one passphrase with an iterated S2K is refused, before it's tried", async () => {
+		const data = new TextEncoder().encode('{"vaults":{}}');
+		const encrypted = async (
+			options: Partial<Parameters<typeof openpgp.encrypt>[0]>,
+		) =>
+			openpgp.encrypt({
+				message: await openpgp.createMessage({ binary: data }),
+				format: "armored",
+				...options,
+			} as Parameters<typeof openpgp.encrypt>[0]);
+		for (const file of [
+			// Two passphrases: OpenPGP.js would hash for both at once.
+			await encrypted({ passwords: [PASSWORD, "another one"] }),
+			// Argon2 instead of Proton's iterated S2K.
+			await encrypted({
+				passwords: [PASSWORD],
+				config: { s2kType: openpgp.enums.s2k.argon2 },
+			}),
+		]) {
+			await expect(
+				unlock(new TextEncoder().encode(String(file)), PASSWORD),
+			).rejects.toThrow("isn't a Proton Pass export vauly can open");
+		}
+	});
+
+	test("a passphrase of only spaces is a wrong one", async () => {
+		await expect(
+			unlock(fixture("proton-pass-data.pgp"), "  "),
+		).rejects.toBeInstanceOf(WrongPasswordError);
 	});
 
 	test("a wrong passphrase says so", async () => {

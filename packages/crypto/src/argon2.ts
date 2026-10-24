@@ -27,6 +27,15 @@ export const argon2id: Argon2 = async (password, salt, passes, memory) => {
 export function argon2Failure(error: unknown): "memory" | "blocked" | "failed" {
 	const message = error instanceof Error ? error.message : String(error);
 	if (/CompileError|WebAssembly|wasm/i.test(message)) return "blocked";
-	if (/invalid usage|memory|enlarge|RangeError/i.test(message)) return "memory";
+	// hash-wasm doesn't check that its memory grew: running out shows up later, as a
+	// RangeError ("Invalid typed array length" in V8, "Length out of range of buffer" in
+	// JavaScriptCore).
+	if (
+		(error instanceof Error && error.name === "RangeError") ||
+		/invalid usage|memory|enlarge|RangeError|out of range|typed array length/i.test(
+			message,
+		)
+	)
+		return "memory";
 	return "failed";
 }

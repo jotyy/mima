@@ -143,35 +143,42 @@ async function bitwardenKey(
 			),
 		);
 	}
+	secret.fill(0);
 	const [encryption, mac] = await Promise.all([
 		expand(material, "enc"),
 		expand(material, "mac"),
 	]);
 	material.fill(0);
-	return {
+	const key = {
 		encryption: await crypto.subtle.importKey(
 			"raw",
 			encryption,
 			"AES-CBC",
 			false,
-			["decrypt", "encrypt"],
+			["decrypt"],
 		),
 		mac: await crypto.subtle.importKey(
 			"raw",
 			mac,
 			{ name: "HMAC", hash: "SHA-256" },
 			false,
-			["sign", "verify"],
+			["verify"],
 		),
 	};
+	encryption.fill(0);
+	mac.fill(0);
+	return key;
 }
 
+/** An EncString of type 2, "2.<iv>|<ciphertext>|<mac>", all base64. */
+const ENC_STRING = /^2\.([\w+/=]+)\|([\w+/=]+)\|([\w+/=]+)$/;
+
 /**
- * An EncString of type 2, "2.<iv>|<ciphertext>|<mac>": AES-256-CBC, and HMAC-SHA256 of
- * iv ‖ ciphertext, which is checked first. Null when the MAC doesn't match.
+ * An EncString of type 2: AES-256-CBC, and HMAC-SHA256 of iv ‖ ciphertext, which is
+ * checked first. Null when the MAC doesn't match.
  */
 async function decryptEncString(value: unknown, key: ExportKey) {
-	const parts = /^2\.([\w+/=]+)\|([\w+/=]+)\|([\w+/=]+)$/.exec(String(value));
+	const parts = ENC_STRING.exec(String(value));
 	if (!parts)
 		throw new ImportError("That Bitwarden file isn't one vauly can read.");
 	const [iv, data, mac] = [parts[1], parts[2], parts[3]].map((part) =>
@@ -188,21 +195,38 @@ async function decryptEncString(value: unknown, key: ExportKey) {
 	);
 }
 
+/**
+ * The KDF of a password-protected export that vauly will open, checked before anyone is
+ * asked for its password: settings Bitwarden's own import takes, a salt, and two
+ * EncStrings of type 2.
+ */
+export function checkBitwardenExport(root: Record<string, unknown>) {
+	const kdf = bitwardenKdf(root);
+	if (!kdf)
+		throw new ImportError(
+			"That Bitwarden export asks for key settings Bitwarden itself doesn't use, so vauly won't open it.",
+		);
+	if (
+		typeof root.salt !== "string" ||
+		!root.salt ||
+		root.salt.length > 64 ||
+		!ENC_STRING.test(String(root.encKeyValidation_DO_NOT_EDIT)) ||
+		!ENC_STRING.test(String(root.data))
+	)
+		throw new ImportError("That Bitwarden file isn't one vauly can read.");
+	return { kdf, salt: root.salt };
+}
+
 /** The plain Bitwarden JSON inside a password-protected export. */
 export async function openBitwardenExport(
 	root: Record<string, unknown>,
 	password: string,
 	argon2: Argon2Lanes,
 ) {
-	const kdf = bitwardenKdf(root);
-	if (!kdf)
-		throw new ImportError(
-			"That Bitwarden export asks for key settings Bitwarden itself doesn't use, so vauly won't open it.",
-		);
-	if (typeof root.salt !== "string" || !root.salt)
-		throw new ImportError("That Bitwarden file isn't one vauly can read.");
-	if (!password) throw new WrongPasswordError();
-	const key = await bitwardenKey(password, root.salt, kdf, argon2);
+	const { kdf, salt } = checkBitwardenExport(root);
+	// Bitwarden refuses a password of only spaces too.
+	if (!password.trim()) throw new WrongPasswordError();
+	const key = await bitwardenKey(password, salt, kdf, argon2);
 	if (!(await decryptEncString(root.encKeyValidation_DO_NOT_EDIT, key)))
 		throw new WrongPasswordError();
 	const data = await decryptEncString(root.data, key);
@@ -217,7 +241,17 @@ export async function openBitwardenExport(
 // Symmetric OpenPGP, as encryptPassExport makes it in ProtonMail/WebClients
 // (packages/pass/lib/crypto/utils/export.ts). OpenPGP.js is loaded only for these files.
 
-/** What a Proton Pass .pgp holds: its data.json, or, from older exports, the whole ZIP. */
+const NOT_PROTON = "That isn't a Proton Pass export vauly can open.";
+
+/** What an export may unpack to: far more than any vault, far less than a tab can hold. */
+const MAX_PROTON_SIZE = 256 * 1024 * 1024;
+
+/**
+ * What a Proton Pass .pgp holds: its data.json, or, from older exports, the whole ZIP.
+ * Proton encrypts to one passphrase, with one iterated and salted S2K. Anything else is
+ * refused before the passphrase is tried: OpenPGP.js would try every passphrase packet
+ * at once, each as much hashing as the file asks for, on the page's thread.
+ */
 export async function openProtonPass(armored: string, password: string) {
 	const openpgp = await import("openpgp");
 	let message: Awaited<ReturnType<typeof openpgp.readMessage>>;
@@ -226,12 +260,23 @@ export async function openProtonPass(armored: string, password: string) {
 	} catch {
 		throw new ImportError("That PGP file couldn't be read.");
 	}
-	if (!password) throw new WrongPasswordError();
+	const { symEncryptedSessionKey, publicKeyEncryptedSessionKey } =
+		openpgp.enums.packet;
+	const passphrases = message.packets.filterByTag(symEncryptedSessionKey);
+	const s2k = (passphrases[0] as unknown as { s2k?: { type?: string } })?.s2k;
+	if (
+		passphrases.length !== 1 ||
+		message.packets.filterByTag(publicKeyEncryptedSessionKey).length > 0 ||
+		s2k?.type !== "iterated"
+	)
+		throw new ImportError(NOT_PROTON);
+	if (!password.trim()) throw new WrongPasswordError();
 	try {
 		const { data } = await openpgp.decrypt({
 			message,
 			passwords: [password],
 			format: "binary",
+			config: { maxDecompressedMessageSize: MAX_PROTON_SIZE },
 		});
 		return data as Uint8Array;
 	} catch {

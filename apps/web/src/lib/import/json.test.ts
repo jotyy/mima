@@ -207,9 +207,7 @@ describe("Bitwarden JSON", () => {
 
 	test("a password-protected export asks for its password", () => {
 		expect(() =>
-			parseImport(
-				'{"encrypted":true,"passwordProtected":true,"salt":"x","data":"2.x|y|z"}',
-			),
+			parseImport(fixtureText("bitwarden-protected-pbkdf2.json")),
 		).toThrow(LockedExport);
 	});
 });

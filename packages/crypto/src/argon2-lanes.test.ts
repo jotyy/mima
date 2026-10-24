@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { argon2id } from "./argon2";
+import { argon2Failure, argon2id } from "./argon2";
 import { argon2idLanes } from "./argon2-lanes";
 
 // Two implementations of one function: with a single lane, hash-wasm must give exactly
@@ -31,5 +31,22 @@ describe("argon2idLanes", () => {
 		expect(Buffer.from(four).toString("hex")).not.toBe(
 			Buffer.from(one).toString("hex"),
 		);
+	});
+});
+
+describe("argon2Failure", () => {
+	test("running out of memory reads as memory, however the engine words it", () => {
+		expect(
+			argon2Failure(new RangeError("Invalid typed array length: 4294967296")),
+		).toBe("memory");
+		expect(argon2Failure(new RangeError("Length out of range of buffer"))).toBe(
+			"memory",
+		);
+		expect(
+			argon2Failure(
+				new Error("CompileError: WebAssembly.instantiate(): Refused"),
+			),
+		).toBe("blocked");
+		expect(argon2Failure(new Error("something else"))).toBe("failed");
 	});
 });

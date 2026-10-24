@@ -50,6 +50,9 @@ Every master password goes through Argon2id: 64 MiB of memory, three passes and 
     - The MAC is checked before anything is decrypted.
     - The file sets the work, so vauly refuses what Bitwarden's own import refuses: PBKDF2 outside 5,000–2,000,000 rounds, or Argon2id outside 2–10 passes, 16–1024 MiB and 1–16 lanes.
   - **Proton Pass.** The file is symmetric OpenPGP with an iterated and salted S2K. vauly decrypts it with OpenPGP.js, which loads only for these files.
+    - It takes only what Proton makes: one passphrase packet, with that S2K, and no packet for a key.
+    - Anything else is refused before the passphrase is tried. OpenPGP.js would hash for every passphrase packet at once, as much as each asks, on the page's thread.
+    - The file may unpack to at most 256 MiB.
 
 ## Formats
 
