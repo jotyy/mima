@@ -81,7 +81,6 @@ Commit the migration together with the code that needs it. Never edit a migratio
 - Make sure the checks above pass.
 
 How a change lands, for maintainers too:
-
 - Each change starts from an issue. Say on the issue that you're taking it.
 - Work on a short-lived branch and open a pull request that says `Closes #<issue>`.
 - Once **CI passed** is green, the pull request is squash-merged into `main`. Changes to the cryptography, sign-in or access rules get a security review first.
