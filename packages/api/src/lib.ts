@@ -1,13 +1,14 @@
 import { ORPCError } from "@orpc/server";
 import type { Database } from "@vauly/db";
 import {
+	agent,
 	type EventAction,
 	event,
 	item,
 	type VaultRole,
 	vaultAccess,
 } from "@vauly/db/schema/vault";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, notInArray } from "drizzle-orm";
 
 const alphabet = "0123456789abcdefghjkmnpqrstvwxyz";
 
@@ -116,6 +117,46 @@ export async function accessibleItemIds(
 			),
 		);
 	return rows.map((row) => row.id);
+}
+
+/**
+ * The agents whose owners can't open `vaultId`. An agent acts for the person who made it,
+ * so it may only use items in vaults they can open.
+ */
+export const agentsOutside = (db: Database, vaultId: string) =>
+	db
+		.select({ id: agent.id })
+		.from(agent)
+		.where(
+			notInArray(
+				agent.ownerId,
+				db
+					.select({ userId: vaultAccess.userId })
+					.from(vaultAccess)
+					.where(eq(vaultAccess.vaultId, vaultId)),
+			),
+		);
+
+/** Refuses an agent for a vault its owner can't open. */
+export async function requireAgentFor(
+	db: Database,
+	found: { name: string; ownerId: string },
+	vaultId: string,
+) {
+	const [access] = await db
+		.select({ userId: vaultAccess.userId })
+		.from(vaultAccess)
+		.where(
+			and(
+				eq(vaultAccess.vaultId, vaultId),
+				eq(vaultAccess.userId, found.ownerId),
+			),
+		);
+	if (!access) {
+		throw new ORPCError("FORBIDDEN", {
+			message: `${found.name} acts for someone who can't open this vault, so it can't use its items.`,
+		});
+	}
 }
 
 export function logEvent(

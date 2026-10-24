@@ -80,4 +80,9 @@ export const migrations: readonly {
 		hash: "9c9b382edd77afdaa021095ceb54def732c8af8d23cfe24d69b9578afb0703f6",
 		sql: "ALTER TABLE `agent_grant` ADD `files_through` integer;",
 	},
+	{
+		name: "20261024071006_agents_outside_vault",
+		hash: "5b421a789c3c6519bf691f701c2c983eb18a1416d8d203d2674a9a4e022c017a",
+		sql: "-- An agent acts for the person who made it, so it may only use items in vaults they can\n-- open. Moving an item didn't re-check that before, so grants and open requests of agents\n-- whose owner can't open the item's vault are deleted.\nDELETE FROM `agent_grant` WHERE NOT EXISTS (\n\tSELECT 1 FROM `agent`\n\tJOIN `item` ON `item`.`id` = `agent_grant`.`item_id`\n\tJOIN `vault_access` ON `vault_access`.`vault_id` = `item`.`vault_id` AND `vault_access`.`user_id` = `agent`.`owner_id`\n\tWHERE `agent`.`id` = `agent_grant`.`agent_id`\n);--> statement-breakpoint\nDELETE FROM `access_request` WHERE `status` = 'pending' AND NOT EXISTS (\n\tSELECT 1 FROM `agent`\n\tJOIN `item` ON `item`.`id` = `access_request`.`item_id`\n\tJOIN `vault_access` ON `vault_access`.`vault_id` = `item`.`vault_id` AND `vault_access`.`user_id` = `agent`.`owner_id`\n\tWHERE `agent`.`id` = `access_request`.`agent_id`\n);\n",
+	},
 ];

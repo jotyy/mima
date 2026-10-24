@@ -1,10 +1,16 @@
 import { ORPCError } from "@orpc/server";
-import { favorite, item } from "@vauly/db/schema/vault";
+import {
+	accessRequest,
+	agentGrant,
+	favorite,
+	item,
+} from "@vauly/db/schema/vault";
 import { and, eq, inArray, lt } from "drizzle-orm";
 import { z } from "zod";
 
 import { memberProcedure } from "../index";
 import {
+	agentsOutside,
 	logEvent,
 	myVaultIds,
 	newId,
@@ -187,6 +193,22 @@ export const itemsRouter = {
 					throw new ORPCError("BAD_REQUEST", { message: "Missing key" });
 				await requireVaultAccess(db, userId, input.vaultId as string, "edit");
 			}
+			// Agents act for the people who made them: one whose owner can't open the vault
+			// the item moves to loses it, and its open request for it, whoever approved it.
+			const outsiders = moving
+				? agentsOutside(db, input.vaultId as string)
+				: undefined;
+			const dropped = outsiders
+				? await db
+						.select({ agentId: agentGrant.agentId })
+						.from(agentGrant)
+						.where(
+							and(
+								eq(agentGrant.itemId, input.id),
+								inArray(agentGrant.agentId, outsiders),
+							),
+						)
+				: [];
 			await db.batch([
 				db
 					.update(item)
@@ -207,6 +229,37 @@ export const itemsRouter = {
 					itemId: input.id,
 					vaultId: moving ? input.vaultId : current.vaultId,
 				}),
+				...(outsiders
+					? [
+							db
+								.delete(agentGrant)
+								.where(
+									and(
+										eq(agentGrant.itemId, input.id),
+										inArray(agentGrant.agentId, outsiders),
+									),
+								),
+							db
+								.delete(accessRequest)
+								.where(
+									and(
+										eq(accessRequest.itemId, input.id),
+										eq(accessRequest.status, "pending"),
+										inArray(accessRequest.agentId, outsiders),
+									),
+								),
+							...dropped.map((grant) =>
+								logEvent(db, {
+									actorType: "member",
+									actorId: userId,
+									action: "revoked",
+									itemId: input.id,
+									vaultId: input.vaultId,
+									subjectId: grant.agentId,
+								}),
+							),
+						]
+					: []),
 			]);
 			return { revision: current.revision + 1 };
 		}),

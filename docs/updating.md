@@ -67,6 +67,8 @@ A copy on 0.1.0 then moves to the latest release. A copy that already took main 
 3. **Update the CLI** to use file references (`vauly://…/files/<name>`). An older one doesn't know them.
 4. **Going back to 0.1.0** after someone attached files: 0.1.0 doesn't show them. They stay in the database, and go when their items are deleted for good.
 
+**Agents:** nothing to do. A migration takes from agents any item in a vault the person they act for can't open, along with open requests for it; an item moved there before this update could still be listed with the agent.
+
 ### Copies deployed before October 24, 2026
 
 This update brings the import from other password managers, passkeys, vault roles, Argon2id and more. Four things to know:
