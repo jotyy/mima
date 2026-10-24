@@ -1,9 +1,23 @@
-import { describe, expect, test } from "bun:test";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { describe, expect, spyOn, test } from "bun:test";
+import { ChildProcess, spawnSync } from "node:child_process";
+import {
+	chmodSync,
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readdirSync,
+	readFileSync,
+	rmSync,
+	statSync,
+	symlinkSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import {
 	capture,
+	clearStaleFolders,
 	type ItemFields,
 	prepareEnv,
 	safeFileName,
@@ -76,6 +90,11 @@ describe("files", () => {
 		expect(path.endsWith("/server.p12")).toBe(true);
 		expect([...readFileSync(path)]).toEqual([1, 2, 3]);
 		expect(statSync(path).mode & 0o777).toBe(0o600);
+		// The folder names the process it's for, so a sweep leaves it while that runs.
+		const folder = join(path, "..", "..");
+		expect(readFileSync(join(folder, "owner.pid"), "utf8")).toBe(
+			String(process.pid),
+		);
 		const { env } = withValues(
 			{ CERT: "vauly://itm_abc123/files/server.p12" },
 			refs,
@@ -145,6 +164,71 @@ describe("files on disk", () => {
 		expect(ours()).toEqual(before);
 	});
 
+	describe("a later run's sweep", () => {
+		const day = 24 * 60 * 60 * 1000;
+		// Every folder here looks two days old to the sweep.
+		const later = () => Date.now() + 2 * day;
+		const folder = (root: string, name: string, owner?: number) => {
+			const path = join(root, name);
+			mkdirSync(join(path, "0"), { recursive: true });
+			writeFileSync(join(path, "0", "server.p12"), "example");
+			if (owner !== undefined)
+				writeFileSync(join(path, "owner.pid"), `${owner}`);
+			return path;
+		};
+		const scratch = () => mkdtempSync(join(tmpdir(), "sweep-test-"));
+		// A process that has come and gone.
+		const ended = () => spawnSync("true").pid;
+
+		test("clears old folders whose process has ended, and only ours", () => {
+			const root = scratch();
+			const stale = folder(root, "vauly-stale", ended());
+			const unowned = folder(root, "vauly-unowned");
+			const fresh = folder(root, "vauly-fresh", ended());
+			const other = folder(root, "other-stale", ended());
+			clearStaleFolders(Date.now(), root);
+			expect(existsSync(fresh)).toBe(true);
+			clearStaleFolders(later(), root);
+			expect(existsSync(stale)).toBe(false);
+			expect(existsSync(unowned)).toBe(false);
+			expect(existsSync(other)).toBe(true);
+			rmSync(root, { recursive: true });
+		});
+
+		test("keeps a folder while the process that wrote it runs, however old", () => {
+			const root = scratch();
+			const running = folder(root, "vauly-running", process.pid);
+			clearStaleFolders(later(), root);
+			expect(existsSync(join(running, "0", "server.p12"))).toBe(true);
+			rmSync(root, { recursive: true });
+		});
+
+		test("never follows a link, or takes a file for a folder", () => {
+			const root = scratch();
+			const target = folder(root, "elsewhere");
+			symlinkSync(target, join(root, "vauly-link"));
+			writeFileSync(join(root, "vauly-file"), "not a folder");
+			clearStaleFolders(later(), root);
+			expect(existsSync(join(target, "0", "server.p12"))).toBe(true);
+			expect(existsSync(join(root, "vauly-link"))).toBe(true);
+			expect(existsSync(join(root, "vauly-file"))).toBe(true);
+			rmSync(root, { recursive: true });
+		});
+
+		test("one it can't remove doesn't stop the rest", () => {
+			const root = scratch();
+			const names = ["vauly-a", "vauly-b", "vauly-c"];
+			for (const name of names) folder(root, name, ended());
+			// Can't be listed, so can't be emptied: removing it fails.
+			const locked = join(root, "vauly-b");
+			chmodSync(locked, 0o000);
+			clearStaleFolders(later(), root);
+			chmodSync(locked, 0o700);
+			expect(readdirSync(root)).toEqual(["vauly-b"]);
+			rmSync(root, { recursive: true });
+		});
+	});
+
 	test("hostile names can't become paths, streams or devices", () => {
 		expect(safeFileName("../../etc/passwd")).toBe("__.._etc_passwd");
 		expect(safeFileName("a:b.txt")).toBe("a_b.txt");
@@ -179,6 +263,19 @@ describe("capture", () => {
 		});
 		expect(result.timedOut).toBe(true);
 		expect(exited).toBe(true);
+	});
+
+	test("a command gone by the time it would be killed isn't sent a kill", async () => {
+		const kill = spyOn(ChildProcess.prototype, "kill");
+		try {
+			// Stops when asked, but a child of its own holds the output open past the grace.
+			const result = await run("trap 'exit 0' TERM; sleep 30 & wait", 200);
+			expect(result.timedOut).toBe(true);
+			// Its PID may belong to another process by then.
+			expect(kill.mock.calls).toEqual([["SIGTERM"]]);
+		} finally {
+			kill.mockRestore();
+		}
 	});
 
 	test("a child left holding the output doesn't keep it waiting", async () => {
