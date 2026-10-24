@@ -8,10 +8,10 @@ import {
 	type Config,
 	call,
 	capture,
+	cleanUpOnExit,
 	config,
+	prepareEnv,
 	resolveAll,
-	withValues,
-	writeFiles,
 } from "./agent";
 import {
 	findReferences,
@@ -290,9 +290,8 @@ async function runWithSecrets(context: Context, args: Record<string, unknown>) {
 					},
 				},
 			);
-			const written = writeFiles(refs, values);
-			cleanup = written.cleanup;
-			({ env: filled, secrets } = withValues(env, refs, values, written.paths));
+			// The files are gone before this throws, and when the command ends below.
+			({ env: filled, secrets, cleanup } = prepareEnv(env, refs, values));
 		} catch (error) {
 			if (error instanceof ApprovalPending) {
 				return text(
@@ -455,6 +454,8 @@ export async function handle(
 
 /** Reads JSON-RPC messages, one per line, from stdin and writes answers to stdout. */
 export async function serve() {
+	// Files a run wrote go if the agent's client stops the server mid-run.
+	cleanUpOnExit();
 	const context: Context = {
 		cwd: process.cwd(),
 		env: process.env,

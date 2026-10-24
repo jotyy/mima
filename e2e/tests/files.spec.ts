@@ -205,6 +205,158 @@ test("someone who can view downloads files but can't add or remove them", async 
 	expect(upload).toContain("not change it");
 });
 
+/** An API call's JSON answer, from a page signed in as someone. */
+async function call(page: Page, path: string, json: unknown = null) {
+	return JSON.parse(await apiFromPage(page, path, json)) as {
+		json: unknown;
+	} & Record<string, unknown>;
+}
+
+/** A sealed chunk's length for a 3-byte file: 3 bytes and the tag, in base64. */
+const smallChunk = "A".repeat(28);
+
+test("only the uploader adds to an upload; viewers and other editors get nowhere", async ({
+	page,
+	browser,
+}) => {
+	await signIn(page, owner);
+	// Names are encrypted, so the item is found by its files.
+	const { json: files } = (await call(page, "files/list")) as {
+		json: { id: string; itemId: string }[];
+	};
+	const { json: items } = (await call(page, "items/list")) as {
+		json: { id: string; vaultId: string }[];
+	};
+	const item = items.find((row) => row.id === files[0]?.itemId);
+	const { json: started } = (await call(page, "files/create", {
+		itemId: item?.id,
+		size: 3,
+		chunks: 1,
+	})) as { json: { id: string } };
+	const vaults = (await call(page, "vaults/list")).json as {
+		id: string;
+		members: { userId: string; name: string }[];
+	}[];
+	const engineering = vaults.find((vault) => vault.id === item?.vaultId);
+	const mei = engineering?.members.find((m) => m.name === teammate.name);
+
+	const other = await (await browser.newContext()).newPage();
+	await signIn(other, teammate);
+	const tries = (finished = true) =>
+		Promise.all([
+			apiFromPage(other, "files/put", {
+				id: started.id,
+				index: 0,
+				data: smallChunk,
+			}),
+			apiFromPage(other, "files/finish", {
+				id: started.id,
+				meta: "x".repeat(40),
+			}),
+			apiFromPage(other, "files/cancel", { id: started.id }),
+			// Renaming a finished file is for editors, so only a viewer tries it.
+			finished
+				? apiFromPage(other, "files/rename", {
+						id: files[0]?.id,
+						meta: "x".repeat(40),
+					})
+				: Promise.resolve(""),
+		]);
+	// As a viewer.
+	const [put, finish, cancel, rename] = await tries();
+	expect(put).toContain("not change it");
+	expect(finish).toContain("not change it");
+	expect(cancel).toContain("File not found");
+	expect(rename).toContain("not change it");
+
+	// As another editor: still not someone else's upload.
+	await call(page, "vaults/setRole", {
+		vaultId: engineering?.id,
+		userId: mei?.userId,
+		role: "edit",
+	});
+	const [put2, finish2, cancel2] = await tries(false);
+	expect(put2).toContain("File not found");
+	expect(finish2).toContain("File not found");
+	expect(cancel2).toContain("File not found");
+	await call(page, "vaults/setRole", {
+		vaultId: engineering?.id,
+		userId: mei?.userId,
+		role: "view",
+	});
+	await other.context().close();
+	expect(
+		await apiFromPage(page, "files/cancel", { id: started.id }),
+	).not.toContain("error");
+});
+
+test("chunks of the wrong place, size or alphabet are turned away", async ({
+	page,
+}) => {
+	await signIn(page, owner);
+	const { json: files } = (await call(page, "files/list")) as {
+		json: { itemId: string }[];
+	};
+	const { json: started } = (await call(page, "files/create", {
+		itemId: files[0]?.itemId,
+		size: 3,
+		chunks: 1,
+	})) as { json: { id: string } };
+	for (const [index, data] of [
+		[1, smallChunk],
+		[0, "AAAA"],
+		[0, "é".repeat(28)],
+		[0, `${"A".repeat(26)}==`.replace("A", " ")],
+	] as const) {
+		expect(
+			await apiFromPage(page, "files/put", { id: started.id, index, data }),
+		).toContain("Wrong chunk");
+	}
+	expect(
+		await apiFromPage(page, "files/put", {
+			id: started.id,
+			index: 0,
+			data: smallChunk,
+		}),
+	).not.toContain("error");
+	await call(page, "files/cancel", { id: started.id });
+});
+
+test("uploads started all at once stop at the total limit", async ({
+	page,
+}) => {
+	await signIn(page, owner);
+	const usage = async () =>
+		(await call(page, "files/usage")).json as {
+			used: number;
+			maxTotal: number;
+		};
+	const before = await usage();
+	const { json: files } = (await call(page, "files/list")) as {
+		json: { itemId: string }[];
+	};
+	const itemId = files[0]?.itemId;
+	const MB = 1024 * 1024;
+	const answers = await Promise.all(
+		Array.from({ length: 25 }, () =>
+			apiFromPage(page, "files/create", {
+				itemId,
+				size: 10 * MB,
+				chunks: 10,
+			}),
+		),
+	);
+	const started = answers
+		.map((answer) => JSON.parse(answer) as { json?: { id?: string } })
+		.flatMap((answer) => (answer.json?.id ? [answer.json.id] : []));
+	expect(started.length).toBe(
+		Math.floor((before.maxTotal - before.used) / (10 * MB)),
+	);
+	expect((await usage()).used).toBeLessThanOrEqual(before.maxTotal);
+	for (const id of started) await call(page, "files/cancel", { id });
+	expect((await usage()).used).toBe(before.used);
+});
+
 test("files over the limit are refused before they're sent", async ({
 	page,
 }) => {
@@ -364,4 +516,45 @@ test("removing a file asks first, then it's gone for good", async ({
 	await expect(
 		page.getByRole("list", { name: "Events" }).getByText("removed a file from"),
 	).toBeVisible();
+});
+
+test("someone without the vault can't download its files", async ({
+	page,
+	browser,
+}) => {
+	await signIn(page, owner);
+	await openAllItems(page);
+	await page.getByRole("button", { name: "New item" }).click();
+	const form = page.getByRole("dialog");
+	await form.getByRole("tab", { name: "Note" }).click();
+	await form.getByLabel("Name", { exact: true }).fill("My own papers");
+	await form.getByLabel("Notes").fill("Only mine.");
+	await form.getByRole("combobox", { name: "Vault" }).click();
+	await page.getByRole("option", { name: "Private" }).click();
+	await form.getByRole("button", { name: "Add item" }).click();
+	await expect(form).toBeHidden();
+	await attach(page, "passport.pdf", Buffer.from("%PDF- not real"));
+	const { json: files } = (await call(page, "files/list")) as {
+		json: { id: string; itemId: string }[];
+	};
+	const { json: items } = (await call(page, "items/list")) as {
+		json: { id: string; vaultId: string }[];
+	};
+	const vaults = (await call(page, "vaults/list")).json as {
+		id: string;
+		personal: boolean;
+	}[];
+	const own = vaults.find((vault) => vault.personal);
+	const mine = new Set(
+		items.filter((row) => row.vaultId === own?.id).map((row) => row.id),
+	);
+	const file = files.find((row) => mine.has(row.itemId));
+	expect(file).toBeTruthy();
+
+	const other = await (await browser.newContext()).newPage();
+	await signIn(other, teammate);
+	expect(
+		await apiFromPage(other, "files/get", { id: file?.id, index: 0 }),
+	).toContain("Vault not found");
+	await other.context().close();
 });

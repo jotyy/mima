@@ -236,8 +236,16 @@ export const agentGrant = sqliteTable(
 		wrappedKey: text("wrapped_key").notNull(),
 		/** `once` grants are removed after their first use. */
 		once: integer("once", { mode: "boolean" }).notNull().default(false),
-		/** Whether the agent may download the item's files too. */
+		/**
+		 * Whether the agent may download the item's files too: those the item had when it
+		 * was granted (`createdAt`, renewed by each approval).
+		 */
 		files: integer("files", { mode: "boolean" }).notNull().default(false),
+		/**
+		 * A one-time grant that was used with files is kept, used up, until the passes its
+		 * run got expire, so the run can finish its downloads and no later.
+		 */
+		filesUntil: integer("files_until", { mode: "timestamp_ms" }),
 		expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
 		grantedBy: text("granted_by").notNull(),
 		createdAt: createdAt(),

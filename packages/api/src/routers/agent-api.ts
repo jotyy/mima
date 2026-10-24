@@ -9,9 +9,10 @@ import {
 	item,
 	member,
 } from "@vauly/db/schema/vault";
-import { and, eq, gt, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, gt, inArray, isNotNull, isNull, lte } from "drizzle-orm";
 import { z } from "zod";
 
+import { readPass, signPass } from "../file-pass";
 import { publicProcedure } from "../index";
 import { hashToken, logEvent, newId } from "../lib";
 
@@ -70,37 +71,42 @@ const itemIds = z.array(z.string().max(40)).min(1).max(20);
 /** How long a pass to download a granted item's files lasts. */
 const FILE_PASS_MS = 15 * 60 * 1000;
 
-async function hmac(secret: string, message: string) {
-	const key = await crypto.subtle.importKey(
-		"raw",
-		new TextEncoder().encode(secret),
-		{ name: "HMAC", hash: "SHA-256" },
-		false,
-		["sign"],
-	);
-	const signature = await crypto.subtle.sign(
-		"HMAC",
-		key,
-		new TextEncoder().encode(message),
-	);
-	return Array.from(new Uint8Array(signature), (b) =>
-		b.toString(16).padStart(2, "0"),
-	).join("");
-}
-
-const passMessage = (agentId: string, fileId: string, until: number) =>
-	`vauly/file-pass\n${agentId}\n${fileId}\n${until}`;
+type Grant = typeof agentGrant.$inferSelect;
 
 /**
- * The finished files on a granted item, each with a pass to download it: signed by the
- * server for this agent and file, good for FILE_PASS_MS, so a one-time grant still
- * lets the run that used it finish its downloads.
+ * Whether a grant still lets its agent in: not expired, and not a one-time grant its run
+ * has used already.
+ */
+const isLive = (grant: Grant, now = new Date()) =>
+	(!grant.expiresAt || grant.expiresAt > now) && !grant.filesUntil;
+
+/** Whether the item has finished files newer than `since`. */
+async function filesSince(db: Database, itemId: string, since: Date) {
+	const [row] = await db
+		.select({ id: attachment.id })
+		.from(attachment)
+		.where(
+			and(
+				eq(attachment.itemId, itemId),
+				isNotNull(attachment.meta),
+				gt(attachment.createdAt, since),
+			),
+		)
+		.limit(1);
+	return Boolean(row);
+}
+
+/**
+ * The files a grant covers, each with a pass to download it: the finished files the item
+ * had when it was granted, none added since. A pass names the agent, the grant and the
+ * file, and lasts FILE_PASS_MS; each download checks the grant again.
  */
 async function grantedFiles(
 	db: Database,
 	secret: string,
 	agentId: string,
-	itemId: string,
+	grant: Grant,
+	until: number,
 ) {
 	const rows = await db
 		.select({
@@ -109,14 +115,24 @@ async function grantedFiles(
 			chunks: attachment.chunks,
 		})
 		.from(attachment)
-		.where(and(eq(attachment.itemId, itemId), isNotNull(attachment.meta)));
-	const until = Date.now() + FILE_PASS_MS;
+		.where(
+			and(
+				eq(attachment.itemId, grant.itemId),
+				isNotNull(attachment.meta),
+				lte(attachment.createdAt, grant.createdAt),
+			),
+		);
 	return Promise.all(
 		rows.map(async (row) => ({
 			id: row.id,
 			meta: row.meta as string,
 			chunks: row.chunks,
-			token: `${row.id}.${until}.${await hmac(secret, passMessage(agentId, row.id, until))}`,
+			token: await signPass(secret, {
+				agentId,
+				grantId: grant.id,
+				fileId: row.id,
+				until,
+			}),
 		})),
 	);
 }
@@ -153,9 +169,7 @@ async function lookup(db: Database, agentId: string, ids: string[]) {
 			),
 	]);
 	return unique.map((id) => {
-		const grant = grants.find(
-			(row) => row.itemId === id && (!row.expiresAt || row.expiresAt > now),
-		);
+		const grant = grants.find((row) => row.itemId === id && isLive(row, now));
 		const mine = requests.filter((row) => row.itemId === id);
 		return {
 			id,
@@ -244,9 +258,23 @@ export const agentApiRouter = {
 			for (const entry of found) {
 				const { id, target, grant } = entry;
 				const needsFiles = withFiles.has(id);
-				if (target && grant && (!needsFiles || grant.files)) {
-					if (grant.once)
+				// A grant covers the files the item had when it was given: with files added
+				// since, a person approves again, having seen them.
+				const covered =
+					!needsFiles ||
+					(grant?.files && !(await filesSince(db, id, grant.createdAt)));
+				if (target && grant && covered) {
+					const until = Date.now() + FILE_PASS_MS;
+					// A one-time grant is used up now. Its run may still need its files' passes,
+					// so with files it stays, used up, until they expire.
+					if (grant.once && needsFiles) {
+						await db
+							.update(agentGrant)
+							.set({ filesUntil: new Date(until) })
+							.where(eq(agentGrant.id, grant.id));
+					} else if (grant.once) {
 						await db.delete(agentGrant).where(eq(agentGrant.id, grant.id));
+					}
 					await logEvent(db, {
 						actorType: "agent",
 						actorId: me.id,
@@ -261,7 +289,13 @@ export const agentApiRouter = {
 						data: target.data,
 						wrappedKey: grant.wrappedKey,
 						...(needsFiles && {
-							files: await grantedFiles(db, context.secret, me.id, id),
+							files: await grantedFiles(
+								db,
+								context.secret,
+								me.id,
+								grant,
+								until,
+							),
 						}),
 					});
 					continue;
@@ -326,16 +360,25 @@ export const agentApiRouter = {
 		)
 		.handler(async ({ context, input }) => {
 			const { db, agent: me } = context;
-			const [fileId = "", until = "", signature = ""] = input.token.split(".");
-			const expected = await hmac(
-				context.secret,
-				passMessage(me.id, fileId, Number(until)),
-			);
-			if (!sameHash(signature, expected) || Number(until) < Date.now()) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "That file pass expired. Run the command again.",
-				});
-			}
+			const expired = new ORPCError("FORBIDDEN", {
+				message: "That file pass is no longer good. Run the command again.",
+			});
+			const pass = await readPass(context.secret, me.id, input.token);
+			if (!pass) throw expired;
+			// The pass alone isn't enough: the grant it came with must still stand.
+			const [grant] = await db
+				.select()
+				.from(agentGrant)
+				.where(
+					and(eq(agentGrant.id, pass.grantId), eq(agentGrant.agentId, me.id)),
+				);
+			const now = new Date();
+			const standing =
+				grant?.files &&
+				(grant.filesUntil
+					? grant.filesUntil >= now
+					: !grant.expiresAt || grant.expiresAt > now);
+			if (!grant || !standing) throw expired;
 			const [row] = await db
 				.select({
 					data: attachmentChunk.data,
@@ -347,9 +390,11 @@ export const agentApiRouter = {
 				.innerJoin(item, eq(item.id, attachment.itemId))
 				.where(
 					and(
-						eq(attachmentChunk.attachmentId, fileId),
+						eq(attachmentChunk.attachmentId, pass.fileId),
 						eq(attachmentChunk.index, input.index),
+						eq(attachment.itemId, grant.itemId),
 						isNotNull(attachment.meta),
+						lte(attachment.createdAt, grant.createdAt),
 						isNull(item.deletedAt),
 					),
 				);
@@ -361,7 +406,7 @@ export const agentApiRouter = {
 					action: "downloaded",
 					itemId: row.itemId,
 					vaultId: row.vaultId,
-					detail: `file:${fileId}`,
+					detail: `file:${pass.fileId}`,
 				});
 			}
 			return { data: row.data };

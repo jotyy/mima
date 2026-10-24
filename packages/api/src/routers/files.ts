@@ -2,19 +2,11 @@ import { ORPCError } from "@orpc/server";
 import { fileChunks, sealedChunkLength } from "@vauly/crypto";
 import type { Database } from "@vauly/db";
 import { attachment, attachmentChunk, item } from "@vauly/db/schema/vault";
-import {
-	and,
-	count,
-	eq,
-	inArray,
-	isNotNull,
-	isNull,
-	lt,
-	sum,
-} from "drizzle-orm";
+import { and, count, eq, inArray, isNotNull, sum } from "drizzle-orm";
 import { z } from "zod";
 
 import type { Context } from "../context";
+import { clearStaleUploads, isBase64, reserveUpload } from "../file-store";
 import { memberProcedure } from "../index";
 import { logEvent, myVaultIds, newId, requireItemAccess } from "../lib";
 
@@ -27,7 +19,6 @@ const meta = z.string().min(20).max(4_000);
 // A sealed chunk of FILE_CHUNK bytes, in base64; put checks the exact length.
 const chunk = z.string().max(1_398_200);
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const MB = 1024 * 1024;
 
 /** The limits, said the way someone reading an error expects. */
@@ -70,14 +61,7 @@ export const filesRouter = {
 	 */
 	list: memberProcedure.handler(async ({ context }) => {
 		const { db, userId } = context;
-		await db
-			.delete(attachment)
-			.where(
-				and(
-					isNull(attachment.meta),
-					lt(attachment.createdAt, new Date(Date.now() - DAY_MS)),
-				),
-			);
+		await clearStaleUploads(db);
 		const vaultIds = await myVaultIds(db, userId);
 		if (vaultIds.length === 0) return [];
 		const rows = await db
@@ -130,19 +114,26 @@ export const filesRouter = {
 					message: `Files can be up to ${megabytes(files.maxFileBytes)} here.`,
 				});
 			}
-			if ((await used(db)) + input.size > files.maxTotalBytes) {
+			const id = newId("att");
+			// The check and the row in one statement, so uploads started together can't
+			// take more than the limit between them.
+			const reserved = await db.run(
+				reserveUpload(
+					{
+						id,
+						itemId: owner.id,
+						size: input.size,
+						chunks: input.chunks,
+						createdBy: userId,
+					},
+					files.maxTotalBytes,
+				),
+			);
+			if (reserved.meta.changes !== 1) {
 				throw new ORPCError("PAYLOAD_TOO_LARGE", {
 					message: `This vauly's files are near their ${megabytes(files.maxTotalBytes)} limit. Remove some to make room.`,
 				});
 			}
-			const id = newId("att");
-			await db.insert(attachment).values({
-				id,
-				itemId: owner.id,
-				size: input.size,
-				chunks: input.chunks,
-				createdBy: userId,
-			});
 			return { id };
 		}),
 
@@ -165,7 +156,8 @@ export const filesRouter = {
 			}
 			if (
 				input.index >= file.chunks ||
-				input.data.length !== sealedChunkLength(file.size, input.index)
+				input.data.length !== sealedChunkLength(file.size, input.index) ||
+				!isBase64(input.data)
 			) {
 				throw new ORPCError("BAD_REQUEST", { message: "Wrong chunk" });
 			}
@@ -176,6 +168,20 @@ export const filesRouter = {
 					target: [attachmentChunk.attachmentId, attachmentChunk.index],
 					set: { data: input.data },
 				});
+		}),
+
+	/** Drops an upload that didn't finish, so its room is free again. Only its uploader can. */
+	cancel: memberProcedure
+		.input(z.object({ id: fileId }))
+		.handler(async ({ context, input }) => {
+			const [file] = await context.db
+				.select({ createdBy: attachment.createdBy, meta: attachment.meta })
+				.from(attachment)
+				.where(eq(attachment.id, input.id));
+			if (!file || file.meta !== null || file.createdBy !== context.userId) {
+				throw new ORPCError("NOT_FOUND", { message: "File not found" });
+			}
+			await context.db.delete(attachment).where(eq(attachment.id, input.id));
 		}),
 
 	/** Ends an upload once every chunk is in: stores the sealed name and key, and logs it. */

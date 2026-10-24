@@ -1,7 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
 
-import { type ItemFields, withValues, writeFiles } from "./agent";
+import {
+	type ItemFields,
+	prepareEnv,
+	safeFileName,
+	withValues,
+	writeFiles,
+} from "./agent";
 import { findReferences } from "./references";
 
 const item: ItemFields = {
@@ -93,5 +100,59 @@ describe("files", () => {
 				values,
 			),
 		).toThrow("Deploy has no file called missing.pem.");
+	});
+});
+
+describe("files on disk", () => {
+	const values = new Map([
+		[
+			"itm_abc123",
+			{
+				name: "Deploy",
+				files: [{ name: "server.p12", data: new Uint8Array([1, 2, 3]) }],
+			},
+		],
+	]);
+	const ours = () =>
+		readdirSync(tmpdir())
+			.filter((name) => name.startsWith("vauly-"))
+			.sort();
+
+	test("nothing stays behind when the environment can't be made", () => {
+		const before = ours();
+		expect(() =>
+			prepareEnv(
+				{},
+				[
+					{
+						name: "CERT",
+						itemId: "itm_abc123",
+						field: "file",
+						label: "server.p12",
+					},
+					// A field the item doesn't have: withValues throws after the file is written.
+					{
+						name: "PIN",
+						itemId: "itm_abc123",
+						field: "custom",
+						label: "PIN",
+					},
+				],
+				values,
+			),
+		).toThrow("Deploy has no field called PIN.");
+		expect(ours()).toEqual(before);
+	});
+
+	test("hostile names can't become paths, streams or devices", () => {
+		expect(safeFileName("../../etc/passwd")).toBe("__.._etc_passwd");
+		expect(safeFileName("a:b.txt")).toBe("a_b.txt");
+		expect(safeFileName("CON")).toBe("_CON");
+		expect(safeFileName("nul.txt")).toBe("_nul.txt");
+		expect(safeFileName("com1.pem")).toBe("_com1.pem");
+		expect(safeFileName("notes. . ")).toBe("notes");
+		expect(safeFileName("...")).toBe("file");
+		expect(safeFileName("server.p12")).toBe("server.p12");
+		expect(safeFileName("con-notes.txt")).toBe("con-notes.txt");
 	});
 });

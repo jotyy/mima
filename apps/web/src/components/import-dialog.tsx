@@ -5,6 +5,7 @@ import {
 	FileArrowUpIcon,
 	WarningIcon,
 } from "@phosphor-icons/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@vauly/ui/components/button";
 import {
 	Dialog,
@@ -83,6 +84,7 @@ export function ImportDialog({
 	const vaults = useVaults();
 	const items = useItems();
 	const actions = useActions();
+	const queryClient = useQueryClient();
 	const [step, setStep] = useState<Step>({ name: "apps" });
 	// Items go only where this person can add them.
 	const writable = (vaults.data ?? []).filter(canEdit);
@@ -157,6 +159,10 @@ export function ImportDialog({
 				} catch {
 					missed.push(attached.name);
 				}
+			}
+			// The items were listed again before their files went up.
+			if (uploads.length > 0) {
+				await queryClient.invalidateQueries({ queryKey: ["vault"] });
 			}
 			setStep({
 				name: "done",

@@ -1,9 +1,11 @@
 import { existsSync } from "node:fs";
 
-import { expect, test } from "@playwright/test";
+import { type APIRequestContext, expect, test } from "@playwright/test";
 
+import { API_URL } from "../playwright.config";
 import { vauly } from "./cli";
 import {
+	apiFromPage,
 	createWorkspace,
 	openAllItems,
 	owner,
@@ -17,6 +19,8 @@ test.describe.configure({ mode: "serial" });
 const SECRET = "postgres://app:example-only-not-real@db.staging/app";
 let token = "";
 let reference = "";
+/** The item the file tests use, with ca.pem on it. */
+let caItem = "";
 
 // The command checks the injected value itself and prints it, so the test sees both
 // that it arrived and that vauly masked it in the output.
@@ -223,6 +227,7 @@ test("a file reference asks for the files, and hands the command a private path"
 		(await use.getByText(/\/files\/ca\.pem$/).textContent()) ?? ""
 	).trim();
 	expect(fileReference).toMatch(/^vauly:\/\/itm_[a-z0-9]+\/files\/ca\.pem$/);
+	caItem = /itm_[a-z0-9]+/.exec(fileReference)?.[0] ?? "";
 	await page.keyboard.press("Escape");
 
 	const run = vauly(
@@ -241,7 +246,7 @@ test("a file reference asks for the files, and hands the command a private path"
 		name: "Claude Code wants Internal CA",
 	});
 	await expect(
-		card.getByText("and writes one of its files for the command"),
+		card.getByText(/and writes its 1 file for the command/),
 	).toBeVisible();
 	await card.getByRole("button", { name: "Allow for 1 hour" }).click();
 
@@ -262,6 +267,139 @@ test("a file reference asks for the files, and hands the command a private path"
 	).toBeVisible();
 });
 
+/** Calls the agent API with an agent's token, the way vauly run does. */
+async function asAgent(
+	request: APIRequestContext,
+	agentToken: string,
+	path: string,
+	json: unknown,
+) {
+	const [id, secret] = agentToken.replace(/^vauly_agent_/, "").split(".");
+	const response = await request.post(`${API_URL}/rpc/agent/${path}`, {
+		headers: { authorization: `Bearer ${id}.${secret}` },
+		data: { json },
+	});
+	return response.text();
+}
+
+type Resolved = {
+	status: string;
+	requestId?: string;
+	files?: { id: string; token: string }[];
+}[];
+const resolve = async (request: APIRequestContext, files: boolean) =>
+	(
+		JSON.parse(
+			await asAgent(request, token, "resolve", {
+				itemIds: [caItem],
+				command: "e2e check",
+				...(files && { files: [caItem] }),
+			}),
+		) as { json: Resolved }
+	).json[0];
+
+test("a file pass works for its agent and grant only, and ends with the grant", async ({
+	page,
+	request,
+}) => {
+	const granted = await resolve(request, true);
+	expect(granted?.status).toBe("granted");
+	const pass = granted?.files?.[0]?.token ?? "";
+	expect(
+		await asAgent(request, token, "file", { token: pass, index: 0 }),
+	).toContain('"data"');
+	const tampered = `${pass.slice(0, -1)}${pass.endsWith("A") ? "B" : "A"}`;
+	expect(
+		await asAgent(request, token, "file", { token: tampered, index: 0 }),
+	).toContain("no longer good");
+
+	// Another agent can't use it.
+	await signIn(page, owner);
+	await sidebarLink(page, "Agents").click();
+	await page.getByRole("button", { name: "New agent" }).first().click();
+	const dialog = page.getByRole("dialog");
+	await dialog.getByLabel("Name").fill("Other agent");
+	await dialog.getByRole("button", { name: "Create agent" }).click();
+	const env = dialog.getByTestId("agent-env");
+	await expect(env).toContainText("VAULY_TOKEN=vauly_agent_");
+	const other =
+		/VAULY_TOKEN=(\S+)/.exec((await env.textContent()) ?? "")?.[1] ?? "";
+	await dialog.getByRole("button", { name: "I've stored it" }).click();
+	expect(
+		await asAgent(request, other, "file", { token: pass, index: 0 }),
+	).toContain("no longer good");
+	await apiFromPage(page, "agents/remove", {
+		id: /agt_[a-z0-9]+/.exec(other)?.[0],
+	});
+
+	// Revoked, the pass stops working at once.
+	const agentId = /agt_[a-z0-9]+/.exec(token)?.[0];
+	await apiFromPage(page, "agents/revoke", { agentId, itemId: caItem });
+	expect(
+		await asAgent(request, token, "file", { token: pass, index: 0 }),
+	).toContain("no longer good");
+});
+
+test("a grant without files doesn't reach them, and a changed request can't be approved", async ({
+	page,
+	request,
+}) => {
+	await signIn(page, owner);
+	await openAllItems(page);
+	await page
+		.getByRole("region", { name: "Items" })
+		.getByRole("link", { name: /^Internal CA/ })
+		.click();
+	await page.getByRole("button", { name: "More actions" }).click();
+	await page.getByRole("menuitem", { name: "Use with an agent…" }).click();
+	const use = page.getByRole("dialog");
+	await use.getByRole("combobox", { name: "Agent" }).click();
+	await page.getByRole("option", { name: "Claude Code" }).click();
+	await use.getByRole("tab", { name: "Until I revoke it" }).click();
+	await use.getByRole("button", { name: "Grant access" }).click();
+	await expect(page.getByText("Claude Code can use Internal CA")).toBeVisible();
+
+	expect((await resolve(request, false))?.status).toBe("granted");
+	const asked = await resolve(request, true);
+	expect(asked?.status).toBe("pending");
+
+	// What the person saw didn't ask for files: approving that is refused.
+	expect(
+		await apiFromPage(page, "requests/approve", {
+			id: asked?.requestId,
+			wrappedKey: "x".repeat(40),
+			duration: "once",
+			files: false,
+		}),
+	).toContain("The request changed");
+});
+
+test("a one-time grant lets its run finish downloading, and no other run", async ({
+	page,
+	request,
+}) => {
+	await signIn(page, owner);
+	await sidebarLink(page, "Agents").click();
+	const card = page.getByRole("region", {
+		name: "Claude Code wants Internal CA",
+	});
+	await card.getByRole("button", { name: "Allow once" }).click();
+	await expect(
+		page.getByText("Claude Code can use Internal CA once"),
+	).toBeVisible();
+
+	const granted = await resolve(request, true);
+	expect(granted?.status).toBe("granted");
+	expect((await resolve(request, true))?.status).toBe("pending");
+	// The run that used the grant can still download what it was given.
+	expect(
+		await asAgent(request, token, "file", {
+			token: granted?.files?.[0]?.token,
+			index: 0,
+		}),
+	).toContain('"data"');
+});
+
 test("the activity log shows each agent run and decision", async ({ page }) => {
 	await signIn(page, owner);
 	await sidebarLink(page, "Activity").click();
@@ -270,7 +408,7 @@ test("the activity log shows each agent run and decision", async ({ page }) => {
 	await expect(events.getByText("asked to use").first()).toBeVisible();
 	await expect(events.getByText("denied Claude Code access to")).toBeVisible();
 	await expect(events.getByText("let Claude Code use").first()).toBeVisible();
-	await expect(events.getByText("created the agent")).toBeVisible();
+	await expect(events.getByText("created the agent").first()).toBeVisible();
 });
 
 test("an agent can be extended, and deleting it stops its token for good", async ({

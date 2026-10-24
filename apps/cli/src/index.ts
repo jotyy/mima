@@ -6,10 +6,10 @@ import {
 	ApprovalPending,
 	CliError,
 	call,
+	cleanUpOnExit,
 	config,
+	prepareEnv,
 	resolveAll,
-	withValues,
-	writeFiles,
 } from "./agent";
 import { serve } from "./mcp";
 import { createMasker, findReferences, parseEnvFile } from "./references";
@@ -65,8 +65,10 @@ async function run(args: string[]) {
 
 	let secrets: string[] = [];
 	let filled: Record<string, string | undefined> = { ...env };
-	let cleanup = () => {};
 	delete filled.VAULY_TOKEN;
+	// Files written for the command go when vauly exits, however it exits. Signals go to
+	// the command below, and vauly exits when it does.
+	cleanUpOnExit({ signals: false });
 	if (refs.length > 0) {
 		const values = await resolveAll(config(), refs, command, {
 			timeoutMs: Number(process.env.VAULY_APPROVAL_TIMEOUT ?? 300) * 1000,
@@ -79,12 +81,8 @@ async function run(args: string[]) {
 				? new CliError("Nobody approved the request in time.")
 				: error;
 		});
-		const written = writeFiles(refs, values);
-		cleanup = written.cleanup;
-		({ env: filled, secrets } = withValues(env, refs, values, written.paths));
+		({ env: filled, secrets } = prepareEnv(env, refs, values));
 	}
-	// Files written for the command go when it ends, however it ends.
-	process.on("exit", () => cleanup());
 
 	const [bin, ...rest] = commandArgs as [string, ...string[]];
 	const child = spawn(bin, rest, {
@@ -100,7 +98,7 @@ async function run(args: string[]) {
 		stream.on("data", (chunk: string) => out.write(masker.push(chunk)));
 		stream.on("end", () => out.write(masker.flush()));
 	}
-	for (const signal of ["SIGINT", "SIGTERM"] as const) {
+	for (const signal of ["SIGINT", "SIGTERM", "SIGHUP", "SIGQUIT"] as const) {
 		process.on(signal, () => child.kill(signal));
 	}
 	child.on("error", (error) => {

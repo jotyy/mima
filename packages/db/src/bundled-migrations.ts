@@ -70,4 +70,9 @@ export const migrations: readonly {
 		hash: "b93b75c583291e8e4dc1e91412a40a44887dc2cb556845a013e94a192442b714",
 		sql: "ALTER TABLE `access_request` ADD `files` integer DEFAULT false NOT NULL;--> statement-breakpoint\nALTER TABLE `agent_grant` ADD `files` integer DEFAULT false NOT NULL;",
 	},
+	{
+		name: "20261024043120_grant_files_until",
+		hash: "d4ca95238bf6a0fd5cd44d26a2cb873ad16805888b0219c6638faa531faa4aeb",
+		sql: "ALTER TABLE `agent_grant` ADD `files_until` integer;",
+	},
 ];

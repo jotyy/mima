@@ -2,7 +2,8 @@ import { Badge } from "@vauly/ui/components/badge";
 import { Button } from "@vauly/ui/components/button";
 import { useState } from "react";
 
-import { ago } from "@/lib/format";
+import { useFiles } from "@/lib/files";
+import { ago, plural } from "@/lib/format";
 import type { useLookup } from "@/lib/use-lookup";
 import {
 	type AccessRequest,
@@ -28,6 +29,7 @@ export function ApprovalCard({
 	const item = lookup.items.get(request.itemId);
 	const agentName = agent?.name ?? "An agent";
 	const itemName = item?.name ?? "an item";
+	const files = useFiles(request.itemId).data?.length ?? 0;
 
 	const decide = async (work: () => Promise<unknown>, message: string) => {
 		setBusy(true);
@@ -77,7 +79,8 @@ export function ApprovalCard({
 				)}
 				{request.files && (
 					<span className="text-fg-subtle">
-						and writes one of its files for the command
+						and writes its {plural(files, "file")} for the command: every file
+						the item has now
 					</span>
 				)}
 			</div>

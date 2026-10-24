@@ -107,17 +107,22 @@ export function backupFileName(date = new Date(), extension = "csv") {
 	return `vauly-backup-${date.toISOString().slice(0, 10)}.${extension}`;
 }
 
+const reserved = /^(con|prn|aux|nul|com\d|lpt\d|conin\$|conout\$)$/i;
+
 /**
  * Where a file goes in the ZIP: a folder of its own, so two files can share a name, and a
- * name no unzip tool will read as a path.
+ * name that's safe to unpack anywhere: no separators or characters Windows forbids, no
+ * trailing dots or spaces, and no device name such as CON.
  */
 export function backupFilePath(index: number, name: string) {
 	const safe = Array.from(name, (char) =>
 		char.charCodeAt(0) < 32 || '\\/:*?"<>|'.includes(char) ? "_" : char,
 	)
 		.join("")
+		.replace(/[. ]+$/, "")
 		.replace(/^\.+/, "_");
-	return `files/${index}/${safe || "file"}`;
+	const stem = safe.split(".")[0]?.trim() ?? "";
+	return `files/${index}/${!safe ? "file" : reserved.test(stem) ? `_${safe}` : safe}`;
 }
 
 /** The CSV and the files, in a ZIP. Files are stored as they are: most don't shrink. */

@@ -41,7 +41,7 @@ Deploying an older version is possible, but it doesn't undo database migrations,
 ### Updating from 0.1.0
 
 This update brings files on items. Nothing to do for most copies:
-1. **Migrations run on their own.** They add the tables that hold files, and a column on agents' grants and requests that says whether they cover an item's files.
+1. **Migrations run on their own.** They add the tables that hold files, and columns on agents' grants and requests for whether they cover an item's files.
 2. **Files are kept in your D1 database.** By default, a file can be up to 10 MB and all files together up to 200 MB, which suits the free plan's 500 MB a database. To change that, set `FILES_MAX_MB` and `FILES_TOTAL_MB`; see [Self-hosting](self-hosting.md#files).
 3. **Update the CLI** to use file references (`vauly://…/files/<name>`). An older one doesn't know them.
 4. **Going back to 0.1.0** after someone attached files: 0.1.0 doesn't show them. They stay in the database, and go when their items are deleted for good.

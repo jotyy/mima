@@ -143,25 +143,31 @@ export async function uploadFile(
 		size: file.size,
 		chunks,
 	});
-	const key = await newFileKey();
-	for (let index = 0; index < chunks; index++) {
-		const part = new Uint8Array(
-			await file
-				.slice(index * FILE_CHUNK, (index + 1) * FILE_CHUNK)
-				.arrayBuffer(),
-		);
-		await put(id, index, await sealFileChunk(key, id, index, chunks, part));
-		onProgress?.((index + 1) / chunks);
+	try {
+		const key = await newFileKey();
+		for (let index = 0; index < chunks; index++) {
+			const part = new Uint8Array(
+				await file
+					.slice(index * FILE_CHUNK, (index + 1) * FILE_CHUNK)
+					.arrayBuffer(),
+			);
+			await put(id, index, await sealFileChunk(key, id, index, chunks, part));
+			onProgress?.((index + 1) / chunks);
+		}
+		const meta = await metaOf(key, {
+			name: file.name,
+			type: file.type,
+			size: file.size,
+		});
+		await client.files.finish({
+			id,
+			meta: await sealFileMeta(item.key, id, item.id, meta),
+		});
+	} catch (error) {
+		// Free the room the upload took; the server clears it after a day otherwise.
+		await client.files.cancel({ id }).catch(() => {});
+		throw error;
 	}
-	const meta = await metaOf(key, {
-		name: file.name,
-		type: file.type,
-		size: file.size,
-	});
-	await client.files.finish({
-		id,
-		meta: await sealFileMeta(item.key, id, item.id, meta),
-	});
 	return id;
 }
 
@@ -174,7 +180,8 @@ export async function readFile(file: ItemFile) {
 			await openFileChunk(file.key, file.id, index, file.chunks, data),
 		);
 	}
-	return new Blob(parts, { type: file.type || "application/octet-stream" });
+	// Never the type the file claims: the browser should save it, not open it.
+	return new Blob(parts, { type: "application/octet-stream" });
 }
 
 /** Hands the browser a file to save. */

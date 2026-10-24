@@ -224,6 +224,51 @@ async function downloadFiles(
 	return files;
 }
 
+/** Folders of decrypted files still on disk, each removed by its cleanup or at exit. */
+const written = new Set<() => void>();
+let exitHooked = false;
+
+/**
+ * Removes every folder of files when the process exits, however it exits: including on
+ * a signal, which otherwise ends the process without an exit event. Commands that have
+ * a child of their own forward signals to it instead, and exit when it does.
+ */
+export function cleanUpOnExit({ signals = true } = {}) {
+	if (exitHooked) return;
+	exitHooked = true;
+	process.on("exit", () => {
+		for (const cleanup of written) cleanup();
+	});
+	if (!signals) return;
+	for (const [signal, code] of [
+		["SIGINT", 130],
+		["SIGTERM", 143],
+		["SIGHUP", 129],
+		["SIGQUIT", 131],
+	] as const) {
+		process.on(signal, () => process.exit(code));
+	}
+}
+
+const reserved = /^(con|prn|aux|nul|com\d|lpt\d|conin\$|conout\$)$/i;
+
+/**
+ * A file's name made safe on every system: no separators or characters Windows forbids
+ * (`a:b` would be a hidden stream), no trailing dots or spaces, and no name a device
+ * owns, such as CON, which would print the file instead of writing it.
+ */
+export function safeFileName(name: string) {
+	const cleaned = Array.from(name, (char) =>
+		char.charCodeAt(0) < 32 || '<>:"/\\|?*'.includes(char) ? "_" : char,
+	)
+		.join("")
+		.replace(/[. ]+$/, "")
+		.replace(/^\.+/, "_");
+	const stem = cleaned.split(".")[0] ?? "";
+	if (!cleaned) return "file";
+	return reserved.test(stem.trim()) ? `_${cleaned}` : cleaned;
+}
+
 /**
  * Writes the files the references name into a new directory only this user can read,
  * each in a folder of its own. Returns each variable's path, and a way to delete them all.
@@ -233,7 +278,12 @@ export function writeFiles(refs: Reference[], values: Map<string, ItemFields>) {
 	const paths = new Map<string, string>();
 	if (named.length === 0) return { paths, cleanup: () => {} };
 	const dir = mkdtempSync(join(tmpdir(), "vauly-"));
-	const cleanup = () => rmSync(dir, { recursive: true, force: true });
+	const cleanup = () => {
+		rmSync(dir, { recursive: true, force: true });
+		written.delete(cleanup);
+	};
+	// Known before anything is written, so an exit at any point removes it.
+	written.add(cleanup);
 	try {
 		for (const [index, ref] of named.entries()) {
 			const fields = values.get(ref.itemId);
@@ -248,7 +298,7 @@ export function writeFiles(refs: Reference[], values: Map<string, ItemFields>) {
 			}
 			const folder = join(dir, String(index));
 			mkdirSync(folder, { mode: 0o700 });
-			const path = join(folder, file.name.replace(/[/\\]/g, "_"));
+			const path = join(folder, safeFileName(file.name));
 			writeFileSync(path, file.data, { mode: 0o600 });
 			paths.set(ref.name, path);
 		}
@@ -257,6 +307,24 @@ export function writeFiles(refs: Reference[], values: Map<string, ItemFields>) {
 		throw error;
 	}
 	return { paths, cleanup };
+}
+
+/**
+ * The command's environment, with files written for it: everything withValues gives, and
+ * the cleanup for the files. If anything fails, the files are gone before it throws.
+ */
+export function prepareEnv(
+	env: Record<string, string | undefined>,
+	refs: Reference[],
+	values: Map<string, ItemFields>,
+) {
+	const { paths, cleanup } = writeFiles(refs, values);
+	try {
+		return { ...withValues(env, refs, values, paths), cleanup };
+	} catch (error) {
+		cleanup();
+		throw error;
+	}
 }
 
 export function pick(

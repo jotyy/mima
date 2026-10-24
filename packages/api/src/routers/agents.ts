@@ -6,7 +6,7 @@ import {
 	agentGrant,
 	event,
 } from "@vauly/db/schema/vault";
-import { and, count, eq, gt, inArray } from "drizzle-orm";
+import { and, count, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { memberProcedure } from "../index";
@@ -31,6 +31,15 @@ async function requireAgent(db: Parameters<typeof logEvent>[0], id: string) {
 	if (!row) throw new ORPCError("NOT_FOUND", { message: "Agent not found" });
 	return row;
 }
+
+/**
+ * What every grant and approval sets again: when it was given, by the database's clock, as
+ * files are dated, since a grant covers the files the item had then; and not used up.
+ */
+const renewed = {
+	createdAt: sql`(cast(unixepoch('subsecond') * 1000 as integer))`,
+	filesUntil: null,
+};
 
 export const agentsRouter = {
 	list: memberProcedure.handler(async ({ context }) => {
@@ -66,7 +75,13 @@ export const agentsRouter = {
 							files: agentGrant.files,
 						})
 						.from(agentGrant)
-						.where(inArray(agentGrant.itemId, itemIds))
+						// A one-time grant its run has used is gone, as far as anyone can see.
+						.where(
+							and(
+								inArray(agentGrant.itemId, itemIds),
+								isNull(agentGrant.filesUntil),
+							),
+						)
 				: Promise.resolve([]),
 			db
 				.select({ agentId: event.actorId, n: count() })
@@ -202,6 +217,7 @@ export const agentsRouter = {
 			const terms = {
 				...grantTerms(input.duration),
 				files: input.files ?? false,
+				...renewed,
 			};
 			await db.batch([
 				db
@@ -284,7 +300,15 @@ export const requestsRouter = {
 	}),
 
 	approve: memberProcedure
-		.input(z.object({ id: z.string(), wrappedKey: wrapped, duration }))
+		.input(
+			z.object({
+				id: z.string(),
+				wrappedKey: wrapped,
+				duration,
+				/** Whether the request the person saw asked for files. */
+				files: z.boolean(),
+			}),
+		)
 		.handler(async ({ context, input }) => {
 			const { db, userId } = context;
 			const [request] = await db
@@ -299,8 +323,19 @@ export const requestsRouter = {
 			const target = await requireItemAccess(db, userId, request.itemId, {
 				role: "edit",
 			});
-			// The grant covers the item's files when the agent asked for them.
-			const terms = { ...grantTerms(input.duration), files: request.files };
+			// What the person approves is what they saw: an agent may have asked for files
+			// since the request was shown.
+			if (request.files !== input.files) {
+				throw new ORPCError("CONFLICT", {
+					message:
+						"The request changed: it asks for the item's files now. Look at it again before you answer.",
+				});
+			}
+			const terms = {
+				...grantTerms(input.duration),
+				files: request.files,
+				...renewed,
+			};
 			await db.batch([
 				db
 					.insert(agentGrant)

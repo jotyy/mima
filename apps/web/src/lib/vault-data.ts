@@ -825,6 +825,8 @@ export function useActions() {
 						id: request.id,
 						wrappedKey: await wrapKeyFor(agent.publicKey, item.key),
 						duration,
+						// What the person saw: if the agent asks for more meanwhile, it's refused.
+						files: request.files,
 					}),
 				);
 			},
