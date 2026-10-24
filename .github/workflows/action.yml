@@ -159,7 +159,9 @@ jobs:
         run: |
           job="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs" \
             --jq '.jobs[] | select(.name == "Use the action") | .id')"
-          gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$job/logs" > use.log
+          # gh won't print a log with terminal escapes in it, so curl downloads it.
+          curl -sSfL -H "Authorization: Bearer $GH_TOKEN" -o use.log \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/jobs/$job/logs"
           value="$(jq -r .value e2e/action/made-up.json)"
           if grep -qF -- "$value" use.log; then
             echo "::error::The made-up value is in the job's log."
