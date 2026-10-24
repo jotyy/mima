@@ -45,20 +45,33 @@ const iv = (n: number) => run(0xa0 + n * 0x10, 12);
 const ECDH = { name: "ECDH", namedCurve: "P-256" } as const;
 
 type Kdf =
-	| { kdf: "pbkdf2"; kdfIterations: number; kdfMemory: null }
-	| { kdf: "argon2id"; kdfIterations: number; kdfMemory: number };
+	| { kdf: "pbkdf2"; kdfIterations: number; kdfPasses: null; kdfMemory: null }
+	| {
+			kdf: "argon2id";
+			/** PBKDF2's 600,000, for apps that read only this. */
+			kdfIterations: number;
+			kdfPasses: number;
+			kdfMemory: number;
+	  };
 
 /** What new accounts use: Argon2id, 64 MiB, three passes, one lane. */
-const ARGON2ID: Kdf = { kdf: "argon2id", kdfIterations: 3, kdfMemory: 65_536 };
+const ARGON2ID: Kdf = {
+	kdf: "argon2id",
+	kdfIterations: 600_000,
+	kdfPasses: 3,
+	kdfMemory: 65_536,
+};
 /** The least Argon2id vauly accepts from a server. */
 const ARGON2ID_FLOOR: Kdf = {
 	kdf: "argon2id",
-	kdfIterations: 2,
+	kdfIterations: 600_000,
+	kdfPasses: 2,
 	kdfMemory: 19_456,
 };
 const pbkdf2Kdf = (kdfIterations: number): Kdf => ({
 	kdf: "pbkdf2",
 	kdfIterations,
+	kdfPasses: null,
 	kdfMemory: null,
 });
 
@@ -180,7 +193,7 @@ async function masterKeys(password: string, salt: Uint8Array, kdf: Kdf) {
 			? await argon2id(
 					encoder.encode(password.normalize("NFKC")),
 					salt,
-					kdf.kdfIterations,
+					kdf.kdfPasses,
 					kdf.kdfMemory,
 				)
 			: await pbkdf2(password, salt, kdf.kdfIterations);

@@ -13,6 +13,7 @@
 		"vectors": "node scripts/vectors.ts"
 	},
 	"dependencies": {
+		"libsodium-sumo": "0.8.4",
 		"libsodium-wrappers-sumo": "0.8.4"
 	},
 	"devDependencies": {

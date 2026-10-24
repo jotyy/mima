@@ -53,12 +53,16 @@ export const KEY_WORKER_DIR = "assets/key-worker";
  * The key worker's own policy, which browsers apply to a worker instead of the page's.
  * It runs Argon2id, which is WebAssembly, so it may compile that, and nothing else: it
  * loads only the app's files and can't connect anywhere. The page's policy still forbids
- * WebAssembly.
+ * WebAssembly. A path in the folder that isn't a file gets the app's page instead, under
+ * this policy, so it can't be framed or given another base either.
  */
 export function keyWorkerPolicy() {
-	return ["default-src 'none'", "script-src 'self' 'wasm-unsafe-eval'"].join(
-		"; ",
-	);
+	return [
+		"default-src 'none'",
+		"script-src 'self' 'wasm-unsafe-eval'",
+		"base-uri 'none'",
+		"frame-ancestors 'none'",
+	].join("; ");
 }
 
 export function headersFile(options: HeaderOptions) {

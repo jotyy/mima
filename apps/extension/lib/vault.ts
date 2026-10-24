@@ -2,14 +2,14 @@ import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import type { AppRouterClient } from "@vauly/api/routers/index";
 import {
-	checkKdf,
-	deriveMasterKeys,
+	checkedMasterKeys,
 	fromBase64,
 	importPrivateKey,
 	kdfOf,
 	newDataKey,
 	open,
 	openJson,
+	refuseDowngrade,
 	sealJson,
 	toBase64,
 	unwrapKey,
@@ -119,12 +119,14 @@ export async function findServer(address: string) {
 
 /**
  * Signs in if needed and unlocks: derives the keys from the master password, then opens
- * the private key. Returns what to remember.
+ * the private key. Returns what to remember, and whether the account uses Argon2id, which
+ * the extension notes so a server can't move it back to PBKDF2 unnoticed.
  */
 export async function unlock(
 	connection: Pick<Connection, "server" | "email"> & { token?: string },
 	password: string,
 	code?: string,
+	argon2idSeen = false,
 ) {
 	let token = connection.token;
 	let me = token
@@ -139,11 +141,8 @@ export async function unlock(
 		(await apiClient(connection.server).account.prelogin({
 			email: connection.email,
 		}));
-	const { authKey, wrapKey } = await deriveMasterKeys(
-		password,
-		settings.kdfSalt,
-		checkKdf(kdfOf(settings)),
-	);
+	refuseDowngrade(kdfOf(settings), argon2idSeen);
+	const { authKey, wrapKey } = await checkedMasterKeys(password, settings);
 
 	if (!me) {
 		token = await signIn(connection.server, connection.email, authKey, code);
@@ -160,6 +159,7 @@ export async function unlock(
 		token: token as string,
 		privateKey: toBase64(privateKey),
 		publicKey: me.keys.publicKey,
+		argon2id: kdfOf(me.keys).kdf === "argon2id",
 	};
 }
 

@@ -32,7 +32,9 @@ test("the instance publishes its build manifest and settings", async ({
 	// The key worker's files have a policy of their own, which allows WebAssembly.
 	expect(
 		manifest.headers["/assets/key-worker/*"]["content-security-policy"],
-	).toBe("default-src 'none'; script-src 'self' 'wasm-unsafe-eval'");
+	).toBe(
+		"default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; base-uri 'none'; frame-ancestors 'none'",
+	);
 
 	// The Worker answers /vauly.json from the build's own file, with its address as the API's.
 	const config = await (await request.get(`${API_URL}/vauly.json`)).json();

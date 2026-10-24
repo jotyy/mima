@@ -20,7 +20,12 @@ const contents = {
 } as unknown as Contents;
 
 // Quick key derivation: these tests are about the copy, not the master password.
-const FAST: Kdf = { kdf: "pbkdf2", kdfIterations: 1_000, kdfMemory: null };
+const FAST: Kdf = {
+	kdf: "pbkdf2",
+	kdfIterations: 1_000,
+	kdfPasses: null,
+	kdfMemory: null,
+};
 
 describe("the offline copy", () => {
 	test("opens with the account's private key, as it was", async () => {

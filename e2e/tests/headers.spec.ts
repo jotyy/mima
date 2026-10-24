@@ -16,7 +16,13 @@ test.skip(
 	"Only the built app is served with these headers.",
 );
 test.describe.configure({ mode: "serial" });
-test.use({ permissions: ["clipboard-read", "clipboard-write"] });
+// Only Chromium has these permissions to grant; the others allow copying on a click.
+test.use({
+	permissions: async ({ browserName }, use) =>
+		use(
+			browserName === "chromium" ? ["clipboard-read", "clipboard-write"] : [],
+		),
+});
 
 test.beforeAll(async ({ request }) => {
 	await resetWorkspace(request);
@@ -64,13 +70,21 @@ test("only the key worker may compile WebAssembly", async ({ request }) => {
 	for (const file of workerFiles) {
 		const headers = (await request.get(file)).headers();
 		expect(headers["content-security-policy"], file).toBe(
-			"default-src 'none'; script-src 'self' 'wasm-unsafe-eval'",
+			"default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; base-uri 'none'; frame-ancestors 'none'",
 		);
 		expect(headers["x-content-type-options"], file).toBe("nosniff");
 	}
 });
 
-test("another site can't show vauly in a frame", async ({ page, baseURL }) => {
+test("another site can't show vauly in a frame", async ({
+	page,
+	baseURL,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== "chromium",
+		"It looks for Chrome's own error page.",
+	);
 	await page.route("http://elsewhere.example.test/", (route) =>
 		route.fulfill({
 			contentType: "text/html",

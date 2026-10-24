@@ -72,6 +72,8 @@ describe("keyWorkerPolicy", () => {
 			"'wasm-unsafe-eval'",
 		]);
 		expect(policy).not.toContain("connect-src");
+		expect(directive(policy, "frame-ancestors")).toEqual(["'none'"]);
+		expect(directive(policy, "base-uri")).toEqual(["'none'"]);
 		expect(contentSecurityPolicy(options)).not.toContain("wasm");
 	});
 });

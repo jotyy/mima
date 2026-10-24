@@ -38,6 +38,27 @@ export function saveConnection(values: Partial<Connection>) {
 	return browser.storage.local.set(values);
 }
 
+/**
+ * The accounts this extension has seen use Argon2id, by email, so that a server asking
+ * one of them for PBKDF2 again is refused.
+ */
+export async function argon2idSeen(email: string) {
+	const { argon2id = [] } = (await browser.storage.local.get("argon2id")) as {
+		argon2id?: string[];
+	};
+	return argon2id.includes(email.trim().toLowerCase());
+}
+
+export async function rememberArgon2id(email: string) {
+	const { argon2id = [] } = (await browser.storage.local.get("argon2id")) as {
+		argon2id?: string[];
+	};
+	const id = email.trim().toLowerCase();
+	if (!argon2id.includes(id)) {
+		await browser.storage.local.set({ argon2id: [...argon2id, id] });
+	}
+}
+
 export async function forgetConnection() {
 	await lock();
 	await browser.storage.local.remove(["server", "web", "email", "token"]);

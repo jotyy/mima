@@ -45,11 +45,20 @@ const toHex = (bytes: Uint8Array) =>
 /** How the master password becomes the master key. The server keeps it with the salt. */
 export type Kdf = {
 	kdf: "pbkdf2" | "argon2id";
-	/** PBKDF2's rounds, or Argon2's passes (t). */
+	/**
+	 * PBKDF2's rounds. Argon2id accounts keep PBKDF2's 600,000 here too: an app from before
+	 * Argon2id reads only this, so it derives slowly and fails to sign in, rather than send
+	 * the server something cheap to test guesses against.
+	 */
 	kdfIterations: number;
+	/** Argon2's passes (t); null for PBKDF2. */
+	kdfPasses: number | null;
 	/** Argon2's memory in KiB (m); null for PBKDF2. Argon2 runs one lane (p = 1). */
 	kdfMemory: number | null;
 };
+
+/** A Kdf with the account's salt: everything the server says to derive with. */
+export type KdfSettings = Kdf & { kdfSalt: string };
 
 /**
  * RFC 9106's second recommendation, with one lane instead of four: a browser runs the
@@ -58,7 +67,8 @@ export type Kdf = {
  */
 export const ARGON2ID: Kdf = {
 	kdf: "argon2id",
-	kdfIterations: 3,
+	kdfIterations: KDF_ITERATIONS,
+	kdfPasses: 3,
 	kdfMemory: 64 * 1024,
 };
 
@@ -66,10 +76,12 @@ export const ARGON2ID: Kdf = {
 export const kdfOf = (keys: {
 	kdf?: Kdf["kdf"];
 	kdfIterations: number;
+	kdfPasses?: number | null;
 	kdfMemory?: number | null;
 }): Kdf => ({
 	kdf: keys.kdf ?? "pbkdf2",
 	kdfIterations: keys.kdfIterations,
+	kdfPasses: keys.kdfPasses ?? null,
 	kdfMemory: keys.kdfMemory ?? null,
 });
 
@@ -77,35 +89,66 @@ export const kdfOf = (keys: {
 export const kdfIsCurrent = (kdf: Kdf) =>
 	kdf.kdf === "argon2id" &&
 	(kdf.kdfMemory ?? 0) >= (ARGON2ID.kdfMemory ?? 0) &&
-	kdf.kdfIterations >= ARGON2ID.kdfIterations;
+	(kdf.kdfPasses ?? 0) >= (ARGON2ID.kdfPasses ?? 0);
 
 /** The settings a server asked for are weaker than vauly allows, or heavier than a device should run. */
 export class KdfError extends Error {
-	constructor() {
-		super(
-			"This server asks for different key derivation than vauly allows, so your master password wasn't used.",
-		);
+	constructor(
+		message = "This server asks for different key derivation than vauly allows, so your master password wasn't used.",
+	) {
+		super(message);
 	}
 }
 
+const isSalt = (salt: string) => {
+	try {
+		return fromBase64(salt).length === 16;
+	} catch {
+		return false;
+	}
+};
+
 /**
- * Checks settings the server sent before the password goes into them. A server that
- * lowered the work could test guesses against the auth key it gets back; one that raised
- * it could make a phone run out of memory.
+ * vauly's limits, the same in the apps and on the server: PBKDF2 needs at least 600,000
+ * rounds; Argon2id 19 MiB to 1 GiB (OWASP's least, and what a phone can spare) and two to
+ * ten passes. A server that lowered the work could test guesses against the auth key it
+ * gets back; one that raised it could make a phone run out of memory. The salt is 16
+ * bytes, which Argon2id in libsodium requires.
  */
-export function checkKdf(kdf: Kdf): Kdf {
-	const allowed =
-		kdf.kdf === "argon2id"
-			? kdf.kdfMemory !== null &&
-				kdf.kdfMemory >= 19 * 1024 &&
-				kdf.kdfMemory <= 1024 * 1024 &&
-				kdf.kdfIterations >= 2 &&
-				kdf.kdfIterations <= 10
-			: kdf.kdf === "pbkdf2" &&
-				kdf.kdfIterations >= KDF_ITERATIONS &&
-				kdf.kdfIterations <= 10_000_000;
-	if (!allowed) throw new KdfError();
-	return kdf;
+export function kdfAllowed(settings: KdfSettings) {
+	const { kdf, kdfIterations, kdfPasses, kdfMemory } = settings;
+	if (!isSalt(settings.kdfSalt)) return false;
+	if (kdfIterations < KDF_ITERATIONS || kdfIterations > 10_000_000)
+		return false;
+	if (kdf === "pbkdf2") return kdfPasses === null && kdfMemory === null;
+	return (
+		kdf === "argon2id" &&
+		kdfMemory !== null &&
+		kdfMemory >= 19 * 1024 &&
+		kdfMemory <= 1024 * 1024 &&
+		kdfPasses !== null &&
+		kdfPasses >= 2 &&
+		kdfPasses <= 10
+	);
+}
+
+/** Checks settings the server sent before the password goes into them. */
+export function checkKdf<T extends KdfSettings>(settings: T): T {
+	if (!kdfAllowed(settings)) throw new KdfError();
+	return settings;
+}
+
+/**
+ * Refuses PBKDF2 for an account this device has seen use Argon2id: a server that asked
+ * for it again could be lowering the work to attack the auth key. Each app keeps its own
+ * list of the accounts it has seen move.
+ */
+export function refuseDowngrade(kdf: Kdf, argon2idSeen: boolean) {
+	if (argon2idSeen && kdf.kdf !== "argon2id") {
+		throw new KdfError(
+			"This account uses Argon2id on this device, but the server now asks for older key derivation, so your master password wasn't used.",
+		);
+	}
 }
 
 /** Argon2id: the password, a 16-byte salt, passes and memory in KiB give 32 bytes. */
@@ -139,7 +182,7 @@ async function masterBits(password: Uint8Array, salt: Bytes, kdf: Kdf) {
 		const bits = await argon2(
 			password,
 			salt,
-			kdf.kdfIterations,
+			kdf.kdfPasses ?? 0,
 			kdf.kdfMemory ?? 0,
 		);
 		return new Uint8Array(bits);
@@ -197,11 +240,26 @@ export async function deriveMasterKeys(
 	return { authKey: toHex(new Uint8Array(authBits)), wrapKey };
 }
 
+type StoredSettings = Pick<
+	AccountKeys,
+	"kdfSalt" | "kdf" | "kdfIterations" | "kdfPasses" | "kdfMemory"
+>;
+
 /** The master keys for an account, from its stored salt and settings. */
-export const masterKeysFor = (
-	password: string,
-	keys: Pick<AccountKeys, "kdfSalt" | "kdf" | "kdfIterations" | "kdfMemory">,
-) => deriveMasterKeys(password, keys.kdfSalt, kdfOf(keys));
+export const masterKeysFor = (password: string, keys: StoredSettings) =>
+	deriveMasterKeys(password, keys.kdfSalt, kdfOf(keys));
+
+/**
+ * The master keys for settings a server sent, once they're checked against vauly's
+ * limits. The apps derive with this; the settings decide how hard the auth key the server
+ * gets back is to attack.
+ */
+export const checkedMasterKeys = (password: string, keys: StoredSettings) =>
+	deriveMasterKeys(
+		password,
+		keys.kdfSalt,
+		checkKdf({ kdfSalt: keys.kdfSalt, ...kdfOf(keys) }),
+	);
 
 export const newSalt = () => toBase64(randomBytes(16));
 
@@ -420,12 +478,14 @@ export async function unwrapKeyFrom(
 
 /**
  * What the server stores per person: it can hand it back, but cannot open it. Copies
- * saved before Argon2id have no `kdf` or `kdfMemory`; kdfOf reads them as PBKDF2.
+ * saved before Argon2id have no `kdf`, `kdfPasses` or `kdfMemory`; kdfOf reads them as
+ * PBKDF2.
  */
 export type AccountKeys = {
 	kdfSalt: string;
 	kdf?: Kdf["kdf"];
 	kdfIterations: number;
+	kdfPasses?: number | null;
 	kdfMemory?: number | null;
 	publicKey: string;
 	encryptedPrivateKey: Sealed;

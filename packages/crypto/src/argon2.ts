@@ -19,3 +19,14 @@ export const argon2id: Argon2 = async (password, salt, passes, memory) => {
 		sodium.crypto_pwhash_ALG_ARGON2ID13,
 	);
 };
+
+/**
+ * Why Argon2id failed, for a message the person can act on: the device ran out of memory,
+ * something (usually a policy) stopped the WebAssembly from compiling, or something else.
+ */
+export function argon2Failure(error: unknown): "memory" | "blocked" | "failed" {
+	const message = error instanceof Error ? error.message : String(error);
+	if (/CompileError|WebAssembly|wasm/i.test(message)) return "blocked";
+	if (/invalid usage|memory|enlarge|RangeError/i.test(message)) return "memory";
+	return "failed";
+}

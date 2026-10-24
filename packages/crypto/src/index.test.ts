@@ -12,6 +12,8 @@ import {
 	importPrivateKey,
 	type Kdf,
 	KdfError,
+	type KdfSettings,
+	kdfAllowed,
 	kdfIsCurrent,
 	kdfOf,
 	keyFromText,
@@ -36,8 +38,18 @@ setArgon2(argon2id);
 
 // Small settings keep the suite fast; production uses ARGON2ID, or KDF_ITERATIONS of
 // PBKDF2 for accounts that haven't moved yet.
-const FAST: Kdf = { kdf: "argon2id", kdfIterations: 1, kdfMemory: 64 };
-const OLD: Kdf = { kdf: "pbkdf2", kdfIterations: 1_000, kdfMemory: null };
+const FAST: Kdf = {
+	kdf: "argon2id",
+	kdfIterations: 600_000,
+	kdfPasses: 1,
+	kdfMemory: 64,
+};
+const OLD: Kdf = {
+	kdf: "pbkdf2",
+	kdfIterations: 1_000,
+	kdfPasses: null,
+	kdfMemory: null,
+};
 
 describe("master password", () => {
 	test("same password and salt give the same auth key", async () => {
@@ -107,7 +119,8 @@ describe("master password", () => {
 		expect(moved.authKey).not.toBe(account.authKey);
 		expect(moved.keys).toMatchObject({
 			kdf: "argon2id",
-			kdfIterations: 1,
+			kdfIterations: 600_000,
+			kdfPasses: 1,
 			kdfMemory: 64,
 			publicKey: account.keys.publicKey,
 		});
@@ -127,7 +140,7 @@ describe("master password", () => {
 
 	test("keys saved before Argon2id read as PBKDF2", async () => {
 		const account = await createAccount("old-example-pass", OLD);
-		const { kdf: _, kdfMemory: __, ...saved } = account.keys;
+		const { kdf: _, kdfPasses: __, kdfMemory: ___, ...saved } = account.keys;
 		expect(kdfOf(saved)).toEqual(OLD);
 		expect((await unlockAccount("old-example-pass", saved)).authKey).toBe(
 			account.authKey,
@@ -146,7 +159,9 @@ describe("key derivation settings", () => {
 	test("new accounts use Argon2id with 64 MiB and three passes", () => {
 		expect(ARGON2ID).toEqual({
 			kdf: "argon2id",
-			kdfIterations: 3,
+			// What an app from before Argon2id reads, and derives slowly with.
+			kdfIterations: 600_000,
+			kdfPasses: 3,
 			kdfMemory: 65_536,
 		});
 		expect(kdfIsCurrent(ARGON2ID)).toBe(true);
@@ -155,30 +170,44 @@ describe("key derivation settings", () => {
 	});
 
 	test("what a server asks for must be within vauly's limits", () => {
-		const pbkdf2 = (kdfIterations: number): Kdf => ({ ...OLD, kdfIterations });
-		const argon = (kdfMemory: number | null, kdfIterations = 3): Kdf => ({
-			kdf: "argon2id",
+		const kdfSalt = newSalt();
+		const pbkdf2 = (kdfIterations: number): KdfSettings => ({
+			...OLD,
 			kdfIterations,
+			kdfSalt,
+		});
+		const argon = (kdfMemory: number | null, kdfPasses = 3): KdfSettings => ({
+			...ARGON2ID,
+			kdfPasses,
 			kdfMemory,
+			kdfSalt,
 		});
 		for (const allowed of [
-			ARGON2ID,
+			{ ...ARGON2ID, kdfSalt },
 			pbkdf2(600_000),
 			argon(19_456, 2),
 			argon(1_048_576, 10),
 		]) {
+			expect(kdfAllowed(allowed)).toBe(true);
 			expect(checkKdf(allowed)).toEqual(allowed);
 		}
 		for (const refused of [
 			pbkdf2(599_999),
 			pbkdf2(1_000),
+			{ ...pbkdf2(600_000), kdfPasses: 3 },
 			argon(19_455),
 			argon(null),
 			argon(65_536, 1),
 			argon(1_048_577),
 			argon(65_536, 11),
-			{ ...ARGON2ID, kdf: "scrypt" } as unknown as Kdf,
+			// Old apps would derive PBKDF2 with the rounds given here: never few of them.
+			{ ...argon(65_536), kdfIterations: 3 },
+			// libsodium's Argon2id takes 16-byte salts only.
+			{ ...argon(65_536), kdfSalt: "AAAAAAAAAAAAAAAA" },
+			{ ...argon(65_536), kdfSalt: "not base64!" },
+			{ ...ARGON2ID, kdfSalt, kdf: "scrypt" } as unknown as KdfSettings,
 		]) {
+			expect(kdfAllowed(refused)).toBe(false);
 			expect(() => checkKdf(refused)).toThrow(KdfError);
 		}
 	});

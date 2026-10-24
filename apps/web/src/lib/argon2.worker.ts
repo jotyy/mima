@@ -1,4 +1,4 @@
-import { argon2id } from "@vauly/crypto/argon2";
+import { argon2Failure, argon2id } from "@vauly/crypto/argon2";
 
 // The key worker: Argon2id runs here and nowhere else in the app, because it's WebAssembly
 // and the page's CSP doesn't let WebAssembly compile. This worker's files are served with
@@ -12,7 +12,9 @@ export type Argon2Request = {
 	passes: number;
 	memory: number;
 };
-export type Argon2Response = { bits: Uint8Array } | { error: string };
+export type Argon2Response =
+	| { bits: Uint8Array }
+	| { failure: ReturnType<typeof argon2Failure> };
 
 self.onmessage = async ({ data }: MessageEvent<Argon2Request>) => {
 	let response: Argon2Response;
@@ -21,9 +23,7 @@ self.onmessage = async ({ data }: MessageEvent<Argon2Request>) => {
 			bits: await argon2id(data.password, data.salt, data.passes, data.memory),
 		};
 	} catch (error) {
-		response = {
-			error: error instanceof Error ? error.message : String(error),
-		};
+		response = { failure: argon2Failure(error) };
 	}
 	self.postMessage(response);
 };

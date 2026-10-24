@@ -7,10 +7,12 @@
 	},
 	"scripts": {
 		"build": "tsc -b",
-		"check-types": "tsc -b"
+		"check-types": "tsc -b",
+		"test": "bun test"
 	},
 	"dependencies": {
 		"@vauly/auth": "workspace:*",
+		"@vauly/crypto": "workspace:*",
 		"@vauly/db": "workspace:*",
 		"@orpc/client": "catalog:",
 		"@orpc/openapi": "catalog:",
@@ -20,6 +22,7 @@
 		"zod": "catalog:"
 	},
 	"devDependencies": {
+		"@types/bun": "^1.3.14",
 		"@vauly/config": "workspace:*",
 		"typescript": "catalog:"
 	}

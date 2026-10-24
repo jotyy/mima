@@ -7,6 +7,24 @@ import type { Argon2Request, Argon2Response } from "./argon2.worker";
 // service worker. Each derivation takes it and ends it once it answers, which frees the
 // 64 MiB it used, and a fresh one takes its place.
 
+/** Why the key couldn't be derived on this device, in words the person can act on. */
+export class KeyDerivationError extends Error {}
+
+const failures = {
+	memory:
+		"This device ran out of memory while deriving your key. Close some other tabs or apps, then try again.",
+	blocked:
+		"This browser stopped the code that derives your key from running. A browser extension or a network filter may be changing vauly's security settings.",
+	load: "vauly couldn't load the code that derives your key. Reload the page: if vauly was just updated, that gets the new version.",
+	timeout:
+		"Deriving your key took too long on this device. Reload the page, then try again.",
+	failed:
+		"vauly couldn't derive your key on this device. Reload the page, then try again.",
+};
+
+/** Far longer than a slow phone takes (about a second), so only a stuck worker hits it. */
+const TIMEOUT_MS = 60_000;
+
 type KeyWorker = { worker: Worker; failed: boolean };
 
 let ready: KeyWorker | null = null;
@@ -37,18 +55,22 @@ export const argon2InWorker: Argon2 = (password, salt, passes, memory) =>
 		const { worker } = ready && !ready.failed ? ready : startKeyWorker();
 		ready = null;
 		const done = () => {
+			clearTimeout(timer);
 			worker.terminate();
 			prepareArgon2();
 		};
+		const fail = (reason: keyof typeof failures) => {
+			done();
+			reject(new KeyDerivationError(failures[reason]));
+		};
+		const timer = setTimeout(() => fail("timeout"), TIMEOUT_MS);
 		worker.onmessage = ({ data }: MessageEvent<Argon2Response>) => {
-			done();
-			if ("bits" in data) resolve(data.bits);
-			else reject(new Error(data.error));
+			if ("bits" in data) {
+				done();
+				resolve(data.bits);
+			} else fail(data.failure);
 		};
-		worker.onerror = (event) => {
-			done();
-			reject(new Error(event.message || "The key worker didn't start"));
-		};
+		worker.onerror = () => fail("load");
 		worker.postMessage({
 			password,
 			salt,

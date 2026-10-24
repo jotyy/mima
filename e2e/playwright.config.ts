@@ -17,6 +17,14 @@ export const RESET_TOKEN =
 	process.env.VAULY_E2E_RESET_TOKEN ?? "vauly-e2e-local";
 export const API_URL = `http://localhost:${API_PORT}`;
 
+// VAULY_E2E_BROWSER=webkit or firefox runs the suite in that engine instead of Chromium,
+// for checks that depend on the browser, such as the key worker's CSP. CI uses Chromium.
+// WebKit keeps no Secure cookies on http://localhost, so it can't stay signed in here.
+const browser = {
+	webkit: devices["Desktop Safari"],
+	firefox: devices["Desktop Firefox"],
+}[process.env.VAULY_E2E_BROWSER ?? ""];
+
 export default defineConfig({
 	testDir: "./tests",
 	fullyParallel: false,
@@ -29,7 +37,7 @@ export default defineConfig({
 		baseURL: `http://localhost:${WEB_PORT}`,
 		trace: "retain-on-failure",
 		screenshot: "only-on-failure",
-		...devices["Desktop Chrome"],
+		...(browser ?? devices["Desktop Chrome"]),
 		viewport: { width: 1440, height: 900 },
 		// Browsers start with the breach check off, so no test depends on Have I Been
 		// Pwned; breaches.spec.ts turns it on and stands in for the service.

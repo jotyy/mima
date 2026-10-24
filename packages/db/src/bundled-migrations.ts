@@ -50,4 +50,9 @@ export const migrations: readonly {
 		hash: "fb63f430ac4ab75db6db2ed0405da765edcebea0606c932760990be393a696d5",
 		sql: "ALTER TABLE `member` ADD `kdf` text DEFAULT 'pbkdf2' NOT NULL;--> statement-breakpoint\nALTER TABLE `member` ADD `kdf_memory` integer;",
 	},
+	{
+		name: "20261024002019_argon2id_passes",
+		hash: "2261482a0d2ea227e94b0e00ad3f43b0d7d8577034156747f970a1ec5ca551ad",
+		sql: "-- Argon2's passes get a column of their own. kdf_iterations goes back to PBKDF2's rounds,\n-- 600,000 for Argon2id accounts too: an app from before Argon2id reads only that, so it\n-- derives slowly and fails, rather than send an auth key cheap to test guesses against.\nALTER TABLE `member` ADD `kdf_passes` integer;--> statement-breakpoint\nUPDATE `member` SET `kdf_passes` = `kdf_iterations`, `kdf_iterations` = 600000 WHERE `kdf` = 'argon2id';\n",
+	},
 ];

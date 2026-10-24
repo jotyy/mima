@@ -37,11 +37,13 @@ import {
 	savePasskeySettings,
 } from "@/lib/settings";
 import {
+	argon2idSeen,
 	type Connection,
 	forgetConnection,
 	getConnection,
 	getUnlocked,
 	lock,
+	rememberArgon2id,
 	saveConnection,
 	saveUnlocked,
 	touch,
@@ -202,7 +204,9 @@ function SignIn({
 				},
 				password,
 				code?.trim() || undefined,
+				await argon2idSeen(email),
 			);
+			if (result.argon2id) await rememberArgon2id(email);
 			await saveConnection({ email: email.trim(), token: result.token });
 			await saveUnlocked(result.privateKey, result.publicKey);
 			onUnlocked();

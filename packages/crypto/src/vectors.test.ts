@@ -163,8 +163,12 @@ async function keyPair(pkcs8: string): Promise<CryptoKeyPair> {
 
 describe("master keys", () => {
 	for (const vector of vectors.masterKeys) {
-		const { kdf, kdfIterations, kdfMemory } = vector.kdf;
-		test(`${kdf}, ${kdfIterations} × ${kdfMemory ?? "-"} KiB, of "${vector.password}"`, async () => {
+		const { kdf, kdfIterations, kdfPasses, kdfMemory } = vector.kdf;
+		const work =
+			kdf === "argon2id"
+				? `${kdfPasses} passes × ${kdfMemory} KiB`
+				: `${kdfIterations} rounds`;
+		test(`${kdf}, ${work}, of "${vector.password}"`, async () => {
 			const keys = await deriveMasterKeys(
 				vector.password,
 				vector.salt,

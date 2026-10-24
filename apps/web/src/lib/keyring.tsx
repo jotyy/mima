@@ -3,14 +3,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
 	type AccountKeys,
 	changeMasterPassword,
+	checkedMasterKeys,
 	checkKdf,
 	createAccount,
-	deriveMasterKeys,
 	kdfIsCurrent,
 	kdfOf,
 	newDataKey,
 	openPrivateKey,
 	open as openSealed,
+	refuseDowngrade,
 	sealJson,
 	setArgon2,
 	unwrapKeyFrom,
@@ -30,6 +31,7 @@ import {
 import { notify } from "@/components/notify";
 import { instance } from "@/config";
 import { argon2InWorker, prepareArgon2 } from "@/lib/argon2";
+import { argon2idSeen, rememberArgon2id } from "@/lib/argon2id-seen";
 import { authClient } from "@/lib/auth-client";
 import {
 	type DeviceUnlock,
@@ -58,13 +60,21 @@ setArgon2(argon2InWorker);
 
 /**
  * The master keys for an account, once its key derivation settings are checked against
- * vauly's limits: what the server sends decides how hard the auth key it gets back is to
- * attack.
+ * vauly's limits, and against what this device has seen the account use: what the server
+ * sends decides how hard the auth key it gets back is to attack.
  */
-const masterKeys = (
+async function masterKeys(
 	password: string,
-	keys: Pick<AccountKeys, "kdfSalt" | "kdf" | "kdfIterations" | "kdfMemory">,
-) => deriveMasterKeys(password, keys.kdfSalt, checkKdf(kdfOf(keys)));
+	keys: Parameters<typeof checkedMasterKeys>[1],
+	email: string,
+) {
+	refuseDowngrade(kdfOf(keys), await argon2idSeen(email));
+	return checkedMasterKeys(password, keys);
+}
+
+/** Notes on this device that the account uses Argon2id, once it does. */
+const noteKdf = (email: string, keys: AccountKeys) =>
+	kdfOf(keys).kdf === "argon2id" ? rememberArgon2id(email) : undefined;
 
 /** Idle minutes before the vault locks. Each device keeps its own choice. */
 export const AUTO_LOCK_CHOICES = [5, 15, 30, 60, 240] as const;
@@ -345,9 +355,9 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			if (!navigator.onLine) return;
 			try {
 				// What the server has now: another device may have moved it already.
-				const { keys } = await loadMe();
+				const { keys, email } = await loadMe();
 				if (kdfIsCurrent(kdfOf(keys))) return;
-				checkKdf(kdfOf(keys));
+				checkKdf({ kdfSalt: keys.kdfSalt, ...kdfOf(keys) });
 				const moved = await upgradeKdf(password, keys);
 				await client.account.upgradeKdf({
 					currentAuthKey: moved.currentAuthKey,
@@ -356,10 +366,12 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 						kdfSalt: moved.keys.kdfSalt,
 						kdf: moved.keys.kdf,
 						kdfIterations: moved.keys.kdfIterations,
+						kdfPasses: moved.keys.kdfPasses,
 						kdfMemory: moved.keys.kdfMemory,
 						encryptedPrivateKey: moved.keys.encryptedPrivateKey,
 					},
 				});
+				await rememberArgon2id(email);
 				await loadMe();
 			} catch {
 				// The account stays as it was until the next unlock.
@@ -370,12 +382,23 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 
 	const signIn = useCallback(
 		async (email: string, password: string, code?: string) => {
-			const settings = await client.account.prelogin({ email });
-			const { authKey, wrapKey } = await masterKeys(password, settings);
-			const result = await authClient.signIn.email(
-				{ email, password: authKey },
-				code ? { headers: { "x-vauly-code": code } } : undefined,
-			);
+			const attempt = async () => {
+				const settings = await client.account.prelogin({ email });
+				const keys = await masterKeys(password, settings, email);
+				const result = await authClient.signIn.email(
+					{ email, password: keys.authKey },
+					code ? { headers: { "x-vauly-code": code } } : undefined,
+				);
+				return { settings, keys, result };
+			};
+			let { settings, keys, result } = await attempt();
+			// Another device may have moved the account to Argon2id since prelogin answered:
+			// if the settings changed, once more with the new ones.
+			if (result.error && !result.error.code?.startsWith("TWO_FACTOR")) {
+				const fresh = await client.account.prelogin({ email });
+				if (fresh.kdfSalt !== settings.kdfSalt)
+					({ settings, keys, result } = await attempt());
+			}
 			if (result.error?.code === "TWO_FACTOR_REQUIRED")
 				throw new TwoStepError(false);
 			if (result.error?.code === "TWO_FACTOR_WRONG")
@@ -383,10 +406,16 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			if (result.error) throw new WrongPasswordError();
 			await adoptSession();
 			const profile = await loadMe();
+			// Or it moved after the sign-in: the keys that came back need their own settings.
+			const { wrapKey } =
+				profile.keys.kdfSalt === settings.kdfSalt
+					? keys
+					: await masterKeys(password, profile.keys, email);
 			open(
 				await openPrivateKey(wrapKey, profile.keys.encryptedPrivateKey),
 				profile.id,
 			);
+			void noteKdf(email, profile.keys);
 			void upgrade(password, profile.keys);
 		},
 		[loadMe, open, adoptSession, upgrade],
@@ -395,12 +424,13 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 	const unlock = useCallback(
 		async (password: string) => {
 			if (!me) throw new Error("Sign in first");
-			const { wrapKey } = await masterKeys(password, me.keys);
+			const { wrapKey } = await masterKeys(password, me.keys, me.email);
 			try {
 				open(await openPrivateKey(wrapKey, me.keys.encryptedPrivateKey), me.id);
 			} catch {
 				throw new WrongPasswordError();
 			}
+			void noteKdf(me.email, me.keys);
 			// An offline start has no email yet, and nothing to send the move to.
 			if (me.email) void upgrade(password, me.keys);
 		},
@@ -508,7 +538,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 	const verifyPassword = useCallback(
 		async (password: string) => {
 			if (!me) return false;
-			const { wrapKey } = await masterKeys(password, me.keys);
+			const { wrapKey } = await masterKeys(password, me.keys, me.email);
 			try {
 				await openPrivateKey(wrapKey, me.keys.encryptedPrivateKey);
 				return true;
@@ -523,8 +553,9 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 		async (current: string, next: string) => {
 			if (!me) throw new Error("Sign in first");
 			// Fresh settings: another device may have moved the account to Argon2id.
-			const { keys } = await loadMe();
-			checkKdf(kdfOf(keys));
+			const { keys, email } = await loadMe();
+			checkKdf({ kdfSalt: keys.kdfSalt, ...kdfOf(keys) });
+			refuseDowngrade(kdfOf(keys), await argon2idSeen(email));
 			let changed: Awaited<ReturnType<typeof changeMasterPassword>>;
 			try {
 				changed = await changeMasterPassword(current, next, keys);
@@ -538,6 +569,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 					kdfSalt: changed.keys.kdfSalt,
 					kdf: changed.keys.kdf,
 					kdfIterations: changed.keys.kdfIterations,
+					kdfPasses: changed.keys.kdfPasses,
 					kdfMemory: changed.keys.kdfMemory,
 					encryptedPrivateKey: changed.keys.encryptedPrivateKey,
 				},
@@ -546,6 +578,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			await Promise.all([
 				forgetDevice(),
 				forgetSnapshots((snapshot) => snapshot.accountId === me.id),
+				rememberArgon2id(email),
 			]);
 			await loadMe();
 		},
@@ -555,7 +588,8 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 	const deleteAccount = useCallback(
 		async (password: string) => {
 			if (!me) throw new Error("Sign in first");
-			const { authKey } = await masterKeys(password, (await loadMe()).keys);
+			const fresh = await loadMe();
+			const { authKey } = await masterKeys(password, fresh.keys, fresh.email);
 			const result = await client.account.deleteAccount({ authKey });
 			// The account and its sessions are gone on the server; this device forgets it too.
 			lock();
@@ -582,7 +616,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 					"vauly couldn't check this session. Reload the page and try again.",
 				);
 			}
-			const { wrapKey } = await masterKeys(password, me.keys);
+			const { wrapKey } = await masterKeys(password, me.keys, me.email);
 			let privateKeyPkcs8: Uint8Array;
 			try {
 				privateKeyPkcs8 = await openSealed(

@@ -20,7 +20,8 @@ import {
 const sha = (text: string) => createHash("sha256").update(text).digest("hex");
 const COMMIT = "a".repeat(40);
 const CSP = "default-src 'self'; script-src 'self'";
-const WORKER_CSP = "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'";
+const WORKER_CSP =
+	"default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; base-uri 'none'; frame-ancestors 'none'";
 const WORKER_RULE = "/assets/key-worker/*";
 
 const files: Record<string, string> = {
