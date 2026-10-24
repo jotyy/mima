@@ -180,6 +180,8 @@ export const agent = sqliteTable("agent", {
 	host: text("host"),
 	expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
 	lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" }),
+	/** When its requests last sent notifications: at most once every few minutes. */
+	notifiedAt: integer("notified_at", { mode: "timestamp_ms" }),
 	createdAt: createdAt(),
 });
 
@@ -276,8 +278,8 @@ export const event = sqliteTable(
 
 /**
  * A device that gets notifications: where its browser's push service takes them, and the
- * keys they're encrypted to (RFC 8291). It belongs to the session that turned them on, so
- * signing out, here or from another device, removes it.
+ * keys they're encrypted to (RFC 8291). It belongs to the session that turned them on,
+ * one per session, so signing out, here or from another device, removes it.
  */
 export const pushSubscription = sqliteTable(
 	"push_subscription",
@@ -293,7 +295,12 @@ export const pushSubscription = sqliteTable(
 		/** The browser's P-256 public key and its auth secret, both base64url. */
 		p256dh: text("p256dh").notNull(),
 		auth: text("auth").notNull(),
+		/** Sends that failed in a row; a few and the device is forgotten. */
+		failures: integer("failures").notNull().default(0),
 		createdAt: createdAt(),
 	},
-	(table) => [index("push_subscription_user_idx").on(table.userId)],
+	(table) => [
+		index("push_subscription_user_idx").on(table.userId),
+		uniqueIndex("push_subscription_session_idx").on(table.sessionId),
+	],
 );

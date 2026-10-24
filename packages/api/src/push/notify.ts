@@ -1,8 +1,14 @@
 import type { Database } from "@vauly/db";
 import { session } from "@vauly/db/schema/auth";
-import { pushSubscription, setting } from "@vauly/db/schema/vault";
-import { and, eq, gt, inArray } from "drizzle-orm";
+import {
+	agent,
+	pushSubscription,
+	setting,
+	vaultAccess,
+} from "@vauly/db/schema/vault";
+import { and, desc, eq, gt, inArray, isNull, lt, or } from "drizzle-orm";
 
+import { atLeast } from "../lib";
 import {
 	encryptPush,
 	newVapidKeys,
@@ -33,6 +39,17 @@ export type Delivery = {
 	notice: Notice;
 	exceptSession?: string;
 };
+
+/**
+ * Pushes one call sends at most. Cloudflare's free plan gives a request 50 fetches and
+ * 10 ms of CPU, and each push is a fetch and about a quarter of a millisecond of crypto.
+ */
+export const MAX_SENDS = 25;
+/** Failed sends in a row before a device is forgotten. */
+export const MAX_FAILURES = 3;
+/** Every push is padded to this many bytes, so its size doesn't give its words away. */
+export const PAD_TO = 640;
+const TIMEOUT = 5_000;
 
 const KEYS = "vapid_keys";
 
@@ -92,18 +109,59 @@ export function pushServiceAllowed(
 	);
 }
 
+type Device = {
+	id: string;
+	userId: string;
+	sessionId: string;
+	endpoint: string;
+	p256dh: string;
+	auth: string;
+	failures: number;
+};
+
 /**
- * Sends each notice to its person's devices, those signed in now. A device its push
- * service no longer knows (404 or 410) is forgotten. Never throws: a notification that
- * can't go out mustn't fail what caused it.
+ * Which devices get which notice, at most MAX_SENDS of them: everyone's newest device
+ * first, then everyone's next, so a long list can't leave anyone out. `devices` is
+ * newest first.
+ */
+export function pickSends(
+	deliveries: Delivery[],
+	devices: Device[],
+	{ localhost = false } = {},
+) {
+	const queues = deliveries.map(({ userId, notice, exceptSession }) =>
+		devices
+			.filter(
+				(device) =>
+					device.userId === userId &&
+					device.sessionId !== exceptSession &&
+					pushServiceAllowed(device.endpoint, { localhost }),
+			)
+			.map((device) => ({ device, notice })),
+	);
+	const picked: { device: Device; notice: Notice }[] = [];
+	for (let round = 0; picked.length < MAX_SENDS; round++) {
+		const next = queues.flatMap((queue) => queue[round] ?? []);
+		if (next.length === 0) break;
+		picked.push(...next.slice(0, MAX_SENDS - picked.length));
+	}
+	return picked;
+}
+
+/**
+ * Sends each notice to its person's devices, those signed in now. `deliveries` may still
+ * be on its way: a lookup that fails here fails nothing else. A device whose push service
+ * no longer knows it (404 or 410), or that failed MAX_FAILURES times in a row, is
+ * forgotten. Never throws.
  */
 export async function notify(
 	db: Database,
-	deliveries: Delivery[],
+	deliveries: Delivery[] | Promise<Delivery[]>,
 	{ subject, localhost = false }: { subject: string; localhost?: boolean },
 ) {
 	try {
-		const userIds = [...new Set(deliveries.map((entry) => entry.userId))];
+		const wanted = await deliveries;
+		const userIds = [...new Set(wanted.map((entry) => entry.userId))];
 		if (userIds.length === 0) return;
 		const devices = await db
 			.select({
@@ -113,6 +171,7 @@ export async function notify(
 				endpoint: pushSubscription.endpoint,
 				p256dh: pushSubscription.p256dh,
 				auth: pushSubscription.auth,
+				failures: pushSubscription.failures,
 			})
 			.from(pushSubscription)
 			.innerJoin(session, eq(session.id, pushSubscription.sessionId))
@@ -121,55 +180,137 @@ export async function notify(
 					inArray(pushSubscription.userId, userIds),
 					gt(session.expiresAt, new Date()),
 				),
-			);
-		if (devices.length === 0) return;
+			)
+			.orderBy(desc(pushSubscription.createdAt));
+		const sends = pickSends(wanted, devices, { localhost });
+		if (sends.length === 0) return;
 		const keys = await vapidKeys(db);
-		const sends = deliveries.flatMap(({ userId, notice, exceptSession }) =>
-			devices
-				.filter(
-					(device) =>
-						device.userId === userId &&
-						device.sessionId !== exceptSession &&
-						pushServiceAllowed(device.endpoint, { localhost }),
-				)
-				.map(async (device) => {
-					const { ttl, urgent, ...shown } = notice;
-					const body = await encryptPush(
-						new TextEncoder().encode(JSON.stringify(shown)),
-						device,
-					);
-					const response = await fetch(device.endpoint, {
-						method: "POST",
-						headers: {
-							Authorization: await vapidAuthorization(
-								device.endpoint,
-								keys,
-								subject,
-							),
-							"Content-Encoding": "aes128gcm",
-							"Content-Type": "application/octet-stream",
-							TTL: String(ttl),
-							Urgency: urgent ? "high" : "normal",
-						},
-						body,
-					});
-					if (response.status === 404 || response.status === 410) {
-						await db
-							.delete(pushSubscription)
-							.where(eq(pushSubscription.id, device.id));
-					} else if (!response.ok) {
-						console.error(
-							`Push to ${new URL(device.endpoint).host} failed: ${response.status}`,
-						);
-					}
-				}),
+		// One signature per push service, not per device.
+		const signed = new Map<string, Promise<string>>();
+		const authorization = (endpoint: string) => {
+			const audience = new URL(endpoint).origin;
+			let header = signed.get(audience);
+			if (!header) {
+				header = vapidAuthorization(endpoint, keys, subject);
+				signed.set(audience, header);
+			}
+			return header;
+		};
+		const results = await Promise.allSettled(
+			sends.map(({ device, notice }) =>
+				send(db, device, notice, authorization(device.endpoint)),
+			),
 		);
-		const results = await Promise.allSettled(sends);
 		for (const result of results)
 			if (result.status === "rejected") console.error(result.reason);
 	} catch (error) {
 		console.error(error);
 	}
+}
+
+async function send(
+	db: Database,
+	device: Device,
+	notice: Notice,
+	authorization: Promise<string>,
+) {
+	const { ttl, urgent, ...shown } = notice;
+	const body = await encryptPush(
+		new TextEncoder().encode(JSON.stringify(shown)),
+		device,
+		{ padTo: PAD_TO },
+	);
+	let status = 0;
+	try {
+		const response = await fetch(device.endpoint, {
+			method: "POST",
+			headers: {
+				Authorization: await authorization,
+				"Content-Encoding": "aes128gcm",
+				"Content-Type": "application/octet-stream",
+				TTL: String(ttl),
+				Urgency: urgent ? "high" : "normal",
+			},
+			body,
+			// A push service answers; it never sends a push somewhere else.
+			redirect: "manual",
+			signal: AbortSignal.timeout(TIMEOUT),
+		});
+		status = response.status;
+		await response.body?.cancel();
+	} catch {
+		// Unreachable or too slow: a failure like any other.
+	}
+	const forget = () =>
+		db.delete(pushSubscription).where(eq(pushSubscription.id, device.id));
+	if (status >= 200 && status < 300) {
+		if (device.failures > 0)
+			await db
+				.update(pushSubscription)
+				.set({ failures: 0 })
+				.where(eq(pushSubscription.id, device.id));
+		return;
+	}
+	if (status === 404 || status === 410) return forget();
+	// Too many pushes for now isn't the device's fault.
+	if (status === 429) return;
+	console.error(
+		`Push to ${new URL(device.endpoint).host} failed: ${status || "no answer"}`,
+	);
+	if (device.failures + 1 >= MAX_FAILURES) return forget();
+	await db
+		.update(pushSubscription)
+		.set({ failures: device.failures + 1 })
+		.where(eq(pushSubscription.id, device.id));
+}
+
+/** How often an agent's requests may notify: a stolen token can't keep phones buzzing. */
+export const AGENT_QUIET = 5 * 60 * 1000;
+
+/**
+ * Who hears about an agent's new requests for items in `vaultIds`: everyone who can
+ * change those vaults, with how many of the items they can decide. Nobody, if the agent
+ * notified anyone in the last AGENT_QUIET; its requests still wait in the app.
+ */
+export async function approvalDeliveries(
+	db: Database,
+	from: { id: string; name: string },
+	vaultIds: string[],
+): Promise<Delivery[]> {
+	if (vaultIds.length === 0) return [];
+	const now = new Date();
+	const [due] = await db
+		.update(agent)
+		.set({ notifiedAt: now })
+		.where(
+			and(
+				eq(agent.id, from.id),
+				or(
+					isNull(agent.notifiedAt),
+					lt(agent.notifiedAt, new Date(now.getTime() - AGENT_QUIET)),
+				),
+			),
+		)
+		.returning({ id: agent.id });
+	if (!due) return [];
+	const approvers = await db
+		.select({ userId: vaultAccess.userId, vaultId: vaultAccess.vaultId })
+		.from(vaultAccess)
+		.where(
+			and(
+				inArray(vaultAccess.vaultId, [...new Set(vaultIds)]),
+				inArray(vaultAccess.role, atLeast("edit")),
+			),
+		);
+	const counts = new Map<string, number>();
+	for (const vaultId of vaultIds)
+		for (const row of approvers)
+			if (row.vaultId === vaultId)
+				counts.set(row.userId, (counts.get(row.userId) ?? 0) + 1);
+	return [...counts].map(([userId, count]) => ({
+		userId,
+		notice: approvalNotice(from, count),
+	}));
 }
 
 /** What an agent's request tells the people who can approve it. */

@@ -60,7 +60,8 @@ async function serviceWorker() {
 
 /**
  * Whether the server sends notifications to this device. A subscription it doesn't
- * know for this session, after a sign-out elsewhere, is dropped here too.
+ * know for this session, after a sign-out elsewhere or someone else's sign-in on a
+ * shared computer, is dropped here too. The app checks as it starts and on sign-in.
  */
 export async function pushEnabled() {
 	if (pushSupport() === "unsupported") return false;
@@ -82,8 +83,15 @@ export async function turnOnPush() {
 	]);
 	let subscription = await registration.pushManager.getSubscription();
 	const key = subscription?.options.applicationServerKey;
-	// One made with another key, before the workspace started over, can't be used.
-	if (subscription && (!key || toBase64Url(key) !== publicKey)) {
+	// One made with another key, before the workspace started over, can't be used, nor
+	// can one the server doesn't have for this session, such as someone else's from
+	// before on a shared computer: this browser gets a new one.
+	if (
+		subscription &&
+		(!key ||
+			toBase64Url(key) !== publicKey ||
+			!(await client.push.status({ endpoint: subscription.endpoint })))
+	) {
 		await subscription.unsubscribe();
 		subscription = null;
 	}

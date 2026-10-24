@@ -98,14 +98,19 @@ So the installed app can open items without a connection, each device keeps a co
 
 A device where you turn on **Settings › Notifications** is told when an agent asks for an item you can approve, and when your account signs in somewhere new. They use Web Push.
 - **What a notification says.** It gives the agent's name and how many items it asked for, or the browser and system that signed in ("Chrome on macOS"). It never names an item or a vault: the server can't read those. Tapping it opens vauly, and approves nothing.
-- **Who can read it.** The server encrypts each notification to the device's own key (RFC 8291, `aes128gcm`) before it hands it to the browser's push service: Google's, Mozilla's, Apple's or Microsoft's. The push service sees which device it's for, when, and how big it is, but not what it says. Your device's system shows it, so anyone who can see your lock screen can read it, and the system may keep it.
+- **Who can read it.** The server encrypts each notification to the device's own key (RFC 8291, `aes128gcm`) before it hands it to the browser's push service: Google's, Mozilla's, Apple's or Microsoft's. The push service sees which device it's for and when, but not what it says. Every push is padded to the same size, so its length doesn't give away an agent's name. Its headers do say how urgent it is and how long to keep trying, so the push service can tell a request for approval from a sign-in. Your device's system shows it, so anyone who can see your lock screen can read it, and the system may keep it.
 - **Signed by the server.** Each push carries a VAPID signature (RFC 8292). It's made with a P-256 key pair that the server creates the first time a device turns notifications on, and keeps in its database, like the session secret.
-- **Only to push services.** The server sends only to the push services of those browsers, over HTTPS, so nobody can make it post to an address of their choosing.
+- **Only to push services.** The server sends only to the push services of those browsers, over HTTPS, and doesn't follow redirects, so nobody can make it post to an address of their choosing. An address already in use for someone else's sign-in is refused.
+- **Limits.**
+  - Each session has at most one device, and each person at most ten.
+  - An agent's requests send notifications at most once every five minutes, so a stolen agent token can't keep phones buzzing. Requests in between wait in the app.
+  - One event sends at most 25 pushes, so a large team stays within a Worker's limits. Each person's newest device is first.
 - **It belongs to the session.** These stop notifications to a device:
   - signing out, on that device or from another one;
   - being removed from the workspace;
   - the session running out;
-  - its push service saying the device is gone.
+  - its push service saying the device is gone;
+  - three sends to it failing in a row.
 - **iPhone and iPad.** Only the app added to the Home Screen gets notifications, on iOS 16.4 or later.
 
 ## Agents and scripts

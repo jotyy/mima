@@ -44,7 +44,6 @@ describe("readNotice", () => {
 			badge: "/pwa-192x192.png",
 			data: { url: "/agents" },
 			tag: "x",
-			renotify: true,
 		});
 	});
 });
@@ -59,6 +58,10 @@ describe("noticePath", () => {
 			"/",
 		);
 		expect(noticePath({ url: "//evil.example.test/x" }, origin)).toBe("/");
+		expect(noticePath({ url: "/.//evil.example.test/x" }, origin)).toBe("/");
+		expect(noticePath({ url: "/agents/..//evil.example.test" }, origin)).toBe(
+			"/",
+		);
 		expect(noticePath({ url: "javascript:alert(1)" }, origin)).toBe("/");
 		expect(noticePath(null, origin)).toBe("/");
 	});

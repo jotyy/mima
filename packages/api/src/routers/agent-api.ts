@@ -6,15 +6,13 @@ import {
 	agentGrant,
 	item,
 	member,
-	vaultAccess,
 } from "@vauly/db/schema/vault";
 import { and, eq, gt, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
-import type { Context } from "../context";
 import { publicProcedure } from "../index";
-import { atLeast, hashToken, logEvent, newId } from "../lib";
-import { approvalNotice } from "../push/notify";
+import { hashToken, logEvent, newId } from "../lib";
+import { approvalDeliveries } from "../push/notify";
 
 const DENIAL_COOLDOWN = 10 * 60 * 1000;
 
@@ -121,7 +119,7 @@ async function lookup(db: Database, agentId: string, ids: string[]) {
 
 /**
  * For an item without a grant: its open request, a recent denial, or a new request. A new
- * one adds its vault to `asked`, for `notifyApprovers`.
+ * one adds its vault to `asked`, for the notifications to the people who can approve it.
  */
 async function ask(
 	db: Database,
@@ -154,38 +152,6 @@ async function ask(
 	]);
 	asked.push(target.vaultId);
 	return { itemId: id, status: "pending" as const, requestId };
-}
-
-/**
- * Tells everyone who can approve an agent's new requests, on their devices: those who
- * can change the vaults the items are in, with how many of the items they can decide.
- */
-async function notifyApprovers(
-	{ db, notify }: Pick<Context, "db" | "notify">,
-	from: { id: string; name: string },
-	vaultIds: string[],
-) {
-	if (vaultIds.length === 0) return;
-	const approvers = await db
-		.select({ userId: vaultAccess.userId, vaultId: vaultAccess.vaultId })
-		.from(vaultAccess)
-		.where(
-			and(
-				inArray(vaultAccess.vaultId, [...new Set(vaultIds)]),
-				inArray(vaultAccess.role, atLeast("edit")),
-			),
-		);
-	const counts = new Map<string, number>();
-	for (const vaultId of vaultIds)
-		for (const row of approvers)
-			if (row.vaultId === vaultId)
-				counts.set(row.userId, (counts.get(row.userId) ?? 0) + 1);
-	notify(
-		[...counts].map(([userId, count]) => ({
-			userId,
-			notice: approvalNotice(from, count),
-		})),
-	);
 }
 
 export const agentApiRouter = {
@@ -229,7 +195,7 @@ export const agentApiRouter = {
 				}
 				results.push(await ask(db, me.id, entry, input.command, asked));
 			}
-			await notifyApprovers(context, me, asked);
+			context.notify(approvalDeliveries(db, me, asked));
 			return results;
 		}),
 
@@ -277,7 +243,7 @@ export const agentApiRouter = {
 						: ask(db, me.id, entry, input.reason, asked),
 				),
 			);
-			await notifyApprovers(context, me, asked);
+			context.notify(approvalDeliveries(db, me, asked));
 			return results;
 		}),
 

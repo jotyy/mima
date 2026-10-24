@@ -8,12 +8,13 @@ import {
 } from "@playwright/test";
 import { decryptPush } from "@vauly/api/push/receive";
 import { fromBase64Url, toBase64Url } from "@vauly/api/push/web-push";
-import { decodeAgentToken } from "@vauly/crypto";
+import { decodeAgentToken, parseTotp, totpCode } from "@vauly/crypto";
 
 import { API_URL, WEB_PORT } from "../playwright.config";
 import {
 	apiFromPage,
 	createWorkspace,
+	expectSignedIn,
 	openAllItems,
 	openUserMenu,
 	owner,
@@ -53,7 +54,7 @@ type Device = {
 
 let phone: Device;
 let laptop: Device;
-let token = "";
+const tokens = { ci: "", backup: "" };
 const items = { deploy: "", staging: "" };
 
 /** In the page: a PushManager that subscribes to the stand-in, with the test's keys. */
@@ -185,6 +186,11 @@ async function openSettings(page: Page) {
 }
 
 async function turnOn(device: Device) {
+	// From another page, so Settings asks the server afresh.
+	await device.page
+		.getByRole("navigation")
+		.getByRole("link", { name: "Overview" })
+		.click();
 	await openSettings(device.page);
 	const toggle = device.page.getByRole("switch", { name: "Notifications" });
 	await expect(toggle).not.toBeChecked();
@@ -196,13 +202,32 @@ async function turnOn(device: Device) {
 }
 
 /** Asks for items the way `vauly run` does. */
-async function ask(request: APIRequestContext, itemIds: string[]) {
+async function ask(
+	request: APIRequestContext,
+	itemIds: string[],
+	token = tokens.ci,
+) {
 	const { agentId, secret } = decodeAgentToken(token);
 	const response = await request.post(`${API_URL}/rpc/agent/request`, {
 		headers: { authorization: `Bearer ${agentId}.${secret}` },
 		data: { json: { itemIds, reason: "Deploy acme-web" } },
 	});
 	expect(response.status()).toBe(200);
+}
+
+async function newAgent(page: Page, name: string) {
+	await sidebarLink(page, "Agents").click();
+	await page.getByRole("button", { name: "New agent" }).first().click();
+	const dialog = page.getByRole("dialog");
+	await dialog.getByLabel("Name").fill(name);
+	await dialog.getByRole("tab", { name: "CI job" }).click();
+	await dialog.getByRole("button", { name: "Create agent" }).click();
+	const env = dialog.getByTestId("agent-env");
+	await expect(env).toContainText("VAULY_TOKEN=vauly_agent_");
+	const token =
+		/VAULY_TOKEN=(\S+)/.exec((await env.textContent()) ?? "")?.[1] ?? "";
+	await dialog.getByRole("button", { name: "I've stored it" }).click();
+	return token;
 }
 
 async function addKey(page: Page, name: string) {
@@ -249,16 +274,8 @@ test.beforeAll(async ({ browser, request }) => {
 	await sidebarLink(phone.page, "Private").click();
 	items.deploy = await addKey(phone.page, "Deploy token");
 	items.staging = await addKey(phone.page, "Staging key");
-	await sidebarLink(phone.page, "Agents").click();
-	await phone.page.getByRole("button", { name: "New agent" }).first().click();
-	const dialog = phone.page.getByRole("dialog");
-	await dialog.getByLabel("Name").fill("CI deploy");
-	await dialog.getByRole("tab", { name: "CI job" }).click();
-	await dialog.getByRole("button", { name: "Create agent" }).click();
-	const env = dialog.getByTestId("agent-env");
-	await expect(env).toContainText("VAULY_TOKEN=vauly_agent_");
-	token = /VAULY_TOKEN=(\S+)/.exec((await env.textContent()) ?? "")?.[1] ?? "";
-	await dialog.getByRole("button", { name: "I've stored it" }).click();
+	tokens.ci = await newAgent(phone.page, "CI deploy");
+	tokens.backup = await newAgent(phone.page, "Nightly backup");
 });
 
 test.afterAll(async () => {
@@ -307,7 +324,7 @@ test("an agent's request reaches the device, naming the agent and never the item
 	if (!push) throw new Error("No push");
 	expect(push.headers.ttl).toBe("3600");
 	expect(push.headers.urgency).toBe("high");
-	const { agentId } = decodeAgentToken(token);
+	const { agentId } = decodeAgentToken(tokens.ci);
 	const { text, notice } = await read(phone, push, await serverKey(phone.page));
 	expect(notice).toEqual({
 		title: "CI deploy wants to use 1 item",
@@ -318,8 +335,10 @@ test("an agent's request reaches the device, naming the agent and never the item
 	expect(text).not.toContain("Deploy token");
 	expect(push.body.toString("latin1")).not.toContain("CI deploy");
 
-	// Asking again while it waits doesn't notify again.
+	// Asking again while it waits doesn't notify again, and neither does the same agent
+	// asking for something else within five minutes: that waits in the app.
 	await ask(request, [items.deploy]);
+	await ask(request, [items.staging]);
 
 	// The service worker shows it, as the browser would on a push.
 	const cdp = await phone.page.context().newCDPSession(phone.page);
@@ -376,14 +395,14 @@ test("a device signed out from another one hears nothing more", async ({
 		.click();
 	await expect(laptop.page.getByTestId("session")).toHaveCount(1);
 
-	await ask(request, [items.staging]);
+	await ask(request, [items.staging], tokens.backup);
 	await expect.poll(() => pushesTo(laptop).length).toBe(1);
 	const { notice } = await read(
 		laptop,
 		pushesTo(laptop)[0] as Received,
 		await serverKey(laptop.page),
 	);
-	expect(notice.title).toBe("CI deploy wants to use 1 item");
+	expect(notice.title).toBe("Nightly backup wants to use 1 item");
 	// One approval and one sign-in, from before.
 	expect(pushesTo(phone)).toHaveLength(2);
 
@@ -420,4 +439,48 @@ test("signing out stops the browser listening", async () => {
 	expect(
 		await phone.page.evaluate(() => localStorage.getItem("e2e.pushKey")),
 	).toBeNull();
+});
+
+test("a sign-in that fails its two-step check tells nobody", async () => {
+	answers.delete(laptop.path);
+	await turnOn(laptop);
+	await laptop.page
+		.getByRole("button", { name: "Turn on", exact: true })
+		.click();
+	const dialog = laptop.page.getByRole("dialog");
+	await expect(dialog.getByTestId("setup-key")).toHaveText(/^[A-Z2-7]{32}$/);
+	const key = (await dialog.getByTestId("setup-key").textContent()) ?? "";
+	const config = parseTotp(key);
+	if (!config) throw new Error("No setup key");
+	const code = (steps: number) => totpCode(config, Date.now() + steps * 30_000);
+	await dialog.getByLabel("Code from the app").fill(await code(0));
+	await dialog.getByRole("button", { name: "Turn on" }).click();
+	await dialog.getByRole("button", { name: "I saved them" }).click();
+	const before = pushesTo(laptop).length;
+
+	// The password alone, then a wrong code: the server ends both sessions at once.
+	await phone.page.goto("/login");
+	await phone.page.getByLabel("Email").fill(owner.email);
+	await phone.page.getByLabel("Master password").fill(owner.password);
+	await phone.page.getByRole("button", { name: "Sign in" }).click();
+	const codeField = phone.page.getByLabel("Code from your authenticator app");
+	await codeField.fill("123456");
+	await phone.page.getByRole("button", { name: "Continue" }).click();
+	await expect(phone.page.getByRole("alert")).toContainText(
+		"That code didn't work",
+	);
+
+	// The code used to turn it on can't be used again, so the next one.
+	await codeField.fill(await code(1));
+	await phone.page.getByRole("button", { name: "Continue" }).click();
+	await expectSignedIn(phone.page);
+	await expect.poll(() => pushesTo(laptop).length).toBe(before + 1);
+	const { notice } = await read(
+		laptop,
+		pushesTo(laptop).at(-1) as Received,
+		await serverKey(laptop.page),
+	);
+	expect(notice.title).toBe("New sign-in to your vauly");
+	await laptop.page.waitForTimeout(1000);
+	expect(pushesTo(laptop)).toHaveLength(before + 1);
 });

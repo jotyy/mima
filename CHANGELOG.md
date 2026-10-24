@@ -6,7 +6,7 @@ Notable changes to vauly. The format follows [Keep a Changelog](https://keepacha
 
 ### Added
 
-- Notifications: turn them on for each device in Settings to hear when an agent asks for an item you can approve, and when your account signs in from another browser. They name the agent and count the items, but never name an item, and they're encrypted to the device. They stop when that device is signed out. On iPhone and iPad they need the app added to the Home Screen, on iOS 16.4 or later.
+- Notifications: turn them on for each device in Settings to hear when an agent asks for an item you can approve, and when your account signs in from another browser. They name the agent and count the items, but never name an item, and they're encrypted to the device. They stop when that device is signed out, and an agent's requests notify at most once every five minutes. On iPhone and iPad they need the app added to the Home Screen, on iOS 16.4 or later.
 
 ### Fixed
 

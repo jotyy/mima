@@ -23,6 +23,12 @@ const router = createRouter({
 // A tapped notification, in a window that's already open: go to its page without a reload,
 // which would lock vauly.
 navigator.serviceWorker?.addEventListener("message", (event) => {
+	const from = event.source;
+	if (
+		!(from instanceof ServiceWorker) ||
+		new URL(from.scriptURL).origin !== window.location.origin
+	)
+		return;
 	const data = event.data as { type?: unknown; path?: unknown } | null;
 	if (data?.type !== OPEN_PAGE || typeof data.path !== "string") return;
 	if (!data.path.startsWith("/") || data.path.startsWith("//")) return;

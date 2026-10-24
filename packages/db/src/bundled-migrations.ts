@@ -65,4 +65,9 @@ export const migrations: readonly {
 		hash: "c446968dac5cd56737d037e454cc58e57bab17bde2a5f4040abf9b73e2b24d9f",
 		sql: "CREATE TABLE `push_subscription` (\n\t`id` text PRIMARY KEY,\n\t`user_id` text NOT NULL,\n\t`session_id` text NOT NULL,\n\t`endpoint` text NOT NULL UNIQUE,\n\t`p256dh` text NOT NULL,\n\t`auth` text NOT NULL,\n\t`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,\n\tCONSTRAINT `fk_push_subscription_user_id_user_id_fk` FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE CASCADE,\n\tCONSTRAINT `fk_push_subscription_session_id_session_id_fk` FOREIGN KEY (`session_id`) REFERENCES `session`(`id`) ON DELETE CASCADE\n);\n--> statement-breakpoint\nCREATE INDEX `push_subscription_user_idx` ON `push_subscription` (`user_id`);",
 	},
+	{
+		name: "20261024041216_push_limits",
+		hash: "4094c99f19a1d4c90119bbfe0a57601f340f260d994c66b6492ef0f0411ab879",
+		sql: "ALTER TABLE `agent` ADD `notified_at` integer;--> statement-breakpoint\nALTER TABLE `push_subscription` ADD `failures` integer DEFAULT 0 NOT NULL;--> statement-breakpoint\nCREATE UNIQUE INDEX `push_subscription_session_idx` ON `push_subscription` (`session_id`);",
+	},
 ];

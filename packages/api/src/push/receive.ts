@@ -73,6 +73,9 @@ export async function decryptPush(
 	const padded = new Uint8Array(
 		await crypto.subtle.decrypt({ name: "AES-GCM", iv: nonce }, aes, record),
 	);
-	if (padded.at(-1) !== 2) throw new Error("Not the last record");
-	return new TextDecoder().decode(padded.slice(0, -1));
+	// Zeros of padding, then the delimiter that ends the last record.
+	let end = padded.length - 1;
+	while (end >= 0 && padded[end] === 0) end--;
+	if (padded[end] !== 2) throw new Error("Not the last record");
+	return new TextDecoder().decode(padded.slice(0, end));
 }

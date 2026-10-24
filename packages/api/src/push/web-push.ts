@@ -66,22 +66,32 @@ export async function validKeys(keys: PushKeys) {
 
 /**
  * The message as the body of a push: one aes128gcm record for the browser that holds
- * `keys`. Each message gets a new key pair and salt; the tests pass fixed ones.
+ * `keys`, padded with zeros to `padTo` bytes, so pushes of different lengths look the
+ * same size. Each message gets a new key pair and salt; the tests pass fixed ones.
  */
 export async function encryptPush(
 	message: Uint8Array,
 	keys: PushKeys,
-	fixed?: {
-		sender: { privateKey: CryptoKey; publicKey: Bytes };
-		salt: Bytes;
-	},
+	{
+		padTo = 0,
+		sender: fixedSender,
+		salt: fixedSalt,
+	}: {
+		padTo?: number;
+		sender?: { privateKey: CryptoKey; publicKey: Bytes };
+		salt?: Bytes;
+	} = {},
 ) {
 	if (message.length > RECORD_SIZE - OVERHEAD)
 		throw new Error("A push message holds at most 3993 bytes");
+	const padding = Math.max(
+		0,
+		Math.min(padTo, RECORD_SIZE - OVERHEAD) - message.length,
+	);
 	const receiver = fromBase64Url(keys.p256dh);
 	const authSecret = fromBase64Url(keys.auth);
-	const sender = fixed?.sender ?? (await newSenderKeys());
-	const salt = fixed?.salt ?? crypto.getRandomValues(new Uint8Array(16));
+	const sender = fixedSender ?? (await newSenderKeys());
+	const salt = fixedSalt ?? crypto.getRandomValues(new Uint8Array(16));
 
 	const receiverKey = await crypto.subtle.importKey(
 		"raw",
@@ -123,12 +133,12 @@ export async function encryptPush(
 		false,
 		["encrypt"],
 	);
-	// The only record is the last one, so its padding is the delimiter 0x02 alone.
+	// The only record is the last one, so its padding starts with the delimiter 0x02.
 	const record = new Uint8Array(
 		await crypto.subtle.encrypt(
 			{ name: "AES-GCM", iv: nonce },
 			aes,
-			concat(message, new Uint8Array([2])),
+			concat(message, new Uint8Array([2]), new Uint8Array(padding)),
 		),
 	);
 	const header = new Uint8Array(16 + 4 + 1);

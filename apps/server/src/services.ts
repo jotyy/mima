@@ -64,7 +64,8 @@ export function notifier(
 		subject: ENV.BETTER_AUTH_URL || origin,
 		localhost: Boolean(ENV.E2E_RESET_TOKEN),
 	};
-	return (deliveries: Delivery[]) => waitUntil(notify(db, deliveries, options));
+	return (deliveries: Delivery[] | Promise<Delivery[]>) =>
+		waitUntil(notify(db, deliveries, options));
 }
 
 /**

@@ -28,7 +28,10 @@ export function readNotice(text: string | null | undefined): PushNotice | null {
 	}
 }
 
-/** Shows a push as a notification. A later one with the same tag replaces it. */
+/**
+ * Shows a push as a notification. A later one with the same tag replaces it quietly, so
+ * the same agent asking again doesn't buzz the phone again.
+ */
 export async function showNotice(
 	registration: ServiceWorkerRegistration,
 	text: string | null | undefined,
@@ -40,8 +43,8 @@ export async function showNotice(
 		icon: ICON,
 		badge: ICON,
 		data: { url: notice.url },
-		...(notice.tag ? { tag: notice.tag, renotify: true } : {}),
-	} as NotificationOptions);
+		...(notice.tag ? { tag: notice.tag } : {}),
+	});
 }
 
 /** Where a tap goes: the app's own page that the notice names, and nowhere else. */
@@ -49,7 +52,9 @@ export function noticePath(data: unknown, origin: string) {
 	const path = (data as { url?: unknown } | null)?.url;
 	try {
 		const url = new URL(typeof path === "string" ? path : "/", origin);
-		return url.origin === origin ? `${url.pathname}${url.search}` : "/";
+		const page = `${url.pathname}${url.search}`;
+		// A path starting with two slashes would name another site wherever it's used.
+		return url.origin === origin && !page.startsWith("//") ? page : "/";
 	} catch {
 		return "/";
 	}

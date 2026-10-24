@@ -50,7 +50,7 @@ import {
 	openOfflineCopy,
 	setOfflineAccount,
 } from "@/lib/offline";
-import { forgetPush } from "@/lib/push";
+import { forgetPush, pushEnabled } from "@/lib/push";
 import { client, SESSION_ENDED } from "@/utils/orpc";
 
 // The keyring holds the unlocked private key and the vault keys in memory only. A reload,
@@ -206,8 +206,10 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 
 	/**
 	 * Looks the session up, and drops passkey copies made in any other: their sessions are
-	 * over, from a sign-out here or elsewhere, an expiry, or a removal. If the session
-	 * can't be checked (no network), nothing is dropped.
+	 * over, from a sign-out here or elsewhere, an expiry, or a removal. So do notifications
+	 * the server doesn't send here for this session, such as someone else's from before
+	 * on a shared computer. If the session can't be checked (no network), nothing is
+	 * dropped.
 	 */
 	const adoptSession = useCallback(async () => {
 		// Without a network, the lookup can throw rather than return an error.
@@ -224,6 +226,8 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			forgetDeviceUnlocks((record) => record.sessionId !== current),
 			forgetSnapshots((snapshot) => snapshot.sessionId !== current),
 		]);
+		if (current) pushEnabled().catch(() => false);
+		else forgetPush();
 		return session;
 	}, []);
 

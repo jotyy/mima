@@ -73,11 +73,16 @@ export function createAuth(
 					ctx.headers?.get(CODE_HEADER) ?? null,
 				);
 				if (result === "ok" || result === "not-needed") {
-					onSignIn?.({
-						userId: created.user.id,
-						sessionId: created.session.id,
-						userAgent: created.session.userAgent ?? null,
-					});
+					// The sign-in has passed; nothing the hook does can undo that.
+					try {
+						onSignIn?.({
+							userId: created.user.id,
+							sessionId: created.session.id,
+							userAgent: created.session.userAgent ?? null,
+						});
+					} catch (error) {
+						console.error(error);
+					}
 					return;
 				}
 				await ctx.context.internalAdapter.deleteSession(created.session.token);

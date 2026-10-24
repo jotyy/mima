@@ -74,6 +74,28 @@ describe("encryptPush", () => {
 		);
 	});
 
+	test("padding makes short and long messages the same size", async () => {
+		const keys = { p256dh: rfc.receiverPublic, auth: rfc.auth };
+		const receiver = privateJwk(rfc.receiverPrivate, rfc.receiverPublic);
+		const short = '{"title":"A"}';
+		const long = JSON.stringify({
+			title: "A much longer agent name ".repeat(8),
+		});
+		const [a, b] = await Promise.all(
+			[short, long].map((text) =>
+				encryptPush(new TextEncoder().encode(text), keys, { padTo: 640 }),
+			),
+		);
+		expect(a?.length).toBe(86 + 640 + 1 + 16);
+		expect(b?.length).toBe(a?.length);
+		expect(
+			await decrypt(a as Uint8Array<ArrayBuffer>, receiver, rfc.auth),
+		).toBe(short);
+		expect(
+			await decrypt(b as Uint8Array<ArrayBuffer>, receiver, rfc.auth),
+		).toBe(long);
+	});
+
 	test("refuses a message that doesn't fit in one record", async () => {
 		const keys = { p256dh: rfc.receiverPublic, auth: rfc.auth };
 		await expect(encryptPush(new Uint8Array(3994), keys)).rejects.toThrow(
