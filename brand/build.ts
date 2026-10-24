@@ -126,6 +126,18 @@ async function png(svg: string, width: number, height = width) {
 	return page.screenshot({ omitBackground: true, type: "png" });
 }
 
+/**
+ * The artwork at `inner` pixels in the middle of a transparent square of `size`, as the
+ * Chrome Web Store wants its icon: 96 × 96 of 128 × 128, with 16 pixels all round.
+ */
+async function paddedPng(svg: string, size: number, inner: number) {
+	await page.setViewportSize({ width: size, height: size });
+	await page.setContent(
+		`<style>html,body{margin:0;background:transparent}svg{display:block;width:${inner}px;height:${inner}px;margin:${(size - inner) / 2}px}</style>${svg}`,
+	);
+	return page.screenshot({ omitBackground: true, type: "png" });
+}
+
 /** An .ico holding PNG images, which every current browser reads. */
 function ico(images: { size: number; data: Uint8Array }[]) {
 	const header = Buffer.alloc(6 + images.length * 16);
@@ -182,6 +194,9 @@ const apple = await png(svgs["vauly-icon-square.svg"] as string, 180);
 const maskable = await png(svgs["vauly-icon-maskable.svg"] as string, 512);
 writeFileSync(out("brand/png", "apple-touch-icon.png"), apple);
 writeFileSync(out("brand/png", "vauly-icon-maskable-512.png"), maskable);
+// The extension's 128 icon is also its icon in the Chrome Web Store and on the extensions
+// page, both of which want the padding.
+const storeIcon = await paddedPng(icon, 128, 96);
 const favicon = ico(
 	[16, 32, 48].map((size) => ({ size, data: icons.get(size) as Uint8Array })),
 );
@@ -207,14 +222,16 @@ const copies: [string, string | Uint8Array][] = [
 	["apps/site/public/apple-touch-icon.png", apple],
 	["apps/site/src/assets/logo-light.svg", svgs["vauly-logo.svg"] as string],
 	["apps/site/src/assets/logo-dark.svg", svgs["vauly-logo-dark.svg"] as string],
-	// The extension's toolbar and store icons.
-	...[16, 32, 48, 96, 128].map(
+	// The extension's toolbar icons, and the padded one for the store.
+	...[16, 32, 48, 96].map(
 		(size) =>
 			[
 				`apps/extension/public/icon/${size}.png`,
 				icons.get(size) as Uint8Array,
 			] as [string, Uint8Array],
 	),
+	["apps/extension/public/icon/128.png", storeIcon],
+	["apps/extension/store/icon-128.png", storeIcon],
 ];
 for (const [file, data] of copies) writeFileSync(out(file), data);
 
