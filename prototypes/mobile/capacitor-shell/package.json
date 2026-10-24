@@ -1,0 +1,10 @@
+{
+	"name": "vauly-capacitor-shell-prototype",
+	"private": true,
+	"description": "Prototype for #8: apps/web in a Capacitor shell. Not part of the workspace.",
+	"dependencies": {
+		"@capacitor/cli": "8.5.2",
+		"@capacitor/core": "8.5.2",
+		"@capacitor/ios": "8.5.2"
+	}
+}

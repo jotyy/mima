@@ -1,0 +1,13 @@
+{
+	"appId": "app.vauly.proto.shell",
+	"appName": "vauly shell",
+	"webDir": "../../../apps/web/dist",
+	"plugins": {
+		"CapacitorHttp": {
+			"enabled": true
+		}
+	},
+	"ios": {
+		"webContentsDebuggingEnabled": true
+	}
+}

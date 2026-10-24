@@ -1,0 +1,9 @@
+build/
+node_modules/
+shots/
+*.log
+capacitor-shell/ios/App/Pods/
+capacitor-shell/ios/App/App/public/
+capacitor-shell/ios/App/App/capacitor.config.json
+capacitor-shell/ios/App/App/config.xml
+argon2-autofill/VaulyProto.xcodeproj/
