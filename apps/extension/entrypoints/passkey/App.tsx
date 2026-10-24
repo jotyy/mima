@@ -20,8 +20,7 @@ import {
 	type PasskeyState,
 	type PasskeyWindowRequest,
 } from "@/lib/messages";
-import { getConnection, saveConnection, saveUnlocked } from "@/lib/storage";
-import { TwoStepError, unlock, WrongPasswordError } from "@/lib/vault";
+import { unlockWith } from "@/lib/unlock";
 
 // vauly's passkey window. The background opens it when a site asks for a passkey, outside
 // the site's page, so the site can't see it, cover it or click in it. Choosing here is the
@@ -105,38 +104,14 @@ function Prompt({
 	/** Checks the master password, which unlocks vauly or confirms it's still them. */
 	const checkPassword = async () => {
 		if (!askPassword) return true;
-		if (!password) {
-			setError("Enter your master password first.");
-			return false;
-		}
 		setBusy(true);
 		setError("");
-		try {
-			const connection = await getConnection();
-			const result = await unlock(
-				{
-					server: connection.server ?? "",
-					email: connection.email ?? "",
-					token: connection.token || undefined,
-				},
-				password,
-			);
-			await saveConnection({ token: result.token });
-			await saveUnlocked(result.privateKey, result.publicKey);
-			return true;
-		} catch (err) {
-			setPassword("");
-			setError(
-				err instanceof WrongPasswordError
-					? "That's not your master password."
-					: err instanceof TwoStepError
-						? "Sign in again from vauly's button in the toolbar."
-						: (err as Error).message,
-			);
-			return false;
-		} finally {
-			setBusy(false);
-		}
+		const problem = await unlockWith(password);
+		setBusy(false);
+		if (!problem) return true;
+		setPassword("");
+		setError(problem);
+		return false;
 	};
 	const then = (request: PasskeyWindowRequest) => async () => {
 		if (await checkPassword()) await act(request);

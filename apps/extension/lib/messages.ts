@@ -16,8 +16,11 @@ export type PageRequest =
 	| LoginMessage
 	/** Someone focused a login field: is there anything to show? */
 	| { type: "vauly:field" }
-	/** The page loaded: is a login from before waiting to be saved? */
-	| { type: "vauly:offer?" }
+	/**
+	 * A login went through (the page holds no typed password any more): offer to save the
+	 * one waiting, if there is one, in vauly's own window.
+	 */
+	| { type: "vauly:offer-show" }
 	/** The site asked for a passkey; `request` is its options as JSON, unchecked. */
 	| {
 			type: "vauly:passkey";
@@ -28,10 +31,14 @@ export type PageRequest =
 	/** The site gave up waiting for the passkey. */
 	| { type: "vauly:passkey-abort"; id: string };
 
-/** Asked by vauly's frame, about the tab it sits in. */
+/** Asked by vauly's fill menu, about the tab it sits in. */
 export type FrameRequest =
 	| { type: "vauly:menu" }
 	| { type: "vauly:fill"; id: string }
+	| { type: "vauly:menu-close" };
+
+/** Asked by vauly's save window, about the tab whose login waits. */
+export type SaveWindowRequest =
 	| { type: "vauly:offer" }
 	| { type: "vauly:save"; vaultId: string; name: string; username: string }
 	| { type: "vauly:update" }
@@ -48,7 +55,11 @@ export type PasskeyWindowRequest =
 	 */
 	| { type: "vauly:passkey-decline"; another: boolean; notHere?: boolean };
 
-export type Request = PageRequest | FrameRequest | PasskeyWindowRequest;
+export type Request =
+	| PageRequest
+	| FrameRequest
+	| SaveWindowRequest
+	| PasskeyWindowRequest;
 
 /** Sent by the background to the page script. */
 export type PageMessage =
@@ -56,6 +67,8 @@ export type PageMessage =
 	| { type: "vauly:offer-ready" }
 	/** A fill is about to focus the page's fields; don't open the menu for that. */
 	| { type: "vauly:filling" }
+	/** The fill menu is done. */
+	| { type: "vauly:close-menu" }
 	/** The person chose in vauly's passkey prompt; hand the outcome to the site. */
 	| { type: "vauly:passkey-done"; id: string; outcome: PasskeyOutcome };
 

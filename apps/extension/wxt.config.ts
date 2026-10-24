@@ -16,18 +16,20 @@ export default defineConfig({
 		// has its own address.
 		host_permissions: ["<all_urls>"],
 		action: { default_title: "vauly" },
-		// The popup derives the key from the master password with Argon2id, which is
-		// WebAssembly. Chrome's default policy already allows compiling it; Firefox's doesn't.
+		// The popup and vauly's windows derive the key from the master password with
+		// Argon2id, which is WebAssembly. Chrome's default policy already allows compiling it; Firefox's doesn't.
 		content_security_policy: {
 			extension_pages:
 				"script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
 		},
-		// The fill menu and the save prompt are this page, framed inside the site's page;
-		// the button in a login field shows the mark.
+		// The fill menu is this page, framed inside the site's page; the button in a login
+		// field shows the mark. Their addresses change every session, so a site can't
+		// frame the menu itself. vauly's other windows aren't reachable from sites at all.
 		web_accessible_resources: [
 			{
 				resources: ["inline.html", "icon/32.png"],
 				matches: ["http://*/*", "https://*/*"],
+				use_dynamic_url: true,
 			},
 		],
 	},

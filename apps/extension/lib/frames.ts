@@ -1,16 +1,17 @@
-// vauly inside a page: a small button in a focused login field, the fill menu it opens,
-// and the save prompt in the top corner. The menu and the prompt are iframes of the
-// extension's own page, so the site can't read what's in them; the page script only
-// places and sizes them. The menu waits for the button rather than opening on focus:
-// the browser draws its own suggestions under the field, above anything a page can show.
+// vauly inside a page: a small button in a focused login field, and the fill menu it
+// opens. The menu is an iframe of the extension's own page, so the site can't read what's
+// in it; the page script only places it. Both live in closed shadow roots, and the frame
+// is the same size whatever it shows, so the page can't tell from them what vauly holds.
+// The menu waits for the button rather than opening on focus: the browser draws its own
+// suggestions under the field, above anything a page can show.
 
-export type View = "menu" | "save";
+export type View = "menu";
 
 /** Room around the card inside the frame, for its shadow. */
 const PAD = 12;
 const MENU_WIDTH = { min: 300, max: 380 };
-const SAVE_WIDTH = 360;
-const MAX_HEIGHT = 440;
+/** The menu's one height: four logins, then it scrolls. */
+const MENU_HEIGHT = 264;
 const BUTTON = 24;
 
 type Mounted = {
@@ -50,7 +51,7 @@ export function mountFrames() {
 		const host = document.createElement("vauly-button");
 		host.style.cssText =
 			"all: initial; position: fixed; z-index: 2147483647; display: block;";
-		const shadow = host.attachShadow({ mode: "open" });
+		const shadow = host.attachShadow({ mode: "closed" });
 		const style = document.createElement("style");
 		style.textContent = `
 			button { all: unset; box-sizing: border-box; display: flex; align-items: center;
@@ -97,11 +98,6 @@ export function mountFrames() {
 		const mounted = open.get(view);
 		if (!mounted) return;
 		const { host, frame, anchor } = mounted;
-		if (view === "save") {
-			Object.assign(host.style, { top: "4px", right: "4px" });
-			frame.style.width = `${SAVE_WIDTH + PAD * 2}px`;
-			return;
-		}
 		if (!anchor?.isConnected || anchor.getClientRects().length === 0) {
 			close("menu");
 			return;
@@ -111,7 +107,7 @@ export function mountFrames() {
 			MENU_WIDTH.max,
 			Math.max(MENU_WIDTH.min, rect.width),
 		);
-		const height = frame.offsetHeight;
+		const height = MENU_HEIGHT;
 		// Under the field, unless there's more room above it.
 		const below = window.innerHeight - rect.bottom;
 		const top =
@@ -133,15 +129,13 @@ export function mountFrames() {
 		const host = document.createElement("vauly-frame");
 		host.style.cssText =
 			"all: initial; position: fixed; z-index: 2147483647; display: block;";
-		const shadow = host.attachShadow({ mode: "open" });
+		const shadow = host.attachShadow({ mode: "closed" });
 		const frame = document.createElement("iframe");
 		frame.src = `${browser.runtime.getURL("/inline.html")}#${view}`;
-		frame.title =
-			view === "menu" ? "vauly: fill a login" : "vauly: save a login";
+		frame.title = "vauly: fill a login";
 		// The frame copies a one-time code after filling.
 		frame.allow = "clipboard-write";
-		frame.style.cssText =
-			"display: block; border: 0; background: transparent; color-scheme: normal; height: 0;";
+		frame.style.cssText = `display: block; border: 0; background: transparent; color-scheme: normal; height: ${MENU_HEIGHT}px;`;
 		shadow.appendChild(frame);
 		document.documentElement.appendChild(host);
 		open.set(view, { host, frame, anchor });
@@ -156,19 +150,6 @@ export function mountFrames() {
 		button.control.setAttribute("aria-expanded", "false");
 		if (document.activeElement !== button.field) hideButton();
 	};
-
-	// The frame says how tall it is, and when it's done.
-	window.addEventListener("message", (event) => {
-		for (const [view, { frame }] of open) {
-			if (event.source !== frame.contentWindow) continue;
-			const data = event.data as { vauly?: string; height?: number };
-			if (data.vauly === "size" && typeof data.height === "number") {
-				frame.style.height = `${Math.min(MAX_HEIGHT, Math.ceil(data.height))}px`;
-				place(view);
-			}
-			if (data.vauly === "close") close(view);
-		}
-	});
 
 	const follow = () => {
 		placeButton();

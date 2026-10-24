@@ -7,9 +7,10 @@ import {
 } from "@/lib/messages";
 
 // vauly on the sites people sign in to. Focusing a login field shows vauly's button in it,
-// which opens the fill menu; submitting a login hands it to the background, and the save
-// prompt offers to keep it. The page script holds no secrets: the menu and the prompt
-// are vauly's own frames.
+// which opens the fill menu; submitting a login hands it to the background, and vauly's
+// own window offers to keep it. The page script holds no secrets, and what it shows in the
+// page doesn't depend on what the vaults hold: the button shows in any login field, and
+// the menu is vauly's own frame, the same size whatever it lists.
 export default defineContentScript({
 	matches: ["http://*/*", "https://*/*"],
 	runAt: "document_idle",
@@ -20,9 +21,10 @@ export default defineContentScript({
 
 		browser.runtime.onMessage.addListener((message: PageMessage) => {
 			if (message.type === "vauly:filling") quietUntil = Date.now() + 1500;
+			if (message.type === "vauly:close-menu") frames.close("menu");
 			// A login form still holding the password wasn't sent, or didn't work.
 			if (message.type === "vauly:offer-ready" && !typedPassword())
-				frames.show("save");
+				void ask({ type: "vauly:offer-show" });
 		});
 
 		document.addEventListener(
@@ -62,9 +64,7 @@ export default defineContentScript({
 
 		watchSubmits();
 		// A login typed on the page before this one is offered once this one has loaded.
-		void ask<{ show: boolean }>({ type: "vauly:offer?" }).then((answer) => {
-			if (answer?.show && !typedPassword()) frames.show("save");
-		});
+		if (!typedPassword()) void ask({ type: "vauly:offer-show" });
 	},
 });
 

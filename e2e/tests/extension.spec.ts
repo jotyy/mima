@@ -4,6 +4,7 @@ import {
 	type BrowserContext,
 	chromium,
 	expect,
+	type Frame,
 	type Page,
 	test,
 	type Worker,
@@ -125,11 +126,13 @@ test("before it's signed in, a login field offers to sign in to vauly", async ()
 	await page.goto(`${site}/`);
 	await page.getByLabel("Email").click();
 	// Only the button shows on focus: the browser's own suggestions go under the field.
-	const button = page.getByRole("button", { name: "Fill with vauly" });
-	await expect(button).toBeVisible();
+	const button = page.locator("vauly-button");
+	await expect(button).toHaveCount(1);
 	await expect(page.locator("vauly-frame")).toHaveCount(0);
-	await button.click();
-	await expect(fillMenu(page).getByText("Sign in to vauly")).toBeVisible();
+	await clickVaulyButton(page, "Email");
+	await expect(
+		(await fillMenu(page)).getByText("Sign in to vauly"),
+	).toBeVisible();
 	await page.keyboard.press("Escape");
 	await expect(page.locator("vauly-frame")).toHaveCount(0);
 	// Leaving the field takes the button away.
@@ -138,16 +141,36 @@ test("before it's signed in, a login field offers to sign in to vauly", async ()
 	await page.close();
 });
 
-/** vauly's fill menu inside a site's page, and its save prompt. */
-const fillMenu = (page: Page) =>
-	page.frameLocator('iframe[title="vauly: fill a login"]');
+/**
+ * vauly's button sits in a closed shadow root at the right end of the field, where the
+ * page can't reach it; click it there, as a person would.
+ */
+async function clickVaulyButton(page: Page, field: string) {
+	await expect(page.locator("vauly-button")).toHaveCount(1);
+	const box = await page.getByLabel(field).boundingBox();
+	if (!box) throw new Error(`There's no ${field} field`);
+	await page.mouse.click(box.x + box.width - 18, box.y + box.height / 2);
+}
+/** vauly's fill menu inside a site's page: a frame in a closed shadow root. */
+async function fillMenu(page: Page): Promise<Frame> {
+	const find = () =>
+		page.frames().find((frame) => frame.url().includes("/inline.html"));
+	await expect.poll(() => Boolean(find())).toBe(true);
+	return find() as Frame;
+}
 /** Focuses a login field and opens vauly's menu from the button that shows up in it. */
 async function openMenu(page: Page, field: string) {
 	await page.getByLabel(field).click();
-	await page.getByRole("button", { name: "Fill with vauly" }).click();
+	await clickVaulyButton(page, field);
+	return fillMenu(page);
 }
-const savePrompt = (page: Page) =>
-	page.frameLocator('iframe[title="vauly: save a login"]');
+/** vauly's window offering to save the login just typed into a tab. */
+async function saveWindow(tabId: number | undefined) {
+	const find = () =>
+		context.pages().find((page) => page.url().endsWith(`/save.html#${tabId}`));
+	await expect.poll(() => Boolean(find())).toBe(true);
+	return find() as Page;
+}
 
 test("the extension connects from the web address and signs in", async () => {
 	const popup = await openPopup();
@@ -198,8 +221,7 @@ test("Fill puts the username and password into the site's form", async () => {
 test("the menu under a login field fills the site's form", async () => {
 	const page = await context.newPage();
 	await page.goto(`${site}/`);
-	await openMenu(page, "Password");
-	const menu = fillMenu(page);
+	let menu = await openMenu(page, "Password");
 	await menu
 		.getByRole("button", { name: `Fill ${login.name}, ${login.username}` })
 		.click();
@@ -209,7 +231,7 @@ test("the menu under a login field fills the site's form", async () => {
 	await expect(page.locator("vauly-frame")).toHaveCount(0);
 
 	// Typing in by hand closes it.
-	await openMenu(page, "Email");
+	menu = await openMenu(page, "Email");
 	await expect(menu.getByRole("button", { name: /^Fill / })).toBeVisible();
 	await page.getByLabel("Email").pressSequentially("x");
 	await expect(page.locator("vauly-frame")).toHaveCount(0);
@@ -292,8 +314,7 @@ test("locked, the menu offers to unlock, and shows the logins once unlocked", as
 	await popup.getByRole("button", { name: "Lock" }).click();
 	const page = await context.newPage();
 	await page.goto(`${site}/`);
-	await openMenu(page, "Email");
-	const menu = fillMenu(page);
+	const menu = await openMenu(page, "Email");
 	await expect(menu.getByText("vauly is locked")).toBeVisible();
 
 	await popup.getByLabel("Master password").fill(owner.password);
@@ -353,27 +374,66 @@ test("a new login typed into a site is offered for saving", async () => {
 	await page.close();
 });
 
-test("a new login is offered for saving right on the site", async () => {
+test("a new login is offered for saving in vauly's own window, not the page", async () => {
 	const url = "https://shop.example.test";
 	const page = await signInOnSite(url, "kim@example.test", "shop-pass-2024");
-	const prompt = savePrompt(page);
-	const offer = prompt.getByRole("region", { name: "Save login" });
+	const tabId = await tabIdOf(url);
+	const window = await saveWindow(tabId);
+	const offer = window.getByRole("region", { name: "Save login" });
 	await expect(
 		offer.getByText("You just signed in on shop.example.test."),
 	).toBeVisible();
+	await expect(page.locator("vauly-frame")).toHaveCount(0);
 	await expect(offer.getByLabel("Username")).toHaveValue("kim@example.test");
 	await offer.getByLabel("Name", { exact: true }).fill("Shop");
 	await offer.getByRole("button", { name: "Save" }).click();
-	await expect(prompt.getByText("Saved to Private")).toBeVisible();
-	await expect(page.locator("vauly-frame")).toHaveCount(0);
-	expect(await badgeOf(await tabIdOf(url))).toBe("");
+	await expect(window.getByText("Saved to Private")).toBeVisible();
+	await window.waitForEvent("close");
+	expect(await badgeOf(tabId)).toBe("");
 
 	// Next time, the menu has it.
-	await openMenu(page, "Email");
+	const menu = await openMenu(page, "Email");
 	await expect(
-		fillMenu(page).getByRole("button", { name: "Fill Shop, kim@example.test" }),
+		menu.getByRole("button", { name: "Fill Shop, kim@example.test" }),
 	).toBeVisible();
 	await page.close();
+});
+
+test("closing the save window is Not now", async () => {
+	const url = "https://cafe.example.test";
+	const page = await signInOnSite(url, "lou@example.test", "cafe-pass-31");
+	const tabId = await tabIdOf(url);
+	await expect.poll(() => badgeOf(tabId)).toBe("1");
+	const window = await saveWindow(tabId);
+	await window.close();
+	await expect.poll(() => badgeOf(tabId)).toBe("");
+	await page.close();
+});
+
+test("the page can't tell from vauly's button or menu what vauly holds", async () => {
+	// One site has a login saved, the other has none: the page sees the same either way.
+	const sizes: { width: number; height: number }[] = [];
+	for (const url of [site, "https://none.example.test"]) {
+		const page = await context.newPage();
+		await page.goto(`${url}/`);
+		await page.getByLabel("Email").click();
+		await expect(page.locator("vauly-button")).toHaveCount(1);
+		await openMenu(page, "Email");
+		const frame = page.locator("vauly-frame");
+		const box = await frame.boundingBox();
+		if (box) sizes.push({ width: box.width, height: box.height });
+		// Closed shadow roots: the page can't reach into either.
+		expect(
+			await page.evaluate(() =>
+				[...document.querySelectorAll("vauly-button, vauly-frame")].map(
+					(host) => host.shadowRoot,
+				),
+			),
+		).toEqual([null, null]);
+		await page.close();
+	}
+	expect(sizes).toHaveLength(2);
+	expect(sizes[0]).toEqual(sizes[1]);
 });
 
 test("a login that's saved already isn't offered again", async () => {
@@ -450,6 +510,9 @@ test("the activity log shows the fill", async () => {
 	// offered for saving.
 	await expect(page.locator("vauly-frame")).toHaveCount(0);
 	await page.waitForTimeout(500);
+	expect(
+		context.pages().some((other) => other.url().includes("/save.html")),
+	).toBe(false);
 	const popup = await openPopup(await tabIdOf(`http://localhost:${WEB_PORT}`));
 	await expect(popup.getByRole("list", { name: "All items" })).toBeVisible();
 	await expect(popup.getByRole("region", { name: "Save login" })).toHaveCount(

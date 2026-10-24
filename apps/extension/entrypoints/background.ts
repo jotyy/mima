@@ -26,6 +26,7 @@ import type {
 	PasskeyState,
 	PasskeyWindowRequest,
 	Request,
+	SaveWindowRequest,
 } from "@/lib/messages";
 import {
 	canCreate,
@@ -75,18 +76,20 @@ export default defineBackground(() => {
 		if (alarm.name !== "auto-lock") return;
 		void getUnlocked();
 		void expirePasskeyRequest();
+		void expireSaveWindow();
 	});
 
 	browser.runtime.onMessage.addListener((message: unknown, sender, reply) => {
 		const tabId = sender.tab?.id;
 		if (!isRequest(message) || tabId === undefined) return;
 		const tab = { id: tabId, url: sender.tab?.url ?? "" };
+		const page = ownPage(sender.url);
 		void answer(message, tab, {
-			// Filling and saving come only from vauly's own frame; the page script just reports.
-			fromFrame: Boolean(sender.url?.startsWith(browser.runtime.getURL("/"))),
-			passkeyWindow: Boolean(
-				sender.url?.startsWith(browser.runtime.getURL("/passkey.html")),
-			),
+			// Filling and saving come only from vauly's own pages; the page script just reports.
+			fromFrame: page !== null,
+			menuFrame: page === "/inline.html",
+			saveWindow: page === "/save.html",
+			passkeyWindow: page === "/passkey.html",
 			topFrame: sender.frameId === 0,
 			url: sender.url ?? tab.url,
 			origin: sender.origin,
@@ -102,6 +105,12 @@ export default defineBackground(() => {
 		const pending = await getPending();
 		if (pending?.windowId === windowId)
 			await finish(pending, turnedDown("vauly's window was closed."));
+		// Closing the save window is "Not now".
+		const saving = await getSaveWindow();
+		if (saving?.windowId === windowId) {
+			await dropCapture(saving.tabId);
+			await clearSaveWindow();
+		}
 	});
 
 	// A tab's badge clears when it loads a new page; put it back while the login waits.
@@ -115,8 +124,28 @@ export default defineBackground(() => {
 		void dropCapture(tabId);
 		const pending = await getPending();
 		if (pending?.tabId === tabId) await finish(pending, toBrowser);
+		const saving = await getSaveWindow();
+		if (saving?.tabId === tabId && saving.windowId !== undefined)
+			await browser.windows.remove(saving.windowId).catch(() => {});
 	});
 });
+
+/**
+ * Which of vauly's own pages sent a message, or null for a content script, which sends
+ * from the site's address. Only this extension's pages and scripts reach this listener.
+ * The fill menu's address has an ID that changes every session, so it's the path that
+ * counts.
+ */
+function ownPage(url: string | undefined) {
+	try {
+		const { protocol, pathname } = new URL(url ?? "");
+		return protocol === new URL(browser.runtime.getURL("/")).protocol
+			? pathname
+			: null;
+	} catch {
+		return null;
+	}
+}
 
 function isRequest(message: unknown): message is Request {
 	const type = (message as { type?: unknown } | null)?.type;
@@ -125,6 +154,8 @@ function isRequest(message: unknown): message is Request {
 
 type Sender = {
 	fromFrame: boolean;
+	menuFrame: boolean;
+	saveWindow: boolean;
 	passkeyWindow: boolean;
 	topFrame: boolean;
 	url: string;
@@ -145,9 +176,12 @@ async function answer(
 				await remember(tab.id, request, sender.url);
 			return null;
 		case "vauly:field":
-			return { show: await wantsMenu(tab.url) };
-		case "vauly:offer?":
-			return { show: (await offerState(tab)).status !== "none" };
+			// The button shows in any login field, whatever the vaults hold: the menu says
+			// what there is once someone opens it.
+			return { show: (await siteStatus(tab.url)) !== "off" };
+		case "vauly:offer-show":
+			if (sender.topFrame && !sender.fromFrame) await showSaveWindow(tab);
+			return null;
 		case "vauly:passkey":
 			return passkeyAsked(tab, request, sender);
 		case "vauly:passkey-abort": {
@@ -167,22 +201,30 @@ async function answer(
 		case "vauly:passkey-decline":
 			// Only from vauly's passkey window, which no site can show or frame.
 			return sender.passkeyWindow ? answerPasskeyWindow(request, sender) : null;
+		case "vauly:offer":
+		case "vauly:save":
+		case "vauly:update":
+		case "vauly:dismiss":
+			// Only from vauly's save window, about the tab it was opened for.
+			return sender.saveWindow ? answerSaveWindow(request, sender) : null;
 	}
-	if (!sender.fromFrame) return null;
+	if (!sender.menuFrame) return null;
 	switch (request.type) {
 		case "vauly:menu":
 			return menuState(tab.url);
 		case "vauly:fill":
 			return fill(tab, request.id);
-		case "vauly:offer":
-			return offerState(tab);
-		case "vauly:save":
-			return save(tab, request);
-		case "vauly:update":
-			return update(tab);
-		case "vauly:dismiss":
-			await dropCapture(tab.id);
-			return { ok: true } satisfies Done;
+		case "vauly:menu-close":
+			await browser.tabs
+				.sendMessage(
+					tab.id,
+					{ type: "vauly:close-menu" } satisfies PageMessage,
+					{
+						frameId: 0,
+					},
+				)
+				.catch(() => {});
+			return null;
 	}
 }
 
@@ -247,15 +289,6 @@ const fillable = (entry: EditableEntry, url: string) =>
 	entry.kind === "login" && Boolean(entry.secret) && matchesPage(entry, url);
 
 // ── The fill menu ───────────────────────────────────────────────────────────────────
-
-async function wantsMenu(url: string) {
-	const status = await siteStatus(url);
-	if (status !== "on") return status === "signed-out";
-	const open = await openVault().catch(() => null);
-	// Locked, the menu offers to unlock; unlocked, it shows only when there's a login.
-	if (!open) return !(await getUnlocked());
-	return open.entries.some((entry) => fillable(entry, url));
-}
 
 async function menuState(url: string): Promise<MenuState> {
 	if ((await siteStatus(url)) === "signed-out") return { status: "signed-out" };
@@ -339,6 +372,94 @@ async function offerState(tab: Tab): Promise<OfferState> {
 			.filter((vault) => vault.editable)
 			.map(({ id, name }) => ({ id, name })),
 	};
+}
+
+// The offer to save a login opens in a window of vauly's own, beside the page and not in
+// it, without taking the focus: whether it shows, and what it says, would tell the page
+// whether vauly has that login already. One at a time; closing it is "Not now".
+
+const SAVE_WINDOW = { width: 380, height: 340 };
+
+type SaveWindow = { tabId: number; windowId?: number };
+
+async function getSaveWindow() {
+	return ((await browser.storage.session.get("saveWindow")).saveWindow ??
+		null) as SaveWindow | null;
+}
+
+const setSaveWindow = (saving: SaveWindow) =>
+	browser.storage.session.set({ saveWindow: saving });
+
+const clearSaveWindow = () => browser.storage.session.remove("saveWindow");
+
+async function showSaveWindow(tab: Tab) {
+	if ((await offerState(tab)).status === "none") return;
+	const current = await getSaveWindow();
+	if (current?.tabId === tab.id && current.windowId !== undefined) {
+		const open = await browser.windows.get(current.windowId).catch(() => null);
+		if (open) return;
+	}
+	// Another tab's offer gives way; its login still waits in the toolbar's popup.
+	await setSaveWindow({ tabId: tab.id });
+	if (current?.windowId !== undefined)
+		await browser.windows.remove(current.windowId).catch(() => {});
+	const source = await browser.tabs
+		.get(tab.id)
+		.then((target) => browser.windows.get(target.windowId))
+		.catch(() => null);
+	const created = await openWindow(
+		{
+			url: `${browser.runtime.getURL("/save.html")}#${tab.id}`,
+			focused: false,
+			...SAVE_WINDOW,
+		},
+		source,
+		(over) => ({
+			left: over.left + over.width - SAVE_WINDOW.width - 24,
+			top: over.top + 72,
+		}),
+	);
+	if (created?.id === undefined) return clearSaveWindow();
+	if ((await getSaveWindow())?.tabId === tab.id)
+		await setSaveWindow({ tabId: tab.id, windowId: created.id });
+}
+
+async function expireSaveWindow() {
+	const saving = await getSaveWindow();
+	if (!saving || (await getCapture(saving.tabId))) return;
+	if (saving.windowId !== undefined)
+		await browser.windows.remove(saving.windowId).catch(() => {});
+	await clearSaveWindow();
+}
+
+async function answerSaveWindow(request: SaveWindowRequest, sender: Sender) {
+	const saving = await getSaveWindow();
+	const tabId = Number(new URL(sender.url).hash.slice(1));
+	const target =
+		saving?.tabId === tabId &&
+		(saving.windowId === undefined || saving.windowId === sender.windowId)
+			? await browser.tabs.get(tabId).catch(() => null)
+			: null;
+	if (target?.id === undefined) {
+		return request.type === "vauly:offer"
+			? ({ status: "none" } satisfies OfferState)
+			: ({
+					ok: false,
+					error: "That login isn't waiting any more.",
+				} satisfies Done);
+	}
+	const tab = { id: target.id, url: target.url ?? "" };
+	switch (request.type) {
+		case "vauly:offer":
+			return offerState(tab);
+		case "vauly:save":
+			return save(tab, request);
+		case "vauly:update":
+			return update(tab);
+		case "vauly:dismiss":
+			await dropCapture(tab.id);
+			return { ok: true } satisfies Done;
+	}
 }
 
 async function save(
@@ -482,24 +603,48 @@ async function openPasskeyWindow(pending: Pending) {
 		pending.sourceWindowId === undefined
 			? null
 			: await browser.windows.get(pending.sourceWindowId).catch(() => null);
-	const created = await browser.windows
-		.create({
+	const created = await openWindow(
+		{
 			url: `${browser.runtime.getURL("/passkey.html")}#${pending.id}`,
-			type: "popup",
 			focused: true,
 			...WINDOW,
-			...(source?.left !== undefined &&
-				source.top !== undefined &&
-				source.width !== undefined && {
-					left: Math.max(
-						0,
-						Math.round(source.left + (source.width - WINDOW.width) / 2),
-					),
-					top: source.top + 80,
-				}),
-		})
-		.catch(() => null);
+		},
+		source,
+		(over) => ({
+			left: Math.round(over.left + (over.width - WINDOW.width) / 2),
+			top: over.top + 80,
+		}),
+	);
 	return created?.id;
+}
+
+/**
+ * One of vauly's own windows, placed over the window the site is in. The browser refuses
+ * a place mostly off the screen; then it goes where the browser puts it.
+ */
+async function openWindow(
+	options: { url: string; focused: boolean; width: number; height: number },
+	source: { left?: number; top?: number; width?: number } | null,
+	placed: (over: { left: number; top: number; width: number }) => {
+		left: number;
+		top: number;
+	},
+) {
+	const create = (where = {}) =>
+		browser.windows.create({ type: "popup", ...options, ...where });
+	const { left, top, width } = source ?? {};
+	const place =
+		left !== undefined && top !== undefined && width !== undefined
+			? placed({ left, top, width })
+			: null;
+	return (
+		(place &&
+			(await create({
+				left: Math.max(0, place.left),
+				top: Math.max(0, place.top),
+			}).catch(() => null))) ||
+		(await create().catch(() => null))
+	);
 }
 
 async function expirePasskeyRequest() {

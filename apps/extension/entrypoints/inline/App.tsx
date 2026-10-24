@@ -1,43 +1,27 @@
-import { CheckCircleIcon, GlobeIcon } from "@phosphor-icons/react";
+import { GlobeIcon } from "@phosphor-icons/react";
 import { Button } from "@vauly/ui/components/button";
-import {
-	type ReactNode,
-	useCallback,
-	useEffect,
-	useRef,
-	useState,
-} from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 
 import { ItemLogo } from "@/components/item-logo";
-import { SaveOffer } from "@/components/save-offer";
 import {
 	ask,
-	type Done,
 	type FillResult,
-	type FrameRequest,
 	type MenuLogin,
 	type MenuState,
-	type OfferState,
 } from "@/lib/messages";
 
-// vauly's frame inside a site's page. The page script decides where it goes; what it
-// shows comes from the background, which knows the tab it's in.
+// vauly's fill menu, framed inside a site's page under a login field. The page script
+// places it; what it shows comes from the background, which knows the tab it's in. It's
+// the same size whatever it shows, and it closes through the background, never by
+// posting to the page, so the page learns nothing from it about what vauly holds.
 
-const view = location.hash === "#save" ? "save" : "menu";
-
-export function tellPage(
-	message: { vauly: "size"; height: number } | { vauly: "close" },
-) {
-	window.parent.postMessage(message, "*");
-}
-
-const close = () => tellPage({ vauly: "close" });
+const close = () => void ask({ type: "vauly:menu-close" });
 
 export default function App() {
-	return view === "save" ? <Save /> : <Menu />;
+	return <Menu />;
 }
 
-/** Runs again when the extension locks or unlocks, or a waiting login comes or goes. */
+/** Runs again when the extension locks or unlocks. */
 function useSessionChange(load: () => void) {
 	useEffect(() => {
 		const changed = (
@@ -46,11 +30,7 @@ function useSessionChange(load: () => void) {
 		) => {
 			if (area !== "session") return;
 			const unlocked = changes.unlocked;
-			if (
-				(unlocked && !unlocked.oldValue !== !unlocked.newValue) ||
-				Object.keys(changes).some((key) => key.startsWith("capture:"))
-			)
-				load();
+			if (unlocked && !unlocked.oldValue !== !unlocked.newValue) load();
 		};
 		browser.storage.onChanged.addListener(changed);
 		return () => browser.storage.onChanged.removeListener(changed);
@@ -67,9 +47,10 @@ async function openPopup(): Promise<boolean> {
 	}
 }
 
+/** The menu's one size: the frame sets it, and the card fills it. */
 function Card({ children }: { children: ReactNode }) {
 	return (
-		<div className="bg-surface shadow-popover overflow-hidden rounded-xl">
+		<div className="bg-surface shadow-popover flex h-full flex-col overflow-hidden rounded-xl">
 			{children}
 		</div>
 	);
@@ -103,7 +84,7 @@ function Menu() {
 		const locked = state.status === "locked";
 		return (
 			<Card>
-				<div className="flex items-center gap-3 p-3">
+				<div className="flex flex-1 items-center gap-3 p-3">
 					<img src="/icon/32.png" alt="" className="size-7 shrink-0" />
 					<div className="flex min-w-0 flex-1 flex-col">
 						<span className="text-body-sm text-fg font-medium">
@@ -152,14 +133,14 @@ function Menu() {
 	return (
 		<Card>
 			{state.logins.length === 0 ? (
-				<p className="text-caption text-fg-subtle px-3 py-3">
+				<p className="text-caption text-fg-subtle flex-1 px-3 py-3">
 					Nothing saved for {state.host} yet. Sign in, and vauly offers to keep
 					the login.
 				</p>
 			) : (
 				<ul
 					aria-label={`Logins for ${state.host}`}
-					className="flex max-h-72 flex-col overflow-y-auto p-1"
+					className="flex min-h-0 flex-1 flex-col overflow-y-auto p-1"
 				>
 					{state.logins.map((login) => (
 						<li key={login.id}>
@@ -195,109 +176,5 @@ function Menu() {
 				</div>
 			)}
 		</Card>
-	);
-}
-
-// ── The save prompt, in the top corner ──────────────────────────────────────────────
-
-function Save() {
-	const [state, setState] = useState<OfferState | null>(null);
-	const [done, setDone] = useState("");
-	const [note, setNote] = useState("");
-	/** Saving from here clears the waiting login too; that mustn't close the frame early. */
-	const saving = useRef(false);
-	const load = useCallback(() => {
-		void ask<OfferState>({ type: "vauly:offer" }).then((next) => {
-			if (saving.current) return;
-			// Saved or dismissed somewhere else, such as the popup.
-			if (!next || next.status === "none") close();
-			else setState(next);
-		});
-	}, []);
-	useEffect(load, [load]);
-	useSessionChange(load);
-
-	const send = async (request: FrameRequest) => {
-		saving.current = true;
-		const result = await ask<Done>(request);
-		if (!result?.ok) {
-			saving.current = false;
-			throw new Error(result?.error ?? "That didn't work");
-		}
-		setDone(result.message ?? "Done");
-		setTimeout(close, 1500);
-	};
-	const dismiss = async () => {
-		await ask<Done>({ type: "vauly:dismiss" });
-		close();
-	};
-
-	if (done) {
-		return (
-			<Card>
-				<p
-					role="status"
-					className="text-body-sm text-fg flex items-center gap-2 px-3 py-3"
-				>
-					<CheckCircleIcon weight="fill" className="text-success size-4" />
-					{done}
-				</p>
-			</Card>
-		);
-	}
-	if (!state || state.status === "none") return null;
-
-	if (state.status === "locked") {
-		return (
-			<Card>
-				<section aria-label="Save login" className="flex flex-col gap-3 p-3">
-					<div className="flex items-start gap-2.5">
-						<img src="/icon/32.png" alt="vauly" className="size-7 shrink-0" />
-						<div className="flex min-w-0 flex-col gap-0.5">
-							<h2 className="text-body-sm text-fg font-medium">
-								Save this login to vauly?
-							</h2>
-							<p className="text-caption text-fg-muted">
-								You just signed in on {state.host}. Unlock vauly to keep it; it
-								waits for five minutes.
-							</p>
-						</div>
-					</div>
-					<div className="flex justify-end gap-2">
-						<Button variant="ghost" size="sm" onClick={dismiss}>
-							Not now
-						</Button>
-						<Button
-							variant="brand"
-							size="sm"
-							onClick={async () => {
-								if (!(await openPopup()))
-									setNote(
-										"Click vauly among your browser's extensions to unlock.",
-									);
-							}}
-						>
-							Unlock
-						</Button>
-					</div>
-				</section>
-				{note && <Note>{note}</Note>}
-			</Card>
-		);
-	}
-
-	return (
-		<SaveOffer
-			key={`${state.offer.kind}:${state.offer.username}`}
-			onPage
-			offer={state.offer}
-			vaults={state.vaults}
-			className="shadow-popover"
-			onSave={(vaultId, login) =>
-				send({ type: "vauly:save", vaultId, ...login })
-			}
-			onUpdate={() => send({ type: "vauly:update" })}
-			onDismiss={dismiss}
-		/>
 	);
 }

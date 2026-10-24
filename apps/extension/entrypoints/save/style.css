@@ -1,0 +1,7 @@
+@import "@vauly/ui/globals.css";
+@import "@vauly/ui/pure.css";
+
+/* A window of its own, opened by the background after someone signs in somewhere new. */
+body {
+	background-color: var(--canvas);
+}
