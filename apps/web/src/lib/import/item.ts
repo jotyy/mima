@@ -158,6 +158,12 @@ function firstLine(text: string) {
 }
 
 /** Splits "Work/Clients, billing" into tags. */
+export function isKind(value: unknown): value is ItemKind {
+	return ["login", "api-key", "note", "ssh-key", "card", "identity"].includes(
+		String(value),
+	);
+}
+
 export function splitTags(value: string | undefined, separators = /[;,]/) {
 	return (value ?? "")
 		.split(separators)

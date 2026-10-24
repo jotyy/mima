@@ -160,10 +160,13 @@ export function describeEvent(
 		case "restored":
 			return parts("restored", itemName);
 		case "exported": {
-			const count = Number(event.detail ?? 0);
+			// "12", or "12 protected" for a backup protected with a password.
+			const [count = 0, kind] = (event.detail ?? "0").split(" ");
 			return parts(
-				"downloaded a backup of",
-				`${count} ${count === 1 ? "item" : "items"}`,
+				kind === "protected"
+					? "downloaded a password-protected backup of"
+					: "downloaded a backup of",
+				`${Number(count)} ${Number(count) === 1 ? "item" : "items"}`,
 			);
 		}
 		case "imported": {

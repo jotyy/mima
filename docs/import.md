@@ -194,7 +194,7 @@ Most password managers can export a CSV file. vauly imports one whose first row 
 | Folder        | `folder`, `group`, `category`                                    |
 | Tags          | `tags`, separated by commas or semicolons                        |
 
-A vauly backup (**Settings › Backup › Download a backup**) imports the same way, and keeps each item's kind and tags. A backup ZIP brings each item's files back too, within your vauly's limits on files.
+A vauly backup (**Settings › Backup › Download a backup**) imports too, and keeps each item's kind and tags. For a backup protected with a password, vauly asks for the password you chose when you downloaded it. A backup ZIP brings each item's files back too, within your vauly's limits on files. Bitwarden imports a protected backup as **.json (Encrypted)**, without its files.
 
 ## Keep it safe
 

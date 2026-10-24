@@ -35,7 +35,7 @@ Vaultwarden is a server for Bitwarden's apps, written in Rust by its community a
 
 ## Moving over
 
-vauly imports from 1Password, Bitwarden and a dozen other password managers and browsers, with one-time codes, notes and folders. [Moving to vauly](import.md) has the steps for each. You can download a decrypted backup any time, which vauly and most password managers can import, so trying it costs little.
+vauly imports from 1Password, Bitwarden and a dozen other password managers and browsers, with one-time codes, notes and folders. [Moving to vauly](import.md) has the steps for each. You can download a backup any time, protected with a password, which vauly and Bitwarden import, or as a CSV most password managers read, so trying it costs little.
 
 ## Sources
 

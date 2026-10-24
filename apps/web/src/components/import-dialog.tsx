@@ -453,6 +453,11 @@ function Unlock({
 	const error = keyFileError ?? step.error;
 	const proton = step.locked.app === "Proton Pass";
 	const keePass = step.locked.app === "KeePass";
+	const hint = keePass
+		? `The password you open ${step.file} with in ${step.app?.name ?? "KeePass"}.`
+		: step.locked.app === "vauly"
+			? "The password you chose for this backup when you downloaded it."
+			: `The ${proton ? "passphrase" : "password"} you chose when you exported ${step.file} from ${step.locked.app}.`;
 	return (
 		<form
 			className="flex flex-col gap-4"
@@ -471,11 +476,7 @@ function Unlock({
 							? "Passphrase"
 							: "File password"
 				}
-				hint={
-					keePass
-						? `The password you open ${step.file} with in ${step.app?.name ?? "KeePass"}.`
-						: `The ${proton ? "passphrase" : "password"} you chose when you exported ${step.file} from ${step.locked.app}.`
-				}
+				hint={hint}
 			>
 				<PasswordInput
 					autoFocus

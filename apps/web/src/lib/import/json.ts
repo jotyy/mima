@@ -3,7 +3,7 @@ import type { Identity } from "@vauly/ui/lib/identity";
 
 import type { ItemKind, PreviousSecret } from "../vault-data";
 import { keeperLabel } from "./csv";
-import { type Draft, type Field, isoDate } from "./item";
+import { type Draft, type Field, isKind, isoDate } from "./item";
 import {
 	collect,
 	ImportError,
@@ -52,6 +52,7 @@ export function parseJsonExport(data: unknown): ParsedImport {
 			"That Bitwarden export is account restricted: only your Bitwarden account can open it. Export again with .json (Encrypted) and choose Password protected.",
 		);
 	}
+	if (root.vauly === 1) return parseVaulyBackup(root);
 	if (Array.isArray(root.accounts)) return parseOnePassword(root);
 	if (Object.keys(obj(root.vaults)).length > 0) return parseProtonPass(root);
 	if (Array.isArray(root.records)) return parseKeeper(root);
@@ -66,6 +67,50 @@ export function parseJsonExport(data: unknown): ParsedImport {
 		);
 	}
 	throw new ImportError("That JSON file isn't an export vauly knows.");
+}
+
+// A vauly backup (../backup.ts): Bitwarden's JSON export, each item with vauly's own copy
+// of it, which comes back exactly. The vault an item was in isn't a tag: the backup goes
+// into the vault you choose.
+function parseVaulyBackup(root: Json) {
+	const into = collect("vauly", "JSON");
+	for (const item of objs(root.items)) {
+		const saved = obj(item.vauly);
+		if (!isKind(saved.kind)) {
+			into.leave("record");
+			continue;
+		}
+		into.add({
+			kind: saved.kind,
+			name: text(saved.name),
+			username: text(saved.username),
+			secret: text(saved.secret),
+			urls: [saved.url, ...list(saved.moreUrls)].map(text),
+			totp: text(saved.totp),
+			notes: text(saved.notes),
+			tags: list(saved.tags).map(text),
+			fields: objs(saved.fields).map((field) => ({
+				label: text(field.label),
+				value: text(field.value),
+				hidden: field.hidden === true,
+			})),
+			history: objs(saved.history).map((earlier) => ({
+				secret: text(earlier.secret),
+				until: text(earlier.until),
+				...(typeof earlier.by === "string" && { by: earlier.by }),
+			})),
+			files: list(saved.files)
+				.map(text)
+				.filter((path) => path.startsWith("files/")),
+			...(Object.keys(obj(saved.card)).length > 0 && {
+				card: obj(saved.card) as Card,
+			}),
+			...(Object.keys(obj(saved.identity)).length > 0 && {
+				identity: obj(saved.identity) as Identity,
+			}),
+		});
+	}
+	return into.result;
 }
 
 // Bitwarden: https://bitwarden.com/help/condition-bitwarden-import/

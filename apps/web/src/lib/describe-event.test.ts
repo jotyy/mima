@@ -88,3 +88,32 @@ describe("files", () => {
 		);
 	});
 });
+
+describe("backups", () => {
+	const exported = (detail: string) => {
+		const { verb, ...rest } = describeEvent(
+			{
+				id: "evt_2",
+				action: "exported",
+				actorName: "Alex",
+				detail,
+			} as VaultEvent,
+			{
+				items: new Map(),
+				vaults: new Map(),
+				agents: new Map(),
+				members: new Map(),
+			},
+		);
+		return [verb, JSON.stringify(rest)];
+	};
+
+	test("says whether a backup was protected with a password", () => {
+		expect(exported("12")[0]).toBe("downloaded a backup of");
+		expect(exported("12")[1]).toContain("12 items");
+		expect(exported("1 protected")[0]).toBe(
+			"downloaded a password-protected backup of",
+		);
+		expect(exported("1 protected")[1]).toContain("1 item");
+	});
+});

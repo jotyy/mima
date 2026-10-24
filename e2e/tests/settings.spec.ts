@@ -116,6 +116,11 @@ test("a backup needs the master password and holds every item", async ({
 	await openSettings(page);
 	await page.getByRole("button", { name: "Download a backup" }).click();
 	const dialog = page.getByRole("dialog");
+	// The plain CSV; backup.spec.ts has the one protected with a password.
+	await dialog.getByRole("switch", { name: "Protect with a password" }).click();
+	await expect(
+		dialog.getByText("holds every password in plain text"),
+	).toBeVisible();
 	await dialog.getByLabel("Master password").fill("not the password at all");
 	await dialog.getByRole("button", { name: "Download backup" }).click();
 	await expect(dialog.getByRole("alert")).toContainText(

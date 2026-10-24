@@ -412,6 +412,8 @@ test("a backup with files is a ZIP that imports back with them", async ({
 	const dialog = page.getByRole("dialog");
 	await expect(dialog.getByText("Include 2 files (2.5 MB)")).toBeVisible();
 	await dialog.getByLabel("Master password").fill(owner.password);
+	// The plain ZIP; backup.spec.ts has the one protected with a password.
+	await dialog.getByRole("switch", { name: "Protect with a password" }).click();
 	const [download] = await Promise.all([
 		page.waitForEvent("download"),
 		dialog.getByRole("button", { name: "Download backup" }).click(),
