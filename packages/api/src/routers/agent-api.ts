@@ -4,10 +4,12 @@ import {
 	accessRequest,
 	agent,
 	agentGrant,
+	attachment,
+	attachmentChunk,
 	item,
 	member,
 } from "@vauly/db/schema/vault";
-import { and, eq, gt, inArray, isNull } from "drizzle-orm";
+import { and, eq, gt, inArray, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 
 import { publicProcedure } from "../index";
@@ -64,6 +66,60 @@ const agentProcedure = publicProcedure.use(async ({ context, next }) => {
 });
 
 const itemIds = z.array(z.string().max(40)).min(1).max(20);
+
+/** How long a pass to download a granted item's files lasts. */
+const FILE_PASS_MS = 15 * 60 * 1000;
+
+async function hmac(secret: string, message: string) {
+	const key = await crypto.subtle.importKey(
+		"raw",
+		new TextEncoder().encode(secret),
+		{ name: "HMAC", hash: "SHA-256" },
+		false,
+		["sign"],
+	);
+	const signature = await crypto.subtle.sign(
+		"HMAC",
+		key,
+		new TextEncoder().encode(message),
+	);
+	return Array.from(new Uint8Array(signature), (b) =>
+		b.toString(16).padStart(2, "0"),
+	).join("");
+}
+
+const passMessage = (agentId: string, fileId: string, until: number) =>
+	`vauly/file-pass\n${agentId}\n${fileId}\n${until}`;
+
+/**
+ * The finished files on a granted item, each with a pass to download it: signed by the
+ * server for this agent and file, good for FILE_PASS_MS, so a one-time grant still
+ * lets the run that used it finish its downloads.
+ */
+async function grantedFiles(
+	db: Database,
+	secret: string,
+	agentId: string,
+	itemId: string,
+) {
+	const rows = await db
+		.select({
+			id: attachment.id,
+			meta: attachment.meta,
+			chunks: attachment.chunks,
+		})
+		.from(attachment)
+		.where(and(eq(attachment.itemId, itemId), isNotNull(attachment.meta)));
+	const until = Date.now() + FILE_PASS_MS;
+	return Promise.all(
+		rows.map(async (row) => ({
+			id: row.id,
+			meta: row.meta as string,
+			chunks: row.chunks,
+			token: `${row.id}.${until}.${await hmac(secret, passMessage(agentId, row.id, until))}`,
+		})),
+	);
+}
 const reason = z.string().trim().min(1).max(200);
 
 type Lookup = Awaited<ReturnType<typeof lookup>>[number];
@@ -116,15 +172,26 @@ async function lookup(db: Database, agentId: string, ids: string[]) {
 	});
 }
 
-/** For an item without a grant: its open request, a recent denial, or a new request. */
+/**
+ * For an item without a grant, or one that doesn't cover the files a run needs: its open
+ * request, a recent denial, or a new request.
+ */
 async function ask(
 	db: Database,
 	agentId: string,
 	{ id, target, pending, denied }: Lookup,
 	command: string,
+	files = false,
 ) {
 	if (!target) return { itemId: id, status: "missing" as const };
 	if (pending) {
+		// Asked before without files: the person approving now sees that files go too.
+		if (files && !pending.files) {
+			await db
+				.update(accessRequest)
+				.set({ files: true })
+				.where(eq(accessRequest.id, pending.id));
+		}
 		return { itemId: id, status: "pending" as const, requestId: pending.id };
 	}
 	if (denied) return { itemId: id, status: "denied" as const };
@@ -135,6 +202,7 @@ async function ask(
 			agentId,
 			itemId: id,
 			command,
+			files,
 		}),
 		logEvent(db, {
 			actorType: "agent",
@@ -160,14 +228,23 @@ export const agentApiRouter = {
 	 * request that a person approves in vauly.
 	 */
 	resolve: agentProcedure
-		.input(z.object({ itemIds, command: reason }))
+		.input(
+			z.object({
+				itemIds,
+				command: reason,
+				/** The items whose files the run needs, because a reference names one. */
+				files: z.array(z.string().max(40)).max(20).optional(),
+			}),
+		)
 		.handler(async ({ context, input }) => {
 			const { db, agent: me } = context;
 			const found = await lookup(db, me.id, input.itemIds);
+			const withFiles = new Set(input.files ?? []);
 			const results = [];
 			for (const entry of found) {
 				const { id, target, grant } = entry;
-				if (target && grant) {
+				const needsFiles = withFiles.has(id);
+				if (target && grant && (!needsFiles || grant.files)) {
 					if (grant.once)
 						await db.delete(agentGrant).where(eq(agentGrant.id, grant.id));
 					await logEvent(db, {
@@ -183,10 +260,13 @@ export const agentApiRouter = {
 						status: "granted" as const,
 						data: target.data,
 						wrappedKey: grant.wrappedKey,
+						...(needsFiles && {
+							files: await grantedFiles(db, context.secret, me.id, id),
+						}),
 					});
 					continue;
 				}
-				results.push(await ask(db, me.id, entry, input.command));
+				results.push(await ask(db, me.id, entry, input.command, needsFiles));
 			}
 			return results;
 		}),
@@ -234,6 +314,57 @@ export const agentApiRouter = {
 						: ask(db, me.id, entry, input.reason),
 				),
 			);
+		}),
+
+	/** A chunk of a file, for a pass that resolve handed out. The first is logged. */
+	file: agentProcedure
+		.input(
+			z.object({
+				token: z.string().max(200),
+				index: z.number().int().min(0),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			const { db, agent: me } = context;
+			const [fileId = "", until = "", signature = ""] = input.token.split(".");
+			const expected = await hmac(
+				context.secret,
+				passMessage(me.id, fileId, Number(until)),
+			);
+			if (!sameHash(signature, expected) || Number(until) < Date.now()) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "That file pass expired. Run the command again.",
+				});
+			}
+			const [row] = await db
+				.select({
+					data: attachmentChunk.data,
+					itemId: attachment.itemId,
+					vaultId: item.vaultId,
+				})
+				.from(attachmentChunk)
+				.innerJoin(attachment, eq(attachment.id, attachmentChunk.attachmentId))
+				.innerJoin(item, eq(item.id, attachment.itemId))
+				.where(
+					and(
+						eq(attachmentChunk.attachmentId, fileId),
+						eq(attachmentChunk.index, input.index),
+						isNotNull(attachment.meta),
+						isNull(item.deletedAt),
+					),
+				);
+			if (!row) throw new ORPCError("NOT_FOUND", { message: "File not found" });
+			if (input.index === 0) {
+				await logEvent(db, {
+					actorType: "agent",
+					actorId: me.id,
+					action: "downloaded",
+					itemId: row.itemId,
+					vaultId: row.vaultId,
+					detail: `file:${fileId}`,
+				});
+			}
+			return { data: row.data };
 		}),
 
 	poll: agentProcedure

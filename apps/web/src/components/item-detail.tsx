@@ -577,6 +577,7 @@ export function ItemDetail({ item }: { item: Item }) {
 												: grant?.expiresAt
 													? `until ${new Date(grant.expiresAt).toLocaleString()}`
 													: "until you revoke it"}
+											{grant?.files && ", with its files"}
 										</span>
 									</div>
 									<Switch

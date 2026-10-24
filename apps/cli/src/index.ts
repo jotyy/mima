@@ -9,6 +9,7 @@ import {
 	config,
 	resolveAll,
 	withValues,
+	writeFiles,
 } from "./agent";
 import { serve } from "./mcp";
 import { createMasker, findReferences, parseEnvFile } from "./references";
@@ -64,6 +65,7 @@ async function run(args: string[]) {
 
 	let secrets: string[] = [];
 	let filled: Record<string, string | undefined> = { ...env };
+	let cleanup = () => {};
 	delete filled.VAULY_TOKEN;
 	if (refs.length > 0) {
 		const values = await resolveAll(config(), refs, command, {
@@ -77,8 +79,12 @@ async function run(args: string[]) {
 				? new CliError("Nobody approved the request in time.")
 				: error;
 		});
-		({ env: filled, secrets } = withValues(env, refs, values));
+		const written = writeFiles(refs, values);
+		cleanup = written.cleanup;
+		({ env: filled, secrets } = withValues(env, refs, values, written.paths));
 	}
+	// Files written for the command go when it ends, however it ends.
+	process.on("exit", () => cleanup());
 
 	const [bin, ...rest] = commandArgs as [string, ...string[]];
 	const child = spawn(bin, rest, {

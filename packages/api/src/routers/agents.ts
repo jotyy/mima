@@ -63,6 +63,7 @@ export const agentsRouter = {
 							itemId: agentGrant.itemId,
 							once: agentGrant.once,
 							expiresAt: agentGrant.expiresAt,
+							files: agentGrant.files,
 						})
 						.from(agentGrant)
 						.where(inArray(agentGrant.itemId, itemIds))
@@ -188,6 +189,8 @@ export const agentsRouter = {
 				itemId: z.string(),
 				wrappedKey: wrapped,
 				duration,
+				/** The item's files too. */
+				files: z.boolean().optional(),
 			}),
 		)
 		.handler(async ({ context, input }) => {
@@ -196,7 +199,10 @@ export const agentsRouter = {
 				role: "edit",
 			});
 			await requireAgent(db, input.agentId);
-			const terms = grantTerms(input.duration);
+			const terms = {
+				...grantTerms(input.duration),
+				files: input.files ?? false,
+			};
 			await db.batch([
 				db
 					.insert(agentGrant)
@@ -265,6 +271,7 @@ export const requestsRouter = {
 				agentId: accessRequest.agentId,
 				itemId: accessRequest.itemId,
 				command: accessRequest.command,
+				files: accessRequest.files,
 				createdAt: accessRequest.createdAt,
 			})
 			.from(accessRequest)
@@ -292,7 +299,8 @@ export const requestsRouter = {
 			const target = await requireItemAccess(db, userId, request.itemId, {
 				role: "edit",
 			});
-			const terms = grantTerms(input.duration);
+			// The grant covers the item's files when the agent asked for them.
+			const terms = { ...grantTerms(input.duration), files: request.files };
 			await db.batch([
 				db
 					.insert(agentGrant)

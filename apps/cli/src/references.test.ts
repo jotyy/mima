@@ -44,11 +44,23 @@ describe("references", () => {
 		expect(parseReference("vauly://itm_abc123/fields/")).toBeNull();
 	});
 
+	test("names a file by its URL-encoded name", () => {
+		expect(
+			parseReference("vauly://itm_abc123/files/server%20cert.p12"),
+		).toEqual({
+			itemId: "itm_abc123",
+			field: "file",
+			label: "server cert.p12",
+		});
+		expect(parseReference("vauly://itm_abc123/files/")).toBeNull();
+	});
+
 	test("writes references back the way they're read", () => {
 		for (const text of [
 			"vauly://itm_abc123",
 			"vauly://itm_abc123/username",
 			"vauly://itm_abc123/fields/Security%20answer",
+			"vauly://itm_abc123/files/server.p12",
 		]) {
 			const ref = parseReference(text);
 			expect(ref && formatReference(ref)).toBe(text);

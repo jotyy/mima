@@ -236,6 +236,8 @@ export const agentGrant = sqliteTable(
 		wrappedKey: text("wrapped_key").notNull(),
 		/** `once` grants are removed after their first use. */
 		once: integer("once", { mode: "boolean" }).notNull().default(false),
+		/** Whether the agent may download the item's files too. */
+		files: integer("files", { mode: "boolean" }).notNull().default(false),
 		expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
 		grantedBy: text("granted_by").notNull(),
 		createdAt: createdAt(),
@@ -258,6 +260,8 @@ export const accessRequest = sqliteTable(
 			.notNull()
 			.references(() => item.id, { onDelete: "cascade" }),
 		command: text("command").notNull(),
+		/** Whether the agent asked for the item's files too, for a reference to one. */
+		files: integer("files", { mode: "boolean" }).notNull().default(false),
 		status: text("status").$type<RequestStatus>().notNull().default("pending"),
 		decidedBy: text("decided_by"),
 		decidedAt: integer("decided_at", { mode: "timestamp_ms" }),

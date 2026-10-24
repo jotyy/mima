@@ -11,6 +11,7 @@ import {
 	config,
 	resolveAll,
 	withValues,
+	writeFiles,
 } from "./agent";
 import {
 	findReferences,
@@ -264,6 +265,7 @@ async function runWithSecrets(context: Context, args: Record<string, unknown>) {
 	let filled: Record<string, string | undefined> = { ...env };
 	delete filled.VAULY_TOKEN;
 	let secrets: string[] = [];
+	let cleanup = () => {};
 	if (refs.length > 0) {
 		const started = Date.now();
 		let ticker: ReturnType<typeof setInterval> | undefined;
@@ -288,7 +290,9 @@ async function runWithSecrets(context: Context, args: Record<string, unknown>) {
 					},
 				},
 			);
-			({ env: filled, secrets } = withValues(env, refs, values));
+			const written = writeFiles(refs, values);
+			cleanup = written.cleanup;
+			({ env: filled, secrets } = withValues(env, refs, values, written.paths));
 		} catch (error) {
 			if (error instanceof ApprovalPending) {
 				return text(
@@ -312,7 +316,7 @@ async function runWithSecrets(context: Context, args: Record<string, unknown>) {
 		cwd,
 		timeoutMs: timeout * 1000,
 		limit: OUTPUT_LIMIT,
-	});
+	}).finally(cleanup);
 	const summary = result.timedOut
 		? `Stopped after ${timeout} seconds.`
 		: `Exit code ${result.exitCode}.`;

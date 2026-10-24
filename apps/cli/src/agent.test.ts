@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { existsSync, readFileSync, statSync } from "node:fs";
 
-import { type ItemFields, withValues } from "./agent";
+import { type ItemFields, withValues, writeFiles } from "./agent";
 import { findReferences } from "./references";
 
 const item: ItemFields = {
@@ -39,5 +40,58 @@ describe("withValues", () => {
 		expect(() =>
 			withValues(env, findReferences(env), new Map([["itm_bank", item]])),
 		).toThrow("Bank has no field called Security answer.");
+	});
+});
+
+describe("files", () => {
+	const values = new Map([
+		[
+			"itm_abc123",
+			{
+				name: "Deploy",
+				files: [{ name: "server.p12", data: new Uint8Array([1, 2, 3]) }],
+			},
+		],
+	]);
+
+	test("a file goes to the command as a path only its user can read", () => {
+		const refs = [
+			{
+				name: "CERT",
+				itemId: "itm_abc123",
+				field: "file" as const,
+				label: "Server.P12",
+			},
+		];
+		const { paths, cleanup } = writeFiles(refs, values);
+		const path = paths.get("CERT") ?? "";
+		expect(path.endsWith("/server.p12")).toBe(true);
+		expect([...readFileSync(path)]).toEqual([1, 2, 3]);
+		expect(statSync(path).mode & 0o777).toBe(0o600);
+		const { env } = withValues(
+			{ CERT: "vauly://itm_abc123/files/server.p12" },
+			refs,
+			values,
+			paths,
+		);
+		expect(env.CERT).toBe(path);
+		cleanup();
+		expect(existsSync(path)).toBe(false);
+	});
+
+	test("a name the item doesn't have is an error, and nothing stays behind", () => {
+		expect(() =>
+			writeFiles(
+				[
+					{
+						name: "KEY",
+						itemId: "itm_abc123",
+						field: "file",
+						label: "missing.pem",
+					},
+				],
+				values,
+			),
+		).toThrow("Deploy has no file called missing.pem.");
 	});
 });

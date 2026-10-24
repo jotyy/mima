@@ -794,13 +794,19 @@ export function useActions() {
 			) => after(client.agents.update({ id, ...change })),
 			deleteAgent: (id: string) => after(client.agents.remove({ id })),
 
-			grant: async (agent: Agent, item: Item, duration: Duration) =>
+			grant: async (
+				agent: Agent,
+				item: Item,
+				duration: Duration,
+				files = false,
+			) =>
 				after(
 					client.agents.grant({
 						agentId: agent.id,
 						itemId: item.id,
 						wrappedKey: await wrapKeyFor(agent.publicKey, item.key),
 						duration,
+						files,
 					}),
 				),
 

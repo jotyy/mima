@@ -58,6 +58,8 @@ vauly://itm_7k2m9qx4hc3r
 
 A reference stands for the item's password or value. Add a field to pick something else: `/username`, `/url` or `/notes` (`/password`, `/value` and `/secret` all mean the value), or one of the item's own fields by its name, URL-encoded: `vauly://itm_7k2m9qx4hc3r/fields/PIN`, `…/fields/Security%20answer`. The name is matched whatever its case. The dialog lists a reference for each of the item's fields, and a hidden field is masked in the command's output like the password.
 
+A reference can also name a file on the item, by its name, URL-encoded: `vauly://itm_7k2m9qx4hc3r/files/server.p12`. For tools that want a key file or a certificate, the command gets the file's path in that variable. vauly run writes the file into a new temporary folder that only your user can read, and deletes it when the command ends. A file's contents aren't masked in the output, since they can be binary. An agent asks for an item's files only when a reference names one, and the approval says that its files go too; a grant made without them doesn't cover files.
+
 Use references anywhere you'd put the value, in the environment or in an `.env` file:
 
 ```sh

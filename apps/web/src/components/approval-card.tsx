@@ -75,10 +75,17 @@ export function ApprovalCard({
 				{item && (
 					<span className="text-fg-subtle">injects {itemReference(item)}</span>
 				)}
+				{request.files && (
+					<span className="text-fg-subtle">
+						and writes one of its files for the command
+					</span>
+				)}
 			</div>
 			<div className="rounded-b-window border-line-subtle bg-surface-sunken flex items-center justify-end gap-2 border-t px-3.5 py-2.5">
 				<span className="text-caption text-fg-subtle mr-auto">
-					The value goes into the command, never to the agent.
+					{request.files
+						? "Its value and files go into the command, never to the agent."
+						: "The value goes into the command, never to the agent."}
 				</span>
 				<Button
 					variant="ghost"
