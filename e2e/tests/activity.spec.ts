@@ -31,11 +31,13 @@ test.beforeAll(async ({ browser, request }) => {
 test("an item shows who used it, most recent first", async ({ page }) => {
 	await signIn(page, owner);
 	await openAllItems(page);
-	await page.getByRole("button", { name: "Reveal password" }).click();
-	await page.getByRole("button", { name: "Copy username" }).click();
-
 	const recent = page.getByRole("region", { name: "Recent activity" });
 	const rows = recent.getByRole("listitem");
+	// One at a time: each use is logged by a request of its own, which could otherwise
+	// arrive in either order.
+	await page.getByRole("button", { name: "Reveal password" }).click();
+	await expect(rows).toHaveCount(2);
+	await page.getByRole("button", { name: "Copy username" }).click();
 	await expect(rows).toHaveCount(3);
 	await expect(rows.nth(0)).toContainText(`${owner.name} copied the username`);
 	await expect(rows.nth(1)).toContainText(
