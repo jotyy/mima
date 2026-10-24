@@ -34,6 +34,7 @@ describe("1Password .1pux", () => {
 			"Company card",
 			"Alex Example",
 			"Postgres staging",
+			"Contract.pdf",
 		]);
 	});
 
@@ -111,8 +112,26 @@ describe("1Password .1pux", () => {
 		});
 	});
 
-	test("files are named, not imported", () => {
-		expect(result.left).toEqual({ attachment: 1 });
+	test("a Document comes over as a note with its file, and attachments as files", () => {
+		expect(result.left).toEqual({});
+		const contract = result.items.find((item) => item.name === "Contract.pdf");
+		expect(contract).toMatchObject({ kind: "note", name: "Contract.pdf" });
+		expect(result.files?.get(contract as never)).toEqual([
+			{
+				name: "Contract.pdf",
+				path: "files/d1__Contract.pdf",
+				data: strToU8("not a real file"),
+			},
+		]);
+		const github = result.items.find((item) => item.name === "GitHub");
+		expect(result.files?.get(github as never)?.[0]).toMatchObject({
+			name: "recovery-codes.txt",
+			data: strToU8("example recovery codes"),
+		});
+		// A file field isn't a field once its file comes over.
+		expect(github?.fields?.some((field) => field.label === "codes")).toBe(
+			false,
+		);
 	});
 });
 
@@ -194,15 +213,40 @@ describe("Bitwarden JSON", () => {
 		expect(result.items[0]?.tags).toEqual(["Engineering", "Ops"]);
 	});
 
-	test("the ZIP with attachments", () => {
+	test("the ZIP with attachments: each in its item's folder, by name", () => {
 		const result = readImport(
 			zipSync({
 				"data.json": fixture("bitwarden.json"),
 				"attachments/prod-db/notes.json": strToU8("{}"),
+				// No item has this name: it stays behind, counted.
+				"attachments/Gone/old.txt": strToU8("x"),
 			}),
 		);
 		expect(result.source).toBe("Bitwarden");
 		expect(result.left.attachment).toBe(1);
+		const prod = result.items.find((item) => item.name === "prod-db");
+		expect(result.files?.get(prod as never)).toEqual([
+			{
+				name: "notes.json",
+				path: "attachments/prod-db/notes.json",
+				data: strToU8("{}"),
+			},
+		]);
+	});
+
+	test("a folder two items could own stays behind", () => {
+		const data = JSON.parse(fixtureText("bitwarden.json")) as {
+			items: { name: string }[];
+		};
+		data.items.push({ ...data.items[0], name: "prod-db" } as { name: string });
+		const result = readImport(
+			zipSync({
+				"data.json": strToU8(JSON.stringify(data)),
+				"attachments/prod-db/notes.json": strToU8("{}"),
+			}),
+		);
+		expect(result.left.attachment).toBe(1);
+		expect(result.files).toBeUndefined();
 	});
 
 	test("a password-protected export asks for its password", () => {

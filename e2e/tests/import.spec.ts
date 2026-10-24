@@ -40,6 +40,7 @@ function onePux() {
 			),
 			"export.data": readFileSync(path.join(fixtures, "1password.json")),
 			"files/d1__Contract.pdf": strToU8("not a real file"),
+			"files/d2__recovery-codes.txt": strToU8("example recovery codes"),
 		}),
 	);
 }
@@ -184,16 +185,22 @@ test("a 1Password .1pux brings one-time codes, keys, cards and identities", asyn
 	).toBeVisible();
 	await expect(
 		dialog.getByText(
-			"1Password export · 2 logins, 1 note, 1 API key, 1 SSH key, 1 payment card, 1 identity",
+			"1Password export · 2 logins, 2 notes, 1 API key, 1 SSH key, 1 payment card, 1 identity",
 		),
 	).toBeVisible();
 	await expect(dialog.getByText("2 folders become tags.")).toBeVisible();
-	const left = dialog.getByRole("region", { name: "Not imported" });
-	await expect(left).toContainText("1 attached file");
-	await expect(left).not.toContainText("payment card");
+	// The Document and the attachment come along as files; nothing stays behind.
+	await expect(
+		dialog.getByText(/^2 files \(\d+ bytes\) come with them/),
+	).toBeVisible();
+	await expect(
+		dialog.getByRole("region", { name: "Not imported" }),
+	).toHaveCount(0);
 
-	await dialog.getByRole("button", { name: "Import 7 items" }).click();
-	await expect(dialog.getByText("Imported 7 items into Private")).toBeVisible();
+	await dialog.getByRole("button", { name: "Import 8 items" }).click();
+	await expect(dialog.getByText("Imported 8 items into Private")).toBeVisible({
+		timeout: 30_000,
+	});
 	await dialog.getByRole("button", { name: "Show the items" }).click();
 
 	const items = page.getByRole("region", { name: "Items" });
@@ -205,6 +212,17 @@ test("a 1Password .1pux brings one-time codes, keys, cards and identities", asyn
 	await expect(
 		detail.getByText("Recovery codes are in the safe."),
 	).toBeVisible();
+	// The attachment is a file on the item, and opens the same.
+	const files = page.getByRole("region", { name: "Files" });
+	const [download] = await Promise.all([
+		page.waitForEvent("download"),
+		files.getByRole("button", { name: "Download recovery-codes.txt" }).click(),
+	]);
+	expect(readFileSync((await download.path()) ?? "", "utf8")).toBe(
+		"example recovery codes",
+	);
+	await items.getByRole("link", { name: /^Contract\.pdf/ }).click();
+	await expect(files.getByText("Contract.pdf")).toBeVisible();
 
 	await page.getByRole("tab", { name: "API keys" }).click();
 	await expect(items.getByRole("link")).toHaveCount(1);
@@ -265,4 +283,56 @@ test("a Proton Pass PGP-encrypted export opens with its passphrase", async ({
 	await expect(
 		dialog.getByRole("button", { name: /^Import \d+ items?$/ }),
 	).toBeEnabled();
+});
+
+test("a file over the limit stays behind, and the review names it", async ({
+	page,
+}) => {
+	const dialog = await openImport(page);
+	const exportData = {
+		accounts: [
+			{
+				attrs: { name: "Alex" },
+				vaults: [
+					{
+						attrs: { name: "Private" },
+						items: [
+							{
+								uuid: "big1",
+								state: "active",
+								categoryUuid: "006",
+								overview: { title: "Disk image" },
+								details: {
+									documentAttributes: {
+										fileName: "disk.img",
+										documentId: "big",
+										decryptedSize: 11 * 1024 * 1024,
+									},
+								},
+							},
+						],
+					},
+				],
+			},
+		],
+	};
+	await chooseFile(
+		page,
+		"Big.1pux",
+		Buffer.from(
+			zipSync({
+				"export.attributes": strToU8(
+					'{"version":3,"description":"1Password Unencrypted Export"}',
+				),
+				"export.data": strToU8(JSON.stringify(exportData)),
+				"files/big__disk.img": [new Uint8Array(11 * 1024 * 1024), { level: 0 }],
+			}),
+		),
+	);
+	await expect(
+		dialog.getByText(
+			"1 file over this vauly's 10 MB limit stays behind: disk.img.",
+		),
+	).toBeVisible();
+	await expect(dialog.getByText(/come with them/)).toHaveCount(0);
 });
