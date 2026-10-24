@@ -9,6 +9,7 @@ const docs = [
 	"/docs/compare/",
 	"/docs/import/",
 	"/docs/security-policy/",
+	"/docs/updating/",
 ];
 
 /** Fails on any page asset that doesn't load, such as a stylesheet with a stale name. */

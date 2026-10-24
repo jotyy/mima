@@ -35,6 +35,7 @@ export default defineConfig({
 					items: [
 						{ label: "Introduction", slug: "docs" },
 						{ label: "Self-hosting", slug: "docs/self-hosting" },
+						{ label: "Updating", slug: "docs/updating" },
 						{ label: "Moving to vauly", slug: "docs/import" },
 						{ label: "Compared with others", slug: "docs/compare" },
 					],

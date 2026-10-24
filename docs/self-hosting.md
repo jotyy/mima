@@ -27,9 +27,9 @@ That's all the setup there is. The Worker applies the database migrations on its
 
 ### Updating
 
-In your copy of vauly on GitHub, open **Actions → Update vauly → Run workflow**. It replaces the files with the latest vauly and pushes, and Cloudflare deploys the update. The Worker applies any new migrations on its first request. Check [CHANGELOG.md](../CHANGELOG.md) before you update.
+In your copy of vauly on GitHub, open **Actions → Update vauly → Run workflow**. It replaces the files with the latest vauly and pushes, and Cloudflare deploys the update. The Worker applies any new migrations on its first request.
 
-The update keeps your `wrangler.jsonc`, which names your Worker and its database, and the files in `.github/workflows`, which GitHub's default token can't change. To let updates replace the workflows too, add a repository secret named `VAULY_UPDATE_TOKEN`: a fine-grained token for that repository with read and write access to Contents and Workflows.
+[Updating vauly](updating.md) has the rest: what the update keeps, the browser extension and the CLI, going back, and what a particular update needs from you. Read it before you update.
 
 ## Deploy from your machine
 
@@ -47,7 +47,7 @@ bun run deploy -- --secrets-file .dev.vars
 
 `.dev.vars` keeps your setup code; git ignores it. Wrangler prints your vauly's address, and you claim it the same way, at `/setup?code=` followed by the code.
 
-To update, run `git pull`, `bun install`, `bun run build` and `bun run deploy`.
+To update, run `git pull`, `bun install`, `bun run build` and `bun run deploy`, after reading [Updating vauly](updating.md).
 
 ## Your own domain
 

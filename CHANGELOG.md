@@ -4,7 +4,7 @@ Notable changes to vauly. The format follows [Keep a Changelog](https://keepacha
 
 ## Unreleased
 
-The first public version.
+The first public version. If you deployed vauly before October 24, 2026, read [Updating vauly](docs/updating.md) first: update the browser extension with the server, and add one line to your `wrangler.jsonc`.
 
 ### Added
 

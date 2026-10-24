@@ -26,6 +26,7 @@ Your master password never leaves your device, and nobody can reset it, not even
 ## Where to start
 
 - [Self-hosting](self-hosting.md): deploy vauly to your Cloudflare account and create your workspace.
+- [Updating vauly](updating.md): bring your copy up to date, and what each update needs from you.
 - [Moving to vauly](import.md): bring your items over from 1Password, Bitwarden, KeePass, your browser and a dozen other apps.
 - [Browser extension](browser-extension.md): install it, then fill and save logins.
 - [Agents and scripts](agents.md): let a coding agent, script or CI job use secrets without seeing them.
