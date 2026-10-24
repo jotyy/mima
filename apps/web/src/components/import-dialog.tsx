@@ -23,6 +23,7 @@ import {
 } from "@vauly/ui/components/select";
 import { cn } from "@vauly/ui/lib/utils";
 import { type DragEvent, useEffect, useId, useState } from "react";
+import { fileSize, uploadFile } from "@/lib/files";
 import { plural } from "@/lib/format";
 import {
 	ImportError,
@@ -53,8 +54,15 @@ type Step =
 	| { name: "apps"; error?: string }
 	| { name: "export"; app: ImportApp; error?: string }
 	| { name: "review"; app?: ImportApp; file: string; parsed: ParsedImport }
-	| { name: "saving"; done: number; total: number }
-	| { name: "done"; file: string; count: number; vaultId: string };
+	| { name: "saving"; done: number; total: number; files?: boolean }
+	| {
+			name: "done";
+			file: string;
+			count: number;
+			vaultId: string;
+			/** Files that couldn't come along, by name. */
+			missed?: string[];
+	  };
 
 /**
  * Brings in an export from another password manager or a browser: pick the app, export
@@ -119,14 +127,44 @@ export function ImportDialog({
 				)
 			: [];
 
-	const save = async (file: string, toSave: ItemFields[]) => {
+	const save = async (
+		file: string,
+		toSave: ItemFields[],
+		files?: ParsedImport["files"],
+	) => {
 		if (!vault) return;
 		setStep({ name: "saving", done: 0, total: toSave.length });
 		try {
-			await actions.importItems(vault, toSave, (done) =>
+			const created = await actions.importItems(vault, toSave, (done) =>
 				setStep({ name: "saving", done, total: toSave.length }),
 			);
-			setStep({ name: "done", file, count: toSave.length, vaultId: vault.id });
+			// Then the files a vauly backup brings, each encrypted for its new item.
+			const uploads = toSave.flatMap((fields, index) =>
+				(files?.get(fields) ?? []).map((attached) => ({
+					attached,
+					item: created[index],
+				})),
+			);
+			const missed: string[] = [];
+			for (const [done, { attached, item }] of uploads.entries()) {
+				setStep({ name: "saving", done, total: uploads.length, files: true });
+				if (!item || !attached.data) continue;
+				try {
+					await uploadFile(
+						item,
+						new File([attached.data as BlobPart], attached.name),
+					);
+				} catch {
+					missed.push(attached.name);
+				}
+			}
+			setStep({
+				name: "done",
+				file,
+				count: toSave.length,
+				vaultId: vault.id,
+				...(missed.length > 0 && { missed }),
+			});
 		} catch (err) {
 			notify.error("The import stopped", errorMessage(err));
 			onOpenChange(false);
@@ -210,7 +248,11 @@ export function ImportDialog({
 				{step.name === "saving" && (
 					<div className="flex flex-col gap-2 py-4" role="status">
 						<div className="text-body-sm text-fg flex justify-between">
-							<span>Encrypting and saving…</span>
+							<span>
+								{step.files
+									? "Encrypting and attaching files…"
+									: "Encrypting and saving…"}
+							</span>
 							<span className="text-fg-muted tabular-nums">
 								{step.done} of {step.total}
 							</span>
@@ -228,6 +270,7 @@ export function ImportDialog({
 					<Done
 						file={step.file}
 						count={step.count}
+						missed={step.missed}
 						vault={vaults.data?.find((v) => v.id === step.vaultId)?.name}
 					/>
 				)}
@@ -257,7 +300,7 @@ export function ImportDialog({
 						</Button>
 						<Button
 							disabled={fresh.length === 0 || !vault}
-							onClick={() => save(step.file, fresh)}
+							onClick={() => save(step.file, fresh, step.parsed.files)}
 						>
 							Import {plural(fresh.length, "item")}
 						</Button>
@@ -522,6 +565,11 @@ function Review({
 		return count > 0 ? [leftoverText[reason](count)] : [];
 	});
 	const source = parsed.source === "CSV" ? undefined : appFor(parsed.source);
+	const files = fresh.flatMap((item) => parsed.files?.get(item) ?? []);
+	const fileBytes = files.reduce(
+		(total, file) => total + (file.data?.length ?? 0),
+		0,
+	);
 
 	return (
 		<div className="flex flex-col gap-3">
@@ -581,8 +629,15 @@ function Review({
 				</ul>
 			)}
 
-			{(parsed.folders.length > 0 || duplicates > 0) && (
+			{(parsed.folders.length > 0 || duplicates > 0 || files.length > 0) && (
 				<ul className="text-caption text-fg-muted flex flex-col gap-1">
+					{files.length > 0 && (
+						<li>
+							{plural(files.length, "file")} ({fileSize(fileBytes)}) come
+							{files.length === 1 ? "s" : ""} with them, encrypted on this
+							device.
+						</li>
+					)}
 					{parsed.folders.length > 0 && (
 						<li>
 							{plural(parsed.folders.length, "folder")}{" "}
@@ -616,10 +671,12 @@ function Done({
 	file,
 	count,
 	vault,
+	missed,
 }: {
 	file: string;
 	count: number;
 	vault?: string;
+	missed?: string[];
 }) {
 	return (
 		<div className="flex flex-col gap-3">
@@ -631,6 +688,13 @@ function Done({
 				Imported {plural(count, "item")}
 				{vault && ` into ${vault}`}
 			</p>
+			{missed && (
+				<p className="text-caption text-fg-muted">
+					{plural(missed.length, "file")} couldn't be attached:{" "}
+					{missed.join(", ")}. Files over this vauly's limit, or past its total,
+					stay in the backup; attach them to their items by hand.
+				</p>
+			)}
 			<p
 				role="alert"
 				className="border-warning-line bg-warning-soft text-caption text-warning flex gap-2 rounded-lg border px-3 py-2.5"

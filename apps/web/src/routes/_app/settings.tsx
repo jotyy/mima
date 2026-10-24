@@ -39,6 +39,7 @@ import {
 import { describeDevice } from "@/lib/device";
 import { deviceUnlockSupported } from "@/lib/device-unlock";
 import { openEmergencyKit } from "@/lib/emergency-kit";
+import { fileSize, useFileUsage } from "@/lib/files";
 import { ago, plural, timeLeft } from "@/lib/format";
 import {
 	AUTO_LOCK_CHOICES,
@@ -320,12 +321,13 @@ function Settings() {
 				</Row>
 				<Row
 					label="Backup"
-					hint="Every item you can open, decrypted into one CSV file. vauly and most password managers can import it."
+					hint="Every item you can open, decrypted into one CSV file, or a ZIP with their files. vauly and most password managers can import it."
 				>
 					<Button variant="outline" onClick={() => setExporting(true)}>
 						Download a backup
 					</Button>
 				</Row>
+				<FileUsage />
 			</Card>
 
 			<SectionTitle>Leaving</SectionTitle>
@@ -540,5 +542,28 @@ function SaveField({
 				Save
 			</Button>
 		</form>
+	);
+}
+
+/** How much room the files on this vauly take, of what it allows. */
+function FileUsage() {
+	const usage = useFileUsage();
+	if (!usage.data) return null;
+	const { used, maxFile, maxTotal } = usage.data;
+	return (
+		<Row
+			label="Files"
+			hint={
+				maxTotal === 0
+					? "Files are turned off on this vauly."
+					: `Files attached to items, for everyone in the workspace. Up to ${fileSize(maxFile)} each.`
+			}
+		>
+			{maxTotal > 0 && (
+				<span className="text-body-sm text-fg-muted tabular-nums">
+					{fileSize(used)} of {fileSize(maxTotal)}
+				</span>
+			)}
+		</Row>
 	);
 }

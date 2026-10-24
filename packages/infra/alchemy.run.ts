@@ -32,6 +32,9 @@ export const server = Cloudflare.Worker("server", {
 		E2E_RESET_TOKEN: process.env.VAULY_E2E_RESET_TOKEN ?? "",
 		// When set, creating the workspace needs the setup link with this code.
 		SETUP_CODE: process.env.VAULY_SETUP_CODE ?? "",
+		// Limits on attached files in MB: 10 a file and 200 in all when unset.
+		FILES_MAX_MB: process.env.VAULY_FILES_MAX_MB ?? "",
+		FILES_TOTAL_MB: process.env.VAULY_FILES_TOTAL_MB ?? "",
 		// Only the demo at demo.vauly.app sets this: it holds the routes that save and
 		// restore the example team, and turns on what keeps a shared account usable.
 		DEMO_TOKEN: process.env.VAULY_DEMO_TOKEN

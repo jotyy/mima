@@ -2,7 +2,12 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { type BackupRow, toBackupCsv } from "../backup";
+import {
+	type BackupRow,
+	backupFilePath,
+	toBackupCsv,
+	toBackupZip,
+} from "../backup";
 import { ImportError, parseCsv, parseImport, readImport, sameItem } from ".";
 import { fixture, fixtureText } from "./fixtures";
 
@@ -385,4 +390,44 @@ test("a backup's card details that aren't text are left out", () => {
 	const [item] = parseImport(csv).items;
 	expect(item).toMatchObject({ kind: "card", card: { cardholder: "Alex" } });
 	expect(item?.card).toEqual({ cardholder: "Alex" });
+});
+
+test("a backup ZIP brings each item's files back with it", () => {
+	const key = new Uint8Array([1, 2, 3, 255]);
+	const pdf = new TextEncoder().encode("%PDF- not a real one");
+	const keyPath = backupFilePath(1, "deploy/key.pem");
+	const pdfPath = backupFilePath(2, "..recovery.pdf");
+	expect(keyPath).toBe("files/1/deploy_key.pem");
+	expect(pdfPath).toBe("files/2/_recovery.pdf");
+	const zip = toBackupZip(
+		"vauly-backup-2026-10-24.csv",
+		[
+			{
+				vault: "Engineering",
+				kind: "ssh-key",
+				name: "deploy",
+				secret: "not-a-real-key",
+				files: [keyPath],
+			},
+			// Nothing but a name and a file: it still comes back, for the file.
+			{ vault: "Private", kind: "note", name: "Recovery", files: [pdfPath] },
+			{ vault: "Private", kind: "note", name: "Plain", notes: "no files" },
+		],
+		new Map([
+			[keyPath, key],
+			[pdfPath, pdf],
+		]),
+	);
+	const result = readImport(zip);
+	expect(result.source).toBe("vauly");
+	expect(result.format).toBe("ZIP");
+	expect(result.left).toEqual({});
+	const [deploy, recovery, plain] = result.items;
+	expect(deploy).toMatchObject({ kind: "ssh-key", name: "deploy" });
+	expect(recovery).toEqual({ kind: "note", name: "Recovery" });
+	expect(result.files?.get(deploy as never)).toEqual([
+		{ name: "deploy_key.pem", path: keyPath, data: key },
+	]);
+	expect(result.files?.get(recovery as never)?.[0]?.data).toEqual(pdf);
+	expect(result.files?.has(plain as never)).toBe(false);
 });

@@ -167,6 +167,45 @@ export const shareLink = sqliteTable(
 	(table) => [index("share_link_item_idx").on(table.itemId)],
 );
 
+/**
+ * A file attached to an item. `meta` holds its name, type, size and key, sealed with the
+ * item key, and is null until the upload finishes; uploads left unfinished go after a
+ * day. `size` and `chunks` stay readable so the server can check uploads against its
+ * limits, as it sees the size of any ciphertext.
+ */
+export const attachment = sqliteTable(
+	"attachment",
+	{
+		id: text("id").primaryKey(),
+		itemId: text("item_id")
+			.notNull()
+			.references(() => item.id, { onDelete: "cascade" }),
+		meta: text("meta"),
+		size: integer("size").notNull(),
+		chunks: integer("chunks").notNull(),
+		createdBy: text("created_by").notNull(),
+		createdAt: createdAt(),
+	},
+	(table) => [index("attachment_item_idx").on(table.itemId)],
+);
+
+/**
+ * A file's contents, a chunk a row, sealed with the file key. It's base64 text rather
+ * than a BLOB because D1 hands a BLOB back as an array of numbers, which costs a Worker
+ * more CPU to read than the free plan gives a request.
+ */
+export const attachmentChunk = sqliteTable(
+	"attachment_chunk",
+	{
+		attachmentId: text("attachment_id")
+			.notNull()
+			.references(() => attachment.id, { onDelete: "cascade" }),
+		index: integer("index").notNull(),
+		data: text("data").notNull(),
+	},
+	(table) => [primaryKey({ columns: [table.attachmentId, table.index] })],
+);
+
 export type AgentKind = "mcp" | "cli" | "ci";
 
 export const agent = sqliteTable("agent", {
@@ -248,6 +287,11 @@ export type EventAction =
 	| "filled"
 	| "linked"
 	| "opened"
+	// A file on an item; `detail` is `file:<id>`, its name being encrypted.
+	| "attached"
+	| "downloaded"
+	| "renamed"
+	| "removed"
 	// Someone's role in a vault changed; `detail` holds the new role ("owner" for the
 	// workspace's owner, without a vault).
 	| "changed"

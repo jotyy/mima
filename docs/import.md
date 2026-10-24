@@ -191,7 +191,7 @@ Most password managers can export a CSV file. vauly imports one whose first row 
 | Folder        | `folder`, `group`, `category`                                    |
 | Tags          | `tags`, separated by commas or semicolons                        |
 
-A vauly backup (**Settings › Backup › Download a backup**) imports the same way, and keeps each item's kind and tags.
+A vauly backup (**Settings › Backup › Download a backup**) imports the same way, and keeps each item's kind and tags. A backup ZIP brings each item's files back too, within your vauly's limits on files.
 
 ## Keep it safe
 

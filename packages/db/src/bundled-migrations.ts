@@ -60,4 +60,9 @@ export const migrations: readonly {
 		hash: "b241a915b161441f6a61a760adcd0eb23a40331ab6fac225fed308ae8c5cbb78",
 		sql: "-- Reveals and copies of a custom field were logged with the field's label, which is part of\n-- the item. Any detail that isn't one of the fields every item has, or a field's ID,\n-- becomes \"field\", which the activity log shows as \"a custom field\".\nUPDATE `event` SET `detail` = 'field'\nWHERE `action` IN ('revealed', 'copied')\n\tAND `detail` IS NOT NULL\n\tAND `detail` NOT IN ('username', 'secret', 'one-time code', 'login', 'passkey', 'earlier password', 'earlier value', 'earlier private key', 'field')\n\tAND NOT (`detail` GLOB 'field:[a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9][a-z0-9]' AND length(`detail`) = 14);\n",
 	},
+	{
+		name: "20261024031750_attachments",
+		hash: "abd65ad6cb96cb46465010c9a0da406f7db006da3645650bcfca541afedc1552",
+		sql: "CREATE TABLE `attachment` (\n\t`id` text PRIMARY KEY,\n\t`item_id` text NOT NULL,\n\t`meta` text,\n\t`size` integer NOT NULL,\n\t`chunks` integer NOT NULL,\n\t`created_by` text NOT NULL,\n\t`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,\n\tCONSTRAINT `fk_attachment_item_id_item_id_fk` FOREIGN KEY (`item_id`) REFERENCES `item`(`id`) ON DELETE CASCADE\n);\n--> statement-breakpoint\nCREATE TABLE `attachment_chunk` (\n\t`attachment_id` text NOT NULL,\n\t`index` integer NOT NULL,\n\t`data` text NOT NULL,\n\tCONSTRAINT `attachment_chunk_pk` PRIMARY KEY(`attachment_id`, `index`),\n\tCONSTRAINT `fk_attachment_chunk_attachment_id_attachment_id_fk` FOREIGN KEY (`attachment_id`) REFERENCES `attachment`(`id`) ON DELETE CASCADE\n);\n--> statement-breakpoint\nCREATE INDEX `attachment_item_idx` ON `attachment` (`item_id`);",
+	},
 ];

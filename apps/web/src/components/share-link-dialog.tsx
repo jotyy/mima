@@ -11,7 +11,8 @@ import {
 import { Switch } from "@vauly/ui/components/switch";
 import { Tabs, TabsList, TabsTrigger } from "@vauly/ui/components/tabs";
 import { type ReactNode, useEffect, useState } from "react";
-
+import { useFiles } from "@/lib/files";
+import { plural } from "@/lib/format";
 import {
 	errorMessage,
 	type Item,
@@ -40,6 +41,7 @@ export function ShareLinkDialog({
 	onOpenChange: (open: boolean) => void;
 }) {
 	const actions = useActions();
+	const files = useFiles(item.id).data?.length ?? 0;
 	const [expiresIn, setExpiresIn] = useState<LinkDuration>("day");
 	const [once, setOnce] = useState(false);
 	const [totp, setTotp] = useState(false);
@@ -70,7 +72,12 @@ export function ShareLinkDialog({
 	const create = async () => {
 		setBusy(true);
 		try {
-			const link = await actions.createLink(item, { expiresIn, once, totp });
+			const link = await actions.createLink(item, {
+				expiresIn,
+				once,
+				totp,
+				files,
+			});
 			setCreated({ ...link, expiresAt: new Date(link.expiresAt), once });
 		} catch (err) {
 			notify.error("Couldn't create the link", errorMessage(err));
@@ -165,6 +172,8 @@ export function ShareLinkDialog({
 								The link shows the {listOf(shown)} as they are now. It's
 								encrypted on this device, and the key travels only in the link,
 								so vauly's server can't read it.
+								{files > 0 &&
+									` Links don't carry files, so the ${plural(files, "file")} stay${files === 1 ? "s" : ""} behind.`}
 							</span>
 						</p>
 

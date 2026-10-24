@@ -32,6 +32,8 @@ export type Draft = {
 	history?: PreviousSecret[];
 	card?: Card;
 	identity?: Identity;
+	/** Where a vauly backup ZIP keeps the item's files, such as `files/1/server.p12`. */
+	files?: string[];
 };
 
 /** The details that were given, trimmed, without the empty ones. */

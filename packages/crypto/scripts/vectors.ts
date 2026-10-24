@@ -421,6 +421,89 @@ const deviceData = `vauly/device\n${deviceCopy.accountId}\n${deviceCopy.credenti
 /** A passkey's credential ID: 16 bytes, base64url, as the browser extension makes them. */
 const passkeyCredentialId = base64Url(run(0xc0, 16)).replace(/=+$/, "");
 
+// Files: a key for each file, its chunks sealed under nonces made from their index.
+const FILE_CHUNK = 1024 * 1024;
+const fileId = "att_0123456789";
+const fileItemId = "itm_0123456789";
+
+async function sealChunk(
+	keyBytes: Uint8Array,
+	index: number,
+	chunks: number,
+	data: Uint8Array,
+) {
+	const key = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, [
+		"encrypt",
+	]);
+	const nonce = new Uint8Array(12);
+	new DataView(nonce.buffer).setBigUint64(4, BigInt(index));
+	return new Uint8Array(
+		await crypto.subtle.encrypt(
+			{
+				name: "AES-GCM",
+				iv: nonce,
+				additionalData: encoder.encode(
+					`vauly/file\n${fileId}\n${index}\n${chunks}`,
+				),
+			},
+			key,
+			data,
+		),
+	);
+}
+
+const sha256 = async (text: string) =>
+	hex(
+		new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(text))),
+	);
+
+/** A file's chunks and `meta`. Small files give the chunks whole, big ones their SHA-256. */
+async function fileVector(
+	keyBytes: Uint8Array,
+	name: string,
+	type: string,
+	plaintext: Uint8Array,
+	metaIv: Uint8Array,
+	source: { plaintext: string } | { run: { start: number; length: number } },
+) {
+	const chunks = Math.max(1, Math.ceil(plaintext.length / FILE_CHUNK));
+	const sealed: string[] = [];
+	for (let index = 0; index < chunks; index++) {
+		const part = plaintext.subarray(
+			index * FILE_CHUNK,
+			(index + 1) * FILE_CHUNK,
+		);
+		sealed.push(b64(await sealChunk(keyBytes, index, chunks, part)));
+	}
+	const meta = {
+		v: 1,
+		name,
+		type,
+		size: plaintext.length,
+		chunks,
+		key: b64(keyBytes),
+	};
+	const small = plaintext.length <= 64;
+	return {
+		fileId,
+		itemId: fileItemId,
+		...source,
+		lengths: sealed.map((chunk) => chunk.length),
+		...(small
+			? { chunks: sealed }
+			: { chunkSha256: await Promise.all(sealed.map(sha256)) }),
+		meta,
+		itemKey: b64(itemKey),
+		iv: b64(metaIv),
+		sealedMeta: await seal(
+			itemKey,
+			metaIv,
+			encoder.encode(JSON.stringify(meta)),
+			encoder.encode(`vauly/file-meta\n${fileId}\n${fileItemId}`),
+		),
+	};
+}
+
 const vectors = {
 	about:
 		"Test vectors for vauly's cryptography (packages/crypto). Every value is made up. Bytes are base64 (standard alphabet, padded) unless a field says hex. docs/security.md describes the formats; regenerate with `bun run vectors` in packages/crypto.",
@@ -563,6 +646,24 @@ const vectors = {
 				encoder.encode(`vauly/passkey\n${passkeyCredentialId}`),
 			),
 		},
+	],
+	files: [
+		await fileVector(
+			run(0x10, 32),
+			"recovery.txt",
+			"text/plain",
+			encoder.encode("abc"),
+			iv(12),
+			{ plaintext: b64(encoder.encode("abc")) },
+		),
+		await fileVector(
+			run(0x30, 32),
+			"server.p12",
+			"application/x-pkcs12",
+			run(0, FILE_CHUNK + 1),
+			iv(13),
+			{ run: { start: 0, length: FILE_CHUNK + 1 } },
+		),
 	],
 	agentToken: [
 		{

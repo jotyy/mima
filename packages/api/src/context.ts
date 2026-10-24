@@ -13,4 +13,6 @@ export type Context = {
 	 * claimed by whoever finds it first. It comes from the deploy's setup link.
 	 */
 	setupCode?: string;
+	/** The limits on attached files, in bytes. A total of 0 turns files off. */
+	files: { maxFileBytes: number; maxTotalBytes: number };
 };

@@ -232,7 +232,10 @@ export type SharedItem = Pick<
 	| "fields"
 	| "card"
 	| "identity"
->;
+> & {
+	/** How many files the item has. Links don't carry them, and the page says so. */
+	files?: number;
+};
 
 export const itemReference = (item: { id: string }) => `vauly://${item.id}`;
 
@@ -321,13 +324,18 @@ export function useDeletedItems() {
 }
 
 function useItemQuery(select: (all: Item[]) => Item[]) {
+	return useQuery({ ...useItemQueryOptions(), select });
+}
+
+/** Every item the person can open, decrypted, Recently deleted included. */
+export function useItemQueryOptions() {
 	const keyring = useKeyring();
 	const queryClient = useQueryClient();
 	const vaultOptions = useVaultQueryOptions();
-	return useQuery({
-		queryKey: ["vault", "items", keyring.epoch],
+	return {
+		queryKey: ["vault", "items", keyring.epoch] as const,
 		enabled: keyring.status === "unlocked",
-		networkMode: "always",
+		networkMode: "always" as const,
 		queryFn: async (): Promise<Item[]> => {
 			const [vaults, rows] = await Promise.all([
 				queryClient.fetchQuery(vaultOptions),
@@ -361,8 +369,7 @@ function useItemQuery(select: (all: Item[]) => Item[]) {
 					.sort((a, b) => a.name.localeCompare(b.name)),
 			);
 		},
-		select,
-	});
+	};
 }
 
 /** Points each login at the others that share its password. Deleted items don't count. */
@@ -574,32 +581,38 @@ export function useActions() {
 				);
 			},
 
-			/** Encrypts every item on this device, then uploads them 100 at a time. */
+			/**
+			 * Encrypts every item on this device, then uploads them 100 at a time. Returns each
+			 * new item's ID and key, in order, for the files that come with them.
+			 */
 			async importItems(
 				vault: Vault,
 				items: ItemFields[],
 				onProgress?: (done: number) => void,
 			) {
+				const created: { id: string; key: CryptoKey }[] = [];
 				for (let start = 0; start < items.length; start += 100) {
 					const chunk = items.slice(start, start + 100);
+					const keys = await Promise.all(chunk.map(() => newDataKey()));
 					const sealed = await Promise.all(
-						chunk.map(async (fields) => {
-							const key = await newDataKey();
-							return {
-								wrappedKey: await wrapKey(vault.key, key),
-								data: await sealJson(key, fields),
-							};
-						}),
+						chunk.map(async (fields, index) => ({
+							wrappedKey: await wrapKey(vault.key, keys[index] as CryptoKey),
+							data: await sealJson(keys[index] as CryptoKey, fields),
+						})),
 					);
 					const last = start + 100 >= items.length;
-					await client.items.import({
+					const { ids } = await client.items.import({
 						vaultId: vault.id,
 						items: sealed,
 						...(last && { total: items.length }),
 					});
+					ids.forEach((id, index) => {
+						created.push({ id, key: keys[index] as CryptoKey });
+					});
 					onProgress?.(start + chunk.length);
 				}
 				await refresh(queryClient);
+				return created;
 			},
 
 			/** Saves new fields; a changed password or value joins the item's history. */
@@ -655,7 +668,12 @@ export function useActions() {
 			/** Seals a copy of the item with a new key that only the link itself carries. */
 			async createLink(
 				item: Item,
-				options: { expiresIn: LinkDuration; once: boolean; totp: boolean },
+				options: {
+					expiresIn: LinkDuration;
+					once: boolean;
+					totp: boolean;
+					files?: number;
+				},
 			) {
 				const key = await newDataKey();
 				const shared: SharedItem = {
@@ -670,6 +688,7 @@ export function useActions() {
 					card: item.card,
 					identity: item.identity,
 					totp: options.totp ? item.totp : undefined,
+					...(options.files && { files: options.files }),
 				};
 				const { id, expiresAt } = await after(
 					client.links.create({

@@ -22,6 +22,8 @@ export function describeEvent(
 		vaults: Map<string, Vault>;
 		agents: Map<string, Agent>;
 		members: Map<string, Member>;
+		/** Files by ID, with their decrypted names. */
+		files?: Map<string, { name: string }>;
 	},
 ) {
 	const item = event.itemId ? lookup.items.get(event.itemId) : undefined;
@@ -69,6 +71,17 @@ export function describeEvent(
 			return parts(`revealed ${field(event.detail, item)} of`, itemName);
 		case "copied":
 			return parts(`copied ${field(event.detail, item)} of`, itemName);
+		case "attached":
+			return parts(`attached ${fileName(event.detail, lookup)} to`, itemName);
+		case "downloaded":
+			return parts(
+				`downloaded ${fileName(event.detail, lookup)} from`,
+				itemName,
+			);
+		case "renamed":
+			return parts(`renamed ${fileName(event.detail, lookup)} on`, itemName);
+		case "removed":
+			return parts("removed a file from", itemName);
 		case "filled":
 			if (event.detail === "passkey")
 				return parts("signed in with the passkey of", itemName);
@@ -199,4 +212,13 @@ function field(detail: string | null | undefined, item: Item | undefined) {
 		return label ? `the ${label}` : "a custom field";
 	}
 	return `the ${detail}`;
+}
+
+/** A file by the name it has now; one that's gone is just "a file". */
+function fileName(
+	detail: string | null | undefined,
+	lookup: { files?: Map<string, { name: string }> },
+) {
+	const id = detail?.startsWith("file:") ? detail.slice("file:".length) : "";
+	return lookup.files?.get(id)?.name ?? "a file";
 }
