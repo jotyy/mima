@@ -44,6 +44,7 @@ import {
 	type Pending,
 	savePending,
 } from "@/lib/passkey-requests";
+import { offersPasskeysFor, stopOffering } from "@/lib/settings";
 import {
 	type Connection,
 	getConnection,
@@ -453,6 +454,8 @@ async function passkeyAsked(
 	}
 	// The browser refuses a site that asks for another site's passkeys, and so does vauly.
 	if (rpProblem(page.origin, pending.rpId)) return toBrowser;
+	// Turned off, everywhere or for this site, in the popup or the window.
+	if (!(await offersPasskeysFor(pending.rpId))) return toBrowser;
 
 	// vauly asks whatever its vaults hold, and before it looks: whether it has a passkey
 	// for the site shows only in its own window, never to the page.
@@ -548,7 +551,11 @@ async function answerPasskeyWindow(
 				? passkeyUse(pending, request.itemId)
 				: gone;
 		case "vauly:passkey-decline":
-			return passkeyDecline(pending, request.another);
+			if (request.notHere) await stopOffering(pending.rpId);
+			return passkeyDecline(
+				pending,
+				request.another || Boolean(request.notHere),
+			);
 	}
 }
 

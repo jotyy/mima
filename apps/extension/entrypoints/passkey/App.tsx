@@ -269,7 +269,23 @@ function Prompt({
 
 			<FormError>{error}</FormError>
 
-			<div className="mt-auto flex justify-end gap-2">
+			<div className="mt-auto flex items-center justify-end gap-2">
+				{state.status !== "exists" && (
+					<button
+						type="button"
+						disabled={busy}
+						onClick={() =>
+							act({
+								type: "vauly:passkey-decline",
+								another: true,
+								notHere: true,
+							})
+						}
+						className="text-caption text-fg-subtle hover:text-fg mr-auto underline-offset-2 hover:underline"
+					>
+						Don't ask on {state.rpId}
+					</button>
+				)}
 				<Button
 					variant="ghost"
 					size="sm"

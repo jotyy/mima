@@ -42,8 +42,11 @@ export type PasskeyWindowRequest =
 	| { type: "vauly:passkey-state" }
 	| { type: "vauly:passkey-save"; vaultId: string }
 	| { type: "vauly:passkey-use"; itemId: string }
-	/** Not with vauly: with the browser's own passkeys (`another`), or not at all. */
-	| { type: "vauly:passkey-decline"; another: boolean };
+	/**
+	 * Not with vauly: with the browser's own passkeys (`another`), or not at all.
+	 * `notHere` also stops vauly asking on this site.
+	 */
+	| { type: "vauly:passkey-decline"; another: boolean; notHere?: boolean };
 
 export type Request = PageRequest | FrameRequest | PasskeyWindowRequest;
 

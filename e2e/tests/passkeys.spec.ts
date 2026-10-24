@@ -608,6 +608,45 @@ test("vauly asks even where it has no passkey, so the site can't tell", async ()
 	await page.close();
 });
 
+test("vauly stops asking on a site, or anywhere, when told to", async () => {
+	let page = await openSite("pat@acme.test", "https://shop.test");
+	await withDeviceAuthenticator(page);
+	const window = await vaulyWindow(page, "Create a passkey");
+	await choose(window, "Don't ask on shop.test");
+	await expect(result(page)).toHaveText("Passkey created");
+	// Next time, straight to the browser.
+	await page.getByLabel("Email").fill("quinn@acme.test");
+	await page.getByRole("button", { name: "Create a passkey" }).click();
+	await expect(result(page)).toHaveText("Passkey created");
+	expect(passkeyWindows()).toHaveLength(0);
+	await page.close();
+
+	const popup = await openPopup();
+	await popup.getByRole("button", { name: "Settings" }).click();
+	const sites = popup.getByRole("list", {
+		name: "Sites without vauly's passkeys",
+	});
+	await expect(sites.getByText("shop.test")).toBeVisible();
+	await popup.getByRole("button", { name: "Ask on shop.test again" }).click();
+	await expect(sites).toHaveCount(0);
+	const offer = popup.getByRole("switch", { name: "Offer vauly for passkeys" });
+	await expect(offer).toBeChecked();
+	await offer.click();
+	await expect(offer).not.toBeChecked();
+
+	// Off, even a site vauly has passkeys for goes to the browser.
+	page = await openSite("zed@acme.test");
+	await withDeviceAuthenticator(page);
+	await page.getByRole("button", { name: "Create a passkey" }).click();
+	await expect(result(page)).toHaveText("Passkey created");
+	expect(passkeyWindows()).toHaveLength(0);
+	await page.close();
+
+	await offer.click();
+	await expect(offer).toBeChecked();
+	await popup.close();
+});
+
 test("another site can't ask for Acme's passkeys", async () => {
 	const page = await context.newPage();
 	await page.goto("https://other.test/");

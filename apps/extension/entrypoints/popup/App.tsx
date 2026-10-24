@@ -1,7 +1,9 @@
 import {
+	ArrowLeftIcon,
 	ArrowSquareOutIcon,
 	ClockCountdownIcon,
 	CopyIcon,
+	GearSixIcon,
 	GlobeIcon,
 	KeyIcon,
 	LockSimpleIcon,
@@ -13,6 +15,7 @@ import {
 import { parseTotp, totpCode, totpSecondsLeft } from "@vauly/crypto";
 import { Button } from "@vauly/ui/components/button";
 import { Input } from "@vauly/ui/components/input";
+import { Switch } from "@vauly/ui/components/switch";
 import { logoDomain } from "@vauly/ui/lib/logos";
 import { cn } from "@vauly/ui/lib/utils";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
@@ -28,6 +31,11 @@ import {
 	viewOf,
 } from "@/lib/capture";
 import { fillLoginForm } from "@/lib/fill";
+import {
+	getPasskeySettings,
+	type PasskeySettings,
+	savePasskeySettings,
+} from "@/lib/settings";
 import {
 	type Connection,
 	forgetConnection,
@@ -290,6 +298,7 @@ function Items({
 	const [query, setQuery] = useState("");
 	const [tab, setTab] = useState<{ id?: number; url?: string }>({});
 	const [status, setStatus] = useState("");
+	const [settings, setSettings] = useState(false);
 	const client = apiClient(connection.server, connection.token);
 
 	const load = async (tabId?: number) => {
@@ -404,6 +413,16 @@ function Items({
 				<Button
 					variant="ghost"
 					size="icon-sm"
+					aria-label="Settings"
+					title="Settings"
+					aria-pressed={settings}
+					onClick={() => setSettings((open) => !open)}
+				>
+					<GearSixIcon />
+				</Button>
+				<Button
+					variant="ghost"
+					size="icon-sm"
 					aria-label="Lock"
 					title="Lock"
 					onClick={onLock}
@@ -412,88 +431,75 @@ function Items({
 				</Button>
 			</header>
 
-			{offer && (
-				<SaveOffer
-					offer={viewOf(offer)}
-					vaults={vaults.filter((vault) => vault.editable)}
-					className="shadow-card mx-3 mt-3"
-					onSave={async (vaultId, login) => {
-						const vault = vaults.find((v) => v.id === vaultId);
-						if (!vault) return;
-						await touch();
-						await saveLogin(client, vault, {
-							...login,
-							password: offer.capture.password,
-							url: offer.capture.url,
-						});
-						await settle(`Saved to ${vault.name}`);
-					}}
-					onUpdate={async () => {
-						if (offer.kind !== "update") return;
-						await touch();
-						const me = await client.account.me();
-						await updatePassword(
-							client,
-							offer.entry,
-							offer.capture.password,
-							me.name,
-						);
-						await settle("Password updated");
-					}}
-					onDismiss={() => settle()}
-				/>
-			)}
+			{settings && <Settings onDone={() => setSettings(false)} />}
 
-			<div className="px-3 pt-3">
-				<div className="relative">
-					<MagnifyingGlassIcon className="text-fg-subtle absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
-					<Input
-						autoFocus
-						aria-label="Search items"
-						placeholder="Search items"
-						className="pl-8"
-						value={query}
-						onChange={(event) => setQuery(event.target.value)}
-					/>
-				</div>
-			</div>
+			{!settings && (
+				<>
+					{offer && (
+						<SaveOffer
+							offer={viewOf(offer)}
+							vaults={vaults.filter((vault) => vault.editable)}
+							className="shadow-card mx-3 mt-3"
+							onSave={async (vaultId, login) => {
+								const vault = vaults.find((v) => v.id === vaultId);
+								if (!vault) return;
+								await touch();
+								await saveLogin(client, vault, {
+									...login,
+									password: offer.capture.password,
+									url: offer.capture.url,
+								});
+								await settle(`Saved to ${vault.name}`);
+							}}
+							onUpdate={async () => {
+								if (offer.kind !== "update") return;
+								await touch();
+								const me = await client.account.me();
+								await updatePassword(
+									client,
+									offer.entry,
+									offer.capture.password,
+									me.name,
+								);
+								await settle("Password updated");
+							}}
+							onDismiss={() => settle()}
+						/>
+					)}
 
-			<div className="min-h-0 flex-1 overflow-y-auto px-1.5 pt-2 pb-3">
-				{error && <p className="text-caption text-danger px-2 py-4">{error}</p>}
-				{!entries && !error && (
-					<p className="text-caption text-fg-subtle px-2 py-6 text-center">
-						Decrypting…
-					</p>
-				)}
-				{entries && results && (
-					<Section label="Results">
-						{results.length === 0 ? (
-							<Empty>Nothing matches.</Empty>
-						) : (
-							results.map((entry) => (
-								<Row
-									key={entry.id}
-									entry={entry}
-									canFill={matchesPage(entry, tab.url)}
-									onFill={fill}
-									onCopy={copy}
-								/>
-							))
+					<div className="px-3 pt-3">
+						<div className="relative">
+							<MagnifyingGlassIcon className="text-fg-subtle absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+							<Input
+								autoFocus
+								aria-label="Search items"
+								placeholder="Search items"
+								className="pl-8"
+								value={query}
+								onChange={(event) => setQuery(event.target.value)}
+							/>
+						</div>
+					</div>
+
+					<div className="min-h-0 flex-1 overflow-y-auto px-1.5 pt-2 pb-3">
+						{error && (
+							<p className="text-caption text-danger px-2 py-4">{error}</p>
 						)}
-					</Section>
-				)}
-				{entries && !results && (
-					<>
-						{host && (
-							<Section label={`On ${host}`}>
-								{here.length === 0 ? (
-									<Empty>Nothing saved for this site.</Empty>
+						{!entries && !error && (
+							<p className="text-caption text-fg-subtle px-2 py-6 text-center">
+								Decrypting…
+							</p>
+						)}
+						{entries && results && (
+							<Section label="Results">
+								{results.length === 0 ? (
+									<Empty>Nothing matches.</Empty>
 								) : (
-									here.map((entry) => (
+									results.map((entry) => (
 										<Row
 											key={entry.id}
 											entry={entry}
-											canFill
+											canFill={matchesPage(entry, tab.url)}
 											onFill={fill}
 											onCopy={copy}
 										/>
@@ -501,24 +507,45 @@ function Items({
 								)}
 							</Section>
 						)}
-						<Section label="All items">
-							{entries.length === 0 ? (
-								<Empty>No items yet. Add them in vauly.</Empty>
-							) : (
-								entries.map((entry) => (
-									<Row
-										key={entry.id}
-										entry={entry}
-										canFill={false}
-										onFill={fill}
-										onCopy={copy}
-									/>
-								))
-							)}
-						</Section>
-					</>
-				)}
-			</div>
+						{entries && !results && (
+							<>
+								{host && (
+									<Section label={`On ${host}`}>
+										{here.length === 0 ? (
+											<Empty>Nothing saved for this site.</Empty>
+										) : (
+											here.map((entry) => (
+												<Row
+													key={entry.id}
+													entry={entry}
+													canFill
+													onFill={fill}
+													onCopy={copy}
+												/>
+											))
+										)}
+									</Section>
+								)}
+								<Section label="All items">
+									{entries.length === 0 ? (
+										<Empty>No items yet. Add them in vauly.</Empty>
+									) : (
+										entries.map((entry) => (
+											<Row
+												key={entry.id}
+												entry={entry}
+												canFill={false}
+												onFill={fill}
+												onCopy={copy}
+											/>
+										))
+									)}
+								</Section>
+							</>
+						)}
+					</div>
+				</>
+			)}
 
 			<p
 				role="status"
@@ -530,6 +557,78 @@ function Items({
 				{status}
 			</p>
 		</div>
+	);
+}
+
+/** This browser's choices: whether vauly asks for passkeys, and where it doesn't. */
+function Settings({ onDone }: { onDone: () => void }) {
+	const [passkeys, setPasskeys] = useState<PasskeySettings | null>(null);
+	useEffect(() => {
+		void getPasskeySettings().then(setPasskeys);
+	}, []);
+	const change = async (next: PasskeySettings) => {
+		setPasskeys(next);
+		await savePasskeySettings(next);
+	};
+	if (!passkeys) return null;
+
+	return (
+		<section aria-label="Settings" className="flex flex-col gap-4 p-3">
+			<div className="flex items-center gap-1">
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					aria-label="Back to items"
+					onClick={onDone}
+				>
+					<ArrowLeftIcon />
+				</Button>
+				<h2 className="text-body-sm text-fg font-medium">Settings</h2>
+			</div>
+			<div className="flex items-start gap-3 px-1">
+				<div className="flex min-w-0 flex-1 flex-col gap-0.5">
+					<span className="text-body-sm text-fg">Offer vauly for passkeys</span>
+					<span className="text-caption text-fg-muted">
+						When a site asks for a passkey, vauly opens a window to save it or
+						sign in with it. Off, the browser's own passkeys answer.
+					</span>
+				</div>
+				<Switch
+					aria-label="Offer vauly for passkeys"
+					checked={passkeys.offer}
+					onCheckedChange={(offer) => change({ ...passkeys, offer })}
+				/>
+			</div>
+			{passkeys.notOn.length > 0 && (
+				<div className="flex flex-col gap-1 px-1">
+					<span className="text-caption text-fg-muted">
+						vauly doesn't ask on these sites:
+					</span>
+					<ul aria-label="Sites without vauly's passkeys">
+						{passkeys.notOn.map((site) => (
+							<li key={site} className="flex items-center gap-2 py-1">
+								<span className="text-body-sm text-fg min-w-0 flex-1 truncate">
+									{site}
+								</span>
+								<Button
+									variant="ghost"
+									size="xs"
+									aria-label={`Ask on ${site} again`}
+									onClick={() =>
+										change({
+											...passkeys,
+											notOn: passkeys.notOn.filter((other) => other !== site),
+										})
+									}
+								>
+									Ask again
+								</Button>
+							</li>
+						))}
+					</ul>
+				</div>
+			)}
+		</section>
 	);
 }
 
