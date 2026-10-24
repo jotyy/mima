@@ -101,6 +101,7 @@ The repository's development stack uses [Alchemy](https://alchemy.run) (`package
 ## Checking what your instance serves
 
 With the [CLI](agents.md) installed, `vauly verify https://vault.example.test` checks that your vauly serves exactly the web app its commit builds. It rebuilds that commit, so it needs `git` and `bun`; with `--against vauly-build.json` it compares with a release's manifest instead. [Security](security.md#checking-what-an-instance-serves) explains what that proves.
+- **Every file differs:** the build ran in another runtime, such as Node or another Bun version than the one in `package.json`. `vauly verify` names the two runtimes when it can. Instances built before vauly built in Bun everywhere can't match a rebuild.
 - **`index.html` alone differs:** a Cloudflare feature that rewrites pages on your domain is the usual cause. Examples are Email Address Obfuscation, Rocket Loader, or Web Analytics added automatically. Turn it off for the domain.
 - **The build settings above are public.** They end up in `/vauly.json` and in the headers, not in the app's code, which is what keeps the code the same for every instance.
 

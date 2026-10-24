@@ -180,6 +180,27 @@ test("the key worker's files must have its policy, not another", async () => {
 	expect(exitCode(report)).toBe(1);
 });
 
+test("a build in another runtime is named as the likely reason", async () => {
+	// Vite's output depends on the runtime it ran in (apps/web/build-manifest.ts).
+	const served = manifestOf(files, { toolchain: { bun: "1.3.14" } });
+	const other = manifestOf(
+		{ ...files, "/assets/index-abc.js": "console.log('vauly', 1)" },
+		{ toolchain: { node: "24.16.0" } },
+	);
+	const report = await verify(instance(files, served), {
+		against: trusted(other),
+	});
+	expect(exitCode(report)).toBe(1);
+	expect(report.notes.join(" ")).toContain(
+		"built in Bun 1.3.14 and the build it's compared with in Node 24.16.0",
+	);
+	// The same runtime on both sides says nothing about it.
+	const same = await verify(instance(files, served), {
+		against: trusted({ ...other, toolchain: { bun: "1.3.14" } }),
+	});
+	expect(same.notes.join(" ")).not.toContain("runtime");
+});
+
 test("a manifest from before per-rule headers still reads", () => {
 	const old = { ...manifestOf(files), format: 1, headers: { "x-one": "a" } };
 	expect(parseManifest(JSON.stringify(old)).headers).toEqual({

@@ -4,7 +4,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"build": "tsc -b ../../packages/api && vite build",
+		"build": "tsc -b ../../packages/api && bun --bun vite build",
 		"serve": "vite preview",
 		"start": "vite",
 		"check-types": "tsc -b ../../packages/api && vite build && tsc --noEmit",

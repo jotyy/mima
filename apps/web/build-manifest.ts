@@ -28,7 +28,18 @@ export type BuildManifest = {
 	headers: Record<string, Record<string, string>>;
 	/** "/path" → hex SHA-256, for every served file but the unhashed ones. */
 	files: Record<string, string>;
+	/**
+	 * The runtime Vite ran in. The files depend on it: Vite copies one of its own
+	 * functions into the app as `fn.toString()`, and Bun re-prints the source it loads,
+	 * so the same commit builds differently under Node, or another Bun.
+	 */
+	toolchain: { bun?: string; node?: string };
 };
+
+export const toolchain = () =>
+	process.versions.bun
+		? { bun: process.versions.bun }
+		: { node: process.versions.node };
 
 function git(args: string[]) {
 	try {
@@ -134,5 +145,6 @@ export function buildManifest(
 			readFileSync(path.join(outDir, "_headers"), "utf8").toString(),
 		),
 		files,
+		toolchain: toolchain(),
 	};
 }

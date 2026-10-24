@@ -21,7 +21,16 @@ export type BuildManifest = {
 	/** For each rule in _headers ("/*", the key worker's folder), its files' headers. */
 	headers: Record<string, Record<string, string>>;
 	files: Record<string, string>;
+	/** The runtime the build ran in (Bun or Node, and its version), when the build said. */
+	toolchain?: { bun?: string; node?: string };
 };
+
+const runtimeOf = (toolchain: BuildManifest["toolchain"]) =>
+	toolchain?.bun
+		? `Bun ${toolchain.bun}`
+		: toolchain?.node
+			? `Node ${toolchain.node}`
+			: "an unknown runtime";
 
 /** The rule every page and file falls under. */
 const EVERY_PATH = "/*";
@@ -89,6 +98,8 @@ export function parseManifest(text: string): BuildManifest {
 				? { [EVERY_PATH]: headers as unknown as Record<string, string> }
 				: headers,
 		files: value.files,
+		...(value.toolchain &&
+			typeof value.toolchain === "object" && { toolchain: value.toolchain }),
 	};
 }
 
@@ -180,6 +191,14 @@ export function compareManifests(
 	} else {
 		notes.push(
 			"The trusted manifest was built with other settings, so the headers weren't compared. Rebuild (the default) to compare them.",
+		);
+	}
+	// Vite's output depends on the runtime it ran in (apps/web/build-manifest.ts).
+	const theirs = runtimeOf(trusted.toolchain);
+	const mine = runtimeOf(served.toolchain);
+	if (differences.length > 0 && theirs !== mine) {
+		notes.push(
+			`The instance was built in ${mine} and the build it's compared with in ${theirs}. The files depend on the runtime, so build with the Bun version in package.json and compare again.`,
 		);
 	}
 	return { differences, notes };

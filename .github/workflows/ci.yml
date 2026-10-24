@@ -100,6 +100,13 @@ jobs:
         run: |
           diff -r first/apps/web/dist "$RUNNER_TEMP/second-copy/apps/web/dist"
           echo "Both builds are byte-identical."
+      # Production and the demo are built by `alchemy deploy`, with Alchemy's own build
+      # function and the stage's settings, so that build has to serve the same files.
+      - name: Build the way alchemy deploy does, and compare
+        working-directory: ${{ runner.temp }}/second-copy/packages/infra
+        env:
+          VITE_SERVER_URL: https://api.example.test
+        run: bun scripts/build-web.ts "$GITHUB_WORKSPACE/first/apps/web/dist/.well-known/vauly-build.json"
       - uses: actions/upload-artifact@v7
         with:
           name: vauly-build

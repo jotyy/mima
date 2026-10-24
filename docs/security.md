@@ -141,8 +141,9 @@ vauly verify https://vault.example.test
 ```
 
 - **Every instance of a version serves the same files.** The app reads its address, logo and breach-check settings from `/vauly.json` at runtime, so the code can't differ between instances. Two builds of one commit are byte-identical; CI builds it twice, in different directories, and compares.
-- **Each build lists what it serves** in `/.well-known/vauly-build.json`: every file with its SHA-256, the headers it sets (the Content-Security-Policy among them), and the commit.
-- **`vauly verify` downloads all of it.** It checks every file and header against that list, and it checks that the page and the service worker load nothing the list leaves out. Then it builds the same commit with the same settings itself and compares. That needs `git` and `bun`. `--against` instead compares with a manifest you trust, such as the one each release carries.
+- **Every build runs in Bun, the version in `package.json`.** The files depend on the JavaScript runtime that runs Vite: it copies one of its own functions into the app as source text, and Bun re-prints the source it loads, so a build under Node, or another Bun version, differs in every file. `bun run build`, the Deploy to Cloudflare button and `alchemy deploy` all build in Bun, and CI checks that Alchemy's build, with a stage's settings, serves the same files as `bun run build`. The manifest records the runtime, and `vauly verify` says so when the build it compares with ran in another.
+- **Each build lists what it serves** in `/.well-known/vauly-build.json`: every file with its SHA-256, the headers it sets (the Content-Security-Policy among them), the commit and the runtime it was built in.
+- **`vauly verify` downloads all of it.** It checks every file and header against that list, and it checks that the page and the service worker load nothing the list leaves out. Then it builds the same commit with the same settings itself and compares. That needs `git` and `bun`, the same version as the instance's for a match. `--against` instead compares with a manifest you trust, such as the one each release carries.
 
 What it can't prove:
 - **It shows what was served to you, just now.** A host can serve other files to other people, or to you at another time. A service worker your browser installed earlier keeps running what it was given until it updates.
