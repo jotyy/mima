@@ -2,15 +2,15 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, next]
   pull_request:
 
 permissions:
   contents: read
 
-# A pull request's newer push replaces its older run. On main every commit runs to the
-# end: a docs-only push skips the end-to-end tests, so cancelling the commit before it
-# would leave that code untested.
+# A pull request's newer push replaces its older run. On main and next every commit runs
+# to the end: a docs-only push skips the end-to-end tests, so cancelling the commit
+# before it would leave that code untested.
 concurrency:
   group: ci-${{ github.ref }}-${{ github.event_name == 'push' && github.sha || 'pr' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
