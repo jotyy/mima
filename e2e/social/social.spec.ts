@@ -43,7 +43,6 @@ let url = "";
 let stop: (() => Promise<void>) | undefined;
 
 const images = {
-	avatar: [400, 400],
 	banner: [1500, 500],
 	"tweet-1-hero": [1600, 900],
 	"tweet-2-ciphertext": [1600, 900],
@@ -52,6 +51,9 @@ const images = {
 	"tweet-5-extension": [1600, 900],
 	"tweet-6-deploy": [1600, 900],
 	"tweet-price": [1600, 900],
+	"tweet-1-hero-zh": [1600, 900],
+	"tweet-3-agents-zh": [1600, 900],
+	"tweet-price-zh": [1600, 900],
 } as const;
 
 /** The website, from Astro's dev server in this process, or one at SOCIAL_SITE_URL. */
