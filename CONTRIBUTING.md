@@ -60,7 +60,7 @@ e2e                 Playwright tests
 cd packages/db && bunx drizzle-kit generate --name item_trash
 ```
 
-Commit the migration together with the code that needs it. Never edit a migration that's already on `main`.
+Commit the migration together with the code that needs it. Never edit a migration that's already been merged.
 
 **UI.**
 - Colors, type sizes, radii and shadows come from the tokens in `packages/ui/src/styles/globals.css`. Don't hard-code colors in components.
@@ -82,9 +82,9 @@ Commit the migration together with the code that needs it. Never edit a migratio
 
 How a change lands, for maintainers too:
 - Each change starts from an issue. Say on the issue that you're taking it.
-- Work on a short-lived branch and open a pull request that says `Closes #<issue>`.
-- Once **CI passed** is green, the pull request is squash-merged into `main`. Changes to the cryptography, sign-in or access rules get a security review first.
-- Releases are tags on `main` (`v0.1.0`), with the notes from CHANGELOG.md. The hosted vauly.app and demo are deployed from releases.
+- Work on a short-lived branch from `next` and open a pull request against `next` (`gh pr create --base next`) that says `Closes #<issue>`.
+- Once **CI passed** is green, the pull request is squash-merged into `next`. Changes to the cryptography, sign-in or access rules get a security review first. GitHub closes issues only for merges into the default branch, so whoever merges closes the issue.
+- `main` holds the latest release and nothing else: copies made with the Deploy to Cloudflare button start from it, and their **Update vauly** workflow pulls it. A release is a tag on `next` (`v0.1.0`), with the notes from CHANGELOG.md, and `main` then moves forward to it. The hosted vauly.app and demo are deployed from releases.
 - Security problems are never discussed in public issues or pull requests; see [SECURITY.md](SECURITY.md).
 
 Write commit messages as a short summary in the imperative ("Add Recently deleted"), then a blank line and the why, wrapped at 72 characters.
