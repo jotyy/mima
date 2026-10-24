@@ -590,13 +590,21 @@ export const accountRouter = {
 
 	/** Records that someone downloaded a decrypted backup. Only the count is logged. */
 	exported: memberProcedure
-		.input(z.object({ count: z.number().int().min(0) }))
+		.input(
+			z.object({
+				count: z.number().int().min(0),
+				/** Whether the backup is protected with a password. */
+				protected: z.boolean().optional(),
+			}),
+		)
 		.handler(async ({ context, input }) => {
 			await logEvent(context.db, {
 				actorType: "member",
 				actorId: context.userId,
 				action: "exported",
-				detail: String(input.count),
+				detail: input.protected
+					? `${input.count} protected`
+					: String(input.count),
 			});
 			return { ok: true };
 		}),

@@ -11,6 +11,7 @@ import {
 	DialogTitle,
 } from "@vauly/ui/components/dialog";
 import { Input } from "@vauly/ui/components/input";
+import { Switch } from "@vauly/ui/components/switch";
 import {
 	type FormEvent,
 	type ReactNode,
@@ -18,13 +19,15 @@ import {
 	useRef,
 	useState,
 } from "react";
-
+import { argon2LanesInWorker } from "@/lib/argon2";
 import {
 	type BackupRow,
 	backupFileName,
 	backupFilePath,
 	toBackupCsv,
+	toBackupJson,
 	toBackupZip,
+	toSealedBackupZip,
 } from "@/lib/backup";
 import {
 	DeviceUnlockUnavailable,
@@ -33,8 +36,13 @@ import {
 } from "@/lib/device-unlock";
 import { fileSize, readFile, saveBlob, useFiles } from "@/lib/files";
 import { plural } from "@/lib/format";
+import { sealBackup, sealFiles } from "@/lib/import/protected";
 import { useKeyring, WrongPasswordError } from "@/lib/keyring";
-import { newMasterPasswordProblem } from "@/lib/secrets";
+import {
+	newBackupPasswordProblem,
+	newMasterPasswordProblem,
+	passwordStrength,
+} from "@/lib/secrets";
 import {
 	errorMessage,
 	useAgents,
@@ -321,7 +329,13 @@ export function DeviceUnlockDialog({
 	);
 }
 
-/** Asks for the master password again, then saves every item the person can open. */
+/**
+ * Downloads every item the person can open, and their files unless left out. By default
+ * it's protected with a password, in Bitwarden's password-protected format, which vauly's
+ * import and Bitwarden both open, with files in a ZIP beside it, each sealed with a key of
+ * its own that only the export holds.
+ * Without a password it's a CSV in Bitwarden's layout, for apps that read nothing else.
+ */
 export function ExportDialog({
 	open,
 	onOpenChange,
@@ -334,6 +348,9 @@ export function ExportDialog({
 	const vaults = useVaults();
 	const files = useFiles();
 	const [password, setPassword] = useState("");
+	const [protect, setProtect] = useState(true);
+	const [backupPassword, setBackupPassword] = useState("");
+	const [repeat, setRepeat] = useState("");
 	const [error, setError] = useState("");
 	const [busy, setBusy] = useState(false);
 	const [withFiles, setWithFiles] = useState(true);
@@ -343,10 +360,20 @@ export function ExportDialog({
 	const attached = (files.data ?? []).filter((file) => live.has(file.itemId));
 	const attachedBytes = attached.reduce((total, file) => total + file.size, 0);
 	const zipped = withFiles && attached.length > 0;
+	const weak =
+		protect &&
+		backupPassword !== "" &&
+		passwordStrength(backupPassword) === "weak";
+	const kind = zipped ? "ZIP" : protect ? "JSON" : "CSV";
 
+	// The dialog stays mounted, so the passwords go as it closes, and the rest starts over
+	// as it opens.
 	useEffect(() => {
+		setPassword("");
+		setBackupPassword("");
+		setRepeat("");
 		if (open) {
-			setPassword("");
+			setProtect(true);
 			setError("");
 			setWithFiles(true);
 		}
@@ -355,6 +382,12 @@ export function ExportDialog({
 	const submit = async (event: FormEvent) => {
 		event.preventDefault();
 		setError("");
+		const problem =
+			protect && newBackupPasswordProblem(backupPassword, repeat, password);
+		if (problem) {
+			setError(problem);
+			return;
+		}
 		setBusy(true);
 		try {
 			if (!(await keyring.verifyPassword(password))) {
@@ -362,14 +395,15 @@ export function ExportDialog({
 				return;
 			}
 			const names = new Map((vaults.data ?? []).map((v) => [v.id, v.name]));
-			// Each file in a folder of its own in the ZIP, decrypted here.
+			// Each file in a folder of its own, decrypted here. A protected backup keeps it at
+			// files/<n>, sealed, and its name only inside the encrypted export.
 			const packed = new Map<string, Uint8Array>();
 			const pathsOf = new Map<string, string[]>();
 			if (zipped) {
 				for (const [index, file] of attached.entries()) {
 					const path = backupFilePath(index + 1, file.name);
 					packed.set(
-						path,
+						protect ? `files/${index + 1}` : path,
 						new Uint8Array(await (await readFile(file)).arrayBuffer()),
 					);
 					pathsOf.set(file.itemId, [...(pathsOf.get(file.itemId) ?? []), path]);
@@ -388,12 +422,35 @@ export function ExportDialog({
 				notes: item.notes,
 				tags: item.tags,
 				fields: item.fields,
+				history: item.history,
 				card: item.card,
 				identity: item.identity,
 				files: pathsOf.get(item.id),
 			}));
-			const file = backupFileName(new Date(), zipped ? "zip" : "csv");
-			if (zipped) {
+			const file = backupFileName(new Date(), kind.toLowerCase());
+			if (protect) {
+				const sealed = await sealFiles(packed);
+				const exported = await sealBackup(
+					toBackupJson(rows, sealed.about),
+					backupPassword,
+					argon2LanesInWorker,
+				);
+				saveBlob(
+					file,
+					zipped
+						? new Blob(
+								[
+									toSealedBackupZip(
+										backupFileName(new Date(), "json"),
+										exported,
+										sealed.files,
+									),
+								],
+								{ type: "application/zip" },
+							)
+						: new Blob([exported], { type: "application/json" }),
+				);
+			} else if (zipped) {
 				saveBlob(
 					file,
 					new Blob([toBackupZip(backupFileName(), rows, packed)], {
@@ -403,10 +460,12 @@ export function ExportDialog({
 			} else {
 				download(file, toBackupCsv(rows));
 			}
-			await client.account.exported({ count });
+			await client.account.exported({ count, protected: protect });
 			notify.success(
 				"Backup downloaded",
-				`${count} ${count === 1 ? "item" : "items"} in ${file}. It isn't encrypted, so keep it somewhere safe.`,
+				protect
+					? `${plural(count, "item")} in ${file}, protected with its password. Keep the password with your Emergency Kit: without it, nobody can open the file.`
+					: `${plural(count, "item")} in ${file}. It isn't encrypted, so keep it somewhere safe.`,
 			);
 			onOpenChange(false);
 		} catch (err) {
@@ -421,7 +480,7 @@ export function ExportDialog({
 			open={open}
 			onOpenChange={(next) => !busy && onOpenChange(next)}
 			title="Download a backup"
-			description={`All ${count} ${count === 1 ? "item" : "items"} you can open, in one ${zipped ? "ZIP" : "CSV"} file. Your team sees in the activity log that you made one.`}
+			description={`All ${plural(count, "item")} you can open, in one ${kind} file. Your team sees in the activity log that you made one.`}
 			onSubmit={submit}
 			footer={
 				<>
@@ -438,11 +497,15 @@ export function ExportDialog({
 				</>
 			}
 		>
-			<p className="border-warning-line bg-warning-soft text-caption text-warning flex gap-2 rounded-lg border px-3 py-2.5">
-				<WarningIcon className="mt-px size-4 shrink-0" />
-				The file holds every password{zipped ? " and file" : ""} in plain text.
-				Store it encrypted, or delete it once you're done.
-			</p>
+			<Field label="Master password">
+				<PasswordInput
+					required
+					autoFocus
+					autoComplete="current-password"
+					value={password}
+					onChange={(event) => setPassword(event.target.value)}
+				/>
+			</Field>
 			{attached.length > 0 && (
 				<>
 					{/* biome-ignore lint/a11y/noLabelWithoutControl: the checkbox inside is the control */}
@@ -456,21 +519,72 @@ export function ExportDialog({
 					</label>
 					{!withFiles && (
 						<p className="text-caption text-fg-muted">
-							The CSV leaves out {plural(attached.length, "file")}. Download
+							The backup leaves out {plural(attached.length, "file")}. Download
 							them from their items, or include them here.
 						</p>
 					)}
 				</>
 			)}
-			<Field label="Master password">
-				<PasswordInput
-					required
-					autoFocus
-					autoComplete="current-password"
-					value={password}
-					onChange={(event) => setPassword(event.target.value)}
+			{/* biome-ignore lint/a11y/noLabelWithoutControl: the switch inside is the control */}
+			<label className="flex items-start justify-between gap-4">
+				<span className="flex flex-col gap-0.5">
+					<span className="text-body-sm text-fg">Protect with a password</span>
+					<span className="text-caption text-fg-muted">
+						Encrypted in Bitwarden's format: vauly's import and Bitwarden open
+						it with this password.
+						{zipped &&
+							" Files go beside it in a ZIP, each encrypted with its own key."}
+					</span>
+				</span>
+				<Switch
+					aria-label="Protect with a password"
+					checked={protect}
+					onCheckedChange={setProtect}
 				/>
-			</Field>
+			</label>
+			{protect ? (
+				<>
+					<Field
+						label="Backup password"
+						hint="Keep it with your Emergency Kit. vauly doesn't keep it and can't recover it."
+					>
+						<PasswordInput
+							showStrength
+							autoComplete="new-password"
+							value={backupPassword}
+							onChange={(event) => setBackupPassword(event.target.value)}
+						/>
+					</Field>
+					<PassphraseSuggestion
+						onUse={(passphrase) => {
+							setBackupPassword(passphrase);
+							setRepeat(passphrase);
+						}}
+					/>
+					<Field label="Repeat the backup password">
+						<PasswordInput
+							autoComplete="new-password"
+							value={repeat}
+							onChange={(event) => setRepeat(event.target.value)}
+						/>
+					</Field>
+					{weak && (
+						<p className="text-caption text-warning flex gap-2">
+							<WarningIcon className="mt-px size-4 shrink-0" />
+							That password is easy to guess, and anyone who gets the file can
+							try it as often as they like. Add more words or characters, or use
+							the suggested passphrase.
+						</p>
+					)}
+				</>
+			) : (
+				<p className="border-warning-line bg-warning-soft text-caption text-warning flex gap-2 rounded-lg border px-3 py-2.5">
+					<WarningIcon className="mt-px size-4 shrink-0" />
+					The file holds every password{zipped ? " and file" : ""} in plain
+					text, for apps that read nothing else. Store it encrypted, or delete
+					it once you're done.
+				</p>
+			)}
 			<FormError>{error}</FormError>
 		</FormDialog>
 	);

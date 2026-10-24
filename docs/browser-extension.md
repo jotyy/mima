@@ -34,7 +34,7 @@ Open the extension and enter the address you open vauly at, such as `vauly.examp
 
 Fills, copies and passkey sign-ins appear in **Activity**, like everything else.
 
-Passkeys from other password managers can't be imported yet, and the decrypted backup leaves them out; make new ones at each site with the extension. Passkey sign-in from the suggestions under a username field, and inside a frame embedded in another site, go to the browser for now.
+Passkeys from other password managers can't be imported yet, and backups leave them out; make new ones at each site with the extension. Passkey sign-in from the suggestions under a username field, and inside a frame embedded in another site, go to the browser for now.
 
 ## What it can access
 

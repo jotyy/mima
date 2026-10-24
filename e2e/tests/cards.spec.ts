@@ -261,6 +261,8 @@ test("a backup holds cards and identities, and imports back", async ({
 	await page.getByRole("button", { name: "Download a backup" }).click();
 	const dialog = page.getByRole("dialog");
 	await dialog.getByLabel("Master password").fill(owner.password);
+	// The plain CSV, for apps that read nothing else; backup.spec.ts has the protected one.
+	await dialog.getByRole("switch", { name: "Protect with a password" }).click();
 	const [download] = await Promise.all([
 		page.waitForEvent("download"),
 		dialog.getByRole("button", { name: "Download backup" }).click(),

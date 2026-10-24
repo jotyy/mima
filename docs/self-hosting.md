@@ -77,7 +77,7 @@ The demo at demo.vauly.app takes files up to 1 MB, 10 MB in all, and its hourly 
 ## Backups
 
 - **The database.** D1 keeps a point-in-time history you can restore from (Cloudflare calls it Time Travel; how far back depends on your plan). Everything sensitive in it is encrypted, so a database copy is only useful together with your team's master passwords.
-- **Decrypted backups.** Any member can download every item they can open from **Settings → Download a backup**: a CSV, or a ZIP of the CSV and the items' files when there are any. The file is plain text: store it encrypted. Importing the ZIP into vauly brings the files back with their items.
+- **Backups people download.** Any member can download every item they can open, and their files, from **Settings → Download a backup**. By default the file is protected with a password they choose, in Bitwarden's password-protected format, which vauly and Bitwarden import. With files it's a ZIP, encrypted the same way. Without the password it's a CSV, or a ZIP of the CSV and the files, in plain text: store that encrypted. Importing either into vauly brings the files back with their items. See [Security](security.md#key-derivation).
 - **Files** are in the database, so its history and `wrangler d1 export` include them, encrypted.
 
 ## Removing an instance

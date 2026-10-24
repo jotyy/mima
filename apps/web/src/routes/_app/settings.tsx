@@ -329,7 +329,7 @@ function Settings() {
 				</Row>
 				<Row
 					label="Backup"
-					hint="Every item you can open, decrypted into one CSV file, or a ZIP with their files. vauly and most password managers can import it."
+					hint="Every item you can open, and their files, protected with a password you choose. vauly and Bitwarden import it. Without the password, it's a CSV most password managers read."
 				>
 					<Button variant="outline" onClick={() => setExporting(true)}>
 						Download a backup

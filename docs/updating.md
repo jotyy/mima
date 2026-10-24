@@ -5,7 +5,7 @@ New versions of vauly are [releases on GitHub](https://github.com/jotyy/vauly/re
 ## Before you update
 
 - **Read the notes below**, and [CHANGELOG.md](../CHANGELOG.md) for what's new.
-- **Keep a way back.** D1 keeps a point-in-time history of your database (Cloudflare calls it Time Travel; how far back depends on your plan), so you can restore it to the minute before the update. For a copy of your own, `bunx wrangler d1 export vauly --remote --output vauly.sql` saves the whole database, still encrypted. Each person can also download what they can open from **Settings → Download a backup**: a decrypted file, so keep it somewhere safe and delete it when you're done.
+- **Keep a way back.** D1 keeps a point-in-time history of your database (Cloudflare calls it Time Travel; how far back depends on your plan), so you can restore it to the minute before the update. For a copy of your own, `bunx wrangler d1 export vauly --remote --output vauly.sql` saves the whole database, still encrypted. Each person can also download what they can open from **Settings → Download a backup**, protected with a password they choose; keep that password somewhere safe.
 
 ## Update the server
 

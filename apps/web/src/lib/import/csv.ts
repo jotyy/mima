@@ -2,7 +2,7 @@ import { type Card, normalizeExpiry } from "@vauly/ui/lib/cards";
 import type { Identity } from "@vauly/ui/lib/identity";
 
 import type { ItemKind } from "../vault-data";
-import { type Draft, type Field, splitTags } from "./item";
+import { type Draft, type Field, isKind, splitTags } from "./item";
 import {
 	collect,
 	ImportError,
@@ -730,12 +730,6 @@ function jsonList<T>(text: string): T[] {
 	} catch {
 		return [];
 	}
-}
-
-function isKind(value: string): value is ItemKind {
-	return ["login", "api-key", "note", "ssh-key", "card", "identity"].includes(
-		value,
-	);
 }
 
 /** A JSON object from a column, or an empty one when it holds anything else. */

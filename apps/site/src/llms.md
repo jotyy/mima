@@ -8,7 +8,7 @@ Key facts:
 - It holds logins with one-time codes (TOTP), API keys, SSH keys and notes. Everyone has a private vault, and shared vaults are opened to people one by one.
 - The browser extension fills and saves logins in Chrome, Edge, Brave, Arc and other Chromium browsers. It isn't in a store yet.
 - `vauly run` hands a secret to a command, so coding agents, scripts and CI jobs can use it without seeing it. A person approves each item once.
-- It imports from 1Password (.1pux), Bitwarden (JSON), LastPass, Dashlane, Keeper, NordPass, RoboForm, Proton Pass, KeePass and KeePassXC, Enpass, Apple Passwords, Chrome, Edge, Brave and Firefox, reading the file on the device. It downloads a decrypted backup any time. Moving to vauly: https://vauly.app/docs/import.md
+- It imports from 1Password (.1pux), Bitwarden (JSON), LastPass, Dashlane, Keeper, NordPass, RoboForm, Proton Pass, KeePass and KeePassXC, Enpass, Apple Passwords, Chrome, Edge, Brave and Firefox, reading the file on the device. It downloads a backup any time, protected with a password in Bitwarden's format, or as a CSV. Moving to vauly: https://vauly.app/docs/import.md
 - Nobody can reset a forgotten master password, not even an admin.
 - It hasn't had an independent security audit yet. There are no native mobile or desktop apps, though the web app works on phones and installs as an app (PWA), and it doesn't hold passkeys.
 - Compared with 1Password and Bitwarden: https://vauly.app/docs/compare.md

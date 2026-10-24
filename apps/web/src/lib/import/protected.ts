@@ -1,3 +1,5 @@
+import { toBase64 as base64 } from "@vauly/crypto";
+
 import { ImportError } from "./parsed";
 
 // Exports that another app protected with a password: Bitwarden's password-protected
@@ -55,6 +57,17 @@ const within = (value: unknown, [min, max]: readonly [number, number]) =>
 	(value as number) >= min &&
 	(value as number) <= max;
 
+/**
+ * vauly's own settings for a password-protected backup in this format: Argon2id with
+ * 64 MiB, three passes and one lane, as for a master password (docs/security.md).
+ */
+export const BACKUP_KDF: BitwardenKdf = {
+	type: "argon2id",
+	iterations: 3,
+	memory: 64,
+	parallelism: 1,
+};
+
 /** A password-protected export, as opposed to an account-restricted one or none. */
 export const isBitwardenProtected = (root: Record<string, unknown>) =>
 	root.encrypted === true && root.passwordProtected === true;
@@ -110,6 +123,7 @@ async function bitwardenKey(
 	salt: string,
 	kdf: BitwardenKdf,
 	argon2: Argon2Lanes,
+	use: "open" | "seal" = "open",
 ): Promise<ExportKey> {
 	const secret = encoder.encode(password);
 	let material: Bytes;
@@ -133,15 +147,15 @@ async function bitwardenKey(
 		const hashed = new Uint8Array(
 			await crypto.subtle.digest("SHA-256", encoder.encode(salt)),
 		);
-		material = new Uint8Array(
-			await argon2(
-				secret,
-				hashed,
-				kdf.iterations,
-				kdf.memory * 1024,
-				kdf.parallelism,
-			),
+		const output = await argon2(
+			secret,
+			hashed,
+			kdf.iterations,
+			kdf.memory * 1024,
+			kdf.parallelism,
 		);
+		material = new Uint8Array(output);
+		output.fill(0);
 	}
 	secret.fill(0);
 	const [encryption, mac] = await Promise.all([
@@ -155,14 +169,14 @@ async function bitwardenKey(
 			encryption,
 			"AES-CBC",
 			false,
-			["decrypt"],
+			[use === "open" ? "decrypt" : "encrypt"],
 		),
 		mac: await crypto.subtle.importKey(
 			"raw",
 			mac,
 			{ name: "HMAC", hash: "SHA-256" },
 			false,
-			["verify"],
+			[use === "open" ? "verify" : "sign"],
 		),
 	};
 	encryption.fill(0);
@@ -215,6 +229,173 @@ export function checkBitwardenExport(root: Record<string, unknown>) {
 	)
 		throw new ImportError("That Bitwarden file isn't one vauly can read.");
 	return { kdf, salt: root.salt };
+}
+
+/** AES-256-CBC with a fresh IV, and HMAC-SHA256 of iv ‖ ciphertext. */
+async function seal(plain: Bytes, key: ExportKey) {
+	const iv = crypto.getRandomValues(new Uint8Array(16));
+	const data = new Uint8Array(
+		await crypto.subtle.encrypt({ name: "AES-CBC", iv }, key.encryption, plain),
+	);
+	const signed = new Uint8Array(iv.length + data.length);
+	signed.set(iv);
+	signed.set(data, iv.length);
+	const mac = new Uint8Array(await crypto.subtle.sign("HMAC", key.mac, signed));
+	return { iv, data, mac };
+}
+
+/** An EncString of type 2 for `plain`. */
+async function encryptEncString(plain: Bytes, key: ExportKey) {
+	const { iv, data, mac } = await seal(plain, key);
+	return `2.${base64(iv)}|${base64(data)}|${base64(mac)}`;
+}
+
+/** A 64-byte key, AES-256-CBC's then HMAC-SHA256's, as Bitwarden keeps an attachment's. */
+async function fileKey(raw: Bytes, use: "open" | "seal"): Promise<ExportKey> {
+	return {
+		encryption: await crypto.subtle.importKey(
+			"raw",
+			raw.subarray(0, 32),
+			"AES-CBC",
+			false,
+			[use === "open" ? "decrypt" : "encrypt"],
+		),
+		mac: await crypto.subtle.importKey(
+			"raw",
+			raw.subarray(32),
+			{ name: "HMAC", hash: "SHA-256" },
+			false,
+			[use === "open" ? "verify" : "sign"],
+		),
+	};
+}
+
+/** What a protected backup's export says of a file beside it. */
+export type SealedFile = {
+	/** The file's own key: 64 random bytes, in base64. */
+	key: string;
+	/** Its size, before it was sealed. */
+	size: number;
+	/** The SHA-256 of its contents, in base64. */
+	sha256: string;
+};
+
+/** What the export says of a file, or null when it isn't that. */
+export function sealedFileOf(value: unknown): SealedFile | null {
+	const about = value as Partial<SealedFile> | null;
+	return about &&
+		typeof about === "object" &&
+		typeof about.key === "string" &&
+		typeof about.sha256 === "string" &&
+		Number.isSafeInteger(about.size) &&
+		(about.size as number) >= 0
+		? (about as SealedFile)
+		: null;
+}
+
+/** A file of `size` bytes, sealed: the byte 2, the IV, the MAC, and the padded ciphertext. */
+export const sealedSize = (size: number) =>
+	1 + 16 + 32 + (Math.floor(size / 16) + 1) * 16;
+
+const sha256 = async (data: Bytes) =>
+	base64(new Uint8Array(await crypto.subtle.digest("SHA-256", data)));
+
+/**
+ * The files of a protected backup, each the way Bitwarden encrypts an attachment: with a
+ * random 64-byte key of its own, as an EncArrayBuffer of type 2 (the byte 2, the IV, the
+ * MAC, then the ciphertext). What `about` says of each, its key included, goes into the
+ * export, which only the backup's password opens. The export's own key seals no file, so
+ * no file can pass for the export.
+ */
+export async function sealFiles(files: Map<string, Uint8Array>) {
+	const sealed = new Map<string, Uint8Array>();
+	const about: Record<string, SealedFile> = {};
+	for (const [path, data] of files) {
+		const plain = new Uint8Array(data);
+		const raw = crypto.getRandomValues(new Uint8Array(64));
+		const {
+			iv,
+			data: ciphertext,
+			mac,
+		} = await seal(plain, await fileKey(raw, "seal"));
+		const out = new Uint8Array(sealedSize(plain.length));
+		out[0] = 2;
+		out.set(iv, 1);
+		out.set(mac, 17);
+		out.set(ciphertext, 49);
+		sealed.set(path, out);
+		about[path] = {
+			key: base64(raw),
+			size: plain.length,
+			sha256: await sha256(plain),
+		};
+		raw.fill(0);
+	}
+	return { files: sealed, about };
+}
+
+/**
+ * A file from sealFiles, opened with what the export says of it, its MAC checked first.
+ * Null when it doesn't match, in size, MAC or contents.
+ */
+export async function openFile(sealed: Uint8Array, about: SealedFile) {
+	if (sealed[0] !== 2 || sealed.length !== sealedSize(about.size)) return null;
+	let raw: Bytes;
+	try {
+		raw = bytes(about.key);
+	} catch {
+		return null;
+	}
+	if (raw.length !== 64) return null;
+	const key = await fileKey(raw, "open");
+	raw.fill(0);
+	const iv = sealed.slice(1, 17);
+	const mac = sealed.slice(17, 49);
+	const data = sealed.slice(49);
+	const signed = new Uint8Array(iv.length + data.length);
+	signed.set(iv);
+	signed.set(data, iv.length);
+	if (!(await crypto.subtle.verify("HMAC", key.mac, mac, signed))) return null;
+	const plain = new Uint8Array(
+		await crypto.subtle.decrypt({ name: "AES-CBC", iv }, key.encryption, data),
+	);
+	return plain.length === about.size && (await sha256(plain)) === about.sha256
+		? plain
+		: null;
+}
+
+/**
+ * A vauly backup protected with a password: `json`, a plain Bitwarden JSON export, as a
+ * password-protected export, made as BaseVaultExportService.buildPasswordExport makes it
+ * so Bitwarden opens it as well as vauly. The salt is 16 random bytes in base64.
+ * "vauly": 1 beside the encrypted parts says it's vauly's; Bitwarden doesn't read it.
+ */
+export async function sealBackup(
+	json: string,
+	password: string,
+	argon2: Argon2Lanes,
+	kdf: BitwardenKdf = BACKUP_KDF,
+) {
+	const salt = base64(crypto.getRandomValues(new Uint8Array(16)));
+	const key = await bitwardenKey(password, salt, kdf, argon2, "seal");
+	const file: Record<string, unknown> = {
+		encrypted: true,
+		passwordProtected: true,
+		vauly: 1,
+		salt,
+		kdfType: kdf.type === "argon2id" ? 1 : 0,
+		kdfIterations: kdf.iterations,
+		encKeyValidation_DO_NOT_EDIT: await encryptEncString(
+			encoder.encode(crypto.randomUUID()),
+			key,
+		),
+		data: await encryptEncString(encoder.encode(json), key),
+	};
+	if (kdf.type === "argon2id") {
+		file.kdfMemory = kdf.memory;
+		file.kdfParallelism = kdf.parallelism;
+	}
+	return JSON.stringify(file, null, "  ");
 }
 
 /** The plain Bitwarden JSON inside a password-protected export. */

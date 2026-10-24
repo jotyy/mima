@@ -79,7 +79,7 @@ export type OpenWith = {
  */
 export class LockedExport extends Error {
 	constructor(
-		readonly app: "Bitwarden" | "Proton Pass" | "KeePass",
+		readonly app: "Bitwarden" | "Proton Pass" | "KeePass" | "vauly",
 		readonly open: (password: string, more?: OpenWith) => Promise<ParsedImport>,
 	) {
 		super(`That ${app} export is protected with a password.`);

@@ -157,6 +157,12 @@ function firstLine(text: string) {
 	return line.length > 40 ? `${line.slice(0, 40)}…` : line || "Imported note";
 }
 
+export function isKind(value: unknown): value is ItemKind {
+	return ["login", "api-key", "note", "ssh-key", "card", "identity"].includes(
+		String(value),
+	);
+}
+
 /** Splits "Work/Clients, billing" into tags. */
 export function splitTags(value: string | undefined, separators = /[;,]/) {
 	return (value ?? "")
