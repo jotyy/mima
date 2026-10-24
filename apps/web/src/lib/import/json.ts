@@ -94,14 +94,15 @@ function parseVaulyBackup(root: Json) {
 				value: text(field.value),
 				hidden: field.hidden === true,
 			})),
+			// Without who changed it: a file could name anyone.
 			history: objs(saved.history).map((earlier) => ({
 				secret: text(earlier.secret),
 				until: text(earlier.until),
-				...(typeof earlier.by === "string" && { by: earlier.by }),
 			})),
 			files: list(saved.files)
 				.map(text)
-				.filter((path) => path.startsWith("files/")),
+				.filter((path) => path.startsWith("files/"))
+				.map((path) => ({ path, name: path.split("/").pop() || "file" })),
 			...(Object.keys(obj(saved.card)).length > 0 && {
 				card: obj(saved.card) as Card,
 			}),

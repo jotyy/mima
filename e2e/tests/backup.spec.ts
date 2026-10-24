@@ -62,13 +62,28 @@ test("a backup is protected with a password unless you turn that off", async ({
 	).toBeChecked();
 	await dialog.getByLabel("Master password").fill(owner.password);
 
-	// A weak one is allowed, with a warning; two that differ aren't.
-	await dialog.getByLabel(/^Backup password/).fill("password1");
+	// It needs a master password's strength, but not the master password, typed twice.
+	const backupPassword = dialog.getByLabel(/^Backup password/);
+	const repeat = dialog.getByLabel("Repeat the backup password");
+	const download = dialog.getByRole("button", { name: "Download backup" });
+	await backupPassword.fill("password1");
 	await expect(
 		dialog.getByText("That password is easy to guess"),
 	).toBeVisible();
-	await dialog.getByLabel("Repeat the backup password").fill("password2");
-	await dialog.getByRole("button", { name: "Download backup" }).click();
+	await repeat.fill("password1");
+	await download.click();
+	await expect(dialog.getByRole("alert")).toContainText(
+		"at least 12 characters",
+	);
+	await backupPassword.fill(owner.password);
+	await repeat.fill(owner.password);
+	await download.click();
+	await expect(dialog.getByRole("alert")).toContainText(
+		"different password from your master password",
+	);
+	await backupPassword.fill("maple orbit lantern quiet harbor seven");
+	await repeat.fill("maple orbit lantern quiet harbor eight");
+	await download.click();
 	await expect(dialog.getByRole("alert")).toContainText("don't match");
 
 	await dialog.getByRole("button", { name: "Suggest a passphrase" }).click();
@@ -77,15 +92,15 @@ test("a backup is protected with a password unless you turn that off", async ({
 	expect(passphrase.split("-")).toHaveLength(6);
 	await dialog.getByRole("button", { name: "Use it" }).click();
 	await expect(dialog.getByText("That password is easy to guess")).toBeHidden();
-	const [download] = await Promise.all([
+	const [saved] = await Promise.all([
 		page.waitForEvent("download"),
-		dialog.getByRole("button", { name: "Download backup" }).click(),
+		download.click(),
 	]);
 	// With a file, a ZIP: the protected export, and the file sealed beside it, unnamed.
-	expect(download.suggestedFilename()).toMatch(
+	expect(saved.suggestedFilename()).toMatch(
 		/^vauly-backup-\d{4}-\d{2}-\d{2}\.zip$/,
 	);
-	backup = await readFile((await download.path()) ?? "");
+	backup = await readFile((await saved.path()) ?? "");
 	const entries = unzipSync(new Uint8Array(backup));
 	const names = Object.keys(entries);
 	expect(names).toContain("files/1");

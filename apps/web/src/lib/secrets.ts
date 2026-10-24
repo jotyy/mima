@@ -93,3 +93,28 @@ export function newMasterPasswordProblem(password: string, repeated: string) {
 	if (password !== repeated) return "The two passwords don't match.";
 	return null;
 }
+
+/**
+ * Why a backup's password can't be used, or null when it's fine. The file holds every
+ * item someone can open, and anyone who has it can guess at it as long as they like, so
+ * it needs a master password's strength. The master password itself would make the file
+ * a way to test guesses at it.
+ */
+export function newBackupPasswordProblem(
+	password: string,
+	repeated: string,
+	masterPassword: string,
+) {
+	if (!password) return "Choose a password for the backup.";
+	if (password.length < 12) {
+		return "Use at least 12 characters for the backup password, or the suggested passphrase.";
+	}
+	if (passwordStrength(password) === "weak") {
+		return "That backup password is easy to guess. Add more words or characters, or use the suggested passphrase.";
+	}
+	if (password.normalize("NFKC") === masterPassword.normalize("NFKC")) {
+		return "Use a different password from your master password.";
+	}
+	if (password !== repeated) return "The two backup passwords don't match.";
+	return null;
+}

@@ -36,9 +36,13 @@ import {
 } from "@/lib/device-unlock";
 import { fileSize, readFile, saveBlob, useFiles } from "@/lib/files";
 import { plural } from "@/lib/format";
-import { fileSums, sealBackup } from "@/lib/import/protected";
+import { sealBackup, sealFiles } from "@/lib/import/protected";
 import { useKeyring, WrongPasswordError } from "@/lib/keyring";
-import { newMasterPasswordProblem, passwordStrength } from "@/lib/secrets";
+import {
+	newBackupPasswordProblem,
+	newMasterPasswordProblem,
+	passwordStrength,
+} from "@/lib/secrets";
 import {
 	errorMessage,
 	useAgents,
@@ -328,7 +332,8 @@ export function DeviceUnlockDialog({
 /**
  * Downloads every item the person can open, and their files unless left out. By default
  * it's protected with a password, in Bitwarden's password-protected format, which vauly's
- * import and Bitwarden both open, with files in a ZIP beside it, sealed with the same key.
+ * import and Bitwarden both open, with files in a ZIP beside it, each sealed with a key of
+ * its own that only the export holds.
  * Without a password it's a CSV in Bitwarden's layout, for apps that read nothing else.
  */
 export function ExportDialog({
@@ -361,12 +366,14 @@ export function ExportDialog({
 		passwordStrength(backupPassword) === "weak";
 	const kind = zipped ? "ZIP" : protect ? "JSON" : "CSV";
 
+	// The dialog stays mounted, so the passwords go as it closes, and the rest starts over
+	// as it opens.
 	useEffect(() => {
+		setPassword("");
+		setBackupPassword("");
+		setRepeat("");
 		if (open) {
-			setPassword("");
 			setProtect(true);
-			setBackupPassword("");
-			setRepeat("");
 			setError("");
 			setWithFiles(true);
 		}
@@ -375,12 +382,10 @@ export function ExportDialog({
 	const submit = async (event: FormEvent) => {
 		event.preventDefault();
 		setError("");
-		if (protect && !backupPassword.trim()) {
-			setError("Choose a password for the backup.");
-			return;
-		}
-		if (protect && backupPassword !== repeat) {
-			setError("The two backup passwords don't match.");
+		const problem =
+			protect && newBackupPasswordProblem(backupPassword, repeat, password);
+		if (problem) {
+			setError(problem);
 			return;
 		}
 		setBusy(true);
@@ -424,9 +429,9 @@ export function ExportDialog({
 			}));
 			const file = backupFileName(new Date(), kind.toLowerCase());
 			if (protect) {
-				const sealed = await sealBackup(
-					toBackupJson(rows, await fileSums(packed)),
-					packed,
+				const sealed = await sealFiles(packed);
+				const exported = await sealBackup(
+					toBackupJson(rows, sealed.about),
 					backupPassword,
 					argon2LanesInWorker,
 				);
@@ -437,13 +442,13 @@ export function ExportDialog({
 								[
 									toSealedBackupZip(
 										backupFileName(new Date(), "json"),
-										sealed.file,
+										exported,
 										sealed.files,
 									),
 								],
 								{ type: "application/zip" },
 							)
-						: new Blob([sealed.file], { type: "application/json" }),
+						: new Blob([exported], { type: "application/json" }),
 				);
 			} else if (zipped) {
 				saveBlob(
@@ -528,7 +533,7 @@ export function ExportDialog({
 						Encrypted in Bitwarden's format: vauly's import and Bitwarden open
 						it with this password.
 						{zipped &&
-							" Files go beside it in a ZIP, sealed with the same key."}
+							" Files go beside it in a ZIP, each encrypted with its own key."}
 					</span>
 				</span>
 				<Switch
@@ -567,7 +572,8 @@ export function ExportDialog({
 						<p className="text-caption text-warning flex gap-2">
 							<WarningIcon className="mt-px size-4 shrink-0" />
 							That password is easy to guess, and anyone who gets the file can
-							try it as often as they like. Add more words or characters.
+							try it as often as they like. Add more words or characters, or use
+							the suggested passphrase.
 						</p>
 					)}
 				</>

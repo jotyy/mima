@@ -10,11 +10,13 @@ import { ImportError, LockedExport, type ParsedImport } from "./parsed";
 import {
 	type Argon2Lanes,
 	checkBitwardenExport,
-	decryptFile,
-	fileSum,
 	isBitwardenProtected,
 	openBitwardenExport,
+	openFile,
 	openProtonPass,
+	type SealedFile,
+	sealedFileOf,
+	sealedSize,
 } from "./protected";
 import { decodeEntities } from "./xml";
 
@@ -92,7 +94,7 @@ export function parseImport(text: string): ParsedImport {
 			throw new LockedExport(
 				root.vauly === 1 ? "vauly" : "Bitwarden",
 				async (password, { argon2 = keyWorker } = {}) =>
-					parseImport((await openBitwardenExport(root, password, argon2)).json),
+					parseImport(await openBitwardenExport(root, password, argon2)),
 			);
 		}
 		return parseJsonExport(data);
@@ -278,55 +280,74 @@ function bitwardenFiles(
 
 /**
  * A vauly backup protected with a password, with files: the password-protected export,
- * and each file sealed with its key at files/<n>, without its name, which only the
- * export holds (as files/<n>/<name>), with each file's SHA-256. Every file it lists must
- * be there and match, since a file moved from another place would pass its MAC.
+ * and each file sealed with a key of its own at files/<n>, without its name. Only the
+ * export holds the names (as files/<n>/<name>), and each file's key, size and SHA-256.
+ * Only the files it lists are unpacked, each only if the ZIP gives the size it should
+ * have, and every one must be there and match.
  */
 function readSealedBackupZip(
 	bytes: Uint8Array,
 	json: string,
 	attachments: string[],
 ): ParsedImport {
-	let root: Record<string, unknown>;
+	let root: unknown;
 	try {
 		root = JSON.parse(json);
 	} catch {
 		throw new ImportError("That backup couldn't be read.");
 	}
-	if (!isBitwardenProtected(root))
+	if (!root || typeof root !== "object" || Array.isArray(root))
+		throw new ImportError("That backup couldn't be read.");
+	const backup = root as Record<string, unknown>;
+	if (!isBitwardenProtected(backup))
 		return packFiles(
 			{ ...parseImport(json), format: "ZIP" },
 			bytes,
 			attachments,
 		);
-	checkBitwardenExport(root);
-	throw new LockedExport("vauly", async (password, { argon2 = keyWorker } = {}) => {
-		const opened = await openBitwardenExport(root, password, argon2);
-		const parsed = parseImport(opened.json);
-		if (!parsed.files) return { ...parsed, format: "ZIP" };
-		const { vaulyFiles: sums = {} } = JSON.parse(opened.json) as {
-			vaulyFiles?: Record<string, unknown>;
-		};
-		const packed = unzipSync(bytes, {
-			filter: (file) => file.name.startsWith("files/"),
-		});
-		const files: NonNullable<ParsedImport["files"]> = new Map();
-		for (const [item, list] of parsed.files) {
-			const done: typeof list = [];
-			for (const file of list) {
-				const at = file.path.split("/").slice(0, 2).join("/");
-				const sealed = packed[at];
-				const data = sealed && (await decryptFile(sealed, opened.key));
-				if (!data || (await fileSum(data)) !== sums[at])
-					throw new ImportError(
-						"That backup was changed after it was made, so vauly won't open it.",
-					);
-				done.push({ ...file, data });
+	checkBitwardenExport(backup);
+	const changed = () =>
+		new ImportError(
+			"That backup was changed after it was made, so vauly won't open it.",
+		);
+	throw new LockedExport(
+		"vauly",
+		async (password, { argon2 = keyWorker } = {}) => {
+			const opened = await openBitwardenExport(backup, password, argon2);
+			const parsed = parseImport(opened);
+			if (!parsed.files) return { ...parsed, format: "ZIP" };
+			const listed = Object(
+				(JSON.parse(opened) as { vaulyFiles?: unknown }).vaulyFiles,
+			) as Record<string, unknown>;
+			const slot = (path: string) => path.split("/").slice(0, 2).join("/");
+			const about = new Map<string, SealedFile>();
+			for (const list of parsed.files.values())
+				for (const file of list) {
+					const known = sealedFileOf(listed[slot(file.path)]);
+					if (!known) throw changed();
+					about.set(slot(file.path), known);
+				}
+			const packed = unzipSync(bytes, {
+				filter: (file) => {
+					const known = about.get(file.name);
+					return Boolean(known && file.originalSize === sealedSize(known.size));
+				},
+			});
+			const files: NonNullable<ParsedImport["files"]> = new Map();
+			for (const [item, list] of parsed.files) {
+				const done: typeof list = [];
+				for (const file of list) {
+					const sealed = packed[slot(file.path)];
+					const known = about.get(slot(file.path));
+					const data = sealed && known && (await openFile(sealed, known));
+					if (!data) throw changed();
+					done.push({ ...file, data });
+				}
+				files.set(item, done);
 			}
-			files.set(item, done);
-		}
-		return { ...parsed, format: "ZIP", files };
-	});
+			return { ...parsed, format: "ZIP", files };
+		},
+	);
 }
 
 function withAttachments(parsed: ParsedImport, count: number): ParsedImport {

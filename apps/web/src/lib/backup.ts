@@ -1,6 +1,7 @@
 import { addressLines } from "@vauly/ui/lib/identity";
 import { strToU8, type Zippable, zipSync } from "fflate";
 
+import type { SealedFile } from "./import/protected";
 import { type ItemFields, websitesOf } from "./vault-data";
 
 // A decrypted backup in Bitwarden's CSV layout, so most password managers can read it,
@@ -139,8 +140,8 @@ export function toBackupZip(
 
 /**
  * A protected backup with files: the password-protected export, and each file sealed with
- * its key (./import/protected.ts) at files/<n>. Only the export, encrypted, has the
- * files' names.
+ * a key of its own (./import/protected.ts) at files/<n>. Only the export, encrypted, has
+ * the files' names and keys.
  */
 export function toSealedBackupZip(
 	jsonName: string,
@@ -278,10 +279,13 @@ function bitwardenItem(row: BackupRow, id: string, folderId: string | null) {
 
 /**
  * The items as Bitwarden's JSON export: vaults become folders. A protected backup's
- * files go beside it, sealed, and `sums` has each one's SHA-256 by where it is, so a file
- * moved to another place or left out is noticed (./import/protected.ts).
+ * files go beside it, sealed, and `files` says what each one at files/<n> is: its key,
+ * size and SHA-256 (./import/protected.ts).
  */
-export function toBackupJson(rows: BackupRow[], sums?: Record<string, string>) {
+export function toBackupJson(
+	rows: BackupRow[],
+	files?: Record<string, SealedFile>,
+) {
 	const vaults = [...new Set(rows.map((row) => row.vault).filter(Boolean))];
 	const folderOf = new Map(
 		vaults.map((name, index) => [name, `vault-${index + 1}`]),
@@ -291,7 +295,7 @@ export function toBackupJson(rows: BackupRow[], sums?: Record<string, string>) {
 			encrypted: false,
 			// A vauly backup: vauly's import reads each item's own copy.
 			vauly: 1,
-			...(sums && Object.keys(sums).length > 0 && { vaulyFiles: sums }),
+			...(files && Object.keys(files).length > 0 && { vaulyFiles: files }),
 			folders: vaults.map((name) => ({ id: folderOf.get(name), name })),
 			items: rows.map((row, index) =>
 				bitwardenItem(
