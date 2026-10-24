@@ -1,3 +1,5 @@
+import { describeDevice } from "@vauly/api/device";
+import { type Delivery, notify, signInNotice } from "@vauly/api/push/notify";
 import { createAuth as createConfiguredAuth } from "@vauly/auth";
 import { createDb, type Database } from "@vauly/db";
 import { migrate } from "@vauly/db/migrate";
@@ -50,16 +52,49 @@ async function storedSecret(db: Database) {
 }
 
 /**
- * Better Auth for a request to `origin`. One Worker serving both the app and the API
- * needs no BETTER_AUTH_URL or CORS_ORIGIN: it is where the request went.
+ * Sends notifications for a request to `origin`, after its response, with `waitUntil`.
+ * Pushes name the server as their sender, at the address Better Auth uses.
  */
-export async function createAuth(origin: string, database?: Database) {
+export function notifier(
+	origin: string,
+	db: Database,
+	waitUntil: (promise: Promise<unknown>) => void,
+) {
+	const options = {
+		subject: ENV.BETTER_AUTH_URL || origin,
+		localhost: Boolean(ENV.E2E_RESET_TOKEN),
+	};
+	return (deliveries: Delivery[]) => waitUntil(notify(db, deliveries, options));
+}
+
+/**
+ * Better Auth for a request to `origin`. One Worker serving both the app and the API
+ * needs no BETTER_AUTH_URL or CORS_ORIGIN: it is where the request went. With
+ * `waitUntil`, a sign-in tells the account's other devices.
+ */
+export async function createAuth(
+	origin: string,
+	database?: Database,
+	waitUntil?: (promise: Promise<unknown>) => void,
+) {
+	const db = database ?? getDb();
+	const send = waitUntil && notifier(origin, db, waitUntil);
 	return createConfiguredAuth(
 		{
 			BETTER_AUTH_SECRET: await prepare(),
 			BETTER_AUTH_URL: ENV.BETTER_AUTH_URL || origin,
 			CORS_ORIGIN: ENV.CORS_ORIGIN || origin,
 		},
-		database ?? getDb(),
+		db,
+		{
+			onSignIn: ({ userId, sessionId, userAgent }) =>
+				send?.([
+					{
+						userId,
+						notice: signInNotice(describeDevice(userAgent).label, sessionId),
+						exceptSession: sessionId,
+					},
+				]),
+		},
 	);
 }

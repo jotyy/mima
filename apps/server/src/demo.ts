@@ -34,6 +34,11 @@ const closed: Record<string, string> = {
 	// same master password: a way around changePassword's turn here.
 	"account.upgradeKdf":
 		"The demo keeps its master password, so the next visitor can sign in.",
+	// Every visitor is the same person, so one visitor's phone would hear about the rest.
+	"push.publicKey":
+		"Notifications are off in the demo, since every visitor signs in as the same person.",
+	"push.subscribe":
+		"Notifications are off in the demo, since every visitor signs in as the same person.",
 };
 
 /** Turns away the procedures the demo keeps closed, before they run. */

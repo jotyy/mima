@@ -174,10 +174,12 @@ export default defineConfig(() => {
 				// The icons are cached with the other files below; added again here, they'd come
 				// after the sorted list, in the file system's order.
 				includeManifestIcons: false,
-				workbox: {
+				// vauly's own service worker, for notifications as well as the offline files.
+				strategies: "injectManifest",
+				srcDir: "src",
+				filename: "sw.ts",
+				injectManifest: {
 					globPatterns: ["**/*.{js,css,html,png,svg,ico}"],
-					// When one Worker serves the app and the API, the API's pages aren't the app's.
-					navigateFallbackDenylist: [/^\/api/, /^\/rpc/, /^\/vauly\.json/],
 					// Workbox lists the files in the order the file system hands them over, which
 					// differs from one machine to the next. Sorted, sw.js is the same wherever
 					// it's built, and `vauly verify --against` a release's manifest can match it.
@@ -208,7 +210,7 @@ export default defineConfig(() => {
 						},
 					],
 				},
-				devOptions: { enabled: true },
+				devOptions: { enabled: true, type: "module" },
 			}),
 			buildManifestFile(),
 		],

@@ -1,4 +1,5 @@
-// Names a signed-in session from its user agent: "Chrome on macOS".
+// Names a signed-in session from its user agent: "Chrome on macOS". The app shows it in
+// Settings, and the server puts it in the notification about a new sign-in.
 
 export type Device = { label: string; phone: boolean };
 

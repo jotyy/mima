@@ -6,12 +6,15 @@ import {
 	agentGrant,
 	item,
 	member,
+	vaultAccess,
 } from "@vauly/db/schema/vault";
 import { and, eq, gt, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 
+import type { Context } from "../context";
 import { publicProcedure } from "../index";
-import { hashToken, logEvent, newId } from "../lib";
+import { atLeast, hashToken, logEvent, newId } from "../lib";
+import { approvalNotice } from "../push/notify";
 
 const DENIAL_COOLDOWN = 10 * 60 * 1000;
 
@@ -116,12 +119,16 @@ async function lookup(db: Database, agentId: string, ids: string[]) {
 	});
 }
 
-/** For an item without a grant: its open request, a recent denial, or a new request. */
+/**
+ * For an item without a grant: its open request, a recent denial, or a new request. A new
+ * one adds its vault to `asked`, for `notifyApprovers`.
+ */
 async function ask(
 	db: Database,
 	agentId: string,
 	{ id, target, pending, denied }: Lookup,
 	command: string,
+	asked: string[],
 ) {
 	if (!target) return { itemId: id, status: "missing" as const };
 	if (pending) {
@@ -145,7 +152,40 @@ async function ask(
 			detail: command,
 		}),
 	]);
+	asked.push(target.vaultId);
 	return { itemId: id, status: "pending" as const, requestId };
+}
+
+/**
+ * Tells everyone who can approve an agent's new requests, on their devices: those who
+ * can change the vaults the items are in, with how many of the items they can decide.
+ */
+async function notifyApprovers(
+	{ db, notify }: Pick<Context, "db" | "notify">,
+	from: { id: string; name: string },
+	vaultIds: string[],
+) {
+	if (vaultIds.length === 0) return;
+	const approvers = await db
+		.select({ userId: vaultAccess.userId, vaultId: vaultAccess.vaultId })
+		.from(vaultAccess)
+		.where(
+			and(
+				inArray(vaultAccess.vaultId, [...new Set(vaultIds)]),
+				inArray(vaultAccess.role, atLeast("edit")),
+			),
+		);
+	const counts = new Map<string, number>();
+	for (const vaultId of vaultIds)
+		for (const row of approvers)
+			if (row.vaultId === vaultId)
+				counts.set(row.userId, (counts.get(row.userId) ?? 0) + 1);
+	notify(
+		[...counts].map(([userId, count]) => ({
+			userId,
+			notice: approvalNotice(from, count),
+		})),
+	);
 }
 
 export const agentApiRouter = {
@@ -165,6 +205,7 @@ export const agentApiRouter = {
 			const { db, agent: me } = context;
 			const found = await lookup(db, me.id, input.itemIds);
 			const results = [];
+			const asked: string[] = [];
 			for (const entry of found) {
 				const { id, target, grant } = entry;
 				if (target && grant) {
@@ -186,8 +227,9 @@ export const agentApiRouter = {
 					});
 					continue;
 				}
-				results.push(await ask(db, me.id, entry, input.command));
+				results.push(await ask(db, me.id, entry, input.command, asked));
 			}
+			await notifyApprovers(context, me, asked);
 			return results;
 		}),
 
@@ -227,13 +269,16 @@ export const agentApiRouter = {
 		.handler(async ({ context, input }) => {
 			const { db, agent: me } = context;
 			const found = await lookup(db, me.id, input.itemIds);
-			return Promise.all(
+			const asked: string[] = [];
+			const results = await Promise.all(
 				found.map((entry) =>
 					entry.target && entry.grant
 						? { itemId: entry.id, status: "granted" as const }
-						: ask(db, me.id, entry, input.reason),
+						: ask(db, me.id, entry, input.reason, asked),
 				),
 			);
+			await notifyApprovers(context, me, asked);
+			return results;
 		}),
 
 	poll: agentProcedure

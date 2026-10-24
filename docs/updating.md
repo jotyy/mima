@@ -38,6 +38,10 @@ Deploying an older version is possible, but it doesn't undo database migrations,
 
 ## What each update needs from you
 
+### Updating from 0.1.0
+
+Nothing to do. A migration adds a table for the devices that get notifications. The server makes its key for signing them the first time someone turns them on, and keeps it in the database. Going back to 0.1.0 is safe: it leaves the table alone, and nothing is sent.
+
 ### Copies deployed before October 24, 2026
 
 This update brings the import from other password managers, passkeys, vault roles, Argon2id and more. Four things to know:

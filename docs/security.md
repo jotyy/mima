@@ -74,6 +74,7 @@ Another implementation, such as a native app, must produce exactly these bytes. 
 |                                                                                                                                                            | The activity log: who did what to which item ID, and when, and which field was revealed, copied or filled, such as the password or a card number (a custom field by a random ID, never its label). The field says what kind of item it was |
 |                                                                                                                                                            | Agent names, their public keys, a hash of their token secret, and the commands they ran                                                                                                                                                    |
 |                                                                                                                                                            | Public keys of people and agents                                                                                                                                                                                                           |
+|                                                                                                                                                            | For each device with notifications on: its push service address and the keys notifications are encrypted to                                                                                                                                |
 
 ## Unlocking with a passkey
 
@@ -92,6 +93,20 @@ So the installed app can open items without a connection, each device keeps a co
 - **Offline, it's read-only.** The master password unlocks it; unlocking with a passkey needs the server, so it doesn't work offline. Adding, editing, sharing and approvals wait for a connection, and copies and reveals made offline aren't recorded in the activity log.
 - **It belongs to the session it was made in.** The device deletes it when it next starts without that session, after any sign-out from this device or another, or a removal, and when you sign out, change your master password there or turn it off. Every sync rewrites it from what the API returns, so a vault you lose access to leaves it then.
 - **It's used for 30 days at most** after its last sync, then deleted. That limit is enforced by the app, not by cryptography: a device offline has no trusted clock.
+
+## Notifications
+
+A device where you turn on **Settings › Notifications** is told when an agent asks for an item you can approve, and when your account signs in somewhere new. They use Web Push.
+- **What a notification says.** It gives the agent's name and how many items it asked for, or the browser and system that signed in ("Chrome on macOS"). It never names an item or a vault: the server can't read those. Tapping it opens vauly, and approves nothing.
+- **Who can read it.** The server encrypts each notification to the device's own key (RFC 8291, `aes128gcm`) before it hands it to the browser's push service: Google's, Mozilla's, Apple's or Microsoft's. The push service sees which device it's for, when, and how big it is, but not what it says. Your device's system shows it, so anyone who can see your lock screen can read it, and the system may keep it.
+- **Signed by the server.** Each push carries a VAPID signature (RFC 8292). It's made with a P-256 key pair that the server creates the first time a device turns notifications on, and keeps in its database, like the session secret.
+- **Only to push services.** The server sends only to the push services of those browsers, over HTTPS, so nobody can make it post to an address of their choosing.
+- **It belongs to the session.** These stop notifications to a device:
+  - signing out, on that device or from another one;
+  - being removed from the workspace;
+  - the session running out;
+  - its push service saying the device is gone.
+- **iPhone and iPad.** Only the app added to the Home Screen gets notifications, on iOS 16.4 or later.
 
 ## Agents and scripts
 

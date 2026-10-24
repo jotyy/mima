@@ -35,7 +35,11 @@ if (ENV.CORS_ORIGIN) {
 if (isDemo()) mountDemo(app);
 
 app.on(["POST", "GET"], "/api/auth/*", async (c) =>
-	(await createAuth(new URL(c.req.url).origin)).handler(c.req.raw),
+	(
+		await createAuth(new URL(c.req.url).origin, undefined, (promise) =>
+			c.executionCtx.waitUntil(promise),
+		)
+	).handler(c.req.raw),
 );
 
 // How the app is set up, and where the browser extension finds the API. With one Worker

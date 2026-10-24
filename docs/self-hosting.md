@@ -108,5 +108,6 @@ With the [CLI](agents.md) installed, `vauly verify https://vault.example.test` c
 
 ## Good to know
 
-- The test suite's stacks add a route that wipes the database, guarded by `E2E_RESET_TOKEN`. It only exists when that variable is set; never set it for a real deploy.
+- The test suite's stacks add a route that wipes the database, guarded by `E2E_RESET_TOKEN`. It only exists when that variable is set. It also lets notifications go to a push service on `localhost`, so never set it for a real deploy.
+- Notifications need no setup. The server makes its VAPID key pair the first time someone turns them on, and keeps it in the database. The demo keeps them off.
 - `bun run dev` keeps its state on disk and never touches your Cloudflare account.

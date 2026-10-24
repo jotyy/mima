@@ -50,6 +50,7 @@ import {
 	openOfflineCopy,
 	setOfflineAccount,
 } from "@/lib/offline";
+import { forgetPush } from "@/lib/push";
 import { client, SESSION_ENDED } from "@/utils/orpc";
 
 // The keyring holds the unlocked private key and the vault keys in memory only. A reload,
@@ -513,6 +514,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			setOfflineAccount(null);
 			forgetDevice();
 			forgetSnapshots();
+			forgetPush();
 			lock();
 			setMe(null);
 			setStatus("signed-out");
@@ -529,6 +531,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 		await Promise.all([
 			forgetDevice(),
 			forgetSnapshots(),
+			forgetPush(),
 			authClient.signOut(),
 		]);
 		setMe(null);
@@ -598,6 +601,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 			await Promise.all([
 				forgetDevice().catch(() => {}),
 				forgetSnapshots().catch(() => {}),
+				forgetPush(),
 				authClient.signOut().catch(() => {}),
 			]);
 			setMe(null);

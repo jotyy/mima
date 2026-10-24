@@ -1,6 +1,7 @@
 import { DesktopIcon, DeviceMobileIcon } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { describeDevice } from "@vauly/api/device";
 import { Badge } from "@vauly/ui/components/badge";
 import { Button } from "@vauly/ui/components/button";
 import { Input } from "@vauly/ui/components/input";
@@ -30,13 +31,13 @@ import {
 	TurnOffTwoStepDialog,
 	TurnOnTwoStepDialog,
 } from "@/components/two-step-dialogs";
+import { demoAccount } from "@/env.public";
 import { authClient } from "@/lib/auth-client";
 import {
 	breachCheckAvailable,
 	setBreachCheck,
 	useBreachCheck,
 } from "@/lib/breaches";
-import { describeDevice } from "@/lib/device";
 import { deviceUnlockSupported } from "@/lib/device-unlock";
 import { openEmergencyKit } from "@/lib/emergency-kit";
 import { ago, plural, timeLeft } from "@/lib/format";
@@ -51,6 +52,7 @@ import {
 	setOfflineCopyEnabled,
 	useOfflineCopy,
 } from "@/lib/offline";
+import { pushEnabled, pushSupport, turnOffPush, turnOnPush } from "@/lib/push";
 import { errorMessage, useWorkspace } from "@/lib/vault-data";
 import { client } from "@/utils/orpc";
 
@@ -232,6 +234,7 @@ function Settings() {
 						}}
 					/>
 				</Row>
+				<Notifications />
 				{logosAvailable && (
 					<Row
 						label="Website logos"
@@ -462,6 +465,64 @@ function Sessions() {
 				</Row>
 			)}
 		</Card>
+	);
+}
+
+const pushHints = {
+	supported:
+		"Hear about it here when an agent asks for an item you can approve, or when your account signs in somewhere new. A notification never names an item.",
+	install:
+		"On iPhone and iPad, add vauly to your Home Screen first: notifications work in the installed app, on iOS 16.4 or later.",
+	blocked:
+		"Notifications are blocked for vauly in this browser's settings. Allow them there, then turn this on.",
+};
+
+/** Notifications on this device. The demo has none: every visitor is the same person. */
+function Notifications() {
+	const queryClient = useQueryClient();
+	const [busy, setBusy] = useState(false);
+	const support = pushSupport();
+	const enabled = useQuery({
+		queryKey: ["push"],
+		queryFn: pushEnabled,
+		enabled: support === "supported",
+	});
+	if (demoAccount || support === "unsupported") return null;
+
+	const change = (on: boolean) => {
+		setBusy(true);
+		// Straight from the tap: iOS asks for permission only then.
+		(on ? turnOnPush() : turnOffPush())
+			.then(() =>
+				notify.success(
+					on
+						? "Notifications are on for this device"
+						: "Notifications are off for this device",
+				),
+			)
+			.catch((err) =>
+				notify.error(
+					on
+						? "Couldn't turn on notifications"
+						: "Couldn't turn off notifications",
+					errorMessage(err),
+				),
+			)
+			.finally(() => {
+				setBusy(false);
+				queryClient.invalidateQueries({ queryKey: ["push"] });
+			});
+	};
+
+	return (
+		<Row label="Notifications" hint={pushHints[support]}>
+			<Switch
+				aria-label="Notifications"
+				checked={support === "supported" && Boolean(enabled.data)}
+				disabled={support !== "supported" || busy || enabled.isPending}
+				onCheckedChange={change}
+			/>
+		</Row>
 	);
 }
 
