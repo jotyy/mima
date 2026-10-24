@@ -1,0 +1,63 @@
+---
+import Logo from "@/components/Logo.astro";
+import CipherField from "@/components/landing/CipherField.astro";
+import "@/styles/site.css";
+
+// The extension's promo tiles in the Chrome Web Store: the hero's sky, its ciphertext and
+// the keyhole reading it, with the logo and no words. `bun run store` in e2e/ saves each
+// one, at its size, into apps/extension/store/. Only the dev server has these pages.
+
+interface Props {
+	/** How much larger than the hero the ciphertext and keyhole are drawn. */
+	zoom: number;
+	/** Where the keyhole's circle sits, before the zoom. */
+	keyhole: { x: number; y: number };
+	logo: string;
+	padding: string;
+}
+
+export function getStaticPaths() {
+	if (import.meta.env.PROD) return [];
+	return [
+		{
+			params: { tile: "promo-small" },
+			props: {
+				zoom: 0.8,
+				keyhole: { x: 395, y: 118 },
+				logo: "h-11",
+				padding: "px-9",
+			},
+		},
+		{
+			params: { tile: "promo-marquee" },
+			props: {
+				zoom: 1.6,
+				keyhole: { x: 640, y: 128 },
+				logo: "h-24",
+				padding: "px-28",
+			},
+		},
+	];
+}
+
+const { zoom, keyhole, logo, padding } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" data-style="pure">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="robots" content="noindex" />
+		<title>vauly</title>
+	</head>
+	<body class="m-0">
+		<div
+			data-slot="store-tile"
+			class:list={["flex h-screen w-screen items-center", padding]}
+			style={`--tile-zoom: ${zoom}`}
+		>
+			<CipherField still={keyhole} />
+			<Logo tone="white" class:list={["w-auto text-white", logo]} />
+		</div>
+	</body>
+</html>

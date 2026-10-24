@@ -8,7 +8,8 @@
 		"report": "playwright show-report",
 		"screenshots": "playwright test --config screenshots.config.ts",
 		"demo:seed": "playwright test --config demo.config.ts",
-		"test:site": "playwright test --config site.config.ts"
+		"test:site": "playwright test --config site.config.ts",
+		"store": "playwright test --config store.config.ts"
 	},
 	"devDependencies": {
 		"@axe-core/playwright": "^4.14.0",
