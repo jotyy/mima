@@ -60,8 +60,11 @@ jobs:
         run: |
           for attempt in 1 2; do
             nohup bun run dev --stage e2e > "../../e2e/stack-$attempt.log" 2>&1 &
-            for second in $(seq 240); do
-              curl -sf -o /dev/null http://localhost:3101/ && exit 0
+            # Four minutes by the clock: each try gives up after five seconds, so a server
+            # that takes the connection and never answers can't hold the job.
+            deadline=$((SECONDS + 240))
+            while [ "$SECONDS" -lt "$deadline" ]; do
+              curl -sf --max-time 5 -o /dev/null http://localhost:3101/ && exit 0
               sleep 1
             done
             echo "::warning::The test stack didn't start in four minutes (try $attempt)"
