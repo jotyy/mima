@@ -59,6 +59,12 @@ export type ParsedImport = {
 
 export class ImportError extends Error {}
 
+/**
+ * What one export may unpack to, all together: far more than any vault, far less than a
+ * tab can hold. A small file can claim gigabytes.
+ */
+export const MAX_UNPACKED = 256 * 1024 * 1024;
+
 /** What opening a protected file can take besides its password. */
 export type OpenWith = {
 	/** Argon2id with lanes: the key worker in the app, given directly in tests. */

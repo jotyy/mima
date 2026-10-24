@@ -1,6 +1,6 @@
 import { toBase64 as base64 } from "@vauly/crypto";
 
-import { ImportError } from "./parsed";
+import { ImportError, MAX_UNPACKED } from "./parsed";
 
 // Exports that another app protected with a password: Bitwarden's password-protected
 // .json and Proton Pass's PGP-encrypted export. They're opened here, in the browser; the
@@ -424,9 +424,6 @@ export async function openBitwardenExport(
 
 const NOT_PROTON = "That isn't a Proton Pass export vauly can open.";
 
-/** What an export may unpack to: far more than any vault, far less than a tab can hold. */
-const MAX_PROTON_SIZE = 256 * 1024 * 1024;
-
 /**
  * What a Proton Pass .pgp holds: its data.json, or, from older exports, the whole ZIP.
  * Proton encrypts to one passphrase, with one iterated and salted S2K. Anything else is
@@ -457,7 +454,7 @@ export async function openProtonPass(armored: string, password: string) {
 			message,
 			passwords: [password],
 			format: "binary",
-			config: { maxDecompressedMessageSize: MAX_PROTON_SIZE },
+			config: { maxDecompressedMessageSize: MAX_UNPACKED },
 		});
 		return data as Uint8Array;
 	} catch {
