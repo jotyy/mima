@@ -40,10 +40,21 @@ export class PushBlockedError extends Error {
 /**
  * One tab at a time: one tab's check mustn't drop the subscription another tab is
  * making, before the server has it. Without Web Locks, as in old browsers, each runs as it
- * comes.
+ * comes. With `wait`, it waits that many milliseconds at most, then runs anyway.
  */
-function inTurn<T>(work: () => Promise<T>): Promise<T> {
-	return navigator.locks ? navigator.locks.request("vauly.push", work) : work();
+function inTurn<T>(
+	work: () => Promise<T>,
+	{ wait }: { wait?: number } = {},
+): Promise<T> {
+	if (!navigator.locks) return work();
+	if (!wait) return navigator.locks.request("vauly.push", work);
+	return navigator.locks
+		.request("vauly.push", { signal: AbortSignal.timeout(wait) }, work)
+		.catch((error: unknown) => {
+			if (error instanceof DOMException && error.name === "TimeoutError")
+				return work();
+			throw error;
+		});
 }
 
 async function browserSubscription() {
@@ -137,9 +148,13 @@ export async function turnOffPush() {
  */
 export async function forgetPush() {
 	try {
-		await inTurn(async () => {
-			await (await browserSubscription())?.unsubscribe();
-		});
+		// Signing out doesn't wait long for another tab whose check is stuck on the network.
+		await inTurn(
+			async () => {
+				await (await browserSubscription())?.unsubscribe();
+			},
+			{ wait: 3000 },
+		);
 	} catch {
 		// Nothing to forget.
 	}
