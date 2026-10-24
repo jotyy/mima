@@ -1,10 +1,16 @@
 import { ORPCError } from "@orpc/server";
-import { user } from "@vauly/db/schema/auth";
-import { invite, member, vault, vaultAccess } from "@vauly/db/schema/vault";
+import { session, user } from "@vauly/db/schema/auth";
+import {
+	invite,
+	member,
+	setting,
+	vault,
+	vaultAccess,
+} from "@vauly/db/schema/vault";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { adminProcedure, memberProcedure } from "../index";
+import { adminProcedure, memberProcedure, REQUIRE_TWO_STEP } from "../index";
 import { hashToken, logEvent, newId } from "../lib";
 import { removeFromWorkspace } from "../workspace";
 
@@ -182,7 +188,10 @@ export const membersRouter = {
 			});
 		}),
 
-	/** For someone who lost their phone and their recovery codes. */
+	/**
+	 * For someone who lost their phone and their recovery codes. It signs them out
+	 * everywhere, to sign in again with their master password and set it up anew.
+	 */
 	resetTwoStep: adminProcedure
 		.input(z.object({ userId: z.string() }))
 		.handler(async ({ context, input }) => {
@@ -208,6 +217,9 @@ export const membersRouter = {
 						recoveryCodes: null,
 					})
 					.where(eq(member.userId, input.userId)),
+				// Their sessions end with it, so one opened by whoever set it up in their
+				// name ends too, rather than set it up again.
+				db.delete(session).where(eq(session.userId, input.userId)),
 				logEvent(db, {
 					actorType: "member",
 					actorId: userId,
@@ -216,6 +228,40 @@ export const membersRouter = {
 					detail: "two-step login reset",
 				}),
 			]);
+		}),
+
+	/**
+	 * Whether every member must use two-step login. Members without it can then only set
+	 * it up (memberProcedure). An admin needs it first, so nobody locks themselves out.
+	 */
+	setTwoStepPolicy: adminProcedure
+		.input(z.object({ required: z.boolean() }))
+		.handler(async ({ context, input }) => {
+			const { db, userId } = context;
+			if (input.required && context.member.totpSecret === null) {
+				throw new ORPCError("FORBIDDEN", {
+					message:
+						"Turn on two-step login for yourself first, in Settings, then require it for everyone.",
+				});
+			}
+			if (input.required === context.twoStepRequired) return input;
+			await db.batch([
+				input.required
+					? db
+							.insert(setting)
+							.values({ key: REQUIRE_TWO_STEP, value: "1" })
+							.onConflictDoUpdate({ target: setting.key, set: { value: "1" } })
+					: db.delete(setting).where(eq(setting.key, REQUIRE_TWO_STEP)),
+				logEvent(db, {
+					actorType: "member",
+					actorId: userId,
+					action: "updated",
+					detail: input.required
+						? "two-step login required"
+						: "two-step login not required",
+				}),
+			]);
+			return input;
 		}),
 
 	remove: adminProcedure

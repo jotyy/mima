@@ -103,7 +103,11 @@ UPDATE member SET totp_secret = NULL, totp_pending = NULL, totp_step = NULL, rec
 WHERE user_id = (SELECT id FROM user WHERE email = 'owner@example.com');
 ```
 
-Their master password alone signs them in again. It changes nothing about encryption: the master password is still the only key to their items.
+Their master password alone signs them in again. It changes nothing about encryption: the master password is still the only key to their items. If the workspace requires two-step login, they set it up again at that sign-in. To stop requiring it from the console, for everyone:
+
+```sql
+DELETE FROM setting WHERE key = 'require_two_step';
+```
 
 ## Deploying with Alchemy
 

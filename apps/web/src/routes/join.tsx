@@ -1,4 +1,4 @@
-import { WarningIcon } from "@phosphor-icons/react";
+import { ShieldCheckIcon, WarningIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
@@ -138,6 +138,13 @@ function Join() {
 					<WarningIcon className="mt-px size-4 shrink-0" />
 					Nobody can reset your master password. Store it somewhere safe.
 				</div>
+				{invite.data.twoStepRequired && (
+					<div className="border-line bg-surface-sunken text-caption text-fg-muted flex gap-2 rounded-lg border px-3 py-2.5">
+						<ShieldCheckIcon className="mt-px size-4 shrink-0" />
+						{workspaceName} requires two-step login, so you'll set it up next.
+						Have an authenticator app on your phone ready.
+					</div>
+				)}
 				<FormError>{error}</FormError>
 				<SubmitButton busy={busy} busyLabel="Creating your keys…">
 					{`Join ${workspaceName}`}

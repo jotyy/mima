@@ -168,6 +168,10 @@ function Members() {
 											className="text-success size-3.5"
 										/>
 									)}
+									{/* Required, and not set up yet: they can't open a vault until they do. */}
+									{me?.twoStepRequired && !person.twoStep && (
+										<Badge variant="warning">Needs two-step login</Badge>
+									)}
 								</div>
 								<span className="text-caption text-fg-subtle truncate">
 									{person.email}
@@ -320,7 +324,7 @@ function Members() {
 				open={Boolean(resetting)}
 				onOpenChange={(open) => !open && setResetting(null)}
 				title={`Reset two-step login for ${resetting?.name}?`}
-				description="For when they lost their phone and their recovery codes. Their master password alone signs them in again, until they turn two-step login back on."
+				description="For when they lost their phone and their recovery codes. It signs them out everywhere, and their master password alone signs them in again, until they turn two-step login back on."
 				confirm="Reset"
 				onConfirm={async () => {
 					if (resetting) {

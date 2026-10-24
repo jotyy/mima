@@ -23,6 +23,7 @@ import {
 	pickSends,
 	pushServiceAllowed,
 	signInNotice,
+	twoStepDeliveries,
 } from "./notify";
 
 describe("pushServiceAllowed", () => {
@@ -361,5 +362,39 @@ describe("approvalDeliveries", () => {
 		sqlite.run("UPDATE agent SET notified_at = NULL WHERE id = 'agt_ci'");
 		expect(await approvalDeliveries(db, agent, [])).toEqual([]);
 		expect(await approvalDeliveries(db, agent, ["vlt_eng"])).toHaveLength(2);
+	});
+});
+
+describe("twoStepDeliveries", () => {
+	test("tells the owner and admins when someone sets up two-step login, not them", async () => {
+		const { sqlite, db } = testDb();
+		for (const [id, role] of [
+			["usr_owner", "owner"],
+			["usr_admin", "admin"],
+			["usr_mei", "member"],
+			["usr_sam", "member"],
+		]) {
+			sqlite.run(
+				`INSERT INTO user (id, name, email) VALUES ('${id}', '${id}', '${id}@acme.test')`,
+			);
+			sqlite.run(
+				`INSERT INTO member (user_id, role, kdf_salt, kdf, kdf_iterations, public_key, encrypted_private_key) VALUES ('${id}', '${role}', 'S', 'pbkdf2', 600000, 'pk', 'sk')`,
+			);
+		}
+		const sent = await twoStepDeliveries(db, { id: "usr_mei", name: "Mei" });
+		expect(sent.map((delivery) => delivery.userId).sort()).toEqual([
+			"usr_admin",
+			"usr_owner",
+		]);
+		expect(sent[0]?.notice).toMatchObject({
+			title: "Mei set up two-step login",
+			url: "/members",
+		});
+		// An admin setting it up tells the owner and the other admins only.
+		const byAdmin = await twoStepDeliveries(db, {
+			id: "usr_admin",
+			name: "Ana",
+		});
+		expect(byAdmin.map((delivery) => delivery.userId)).toEqual(["usr_owner"]);
 	});
 });

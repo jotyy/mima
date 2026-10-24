@@ -51,7 +51,7 @@ import {
 	setOfflineAccount,
 } from "@/lib/offline";
 import { forgetPush, pushEnabled } from "@/lib/push";
-import { client, SESSION_ENDED } from "@/utils/orpc";
+import { client, SESSION_ENDED, TWO_STEP_NEEDED } from "@/utils/orpc";
 
 // The keyring holds the unlocked private key and the vault keys in memory only. A reload,
 // "Lock" or a few idle minutes forget them; the session cookie alone opens nothing.
@@ -97,6 +97,8 @@ export type Me = {
 	email: string;
 	role: "owner" | "admin" | "member";
 	twoStep: boolean;
+	/** The workspace requires two-step login: without it, only setting it up is open. */
+	twoStepRequired: boolean;
 	recoveryCodesLeft: number;
 	keys: AccountKeys;
 };
@@ -106,6 +108,8 @@ type Status = "loading" | "signed-out" | "locked" | "unlocked";
 type Keyring = {
 	status: Status;
 	me: Me | null;
+	/** Signed in, and the workspace requires two-step login, which this account hasn't set up. */
+	needsTwoStep: boolean;
 	/** Bumped on every lock, so decrypted queries never outlive the keys. */
 	epoch: number;
 	locksAt: number | null;
@@ -300,6 +304,7 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 					email: "",
 					role: "member",
 					twoStep: false,
+					twoStepRequired: false,
 					recoveryCodesLeft: 0,
 					keys: snapshot.keys,
 				});
@@ -531,6 +536,18 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 		return () => window.removeEventListener(SESSION_ENDED, ended);
 	}, [lock, forgetDevice]);
 
+	// The server refused something for want of two-step login: the workspace has started
+	// requiring it, or an admin reset it. Loading the profile again shows the setup.
+	useEffect(() => {
+		const needed = () => {
+			if (statusRef.current === "locked" || statusRef.current === "unlocked") {
+				loadMe().catch(() => {});
+			}
+		};
+		window.addEventListener(TWO_STEP_NEEDED, needed);
+		return () => window.removeEventListener(TWO_STEP_NEEDED, needed);
+	}, [loadMe]);
+
 	const signOut = useCallback(async () => {
 		lock();
 		sessionId.current = null;
@@ -736,6 +753,10 @@ export function KeyringProvider({ children }: { children: ReactNode }) {
 		() => ({
 			status,
 			me,
+			needsTwoStep:
+				(status === "locked" || status === "unlocked") &&
+				!!me?.twoStepRequired &&
+				!me.twoStep,
 			epoch,
 			locksAt: status === "unlocked" ? lastActive + autoLockMs : null,
 			signIn,

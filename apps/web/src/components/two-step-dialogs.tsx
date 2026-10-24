@@ -22,13 +22,19 @@ import { notify } from "./notify";
 
 type Setup = { secret: string; uri: string };
 
-/** Turns on two-step login: scan, confirm a code, then keep the recovery codes. */
+/**
+ * Turns on two-step login: scan, confirm a code, then keep the recovery codes. With
+ * `reloadWhenClosed`, the profile is loaded again only once the dialog closes: on the
+ * screen that requires it, loading it sooner would take the codes away unread.
+ */
 export function TurnOnTwoStepDialog({
 	open,
-	onOpenChange,
+	onOpenChange: setOpen,
+	reloadWhenClosed = false,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	reloadWhenClosed?: boolean;
 }) {
 	const keyring = useKeyring();
 	const [setup, setSetup] = useState<Setup | null>(null);
@@ -36,6 +42,12 @@ export function TurnOnTwoStepDialog({
 	const [error, setError] = useState("");
 	const [busy, setBusy] = useState(false);
 	const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
+	const onOpenChange = (next: boolean) => {
+		if (!next && recoveryCodes && reloadWhenClosed) {
+			keyring.reloadMe().catch(() => {});
+		}
+		setOpen(next);
+	};
 
 	useEffect(() => {
 		if (!open) return;
@@ -56,7 +68,7 @@ export function TurnOnTwoStepDialog({
 		try {
 			const result = await client.account.confirmTwoStep({ code });
 			setRecoveryCodes(result.recoveryCodes);
-			await keyring.reloadMe();
+			if (!reloadWhenClosed) await keyring.reloadMe();
 		} catch (err) {
 			setError(errorMessage(err));
 		} finally {
@@ -130,7 +142,8 @@ export function TurnOnTwoStepDialog({
 					<DialogTitle>Turn on two-step login</DialogTitle>
 					<DialogDescription>
 						Signing in will ask for a code from an authenticator app too, so a
-						master password alone isn't enough.
+						master password alone isn't enough. Turning it on signs out your
+						other devices.
 					</DialogDescription>
 				</DialogHeader>
 				<form onSubmit={confirm} className="flex flex-col gap-4">

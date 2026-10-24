@@ -59,6 +59,10 @@ export function describeEvent(
 				return parts("turned off two-step login");
 			if (event.detail === "two-step login reset")
 				return parts(`reset two-step login for ${subject ?? "someone"}`);
+			if (event.detail === "two-step login required")
+				return parts("required two-step login for everyone");
+			if (event.detail === "two-step login not required")
+				return parts("made two-step login optional");
 			return parts("updated", itemName);
 		case "deleted":
 			if (event.itemId && event.detail === "for good")
