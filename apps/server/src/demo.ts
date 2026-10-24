@@ -1,4 +1,5 @@
 import { ORPCError } from "@orpc/server";
+import { closedInDemo } from "@vauly/api/demo";
 import type { Hono } from "hono";
 
 import { resetDatabase } from "./e2e-reset";
@@ -12,30 +13,6 @@ import { createAuth, getDb, prepare } from "./services";
  */
 export const isDemo = () => Boolean(ENV.DEMO_TOKEN);
 
-/**
- * What the demo won't do: anything that would lock the next visitor out, change what
- * everyone sees the account called, or publish something on a public link.
- */
-const closed: Record<string, string> = {
-	"account.changePassword":
-		"The demo keeps its master password, so the next visitor can sign in.",
-	"account.beginTwoStep":
-		"Two-step login stays off in the demo, so the next visitor can sign in.",
-	"account.confirmTwoStep":
-		"Two-step login stays off in the demo, so the next visitor can sign in.",
-	"account.updateProfile": "The demo account keeps its name.",
-	"account.renameWorkspace": "The demo workspace keeps its name.",
-	"links.create":
-		"Share links are off in the demo, since anyone could open them.",
-	"account.deleteAccount":
-		"The demo account stays, so the next visitor can sign in.",
-	"members.transferOwnership": "The demo workspace keeps its owner.",
-	// It swaps the account's keys, and the server can't tell they still come from the
-	// same master password: a way around changePassword's turn here.
-	"account.upgradeKdf":
-		"The demo keeps its master password, so the next visitor can sign in.",
-};
-
 /** Turns away the procedures the demo keeps closed, before they run. */
 export async function demoGuard<T>({
 	path,
@@ -44,7 +21,7 @@ export async function demoGuard<T>({
 	path: readonly string[];
 	next: () => Promise<T>;
 }) {
-	const reason = isDemo() ? closed[path.join(".")] : undefined;
+	const reason = isDemo() ? closedInDemo[path.join(".")] : undefined;
 	if (reason) throw new ORPCError("FORBIDDEN", { message: reason });
 	return next();
 }

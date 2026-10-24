@@ -7,6 +7,12 @@ Notable changes to vauly. The format follows [Keep a Changelog](https://keepacha
 ### Added
 
 - Files on items, such as TLS certificates, key files and recovery-code PDFs, up to 10 MB each. Each file is encrypted in the browser, a chunk at a time, with a key of its own, sealed with its item's key along with its name. They're kept in the D1 database, so a one-click deploy needs no bucket: 200 MB in all by default, which `FILES_MAX_MB` and `FILES_TOTAL_MB` change. Viewers download them, editors add, rename and remove them, and every step is logged. An item in Recently deleted keeps its files, and they go when it does. A backup with files is a ZIP that imports back with them. Share links don't carry files, and the offline copy keeps their names but not their contents.
+- Notifications: turn them on for each device in Settings to hear when an agent asks for an item you can approve, and when your account signs in from another browser. They name the agent and count the items, but never name an item, and they're encrypted to the device. They stop when that device is signed out, and an agent's requests notify at most once every five minutes. On iPhone and iPad they need the app added to the Home Screen, on iOS 16.4 or later.
+
+### Fixed
+
+- The service worker is the same wherever the web app is built, so `vauly verify --against` a release's manifest matches every instance of that release. It used to list its files in the order the build machine's file system gave them. CI now builds the app on macOS as well as Linux and compares.
+- After another device signs this one out, the app says "You were signed out" once, not once for every request that was on its way.
 
 ## 0.1.0 - 2026-10-23
 

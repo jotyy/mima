@@ -40,7 +40,9 @@ Deploying an older version is possible, but it doesn't undo database migrations,
 
 ### Updating from 0.1.0
 
-This update brings files on items. Nothing to do for most copies:
+**Notifications:** nothing to do. Migrations add a table for the devices that get notifications, and a column that keeps agents from sending them too often. The server makes its key for signing them the first time someone turns them on, and keeps it in the database. Going back to 0.1.0 is safe: it leaves the table alone, and nothing is sent.
+
+**Files on items:** nothing to do for most copies.
 1. **Migrations run on their own.** They add the tables that hold files, and columns on agents' grants and requests for whether they cover an item's files.
 2. **Files are kept in your D1 database.** By default, a file can be up to 10 MB and all files together up to 200 MB, which suits the free plan's 500 MB a database. To change that, set `FILES_MAX_MB` and `FILES_TOTAL_MB`; see [Self-hosting](self-hosting.md#files).
 3. **Update the CLI** to use file references (`vauly://…/files/<name>`). An older one doesn't know them.

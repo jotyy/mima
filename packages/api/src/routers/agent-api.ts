@@ -15,6 +15,7 @@ import { z } from "zod";
 import { readPass, signPass } from "../file-pass";
 import { publicProcedure } from "../index";
 import { hashToken, logEvent, newId } from "../lib";
+import { approvalDeliveries } from "../push/notify";
 
 const DENIAL_COOLDOWN = 10 * 60 * 1000;
 
@@ -188,13 +189,15 @@ async function lookup(db: Database, agentId: string, ids: string[]) {
 
 /**
  * For an item without a grant, or one that doesn't cover the files a run needs: its open
- * request, a recent denial, or a new request.
+ * request, a recent denial, or a new request. A new one adds its vault to `asked`, for
+ * the notifications to the people who can approve it.
  */
 async function ask(
 	db: Database,
 	agentId: string,
 	{ id, target, pending, denied }: Lookup,
 	command: string,
+	asked: string[],
 	files = false,
 ) {
 	if (!target) return { itemId: id, status: "missing" as const };
@@ -227,6 +230,7 @@ async function ask(
 			detail: command,
 		}),
 	]);
+	asked.push(target.vaultId);
 	return { itemId: id, status: "pending" as const, requestId };
 }
 
@@ -255,6 +259,7 @@ export const agentApiRouter = {
 			const found = await lookup(db, me.id, input.itemIds);
 			const withFiles = new Set(input.files ?? []);
 			const results = [];
+			const asked: string[] = [];
 			for (const entry of found) {
 				const { id, target, grant } = entry;
 				const needsFiles = withFiles.has(id);
@@ -300,8 +305,11 @@ export const agentApiRouter = {
 					});
 					continue;
 				}
-				results.push(await ask(db, me.id, entry, input.command, needsFiles));
+				results.push(
+					await ask(db, me.id, entry, input.command, asked, needsFiles),
+				);
 			}
+			context.notify(approvalDeliveries(db, me, asked));
 			return results;
 		}),
 
@@ -341,13 +349,16 @@ export const agentApiRouter = {
 		.handler(async ({ context, input }) => {
 			const { db, agent: me } = context;
 			const found = await lookup(db, me.id, input.itemIds);
-			return Promise.all(
+			const asked: string[] = [];
+			const results = await Promise.all(
 				found.map((entry) =>
 					entry.target && entry.grant
 						? { itemId: entry.id, status: "granted" as const }
-						: ask(db, me.id, entry, input.reason),
+						: ask(db, me.id, entry, input.reason, asked),
 				),
 			);
+			context.notify(approvalDeliveries(db, me, asked));
+			return results;
 		}),
 
 	/** A chunk of a file, for a pass that resolve handed out. The first is logged. */

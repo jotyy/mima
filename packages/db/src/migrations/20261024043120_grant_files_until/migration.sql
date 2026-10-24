@@ -1,1 +1,0 @@
-ALTER TABLE `agent_grant` ADD `files_until` integer;

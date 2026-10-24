@@ -17,4 +17,7 @@ CREATE TABLE `attachment_chunk` (
 	CONSTRAINT `fk_attachment_chunk_attachment_id_attachment_id_fk` FOREIGN KEY (`attachment_id`) REFERENCES `attachment`(`id`) ON DELETE CASCADE
 );
 --> statement-breakpoint
+ALTER TABLE `access_request` ADD `files` integer DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE `agent_grant` ADD `files` integer DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE `agent_grant` ADD `files_until` integer;--> statement-breakpoint
 CREATE INDEX `attachment_item_idx` ON `attachment` (`item_id`);

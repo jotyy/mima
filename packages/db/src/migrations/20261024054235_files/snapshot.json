@@ -1,8 +1,8 @@
 {
 	"version": "7",
 	"dialect": "sqlite",
-	"id": "3f62aeb7-17a7-4cb6-acc7-9955794bf1db",
-	"prevIds": ["83023098-30bb-4486-88c0-c757b37efbe2"],
+	"id": "dbf45a8a-5f6a-47e2-b77c-f75fecbcc643",
+	"prevIds": ["70edc6a2-69b0-4fa2-8811-f243df88fc70"],
 	"ddl": [
 		{
 			"name": "account",
@@ -58,6 +58,10 @@
 		},
 		{
 			"name": "member",
+			"entityType": "tables"
+		},
+		{
+			"name": "push_subscription",
 			"entityType": "tables"
 		},
 		{
@@ -608,6 +612,16 @@
 		},
 		{
 			"type": "integer",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "notified_at",
+			"entityType": "columns",
+			"table": "agent"
+		},
+		{
+			"type": "integer",
 			"notNull": true,
 			"autoincrement": false,
 			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
@@ -673,6 +687,16 @@
 			"default": "false",
 			"generated": null,
 			"name": "files",
+			"entityType": "columns",
+			"table": "agent_grant"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "files_until",
 			"entityType": "columns",
 			"table": "agent_grant"
 		},
@@ -1262,6 +1286,86 @@
 			"autoincrement": false,
 			"default": null,
 			"generated": null,
+			"name": "id",
+			"entityType": "columns",
+			"table": "push_subscription"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "user_id",
+			"entityType": "columns",
+			"table": "push_subscription"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "session_id",
+			"entityType": "columns",
+			"table": "push_subscription"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "endpoint",
+			"entityType": "columns",
+			"table": "push_subscription"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "p256dh",
+			"entityType": "columns",
+			"table": "push_subscription"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "auth",
+			"entityType": "columns",
+			"table": "push_subscription"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "0",
+			"generated": null,
+			"name": "failures",
+			"entityType": "columns",
+			"table": "push_subscription"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+			"generated": null,
+			"name": "created_at",
+			"entityType": "columns",
+			"table": "push_subscription"
+		},
+		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
 			"name": "key",
 			"entityType": "columns",
 			"table": "setting"
@@ -1588,6 +1692,28 @@
 			"table": "member"
 		},
 		{
+			"columns": ["user_id"],
+			"tableTo": "user",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_push_subscription_user_id_user_id_fk",
+			"entityType": "fks",
+			"table": "push_subscription"
+		},
+		{
+			"columns": ["session_id"],
+			"tableTo": "session",
+			"columnsTo": ["id"],
+			"onUpdate": "NO ACTION",
+			"onDelete": "CASCADE",
+			"nameExplicit": false,
+			"name": "fk_push_subscription_session_id_session_id_fk",
+			"entityType": "fks",
+			"table": "push_subscription"
+		},
+		{
 			"columns": ["item_id"],
 			"tableTo": "item",
 			"columnsTo": ["id"],
@@ -1723,6 +1849,13 @@
 			"nameExplicit": false,
 			"name": "member_pk",
 			"table": "member",
+			"entityType": "pks"
+		},
+		{
+			"columns": ["id"],
+			"nameExplicit": false,
+			"name": "push_subscription_pk",
+			"table": "push_subscription",
 			"entityType": "pks"
 		},
 		{
@@ -1865,6 +1998,34 @@
 		{
 			"columns": [
 				{
+					"value": "user_id",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "push_subscription_user_idx",
+			"entityType": "indexes",
+			"table": "push_subscription"
+		},
+		{
+			"columns": [
+				{
+					"value": "session_id",
+					"isExpression": false
+				}
+			],
+			"isUnique": true,
+			"where": null,
+			"origin": "manual",
+			"name": "push_subscription_session_idx",
+			"entityType": "indexes",
+			"table": "push_subscription"
+		},
+		{
+			"columns": [
+				{
 					"value": "item_id",
 					"isExpression": false
 				}
@@ -1910,6 +2071,13 @@
 			"name": "invite_token_hash_unique",
 			"entityType": "uniques",
 			"table": "invite"
+		},
+		{
+			"columns": ["endpoint"],
+			"nameExplicit": false,
+			"name": "push_subscription_endpoint_unique",
+			"entityType": "uniques",
+			"table": "push_subscription"
 		}
 	],
 	"renames": []

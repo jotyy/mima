@@ -30,7 +30,8 @@ export async function hashToken(token: string) {
 const roles: VaultRole[] = ["view", "edit", "manage"];
 
 /** The roles that can do what `role` can, and more. */
-const atLeast = (role: VaultRole) => roles.slice(roles.indexOf(role));
+/** The roles that can do what `role` can. */
+export const atLeast = (role: VaultRole) => roles.slice(roles.indexOf(role));
 
 /** The vaults the person can open, or only those where they have at least `role`. */
 export async function myVaultIds(

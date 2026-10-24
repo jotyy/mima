@@ -78,6 +78,7 @@ Another implementation, such as a native app, must produce exactly these bytes. 
 |                                                                                                                                                            | The activity log: who did what to which item ID, and when, and which field was revealed, copied or filled, such as the password or a card number (a custom field by a random ID, never its label). The field says what kind of item it was |
 |                                                                                                                                                            | Agent names, their public keys, a hash of their token secret, and the commands they ran                                                                                                                                                    |
 |                                                                                                                                                            | Public keys of people and agents                                                                                                                                                                                                           |
+|                                                                                                                                                            | For each device with notifications on: its push service address and the keys notifications are encrypted to                                                                                                                                |
 
 ## Unlocking with a passkey
 
@@ -96,6 +97,25 @@ So the installed app can open items without a connection, each device keeps a co
 - **Offline, it's read-only.** The master password unlocks it; unlocking with a passkey needs the server, so it doesn't work offline. Adding, editing, sharing and approvals wait for a connection, and copies and reveals made offline aren't recorded in the activity log.
 - **It belongs to the session it was made in.** The device deletes it when it next starts without that session, after any sign-out from this device or another, or a removal, and when you sign out, change your master password there or turn it off. Every sync rewrites it from what the API returns, so a vault you lose access to leaves it then.
 - **It's used for 30 days at most** after its last sync, then deleted. That limit is enforced by the app, not by cryptography: a device offline has no trusted clock.
+
+## Notifications
+
+A device where you turn on **Settings › Notifications** is told when an agent asks for an item you can approve, and when your account signs in somewhere new. They use Web Push.
+- **What a notification says.** It gives the agent's name and how many items it asked for, or the browser and system that signed in ("Chrome on macOS"). It never names an item or a vault: the server can't read those. Tapping it opens vauly, and approves nothing.
+- **Who can read it.** The server encrypts each notification to the device's own key (RFC 8291, `aes128gcm`) before it hands it to the browser's push service: Google's, Mozilla's, Apple's or Microsoft's. The push service sees which device it's for and when, but not what it says. Every push is padded to the same size, so its length doesn't give away an agent's name. Its headers do say how urgent it is and how long to keep trying, so the push service can tell a request for approval from a sign-in. Your device's system shows it, so anyone who can see your lock screen can read it, and the system may keep it.
+- **Signed by the server.** Each push carries a VAPID signature (RFC 8292). It's made with a P-256 key pair that the server creates the first time a device turns notifications on, and keeps in its database, like the session secret.
+- **Only to push services.** The server sends only to the push services of those browsers, over HTTPS, and doesn't follow redirects, so nobody can make it post to an address of their choosing. An address already in use for someone else's sign-in is refused.
+- **Limits.**
+  - Each session has at most one device, and each person at most ten.
+  - An agent's requests send notifications at most once every five minutes, so a stolen agent token can't keep phones buzzing. Requests in between wait in the app.
+  - One event sends at most 25 pushes, so a large team stays within a Worker's limits. Each person's newest device is first.
+- **It belongs to the session.** These stop notifications to a device:
+  - signing out, on that device or from another one;
+  - being removed from the workspace;
+  - the session running out;
+  - its push service saying the device is gone;
+  - three sends to it failing in a row.
+- **iPhone and iPad.** Only the app added to the Home Screen gets notifications, on iOS 16.4 or later.
 
 ## Agents and scripts
 
@@ -144,7 +164,7 @@ Your browser runs whatever JavaScript your vauly's address sends it, so the code
 vauly verify https://vault.example.test
 ```
 
-- **Every instance of a version serves the same files.** The app reads its address, logo and breach-check settings from `/vauly.json` at runtime, so the code can't differ between instances. Two builds of one commit are byte-identical; CI builds it twice, in different directories, and compares.
+- **Every instance of a version serves the same files.** The app reads its address, logo and breach-check settings from `/vauly.json` at runtime, so the code can't differ between instances. Two builds of one commit are byte-identical, on any machine: CI builds it twice in different directories, and again on macOS, and compares. The service worker lists the files it caches sorted, not in the order a file system happens to hand them over.
 - **Every build runs in Bun, the version in `package.json`.** The files depend on the JavaScript runtime that runs Vite: it copies one of its own functions into the app as source text, and Bun re-prints the source it loads, so a build under Node, or another Bun version, differs in every file. `bun run build`, the Deploy to Cloudflare button and `alchemy deploy` all build in Bun, and CI checks that Alchemy's build, with a stage's settings, serves the same files as `bun run build`. The manifest records the runtime, and `vauly verify` says so when the build it compares with ran in another.
 - **Each build lists what it serves** in `/.well-known/vauly-build.json`: every file with its SHA-256, the headers it sets (the Content-Security-Policy among them), the commit and the runtime it was built in.
 - **`vauly verify` downloads all of it.** It checks every file and header against that list, and it checks that the page and the service worker load nothing the list leaves out. Then it builds the same commit with the same settings itself and compares. That needs `git` and `bun`, the same version as the instance's for a match. `--against` instead compares with a manifest you trust, such as the one each release carries.
