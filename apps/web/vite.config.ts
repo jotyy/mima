@@ -154,10 +154,17 @@ export default defineConfig(() => {
 		resolve: {
 			tsconfigPaths: true,
 		},
-		// The key worker's libsodium, bundled when the dev server starts rather than on the
-		// first unlock, which would reload the page.
+		// What the key worker and the service worker load, bundled when the dev server starts
+		// rather than when one first runs, which would reload the page. The dev server finds
+		// the page's own dependencies by itself.
 		optimizeDeps: {
-			include: ["@vauly/crypto > libsodium-wrappers-sumo"],
+			include: [
+				"@vauly/crypto > libsodium-wrappers-sumo",
+				"@vauly/crypto > hash-wasm",
+				"workbox-core",
+				"workbox-precaching",
+				"workbox-routing",
+			],
 		},
 		// The key worker (src/lib/argon2.worker.ts) and everything it loads go in a folder of
 		// their own, which _headers serves with the worker's CSP (security-headers.ts).
