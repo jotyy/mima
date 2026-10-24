@@ -4,6 +4,10 @@ Notable changes to vauly. The format follows [Keep a Changelog](https://keepacha
 
 ## Unreleased
 
+### Fixed
+
+- A file over the size limit, chosen just as its item opens, is turned away with "is too big" before it's sent, as at any other time. It used to start the upload and end with "Couldn't attach" and the server's reason.
+
 ## 0.2.0 - 2026-10-24
 
 Files on items, two-step login that a workspace can require, backups protected with a password, and imports that bring files and open protected exports and KeePass databases. If you run 0.1.0, read [Updating vauly](docs/updating.md#updating-from-010). The migrations run on their own; update the CLI and the browser extension along with the server.
