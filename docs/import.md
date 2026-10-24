@@ -46,13 +46,14 @@ Each item is tagged with the name of the vault it came from when the export has 
 
 ## Bitwarden
 
-Use **.json**. It keeps folders, custom fields, SSH keys and earlier passwords.
+Use **.json (Encrypted)** with a file password. It keeps folders, custom fields, SSH keys and earlier passwords, and the file is never in plain text on your computer.
 1. In the Bitwarden web app, go to **Tools › Export vault**. The browser extension has the same under **Settings › Vault options › Export vault**.
 2. Under **Export from**, choose **My vault**. Export each organization separately to bring its collections along.
-3. Choose **.json** as the file format, not **.json (Encrypted)**. vauly can't open an encrypted export.
+3. Choose **.json (Encrypted)** as the file format, then **Password protected**, and set a file password.
 4. Select **Export** and confirm with your master password.
+5. When you bring the file to vauly, enter the file password. vauly opens the file in your browser and doesn't keep the password.
 
-Bitwarden's **.zip (with attachments)** export works too, though the attachments stay behind. [Bitwarden's help](https://bitwarden.com/help/export-your-data/)
+An **Account restricted** export is sealed with your Bitwarden account's own key, so only Bitwarden can open it. The plain **.json** works too, and so does **.zip (with attachments)**, though the attachments stay behind. Delete a plain export once it's imported. [Bitwarden's help](https://bitwarden.com/help/export-your-data/)
 
 ## LastPass
 
@@ -101,11 +102,14 @@ The CSV holds logins and safenotes, with their one-time codes. Identities and co
 
 ## Proton Pass
 
-Use the ZIP format.
+Use the PGP-encrypted export.
 1. Open Proton Pass on the web, in the browser extension or in the desktop app. You can't export from a phone.
 2. Open **Settings** and choose **Export**.
-3. Choose **ZIP** as the file format, not **PGP-encrypted**. vauly can't open an encrypted export.
+3. Choose **PGP-encrypted** and set a passphrase.
 4. Select **Export** and save the file.
+5. When you bring the file to vauly, enter the passphrase. vauly opens the file in your browser and doesn't keep the passphrase.
+
+The plain **ZIP** works too, and so does a `.pgp` file from an older export. Delete a plain export once it's imported.
 
 The export holds only the vaults you own. Each item is tagged with its vault and folder. [Proton's help](https://proton.me/support/pass-export)
 

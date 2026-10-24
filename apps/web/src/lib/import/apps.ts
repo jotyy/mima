@@ -38,7 +38,7 @@ export const importApps: ImportApp[] = [
 		steps: [
 			"In the Bitwarden web app, go to Tools › Export vault.",
 			"Under Export from, choose My vault, or an organization to bring its collections.",
-			"Choose .json as the file format. Not .json (Encrypted): vauly can't open that.",
+			"Choose .json (Encrypted) as the file format, then Password protected, and set a file password. vauly asks for it when you bring the file here.",
 			"Select Export and confirm with your master password.",
 		],
 	},
@@ -107,11 +107,11 @@ export const importApps: ImportApp[] = [
 		id: "proton-pass",
 		name: "Proton Pass",
 		file: "ZIP",
-		accept: ".zip,.json,.csv",
+		accept: ".zip,.pgp,.json,.csv",
 		steps: [
 			"Open Proton Pass on the web, in the browser extension or on your computer. Phones can't export.",
 			"Open Settings and choose Export.",
-			"Choose ZIP as the file format. Not PGP-encrypted: vauly can't open that.",
+			"Choose PGP-encrypted and set a passphrase. vauly asks for it when you bring the file here.",
 			"Select Export and save the file.",
 		],
 		note: "The export holds only the vaults you own.",

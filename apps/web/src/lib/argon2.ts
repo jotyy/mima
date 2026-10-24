@@ -1,6 +1,6 @@
 import type { Argon2 } from "@vauly/crypto";
-
 import type { Argon2Request, Argon2Response } from "./argon2.worker";
+import type { Argon2Lanes } from "./import/protected";
 
 // Argon2id runs in a key worker (argon2.worker.ts). One waits ready, its files loaded and
 // 4 MiB in use, so an unlock works even when they can't be fetched: offline, without a
@@ -8,7 +8,14 @@ import type { Argon2Request, Argon2Response } from "./argon2.worker";
 // 64 MiB it used, and a fresh one takes its place.
 
 /** Why the key couldn't be derived on this device, in words the person can act on. */
-export class KeyDerivationError extends Error {}
+export class KeyDerivationError extends Error {
+	constructor(
+		readonly reason: keyof typeof failures,
+		message = failures[reason],
+	) {
+		super(message);
+	}
+}
 
 const failures = {
 	memory:
@@ -50,8 +57,9 @@ export function prepareArgon2() {
 	if (!ready || ready.failed) ready = startKeyWorker();
 }
 
-export const argon2InWorker: Argon2 = (password, salt, passes, memory) =>
-	new Promise((resolve, reject) => {
+/** Runs one derivation in the waiting key worker, then ends it. */
+function inKeyWorker(request: Argon2Request) {
+	return new Promise<Uint8Array>((resolve, reject) => {
 		const { worker } = ready && !ready.failed ? ready : startKeyWorker();
 		ready = null;
 		const done = () => {
@@ -61,7 +69,7 @@ export const argon2InWorker: Argon2 = (password, salt, passes, memory) =>
 		};
 		const fail = (reason: keyof typeof failures) => {
 			done();
-			reject(new KeyDerivationError(failures[reason]));
+			reject(new KeyDerivationError(reason));
 		};
 		const timer = setTimeout(() => fail("timeout"), TIMEOUT_MS);
 		worker.onmessage = ({ data }: MessageEvent<Argon2Response>) => {
@@ -71,10 +79,18 @@ export const argon2InWorker: Argon2 = (password, salt, passes, memory) =>
 			} else fail(data.failure);
 		};
 		worker.onerror = () => fail("load");
-		worker.postMessage({
-			password,
-			salt,
-			passes,
-			memory,
-		} satisfies Argon2Request);
+		worker.postMessage(request);
 	});
+}
+
+export const argon2InWorker: Argon2 = (password, salt, passes, memory) =>
+	inKeyWorker({ password, salt, passes, memory });
+
+/** For another app's file, such as a Bitwarden export: Argon2id with lanes. */
+export const argon2LanesInWorker: Argon2Lanes = (
+	password,
+	salt,
+	passes,
+	memory,
+	lanes,
+) => inKeyWorker({ password, salt, passes, memory, lanes });

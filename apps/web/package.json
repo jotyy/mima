@@ -12,9 +12,6 @@
 		"env:generate": "varlock codegen"
 	},
 	"dependencies": {
-		"@vauly/api": "workspace:*",
-		"@vauly/crypto": "workspace:*",
-		"@vauly/ui": "workspace:*",
 		"@orpc/client": "catalog:",
 		"@orpc/server": "catalog:",
 		"@orpc/tanstack-query": "^1.15.6",
@@ -23,9 +20,13 @@
 		"@tanstack/react-form": "^1.33.5",
 		"@tanstack/react-query": "^5.104.2",
 		"@tanstack/react-router": "^1.170.44",
+		"@vauly/api": "workspace:*",
+		"@vauly/crypto": "workspace:*",
+		"@vauly/ui": "workspace:*",
 		"better-auth": "catalog:",
 		"fflate": "0.8.3",
 		"next-themes": "catalog:",
+		"openpgp": "6.3.2",
 		"react": "^19.3.0",
 		"react-dom": "^19.3.0",
 		"sonner": "catalog:",

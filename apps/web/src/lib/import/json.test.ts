@@ -3,7 +3,7 @@
 import { describe, expect, test } from "bun:test";
 import { strToU8, zipSync } from "fflate";
 
-import { ImportError, parseImport, readImport } from ".";
+import { ImportError, LockedExport, parseImport, readImport } from ".";
 import {
 	dashlaneZip,
 	fixture,
@@ -205,12 +205,12 @@ describe("Bitwarden JSON", () => {
 		expect(result.left.attachment).toBe(1);
 	});
 
-	test("an encrypted export is turned away", () => {
+	test("a password-protected export asks for its password", () => {
 		expect(() =>
 			parseImport(
 				'{"encrypted":true,"passwordProtected":true,"salt":"x","data":"2.x|y|z"}',
 			),
-		).toThrow("encrypted");
+		).toThrow(LockedExport);
 	});
 });
 
@@ -285,13 +285,13 @@ describe("Proton Pass", () => {
 		]);
 	});
 
-	test("a PGP-encrypted export is turned away", () => {
+	test("a PGP-encrypted export asks for its passphrase", () => {
 		const encrypted = zipSync({
 			"Proton Pass/data.pgp": strToU8("-----BEGIN PGP MESSAGE-----"),
 		});
-		expect(() => readImport(encrypted)).toThrow("PGP");
+		expect(() => readImport(encrypted)).toThrow(LockedExport);
 		expect(() => parseImport("-----BEGIN PGP MESSAGE-----\nxyz")).toThrow(
-			ImportError,
+			LockedExport,
 		);
 	});
 });

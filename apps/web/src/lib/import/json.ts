@@ -45,9 +45,11 @@ const lines = (...parts: unknown[]) =>
 
 export function parseJsonExport(data: unknown): ParsedImport {
 	const root = obj(data);
+	// A password-protected one is opened before it gets here (./index.ts); this one is
+	// sealed with the Bitwarden account's own key.
 	if (root.encrypted === true) {
 		throw new ImportError(
-			"That Bitwarden export is encrypted. Export it again and choose the .json format, not .json (Encrypted).",
+			"That Bitwarden export is account restricted: only your Bitwarden account can open it. Export again with .json (Encrypted) and choose Password protected.",
 		);
 	}
 	if (Array.isArray(root.accounts)) return parseOnePassword(root);

@@ -24,12 +24,15 @@ const bitwarden = [
 	",,card,Company card,,,0,,,,",
 ].join("\n");
 
+const fixtures = path.resolve(
+	import.meta.dirname,
+	"../../apps/web/src/lib/import/fixtures",
+);
+/** The password of the protected fixtures (fixtures/make-protected.ts). */
+const FILE_PASSWORD = "correct horse battery staple";
+
 /** 1Password's .1pux, packed from the made-up export the unit tests read too. */
 function onePux() {
-	const fixtures = path.resolve(
-		import.meta.dirname,
-		"../../apps/web/src/lib/import/fixtures",
-	);
 	return Buffer.from(
 		zipSync({
 			"export.attributes": strToU8(
@@ -101,10 +104,10 @@ test("files that can't be imported say why", async ({ page }) => {
 	await chooseFile(
 		page,
 		"bitwarden_encrypted_export.json",
-		'{"encrypted":true,"passwordProtected":true,"data":"2.x|y|z"}',
+		'{"encrypted":true,"encKeyValidation_DO_NOT_EDIT":"2.x|y|z","items":[]}',
 	);
 	await expect(dialog.getByRole("alert")).toContainText(
-		"not .json (Encrypted)",
+		"only your Bitwarden account can open it",
 	);
 });
 
@@ -215,4 +218,51 @@ test("a 1Password .1pux brings one-time codes, keys, cards and identities", asyn
 	).toBeVisible();
 	await page.getByRole("tab", { name: "Identities" }).click();
 	await expect(items.getByRole("link", { name: /Alex Example/ })).toBeVisible();
+});
+
+test("a password-protected Bitwarden export opens with its file password", async ({
+	page,
+}) => {
+	const dialog = await openImport(page);
+	// Argon2id with four lanes, made by Bitwarden's own crypto: it runs in the key worker.
+	await chooseFile(
+		page,
+		"bitwarden_encrypted_export.json",
+		readFileSync(path.join(fixtures, "bitwarden-protected-argon2id.json")),
+	);
+	await expect(
+		dialog.getByRole("heading", { name: "Import from Bitwarden" }),
+	).toBeVisible();
+	const password = dialog.getByLabel("File password");
+	await password.fill("not the file password");
+	await dialog.getByRole("button", { name: "Open the file" }).click();
+	await expect(dialog.getByRole("alert")).toContainText(
+		"That password didn't open the file",
+	);
+
+	await password.fill(FILE_PASSWORD);
+	await dialog.getByRole("button", { name: "Open the file" }).click();
+	await expect(dialog.getByText(/^Bitwarden export · 1 login/)).toBeVisible({
+		timeout: 30_000,
+	});
+	await expect(
+		dialog.getByRole("list", { name: "Items to import" }).getByText("prod-db"),
+	).toBeVisible();
+});
+
+test("a Proton Pass PGP-encrypted export opens with its passphrase", async ({
+	page,
+}) => {
+	const dialog = await openImport(page);
+	await chooseFile(
+		page,
+		"Proton Pass_export.pgp",
+		readFileSync(path.join(fixtures, "proton-pass-legacy.pgp")),
+	);
+	await dialog.getByLabel("Passphrase").fill(FILE_PASSWORD);
+	await dialog.getByRole("button", { name: "Open the file" }).click();
+	await expect(dialog.getByText(/^Proton Pass /)).toBeVisible();
+	await expect(
+		dialog.getByRole("button", { name: /^Import \d+ items?$/ }),
+	).toBeEnabled();
 });
