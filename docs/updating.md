@@ -10,7 +10,7 @@ New versions of vauly are [releases on GitHub](https://github.com/jotyy/vauly/re
 ## Update the server
 
 **A copy made with the Deploy to Cloudflare button:** in your copy of vauly on GitHub, open **Actions → Update vauly → Run workflow**. It replaces the files with the latest release of vauly and pushes, and Cloudflare builds and deploys it.
-- **Another version.** In the **version** box, a release such as `v0.1.1` takes that one. `next` takes vauly's development branch, which has changes that aren't released yet.
+- **Another version.** In the **version** box, a release such as `v0.2.0` takes that one. `next` takes vauly's development branch, which has changes that aren't released yet.
 - **Never backwards.** It never moves a copy back to an older version, since database migrations can't be undone, and it does nothing when the copy is already on the version you asked for.
 - **What it keeps.**
   - `wrangler.jsonc`, which names your Worker and its database. When an update needs a change there, the notes below say so.
@@ -18,11 +18,11 @@ New versions of vauly are [releases on GitHub](https://github.com/jotyy/vauly/re
 
 If the run says "Updated to jotyy/vauly@…" with no version, your copy still has the workflow from before releases. See [Copies whose Update vauly takes main](#copies-whose-update-vauly-takes-main).
 
-**Deployed from your machine:** check out the [latest release](https://github.com/jotyy/vauly/releases/latest), for example `v0.1.1`, then build and deploy:
+**Deployed from your machine:** check out the [latest release](https://github.com/jotyy/vauly/releases/latest), for example `v0.2.0`, then build and deploy:
 
 ```sh
 git fetch --tags
-git checkout v0.1.1
+git checkout v0.2.0
 bun install
 bun run build
 bun run deploy
@@ -51,13 +51,15 @@ Deploying an older version is possible, but it doesn't undo database migrations,
 
 ### Copies whose Update vauly takes main
 
-Until October 24, 2026, vauly's main branch had changes that weren't released yet, and **Update vauly** took main. Now main holds only the latest release, so that older workflow gets releases too. It doesn't check versions, though: a copy that took main on October 23 or 24, 2026 would be moved back to 0.1.0. To get the version box and that check, do this once:
+Until October 24, 2026, vauly's main branch had changes that weren't released yet, and **Update vauly** took main. Now main holds only the latest release, so that older workflow gets releases too. It doesn't check versions, though. While 0.1.0 was the latest release, a copy that took main on October 23 or 24, 2026 would have been moved back to 0.1.0; 0.2.0 has everything main had then, so now it moves such a copy forward. To get the version box and that check anyway, do this once:
 1. Replace `.github/workflows/update.yml`, as in [Update the workflows](#update-the-workflows).
 2. Run **Update vauly**.
 
 A copy on 0.1.0 then moves to the latest release. A copy that already took main after 0.1.0 stays where it is, because its database may have changes that 0.1.x doesn't. It moves on once a release has everything it has, and until then **Settings › About** says it runs a development version.
 
 ### Updating from 0.1.0
+
+Everything people had carries over. They stay signed in, and two-step login, unlocking with a passkey and agents' tokens keep working. A tab left open picks up the new version when it's reloaded. An agent's 0.1.0 CLI still gets values. Nobody has to use two-step login until an owner or admin requires it, in **Settings › Workspace**.
 
 **Notifications:** nothing to do. Migrations add a table for the devices that get notifications, and a column that keeps agents from sending them too often. The server makes its key for signing them the first time someone turns them on, and keeps it in the database. Going back to 0.1.0 is safe: it leaves the table alone, and nothing is sent.
 

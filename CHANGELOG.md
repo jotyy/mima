@@ -2,29 +2,66 @@
 
 Notable changes to vauly. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## Unreleased
+## 0.2.0 - 2026-10-24
+
+Files on items, two-step login that a workspace can require, backups protected with a password, and imports that bring files and open protected exports and KeePass databases. If you run 0.1.0, read [Updating vauly](docs/updating.md#updating-from-010). The migrations run on their own; update the CLI and the browser extension along with the server.
 
 ### Added
 
-- Owners and admins can require two-step login for everyone, in **Settings › Workspace**. Members without it are asked to set it up at their next sign-in or unlock, new members as they join, and the server opens nothing else to them until they have. The Members page marks who still needs it, and admins hear on their devices when someone sets it up. Agents keep working. Turning on two-step login now signs out your other sessions, and an admin resetting it signs the member out everywhere.
-- Imports bring files: 1Password's Documents and the files attached to its items, from the 1PUX, Bitwarden's attachments, from its ZIP export, and KeePass's and KeePassXC's attachments, from a database or its XML export. Files over the instance's limit stay behind, and the review names them.
-- KeePass and KeePassXC databases import as they are: drop the `.kdbx` file, enter its password and choose its key file, with no XML export first. vauly opens the database in the browser, in a worker that can't connect anywhere, and turns away one whose key settings ask for more than 1 GiB of memory, or that unpacks to more than 256 MB. KDBX 3.1 and 4 are read, with AES-KDF, Argon2d or Argon2id.
-- Files on items, such as TLS certificates, key files and recovery-code PDFs, up to 10 MB each. Each file is encrypted in the browser, a chunk at a time, with a key of its own, sealed with its item's key along with its name. They're kept in the D1 database, so a one-click deploy needs no bucket: 200 MB in all by default, which `FILES_MAX_MB` and `FILES_TOTAL_MB` change. Viewers download them, editors add, rename and remove them, and every step is logged. An item in Recently deleted keeps its files, and they go when it does. A backup with files is a ZIP that imports back with them. Share links don't carry files, and the offline copy keeps their names but not their contents.
-- Notifications: turn them on for each device in Settings to hear when an agent asks for an item you can approve, and when your account signs in from another browser. They name the agent and count the items, but never name an item, and they're encrypted to the device. They stop when that device is signed out, and an agent's requests notify at most once every five minutes. On iPhone and iPad they need the app added to the Home Screen, on iOS 16.4 or later.
-- **Settings › About** shows the version of vauly and the commit it was built from, and `/vauly.json` reports them. A copy on the development branch says so there. The development branch, `next`, carries the next version with `-dev`, such as `0.2.0-dev`.
-- Import from Bitwarden's password-protected **.json (Encrypted)** export and Proton Pass's PGP-encrypted export. vauly asks for the file's password, opens the file in the browser, and doesn't keep the password, so the export never has to sit in plain text.
-- **Download a backup** protects the file with a password you choose, by default. It's Bitwarden's password-protected export, made with vauly's Argon2id settings, which vauly and Bitwarden both import. Its password needs a master password's strength, and can't be the master password. A backup with files is a ZIP of the export and the files, each encrypted with a key of its own, and only the export holds their names and keys. The activity log says when a backup was protected. Turning the password off gives the plain CSV, or ZIP, as before.
+- **Files on items**, such as TLS certificates, key files and recovery-code PDFs, up to 10 MB each.
+  - **Encryption.** Each file is encrypted in the browser, a chunk at a time, with a key of its own. That key and the file's name are sealed with its item's key.
+  - **Storage.** Files are kept in the D1 database, so a one-click deploy needs no bucket. All files together can take 200 MB by default; `FILES_MAX_MB` and `FILES_TOTAL_MB` change both limits.
+  - **Who does what.** Viewers download files; editors add, rename and remove them. Every step is logged.
+  - **Deleting.** An item in Recently deleted keeps its files, and they go when it does.
+  - **Where they don't go.** Share links don't carry files, and the offline copy keeps their names but not their contents.
+  - **Agents** get a file through a reference like `vauly://…/files/<name>`, and only when the approval says its files go too. `vauly run` hands the command the file's path, in a folder only your user can read, and deletes it afterwards. A one-time grant used for files lasts until its run's downloads end, about 15 minutes. Until then, the item lists the agent as "finishing a run until" that time, with its switch.
+- **Owners and admins can require two-step login** for everyone, in **Settings › Workspace**, once they have it themselves.
+  - **Members without it** are asked to set it up at their next sign-in or unlock, and new members as they join. Until they have, the server refuses everything else.
+  - **The Members page** marks who still needs it, and admins hear on their devices when someone sets it up.
+  - **Agents keep working,** since they use their token rather than a member's sign-in.
+  - **Sessions.** Turning on two-step login now signs out your other sessions, and an admin resetting it signs the member out everywhere.
+- **Download a backup** protects the backup with a password you choose, by default.
+  - **The format.** It's Bitwarden's password-protected export, made with vauly's Argon2id settings, so vauly and Bitwarden both import it.
+  - **The password** needs a master password's strength, and can't be the master password itself.
+  - **With files,** a backup is a ZIP of the export and the files, each file encrypted with a key of its own. Only the export holds their names and keys.
+  - **The activity log** says when a backup was protected. Turning the password off gives the plain CSV, or ZIP, as before.
+- **Imports open protected exports:** Bitwarden's password-protected **.json (Encrypted)** export and Proton Pass's PGP-encrypted export. vauly asks for the file's password, opens the file in the browser, and doesn't keep the password, so the export never has to sit in plain text.
+- **KeePass and KeePassXC databases import as they are.**
+  - Drop the `.kdbx` file, enter its password and choose its key file. There's no XML export first.
+  - vauly opens the database in the browser, in a worker that can't connect anywhere. It reads KDBX 3.1 and 4, with AES-KDF, Argon2d or Argon2id.
+  - It turns away a database whose key settings ask for more than 1 GiB of memory, or that unpacks to more than 256 MB.
+- **Imports bring files** from three places:
+  - 1Password's Documents and the files attached to its items, from the 1PUX.
+  - Bitwarden's attachments, from its ZIP export.
+  - KeePass's and KeePassXC's attachments, from a database or its XML export.
+
+  Files over the instance's limit stay behind, and the review names them.
+- **Notifications.** Turn them on for each device in Settings.
+  - **What they tell you:** when an agent asks for an item you can approve, and when your account signs in from another browser.
+  - **What they say:** the agent's name and how many items it asked for, never an item's name. They're encrypted to the device.
+  - **When they stop:** when that device is signed out. An agent's requests notify at most once every five minutes.
+  - **On iPhone and iPad** they need the app added to the Home Screen, on iOS 16.4 or later.
+- **Settings › About** shows the version of vauly and the commit it was built from, and `/vauly.json` reports them.
+
+### Changed
+
+- **Update vauly** goes to the latest release by default.
+  - It used to take whatever was on main, including changes that weren't released yet.
+  - Its **version** input picks a release, or `next`, the development branch. It never moves a copy back to an older version, and it does nothing when the copy is already on the version asked for.
+  - To get these, a copy replaces its workflow once; see [Updating vauly](docs/updating.md#copies-whose-update-vauly-takes-main).
+- **Branches.** main now holds only the latest release. Development happens on `next`, which carries the next version with `-dev`, such as `0.3.0-dev`, and **Settings › About** says so on a copy built from it.
 
 ### Fixed
 
-- Moving an item to another vault re-checks which agents can use it: an agent keeps it only if the person it acts for can open the new vault.
-- **Update vauly** took whatever was on main, including changes that weren't released yet. main now holds only the latest release, and the workflow goes to the latest release by default; its **version** input picks a release or `next`, the development branch. It never moves a copy back to an older version, and it does nothing when the copy is already on the version asked for. To get those, copies replace their workflow once; see [Updating vauly](docs/updating.md#copies-whose-update-vauly-takes-main).
 - The service worker is the same wherever the web app is built, so `vauly verify --against` a release's manifest matches every instance of that release. It used to list its files in the order the build machine's file system gave them. CI now builds the app on macOS as well as Linux and compares.
 - After another device signs this one out, the app says "You were signed out" once, not once for every request that was on its way.
-- Notifications: a second tab starting up while you turn notifications on can no longer turn them off again, and the limit of ten devices per person holds when devices subscribe at the same moment.
-- An item lists a one-time grant whose run is still downloading the item's files, as "finishing a run until" when its passes end. Its switch turns it off and ends those downloads at once. It used to be hidden until it ended.
-- Import checks what a ZIP says it unpacks to before unpacking it. It refuses a ZIP whose export would take more than 256 MB, and leaves behind the files past that, so a damaged ZIP can't take the tab's memory first.
 - The extension's **Settings** shows whether your vauly has logos turned off as soon as the popup hears, instead of what it said before the popup opened.
+
+### Security
+
+- **Moving an item to another vault re-checks which agents can use it.** An agent keeps the item only if the person it acts for can open the new vault. A migration also takes away anything agents kept from earlier moves, along with open requests for it.
+- **Better Auth's own routes for changing the password and the account's name are turned off.** vauly's own do both: changing the master password swaps the sealed key along with the sign-in hash, and the workspace's rules apply.
+- **Import checks what a ZIP says it unpacks to before unpacking it.** It refuses a ZIP whose export would take more than 256 MB, and leaves behind the files past that, so a damaged ZIP can't take the tab's memory first.
 
 ## 0.1.0 - 2026-10-23
 
