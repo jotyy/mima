@@ -381,7 +381,7 @@ test("a grant without files doesn't reach them, and a changed request can't be a
 	).toContain("The request changed");
 });
 
-test("a one-time grant lets its run finish downloading, and no other run", async ({
+test("a one-time grant lets its run finish downloading, shows on the item until then, and turns off there", async ({
 	page,
 	request,
 }) => {
@@ -399,12 +399,28 @@ test("a one-time grant lets its run finish downloading, and no other run", async
 	expect(granted?.status).toBe("granted");
 	expect((await resolve(request, true))?.status).toBe("pending");
 	// The run that used the grant can still download what it was given.
+	const pass = granted?.files?.[0]?.token;
 	expect(
-		await asAgent(request, token, "file", {
-			token: granted?.files?.[0]?.token,
-			index: 0,
-		}),
+		await asAgent(request, token, "file", { token: pass, index: 0 }),
 	).toContain('"data"');
+
+	// Meanwhile the item shows it, and turning it off there ends the downloads at once.
+	await openAllItems(page);
+	await page
+		.getByRole("region", { name: "Items" })
+		.getByRole("link", { name: /^Internal CA/ })
+		.click();
+	await expect(
+		page.getByText(/^finishing a run until \d{1,2}:\d{2}/),
+	).toBeVisible();
+	await page.getByRole("switch", { name: "Allow Claude Code" }).click();
+	await expect(
+		page.getByText("Claude Code can no longer use Internal CA"),
+	).toBeVisible();
+	expect(
+		await asAgent(request, token, "file", { token: pass, index: 0 }),
+	).toContain("no longer good");
+	await expect(page.getByText(/^finishing a run/)).toBeHidden();
 });
 
 test("the Overview says a request wants files, and approving it there covers the files shown", async ({
