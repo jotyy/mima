@@ -167,7 +167,7 @@ An item the agent can't use yet waits for a person, as with any `vauly run`. Set
 ## Approvals
 
 The first time an agent asks for an item it hasn't been allowed to use, `vauly run` waits, and vauly shows the request to people who can open that item: in **Needs you** on the Overview, and as a waiting-for-approval link at the top right. They can:
-- **Allow once**: this run gets the value; the next run asks again.
+- **Allow once**: this run gets the value; the next run asks again. A run that gets the item's files has up to 15 minutes to download them. Until then the item lists the agent as "finishing a run until" that time, with its switch.
 - **Allow for 1 hour**: runs in the next hour don't ask.
 - **Deny**: the run stops with an error.
 

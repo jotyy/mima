@@ -103,8 +103,14 @@ export function ItemDetail({ item }: { item: Item }) {
 	// Someone who can only view this vault opens and copies; nothing that changes it.
 	const editable = canEdit(vault);
 	const editor = members.data?.members.find((m) => m.userId === item.updatedBy);
+	// With a one-time grant whose run is still finishing its downloads, until it ends.
 	const withAccess = (agents.data ?? []).filter((agent) =>
-		agent.grants.some((grant) => grant.itemId === item.id),
+		agent.grants.some(
+			(grant) =>
+				grant.itemId === item.id &&
+				(!grant.filesUntil ||
+					new Date(grant.filesUntil).getTime() > Date.now()),
+		),
 	);
 	const label = secretLabel[item.kind] ?? "Value";
 	const use: OnUse = (action, field) => actions.logUse(item, action, field);
@@ -563,6 +569,9 @@ export function ItemDetail({ item }: { item: Item }) {
 					<ul className="flex flex-col gap-1">
 						{withAccess.map((agent) => {
 							const grant = agent.grants.find((g) => g.itemId === item.id);
+							const finishing = grant?.filesUntil
+								? new Date(grant.filesUntil)
+								: null;
 							return (
 								<li
 									key={agent.id}
@@ -572,12 +581,14 @@ export function ItemDetail({ item }: { item: Item }) {
 									<div className="flex min-w-0 flex-1 flex-col">
 										<span className="text-body-sm text-fg">{agent.name}</span>
 										<span className="text-caption text-fg-subtle truncate">
-											{grant?.once
-												? "for one run"
-												: grant?.expiresAt
-													? `until ${new Date(grant.expiresAt).toLocaleString()}`
-													: "until you revoke it"}
-											{grant?.files && ", with its files"}
+											{finishing
+												? `finishing a run until ${finishing.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+												: grant?.once
+													? "for one run"
+													: grant?.expiresAt
+														? `until ${new Date(grant.expiresAt).toLocaleString()}`
+														: "until you revoke it"}
+											{!finishing && grant?.files && ", with its files"}
 										</span>
 									</div>
 									<Switch

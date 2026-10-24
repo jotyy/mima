@@ -6,7 +6,7 @@ import {
 	agentGrant,
 	event,
 } from "@vauly/db/schema/vault";
-import { and, count, eq, gt, inArray, isNull, sql } from "drizzle-orm";
+import { and, count, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { memberProcedure } from "../index";
@@ -66,6 +66,7 @@ export const agentsRouter = {
 		// Which agents can use an item is for the people who can change it.
 		const itemIds = await accessibleItemIds(db, userId, { role: "edit" });
 		const weekAgo = new Date(Date.now() - 7 * 24 * HOUR);
+		const listedAt = new Date();
 		const [agents, grants, runs] = await Promise.all([
 			db
 				.select({
@@ -92,13 +93,18 @@ export const agentsRouter = {
 							once: agentGrant.once,
 							expiresAt: agentGrant.expiresAt,
 							files: agentGrant.files,
+							filesUntil: agentGrant.filesUntil,
 						})
 						.from(agentGrant)
-						// A one-time grant its run has used is gone, as far as anyone can see.
+						// A one-time grant its run has used shows while that run can still
+						// download its files, so it can be turned off; then it's gone.
 						.where(
 							and(
 								inArray(agentGrant.itemId, itemIds),
-								isNull(agentGrant.filesUntil),
+								or(
+									isNull(agentGrant.filesUntil),
+									gt(agentGrant.filesUntil, listedAt),
+								),
 							),
 						)
 				: Promise.resolve([]),

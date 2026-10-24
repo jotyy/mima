@@ -43,9 +43,13 @@ export function GrantDialog({
 	const agents = useAgents();
 	const actions = useActions();
 	const reference = itemReference(item);
+	// An agent whose one-time grant is only finishing its run can be given the item again.
 	const available = (agents.data ?? []).filter(
 		(agent) =>
-			agent.enabled && !agent.grants.some((grant) => grant.itemId === item.id),
+			agent.enabled &&
+			!agent.grants.some(
+				(grant) => grant.itemId === item.id && !grant.filesUntil,
+			),
 	);
 	const [agentId, setAgentId] = useState("");
 	const [duration, setDuration] = useState<Duration>("always");

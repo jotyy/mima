@@ -21,6 +21,7 @@ Notable changes to vauly. The format follows [Keep a Changelog](https://keepacha
 - The service worker is the same wherever the web app is built, so `vauly verify --against` a release's manifest matches every instance of that release. It used to list its files in the order the build machine's file system gave them. CI now builds the app on macOS as well as Linux and compares.
 - After another device signs this one out, the app says "You were signed out" once, not once for every request that was on its way.
 - Notifications: a second tab starting up while you turn notifications on can no longer turn them off again, and the limit of ten devices per person holds when devices subscribe at the same moment.
+- An item lists a one-time grant whose run is still downloading the item's files, as "finishing a run until" when its passes end. Its switch turns it off and ends those downloads at once. It used to be hidden until it ended.
 - Import checks what a ZIP says it unpacks to before unpacking it. It refuses a ZIP whose export would take more than 256 MB, and leaves behind the files past that, so a damaged ZIP can't take the tab's memory first.
 - The extension's **Settings** shows whether your vauly has logos turned off as soon as the popup hears, instead of what it said before the popup opened.
 
