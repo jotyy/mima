@@ -52,6 +52,7 @@ export default defineConfig({
 					items: [
 						{ label: "Security", slug: "docs/security" },
 						{ label: "Security policy", slug: "docs/security-policy" },
+						{ label: "Privacy policy", slug: "docs/privacy" },
 					],
 				},
 			],
