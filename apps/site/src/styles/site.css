@@ -118,7 +118,12 @@ body {
 
 /* ── The hero's sky: navy at the top, vauly blue in the middle, the page at the bottom ── */
 
-:is([data-slot="hero-sky"], [data-slot="og"], [data-slot="store-tile"]) {
+:is(
+	[data-slot="hero-sky"],
+	[data-slot="og"],
+	[data-slot="store-tile"],
+	[data-slot="social"]
+) {
 	position: relative;
 	isolation: isolate;
 	overflow: hidden;
@@ -272,17 +277,20 @@ body {
 	}
 }
 
-/* ── Store tiles: the social card's sky, the keyhole beside the logo, no words ────── */
+/* ── Store tiles and launch images: the social card's sky and its keyhole ──────────── */
 
-[data-slot="store-tile"] {
+:is([data-slot="store-tile"], [data-slot="social"]) {
 	background-color: #061032;
 	background-image:
 		radial-gradient(48% 80% at 74% 50%, rgb(63 122 255 / 0.55), transparent 70%),
 		linear-gradient(155deg, #040a20 0%, #0a1f6b 42%, #1443e0 100%);
 
 	& [data-slot="cipher-field"] {
-		zoom: var(--tile-zoom);
-		mask-image: linear-gradient(to right, transparent 24%, black 62%);
+		zoom: var(--tile-zoom, 1);
+		mask-image: var(
+			--cipher-mask,
+			linear-gradient(to right, transparent 24%, black 62%)
+		);
 
 		/* A tile is narrow, but it's a picture, not a phone: the keyhole stays. */
 		& [data-slot="lens"] {

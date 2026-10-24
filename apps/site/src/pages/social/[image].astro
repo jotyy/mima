@@ -1,0 +1,301 @@
+---
+import { markBox, markFacets, whiteFacetOpacity } from "@vauly/ui/lib/brand";
+
+import Logo from "@/components/Logo.astro";
+import CipherField from "@/components/landing/CipherField.astro";
+import "@/styles/site.css";
+
+// Images for launching vauly on social media: the hero's sky, ciphertext and keyhole,
+// with a short line and a picture of the product. `bun run social` in e2e/ photographs
+// the app, the CLI and the extension with the example team, hands those pictures and
+// texts to these pages under /social-input/, and saves each page at its size into
+// brand/social/. Only the dev server has these pages.
+
+type Image =
+	| "avatar"
+	| "banner"
+	| "tweet-1-hero"
+	| "tweet-2-ciphertext"
+	| "tweet-3-agents"
+	| "tweet-4-import"
+	| "tweet-5-extension"
+	| "tweet-6-deploy"
+	| "tweet-price";
+
+export function getStaticPaths() {
+	if (import.meta.env.PROD) return [];
+	const images: Image[] = [
+		"avatar",
+		"banner",
+		"tweet-1-hero",
+		"tweet-2-ciphertext",
+		"tweet-3-agents",
+		"tweet-4-import",
+		"tweet-5-extension",
+		"tweet-6-deploy",
+		"tweet-price",
+	];
+	return images.map((image) => ({ params: { image }, props: { image } }));
+}
+
+const { image } = Astro.props as { image: Image };
+const facets = Object.keys(markFacets) as (keyof typeof markFacets)[];
+const input = (name: string) => `/social-input/${name}`;
+---
+
+<!doctype html>
+<html lang="en" data-style="pure">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="robots" content="noindex" />
+		<title>vauly</title>
+		<style>
+			.headline {
+				font-size: 4.25rem;
+				font-weight: 600;
+				line-height: 1.04;
+				letter-spacing: -0.035em;
+				color: #fff;
+				text-wrap: balance;
+			}
+			.label {
+				font-size: 1.625rem;
+				font-weight: 500;
+				color: rgb(255 255 255 / 0.75);
+			}
+			.shot {
+				display: block;
+				border-radius: 18px;
+				box-shadow:
+					0 0 0 1px rgb(255 255 255 / 0.12),
+					0 30px 80px rgb(2 8 30 / 0.55);
+			}
+			.glass {
+				border-radius: 22px;
+				background: rgb(4 10 32 / 0.72);
+				box-shadow:
+					0 0 0 1px rgb(255 255 255 / 0.12),
+					0 30px 80px rgb(2 8 30 / 0.55);
+			}
+			pre.cipher {
+				margin: 0;
+				font: 500 1.375rem / 1.6 var(--font-code);
+				white-space: pre-wrap;
+				word-break: break-all;
+				color: rgb(186 205 255 / 0.9);
+			}
+		</style>
+	</head>
+	<body class="m-0">
+		{
+			image === "avatar" && (
+				<div
+					data-slot="social"
+					class="flex h-screen w-screen items-center justify-center"
+					style="background-image: radial-gradient(70% 70% at 35% 25%, #4d82ff, #1f5bf9 55%, #1445d6)"
+				>
+					<svg
+						viewBox={`${markBox.x} ${markBox.y} ${markBox.width} ${markBox.height}`}
+						class="w-1/2"
+						role="img"
+						aria-label="vauly"
+					>
+						{facets.map((facet) => (
+							<path d={markFacets[facet]} fill="#fff" fill-opacity={whiteFacetOpacity[facet]} />
+						))}
+					</svg>
+				</div>
+			)
+		}
+
+		{
+			image === "banner" && (
+				<div
+					data-slot="social"
+					class="flex h-screen w-screen items-center justify-center"
+					style="--tile-zoom: 1.1; --cipher-mask: radial-gradient(60% 90% at 50% 50%, black 30%, transparent 85%)"
+				>
+					<CipherField still={{ x: 1010, y: 150 }} />
+					<div class="flex flex-col items-start gap-6" style="margin-right: 260px">
+						<Logo tone="white" class="h-14 w-auto text-white" />
+						<h1 class="headline m-0" style="font-size: 3.5rem">
+							The password manager
+							<span class="text-sky-glow block">your team owns.</span>
+						</h1>
+					</div>
+				</div>
+			)
+		}
+
+		{
+			image === "tweet-1-hero" && (
+				<div data-slot="social" class="h-screen w-screen" style="--cipher-mask: linear-gradient(to bottom, black 0, transparent 45%)">
+					<CipherField still={{ x: 1380, y: 120 }} />
+					<div class="flex items-center justify-between px-20 pt-16">
+						<h1 class="headline m-0">
+							The password manager
+							<span class="text-sky-glow block">your team owns.</span>
+						</h1>
+					</div>
+					<img class="shot absolute" src={input("app.png")} alt="" style="left: 200px; top: 300px; width: 1200px" />
+				</div>
+			)
+		}
+
+		{
+			image === "tweet-2-ciphertext" && (
+				<div data-slot="social" class="h-screen w-screen" style="--cipher-mask: linear-gradient(to bottom, black 0, transparent 30%)">
+					<CipherField still={{ x: 1500, y: -400 }} />
+					<div class="flex flex-col gap-12 px-20 pt-16">
+						<h1 class="headline m-0">
+							Your server only ever holds{" "}
+							<span class="text-sky-glow">ciphertext.</span>
+						</h1>
+						<div class="flex items-start gap-10">
+							<div class="flex flex-col gap-4" style="width: 680px">
+								<span class="label">What your team sees</span>
+								<img class="shot" src={input("item.png")} alt="" style="width: 680px" />
+							</div>
+							<div class="flex flex-1 flex-col gap-4">
+								<span class="label">What the server stores</span>
+								<div class="glass p-8">
+									<pre class="cipher" data-fill="row" />
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			)
+		}
+
+		{
+			image === "tweet-3-agents" && (
+				<div data-slot="social" class="h-screen w-screen" style="--cipher-mask: linear-gradient(to bottom, black 0, transparent 30%)">
+					<CipherField still={{ x: 1500, y: -400 }} />
+					<div class="flex flex-col gap-12 px-20 pt-16">
+						<h1 class="headline m-0">
+							Agents use your keys
+							<span class="text-sky-glow block">without seeing them.</span>
+						</h1>
+						<div class="flex items-start gap-10">
+							<div class="glass flex flex-col overflow-hidden" style="width: 800px">
+								<div class="flex gap-2 px-5 py-4" style="background: rgb(255 255 255 / 0.06)">
+									{[0, 1, 2].map(() => (
+										<span class="size-3.5 rounded-full" style="background: rgb(255 255 255 / 0.25)" />
+									))}
+								</div>
+								<pre class="cipher px-7 py-6" style="color: #e6ecff; font-size: 1.375rem; word-break: normal" data-fill="terminal" />
+							</div>
+							<img class="shot" src={input("approval.png")} alt="" style="width: 640px; margin-top: 24px" />
+						</div>
+					</div>
+				</div>
+			)
+		}
+
+		{
+			image === "tweet-4-import" && (
+				<div data-slot="social" class="h-screen w-screen" style="--cipher-mask: linear-gradient(to bottom, black 0, transparent 30%)">
+					<CipherField still={{ x: 1500, y: -400 }} />
+					<div class="flex flex-col items-center gap-12 px-20 pt-16">
+						<h1 class="headline m-0 text-center">
+							Bring everything from 1Password,
+							<span class="text-sky-glow block">Bitwarden and more.</span>
+						</h1>
+						<img class="shot" src={input("import.png")} alt="" style="width: 760px" />
+					</div>
+				</div>
+			)
+		}
+
+		{
+			image === "tweet-5-extension" && (
+				<div data-slot="social" class="h-screen w-screen" style="--cipher-mask: linear-gradient(to bottom, black 0, transparent 30%)">
+					<CipherField still={{ x: 1500, y: -400 }} />
+					<div class="flex flex-col items-center gap-14 px-16 pt-16">
+						<h1 class="headline m-0 text-center">
+							Fill logins. <span class="text-sky-glow">Save passkeys.</span>
+						</h1>
+						<div class="flex gap-12">
+							{[
+								["fill.png", 400, 200],
+								["passkey.png", 400, 84],
+							].map(([file, x, y]) => (
+								<div class="shot overflow-hidden" style="width: 624px; height: 624px">
+									<img
+										src={input(String(file))}
+										alt=""
+										style={`display: block; width: ${1280 * 1.3}px; max-width: none; margin: ${-Number(y) * 1.3}px 0 0 ${-Number(x) * 1.3}px`}
+									/>
+								</div>
+							))}
+						</div>
+					</div>
+				</div>
+			)
+		}
+
+		{
+			image === "tweet-6-deploy" && (
+				<div
+					data-slot="social"
+					class="flex h-screen w-screen flex-col items-center justify-center gap-14"
+					style="--tile-zoom: 1.4; --cipher-mask: radial-gradient(70% 80% at 50% 50%, transparent 30%, black 80%)"
+				>
+					<CipherField still={{ x: 970, y: 120 }} />
+					<h1 class="headline m-0 text-center" style="font-size: 5rem">
+						One click.
+						<span class="text-sky-glow block">$0 on Cloudflare's free plan.</span>
+						<span class="block">No server to babysit.</span>
+					</h1>
+					<img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare" style="height: 88px" />
+				</div>
+			)
+		}
+
+		{
+			image === "tweet-price" && (
+				<div data-slot="social" class="flex h-screen w-screen flex-col justify-center gap-12 px-28">
+					<h1 class="headline m-0">
+						A password manager for a team of five,
+						<span class="text-sky-glow block">per month.</span>
+					</h1>
+					<div class="glass flex flex-col px-12 py-4">
+						{[
+							["1Password", "Teams Starter Pack", "$24.95"],
+							["Bitwarden", "Teams", "$20"],
+							["vauly", "on your own Cloudflare", "$0"],
+						].map(([name, plan, price], index) => (
+							<div
+								class="flex items-baseline gap-6 py-7"
+								style={index > 0 ? "border-top: 1px solid rgb(255 255 255 / 0.12)" : ""}
+							>
+								<span class="text-white" style={`font-size: 2.75rem; font-weight: 600; ${name === "vauly" ? "color: #a9c2ff" : ""}`}>
+									{name}
+								</span>
+								<span style="font-size: 1.75rem; color: rgb(255 255 255 / 0.6)">{plan}</span>
+								<span class="ml-auto text-white" style={`font-size: 3.25rem; font-weight: 600; ${name === "vauly" ? "color: #a9c2ff" : ""}`}>
+									{price}
+								</span>
+							</div>
+						))}
+					</div>
+					<p class="m-0" style="font-size: 1.375rem; color: rgb(255 255 255 / 0.55)">
+						Prices from their sites, Oct 2026.
+					</p>
+				</div>
+			)
+		}
+
+		<script>
+			// What the e2e script hands over, such as the ciphertext and the terminal's text.
+			const data: Record<string, string> = await fetch("/social-input/data.json")
+				.then((response) => (response.ok ? response.json() : {}))
+				.catch(() => ({}));
+			for (const node of document.querySelectorAll<HTMLElement>("[data-fill]")) {
+				node.textContent = data[node.dataset.fill ?? ""] ?? "";
+			}
+			document.documentElement.dataset.filled = "";
+		</script>
+	</body>
+</html>
