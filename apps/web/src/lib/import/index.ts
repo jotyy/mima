@@ -6,7 +6,12 @@ import { parseJsonExport } from "./json";
 import { openKdbxInWorker } from "./kdbx";
 import { checkKdbxHeader } from "./kdbx-header";
 import { type KeePassFile, parseKeePassXml } from "./keepass";
-import { ImportError, LockedExport, type ParsedImport } from "./parsed";
+import {
+	ImportError,
+	LockedExport,
+	MAX_UNPACKED,
+	type ParsedImport,
+} from "./parsed";
 import {
 	type Argon2Lanes,
 	checkBitwardenExport,
@@ -113,24 +118,61 @@ export function parseImport(text: string): ParsedImport {
 /** Attachments that some ZIP exports carry beside the items, which stay packed. */
 const attachment = /(^|\/)(files|attachments)\/./;
 
+/** The entries a ZIP's export can be in, which are unpacked to find it. */
+const readable = (name: string) =>
+	!attachment.test(name) &&
+	!name.startsWith("__MACOSX/") &&
+	/\.(json|csv|xml|data|pgp)$/i.test(name);
+
+/**
+ * A ZIP's directory: each entry's name, and what unpacking it takes. That's the size its
+ * header claims, which fflate allocates up front and never grows past, or for an entry
+ * stored as it is, the bytes it takes in the ZIP. Nothing is unpacked.
+ */
+function directory(bytes: Uint8Array) {
+	const entries: { name: string; size: number }[] = [];
+	unzipSync(bytes, {
+		filter: (file) => {
+			entries.push({
+				name: file.name,
+				size: Math.max(file.size, file.originalSize),
+			});
+			return false;
+		},
+	});
+	return entries;
+}
+
+/** What the entries `picked` takes add up to, unpacked. */
+const unpackedSize = (
+	entries: ReturnType<typeof directory>,
+	picked: (name: string) => boolean,
+) =>
+	entries.reduce(
+		(total, entry) => total + (picked(entry.name) ? entry.size : 0),
+		0,
+	);
+
 /**
  * 1Password's .1pux, a Proton Pass or Bitwarden ZIP, Dashlane's CSV ZIP, Safari's
- * browsing data, or a ZIP around one export.
+ * browsing data, or a ZIP around one export. What it would unpack to is checked first,
+ * against what one import may take (MAX_UNPACKED).
  */
 function readZip(bytes: Uint8Array): ParsedImport {
-	const names: string[] = [];
+	let listing: ReturnType<typeof directory>;
+	try {
+		listing = directory(bytes);
+	} catch {
+		throw new ImportError("That ZIP file couldn't be opened.");
+	}
+	if (unpackedSize(listing, readable) > MAX_UNPACKED)
+		throw new ImportError(
+			"That ZIP holds more than 256 MB once it's unpacked, more than vauly's import takes. Unpack it and choose the export inside.",
+		);
+	const names = listing.map((entry) => entry.name);
 	let files: Record<string, Uint8Array>;
 	try {
-		files = unzipSync(bytes, {
-			filter: (file) => {
-				names.push(file.name);
-				return (
-					!attachment.test(file.name) &&
-					!file.name.startsWith("__MACOSX/") &&
-					/\.(json|csv|xml|data|pgp)$/i.test(file.name)
-				);
-			},
-		});
+		files = unzipSync(bytes, { filter: (file) => readable(file.name) });
 	} catch {
 		throw new ImportError("That ZIP file couldn't be opened.");
 	}
@@ -206,7 +248,8 @@ function readZip(bytes: Uint8Array): ParsedImport {
 
 /**
  * Reads the files the items name out of the ZIP, where `find` says each one is. Whatever
- * else the ZIP keeps beside the items, or names but lacks, is counted as left behind.
+ * else the ZIP keeps beside the items, or names but lacks, is counted as left behind, and
+ * so is a file past what the import may still unpack, with the export (MAX_UNPACKED).
  */
 function packFiles(
 	parsed: ParsedImport,
@@ -220,7 +263,15 @@ function packFiles(
 			.flat()
 			.map((file) => [file.path, find(file.path)] as const),
 	);
-	const wanted = new Set([...where.values()].filter(Boolean));
+	const listing = directory(bytes);
+	let left = MAX_UNPACKED - unpackedSize(listing, readable);
+	const wanted = new Set<string>();
+	for (const path of new Set([...where.values()].filter(Boolean))) {
+		const size = unpackedSize(listing, (name) => name === path);
+		if (!path || size > left) continue;
+		left -= size;
+		wanted.add(path);
+	}
 	const packed = unzipSync(bytes, { filter: (file) => wanted.has(file.name) });
 	let attached = 0;
 	const files = new Map(
