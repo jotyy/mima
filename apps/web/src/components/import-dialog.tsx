@@ -25,7 +25,7 @@ import {
 import { cn } from "@vauly/ui/lib/utils";
 import { type DragEvent, useEffect, useId, useRef, useState } from "react";
 import { KeyDerivationError } from "@/lib/argon2";
-import { fileSize, uploadFile } from "@/lib/files";
+import { fileSize, uploadFile, useFileUsage } from "@/lib/files";
 import { plural } from "@/lib/format";
 import {
 	ImportError,
@@ -96,6 +96,10 @@ export function ImportDialog({
 	const items = useItems();
 	const actions = useActions();
 	const queryClient = useQueryClient();
+	const usage = useFileUsage(open);
+	const fits = (file: { data?: Uint8Array }) =>
+		(file.data?.length ?? 0) <=
+		(usage.data?.maxFile ?? Number.POSITIVE_INFINITY);
 	const [step, setStep] = useState<Step>({ name: "apps" });
 	// Items go only where this person can add them.
 	const writable = (vaults.data ?? []).filter(canEdit);
@@ -188,12 +192,12 @@ export function ImportDialog({
 			const created = await actions.importItems(vault, toSave, (done) =>
 				setStep({ name: "saving", done, total: toSave.length }),
 			);
-			// Then the files a vauly backup brings, each encrypted for its new item.
+			// Then the files the export brings, each encrypted for its new item. Those over
+			// this vauly's limit stay behind; the review named them.
 			const uploads = toSave.flatMap((fields, index) =>
-				(files?.get(fields) ?? []).map((attached) => ({
-					attached,
-					item: created[index],
-				})),
+				(files?.get(fields) ?? [])
+					.filter((attached) => fits(attached))
+					.map((attached) => ({ attached, item: created[index] })),
 			);
 			const missed: string[] = [];
 			for (const [done, { attached, item }] of uploads.entries()) {
@@ -706,7 +710,11 @@ function Review({
 		return count > 0 ? [leftoverText[reason](count)] : [];
 	});
 	const source = parsed.source === "CSV" ? undefined : appFor(parsed.source);
-	const files = fresh.flatMap((item) => parsed.files?.get(item) ?? []);
+	const usage = useFileUsage();
+	const maxFile = usage.data?.maxFile ?? Number.POSITIVE_INFINITY;
+	const all = fresh.flatMap((item) => parsed.files?.get(item) ?? []);
+	const files = all.filter((file) => (file.data?.length ?? 0) <= maxFile);
+	const tooBig = all.filter((file) => (file.data?.length ?? 0) > maxFile);
 	const fileBytes = files.reduce(
 		(total, file) => total + (file.data?.length ?? 0),
 		0,
@@ -770,13 +778,24 @@ function Review({
 				</ul>
 			)}
 
-			{(parsed.folders.length > 0 || duplicates > 0 || files.length > 0) && (
+			{(parsed.folders.length > 0 ||
+				duplicates > 0 ||
+				files.length > 0 ||
+				tooBig.length > 0) && (
 				<ul className="text-caption text-fg-muted flex flex-col gap-1">
 					{files.length > 0 && (
 						<li>
 							{plural(files.length, "file")} ({fileSize(fileBytes)}) come
 							{files.length === 1 ? "s" : ""} with them, encrypted on this
 							device.
+						</li>
+					)}
+					{tooBig.length > 0 && (
+						<li>
+							{plural(tooBig.length, "file")} over this vauly's{" "}
+							{fileSize(maxFile)} limit stay
+							{tooBig.length === 1 ? "s" : ""} behind:{" "}
+							{tooBig.map((file) => file.name).join(", ")}.
 						</li>
 					)}
 					{parsed.folders.length > 0 && (

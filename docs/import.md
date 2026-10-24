@@ -30,13 +30,13 @@ Each app exports in its own way, so use the richest format it offers. The sectio
 | Identities and addresses                                   | Identities                            |
 | Passport, licence and ID numbers on an identity            | Hidden fields on the identity         |
 
-Cards and identities come over from 1Password's 1PUX, Bitwarden's JSON, Proton Pass, Enpass, Keeper's JSON and Dashlane's ZIP. CSV exports leave out their details, so the review says to use one of those instead. vauly doesn't store bank accounts, or passports and other documents as items of their own, so those stay behind. So do attachments, passkeys (vauly's browser extension makes new ones), Proton Pass email aliases and items in the trash. Before you import, the review lists everything that stays behind.
+Cards and identities come over from 1Password's 1PUX, Bitwarden's JSON, Proton Pass, Enpass, Keeper's JSON and Dashlane's ZIP. CSV exports leave out their details, so the review says to use one of those instead. vauly doesn't store bank accounts, or passports and other documents as items of their own, so those stay behind. Files come over from 1Password's 1PUX (Documents and the files attached to items) and Bitwarden's ZIP with attachments, up to your vauly's limit on files; the review names any that are too big. Other apps' attachments stay behind, and so do passkeys (vauly's browser extension makes new ones), Proton Pass email aliases and items in the trash. Before you import, the review lists everything that stays behind.
 
 Favorites, sharing and permissions don't come over either. Share vaults with your team in vauly once your items are in.
 
 ## 1Password
 
-Use the 1PUX format. It keeps one-time codes, API credentials, SSH keys, tags and every vault. 1Password's CSV holds only logins and passwords.
+Use the 1PUX format. It keeps one-time codes, API credentials, SSH keys, tags, files and every vault. A Document comes over as a note with its file. 1Password's CSV holds only logins and passwords.
 1. Open the 1Password app on a Mac, Windows or Linux computer. You can't export from 1Password.com or a phone.
 2. On a Mac, choose **File › Export** and pick your account. On Windows or Linux, select **⋯** at the top of the sidebar, then **Export**, and pick your account.
 3. Enter your account password.
@@ -53,7 +53,7 @@ Use **.json (Encrypted)** with a file password. It keeps folders, custom fields,
 4. Select **Export** and confirm with your master password.
 5. When you bring the file to vauly, enter the file password. vauly opens the file in your browser and doesn't keep the password.
 
-An **Account restricted** export is sealed with your Bitwarden account's own key, so only Bitwarden can open it. The plain **.json** works too, and so does **.zip (with attachments)**, though the attachments stay behind. Delete a plain export once it's imported. [Bitwarden's help](https://bitwarden.com/help/export-your-data/)
+An **Account restricted** export is sealed with your Bitwarden account's own key, so only Bitwarden can open it. The plain **.json** works too, and so does **.zip (with attachments)**, which brings the attachments. Bitwarden names each item's folder of files after the item, so when two items share a name, their files stay behind; the review counts them. Delete a plain export once it's imported. [Bitwarden's help](https://bitwarden.com/help/export-your-data/)
 
 ## LastPass
 

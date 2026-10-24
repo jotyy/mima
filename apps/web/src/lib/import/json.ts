@@ -192,8 +192,6 @@ function parseBitwarden(root: Json) {
 // 1Password: https://support.1password.com/1pux-format/
 
 const onePasswordLeftovers: Record<string, Leftover | "skip"> = {
-	// A Document is a file, counted with the other attachments.
-	"006": "skip",
 	"101": "record",
 	"103": "record",
 	"104": "record",
@@ -238,9 +236,11 @@ function parseOnePassword(root: Json) {
 			}
 			const overview = obj(item.overview);
 			const details = obj(item.details);
+			// A Document is its file, which comes over on a note.
+			const document = onePasswordFile(details.documentAttributes);
 			const draft: Draft & { fields: Field[] } = {
 				kind:
-					category === "003" || category === "100"
+					category === "003" || category === "100" || category === "006"
 						? "note"
 						: category === "112"
 							? "api-key"
@@ -272,6 +272,7 @@ function parseOnePassword(root: Json) {
 						until: isoDate(entry.time),
 					})),
 				),
+				files: document ? [document] : [],
 			};
 			for (const field of objs(details.loginFields)) {
 				if (field.designation === "username" && !draft.username) {
@@ -298,6 +299,12 @@ function readOnePasswordField(
 	field: Json,
 ) {
 	const [kind = "", raw] = Object.entries(obj(field.value))[0] ?? [];
+	// A file attached to the item: it comes over as a file, not a field.
+	if (kind === "file") {
+		const file = onePasswordFile(raw);
+		if (file) draft.files = [...(draft.files ?? []), file];
+		return;
+	}
 	const id = text(field.id);
 	const title = text(field.title) || id;
 	const label = section ? `${section} · ${title}` : title;
@@ -367,6 +374,13 @@ function readOnePasswordField(
 		}
 	}
 	draft.fields.push({ label, value, hidden: kind === "concealed" });
+}
+
+/** A file in a 1PUX, as its ZIP keeps it: `files/<document ID>__<file name>`. */
+function onePasswordFile(value: unknown) {
+	const name = text(obj(value).fileName);
+	const id = text(obj(value).documentId);
+	return name && id ? { name, path: `files/${id}__${name}` } : null;
 }
 
 function onePasswordValue(kind: string, value: unknown) {

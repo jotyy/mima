@@ -12,7 +12,7 @@ export const fixture = (name: string) =>
 export const fixtureText = (name: string) =>
 	new TextDecoder().decode(fixture(name));
 
-/** 1Password's .1pux: the export, its attributes and a file. */
+/** 1Password's .1pux: the export, its attributes, a Document's file and an attachment. */
 export const onePux = () =>
 	zipSync({
 		"export.attributes": strToU8(
@@ -20,6 +20,7 @@ export const onePux = () =>
 		),
 		"export.data": fixture("1password.json"),
 		"files/d1__Contract.pdf": strToU8("not a real file"),
+		"files/d2__recovery-codes.txt": strToU8("example recovery codes"),
 	});
 
 export const protonPassZip = () =>

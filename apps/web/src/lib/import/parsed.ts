@@ -99,10 +99,7 @@ export function collect(source: ImportSource, format: string) {
 				result.files ??= new Map();
 				result.files.set(
 					item,
-					files.map((file) => ({
-						path: file,
-						name: file.split("/").pop() || "file",
-					})),
+					files.map((file) => ({ ...file })),
 				);
 			}
 			if (path && !folders.has(path)) {
