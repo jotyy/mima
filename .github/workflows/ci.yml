@@ -223,3 +223,20 @@ jobs:
             e2e/report
             e2e/results
           retention-days: 7
+
+  # The one check branch protection asks for: it passes when every job above passed or
+  # was skipped as not needed, and fails when any of them failed or was cancelled.
+  passed:
+    name: CI passed
+    if: always()
+    needs: [changes, check, reproducible, site, e2e, one-worker]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Every job passed or was skipped
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "$RESULTS"
+          for result in $RESULTS; do
+            case "$result" in success|skipped) ;; *) exit 1 ;; esac
+          done

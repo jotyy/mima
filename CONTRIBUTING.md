@@ -80,6 +80,14 @@ Commit the migration together with the code that needs it. Never edit a migratio
 - Update the docs in `docs/` when you change how something works.
 - Make sure the checks above pass.
 
+How a change lands, for maintainers too:
+
+- Each change starts from an issue. Say on the issue that you're taking it.
+- Work on a short-lived branch and open a pull request that says `Closes #<issue>`.
+- Once **CI passed** is green, the pull request is squash-merged into `main`. Changes to the cryptography, sign-in or access rules get a security review first.
+- Releases are tags on `main` (`v0.1.0`), with the notes from CHANGELOG.md. The hosted vauly.app and demo are deployed from releases.
+- Security problems are never discussed in public issues or pull requests; see [SECURITY.md](SECURITY.md).
+
 Write commit messages as a short summary in the imperative ("Add Recently deleted"), then a blank line and the why, wrapped at 72 characters.
 
 ## License
