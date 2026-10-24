@@ -7,8 +7,9 @@ export default defineConfig({
 		plugins: [tailwindcss()],
 	}),
 	manifest: {
-		name: "vauly",
-		description: "Fill, copy and save your vauly logins in the browser.",
+		name: "vauly: Password Manager for Teams",
+		description:
+			"Fill and save your team's logins and passkeys from vauly, the open-source, end-to-end encrypted password manager you host yourself.",
 		// storage: the server address and the unlocked key (in session memory only).
 		// scripting: fill a login form when you choose Fill. alarms: lock after idle time.
 		permissions: ["storage", "scripting", "alarms"],
