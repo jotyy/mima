@@ -23,15 +23,18 @@ import {
 	SelectValue,
 } from "@vauly/ui/components/select";
 import { cn } from "@vauly/ui/lib/utils";
-import { type DragEvent, useEffect, useId, useState } from "react";
+import { type DragEvent, useEffect, useId, useRef, useState } from "react";
+import { KeyDerivationError } from "@/lib/argon2";
 import { fileSize, uploadFile } from "@/lib/files";
 import { plural } from "@/lib/format";
 import {
 	ImportError,
 	type Leftover,
+	LockedExport,
 	type ParsedImport,
 	readImportFile,
 	sameItem,
+	WrongPasswordError,
 } from "@/lib/import";
 import { appFor, type ImportApp, importApps } from "@/lib/import/apps";
 import { appMarks } from "@/lib/import/marks";
@@ -46,6 +49,7 @@ import {
 	useVaults,
 } from "@/lib/vault-data";
 
+import { Field, PasswordInput } from "./auth-layout";
 import { ItemTile } from "./item-tile";
 import { notify } from "./notify";
 
@@ -54,6 +58,13 @@ const DOCS = "https://vauly.app/docs/import/";
 type Step =
 	| { name: "apps"; error?: string }
 	| { name: "export"; app: ImportApp; error?: string }
+	| {
+			name: "unlock";
+			app?: ImportApp;
+			file: string;
+			locked: LockedExport;
+			error?: string;
+	  }
 	| { name: "review"; app?: ImportApp; file: string; parsed: ParsedImport }
 	| { name: "saving"; done: number; total: number; files?: boolean }
 	| {
@@ -94,15 +105,19 @@ export function ImportDialog({
 		writable[0]?.id ??
 		"";
 	const [vaultId, setVaultId] = useState(fallbackVault);
+	// Opening a protected file takes a while; whatever happens in between wins over it.
+	const attempt = useRef(0);
 
 	useEffect(() => {
 		if (open) {
+			attempt.current++;
 			setStep({ name: "apps" });
 			setVaultId(fallbackVault);
 		}
 	}, [open, fallbackVault]);
 
 	const read = async (file: File, app?: ImportApp) => {
+		attempt.current++;
 		const fail = (error: string) =>
 			setStep(app ? { name: "export", app, error } : { name: "apps", error });
 		try {
@@ -112,11 +127,44 @@ export function ImportDialog({
 			}
 			setStep({ name: "review", app, file: file.name, parsed });
 		} catch (err) {
+			if (err instanceof LockedExport) {
+				return setStep({ name: "unlock", app, file: file.name, locked: err });
+			}
 			fail(
 				err instanceof ImportError
 					? err.message
 					: "That file couldn't be read. Export it again and choose the new file.",
 			);
+		}
+	};
+
+	/** Opens a protected export with its password, here on this device. */
+	const unlock = async (
+		step: Extract<Step, { name: "unlock" }>,
+		password: string,
+	) => {
+		const mine = ++attempt.current;
+		try {
+			const parsed = await step.locked.open(password);
+			if (mine !== attempt.current) return;
+			if (parsed.items.length === 0) {
+				return setStep({
+					...step,
+					error: "That file has nothing vauly can import.",
+				});
+			}
+			setStep({ name: "review", app: step.app, file: step.file, parsed });
+		} catch (err) {
+			if (mine !== attempt.current) return;
+			setStep({
+				...step,
+				error:
+					err instanceof KeyDerivationError
+						? openingFailures[err.reason]
+						: err instanceof WrongPasswordError || err instanceof ImportError
+							? err.message
+							: "That file couldn't be opened. Export it again and choose the new file.",
+			});
 		}
 	};
 
@@ -187,7 +235,9 @@ export function ImportDialog({
 			? step.app
 			: step.name === "review"
 				? (step.app ?? appFor(step.parsed.source))
-				: undefined;
+				: step.name === "unlock"
+					? (step.app ?? appFor(step.locked.app))
+					: undefined;
 
 	return (
 		<Dialog
@@ -217,11 +267,13 @@ export function ImportDialog({
 							? "Choose the app you're moving from. vauly reads its export on this device and encrypts every item before it's saved."
 							: step.name === "export"
 								? `Export your items from ${step.app.name}, then bring the file here. It never leaves this device unencrypted.`
-								: step.name === "review"
-									? "Check what comes over and where it goes."
-									: step.name === "saving"
-										? "Encrypting each item on this device."
-										: "Everything is encrypted and saved."}
+								: step.name === "unlock"
+									? "This export is protected. vauly opens it here, on this device, and doesn't keep the password."
+									: step.name === "review"
+										? "Check what comes over and where it goes."
+										: step.name === "saving"
+											? "Encrypting each item on this device."
+											: "Everything is encrypted and saved."}
 					</DialogDescription>
 				</DialogHeader>
 
@@ -238,6 +290,20 @@ export function ImportDialog({
 						app={step.app}
 						error={step.error}
 						onFile={(file) => read(file, step.app)}
+					/>
+				)}
+
+				{step.name === "unlock" && (
+					<Unlock
+						key={step.file}
+						step={step}
+						onUnlock={(password) => unlock(step, password)}
+						onBack={() => {
+							attempt.current++;
+							setStep(
+								step.app ? { name: "export", app: step.app } : { name: "apps" },
+							);
+						}}
 					/>
 				)}
 
@@ -320,6 +386,75 @@ export function ImportDialog({
 				)}
 			</DialogContent>
 		</Dialog>
+	);
+}
+
+/** Why the file's key couldn't be derived on this device, for an import. */
+const openingFailures: Record<KeyDerivationError["reason"], string> = {
+	memory:
+		"Opening this file takes more memory than this device has free. Close other tabs or apps and try again, or open it on a computer.",
+	timeout:
+		"Opening this file took too long on this device. Try again, or open it on a computer.",
+	blocked:
+		"This browser stopped the code that opens the file from running. A browser extension or a network filter may be changing vauly's security settings.",
+	load: "vauly couldn't load the code that opens the file. Reload the page, then try again.",
+	failed:
+		"vauly couldn't open the file on this device. Try again, or open it on a computer.",
+};
+
+/** The password a protected export was made with, asked for until it opens the file. */
+function Unlock({
+	step,
+	onUnlock,
+	onBack,
+}: {
+	step: Extract<Step, { name: "unlock" }>;
+	onUnlock: (password: string) => Promise<void>;
+	onBack: () => void;
+}) {
+	const [password, setPassword] = useState("");
+	const [busy, setBusy] = useState(false);
+	const proton = step.locked.app === "Proton Pass";
+	return (
+		<form
+			className="flex flex-col gap-4"
+			onSubmit={async (event) => {
+				event.preventDefault();
+				setBusy(true);
+				await onUnlock(password);
+				setBusy(false);
+			}}
+		>
+			<Field
+				label={proton ? "Passphrase" : "File password"}
+				hint={`The ${proton ? "passphrase" : "password"} you chose when you exported ${step.file} from ${step.locked.app}.`}
+			>
+				<PasswordInput
+					autoFocus
+					autoComplete="off"
+					value={password}
+					onChange={(event) => setPassword(event.target.value)}
+					aria-invalid={step.error ? true : undefined}
+				/>
+			</Field>
+			{step.error && (
+				<p
+					role="alert"
+					className="text-caption text-danger flex items-start gap-1.5"
+				>
+					<WarningIcon className="mt-0.5 size-3.5 shrink-0" />
+					{step.error}
+				</p>
+			)}
+			<DialogFooter>
+				<Button type="button" variant="ghost" disabled={busy} onClick={onBack}>
+					Choose another file
+				</Button>
+				<Button type="submit" disabled={!password || busy}>
+					{busy ? "Opening…" : "Open the file"}
+				</Button>
+			</DialogFooter>
+		</form>
 	);
 }
 

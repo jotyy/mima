@@ -4,7 +4,14 @@ import type { ItemFields } from "../vault-data";
 import { parseCsvExport, parseDashlane } from "./csv";
 import { parseJsonExport } from "./json";
 import { parseKeePassXml } from "./keepass";
-import { ImportError, type ParsedImport } from "./parsed";
+import { ImportError, LockedExport, type ParsedImport } from "./parsed";
+import {
+	type Argon2Lanes,
+	checkBitwardenExport,
+	isBitwardenProtected,
+	openBitwardenExport,
+	openProtonPass,
+} from "./protected";
 import { decodeEntities } from "./xml";
 
 // Reads the exports of other password managers and browsers into item fields. The format
@@ -16,8 +23,14 @@ export {
 	ImportError,
 	type ImportSource,
 	type Leftover,
+	LockedExport,
 	type ParsedImport,
 } from "./parsed";
+export { WrongPasswordError } from "./protected";
+
+/** Argon2id with lanes in the key worker, loaded only when a file needs it. */
+const keyWorker: Argon2Lanes = async (...args) =>
+	(await import("../argon2")).argon2LanesInWorker(...args);
 
 export async function readImportFile(file: File): Promise<ParsedImport> {
 	return readImport(new Uint8Array(await file.arrayBuffer()));
@@ -36,9 +49,13 @@ export function readImport(bytes: Uint8Array): ParsedImport {
 export function parseImport(text: string): ParsedImport {
 	const start = text.replace(/^﻿/, "").trimStart();
 	if (start.startsWith("-----BEGIN PGP")) {
-		throw new ImportError(
-			"That export is encrypted. Export again without encryption.",
-		);
+		// Proton Pass's data.pgp, taken out of its ZIP, or an older export: the whole ZIP.
+		throw new LockedExport("Proton Pass", async (password) => {
+			const opened = await openProtonPass(start, password);
+			return startsWith(opened, [0x50, 0x4b, 0x03, 0x04])
+				? readZip(opened)
+				: parseImport(decodeText(opened));
+		});
 	}
 	if (start.startsWith("{") || start.startsWith("[")) {
 		let data: unknown;
@@ -46,6 +63,20 @@ export function parseImport(text: string): ParsedImport {
 			data = JSON.parse(start);
 		} catch {
 			throw new ImportError("That JSON file couldn't be read.");
+		}
+		if (
+			data &&
+			typeof data === "object" &&
+			isBitwardenProtected(data as Record<string, unknown>)
+		) {
+			const root = data as Record<string, unknown>;
+			// A file vauly won't open is refused now, not after its password.
+			checkBitwardenExport(root);
+			throw new LockedExport(
+				"Bitwarden",
+				async (password, argon2 = keyWorker) =>
+					parseImport(await openBitwardenExport(root, password, argon2)),
+			);
 		}
 		return parseJsonExport(data);
 	}
@@ -94,10 +125,14 @@ function readZip(bytes: Uint8Array): ParsedImport {
 		const parsed = parseImport(text("export.data"));
 		return withAttachments({ ...parsed, format: "1PUX" }, attachments);
 	}
-	if (entries.some((name) => name.endsWith(".pgp"))) {
-		throw new ImportError(
-			"That export is encrypted. In Proton Pass, export again and choose ZIP, not PGP-encrypted.",
-		);
+	// Proton Pass's export with encryption on: its data.json, encrypted, as data.pgp.
+	const sealed = entries.find((name) => base(name) === "data.pgp");
+	if (sealed) {
+		throw new LockedExport("Proton Pass", async (password) => {
+			const opened = await openProtonPass(text(sealed), password);
+			const parsed = parseImport(decodeText(opened));
+			return withAttachments({ ...parsed, format: "ZIP" }, attachments);
+		});
 	}
 	const dashlane = entries.filter((name) =>
 		/^(credentials|securenotes|payments|ids|personalinfo)\.csv$/.test(

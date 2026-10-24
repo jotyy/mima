@@ -5,7 +5,8 @@
 	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
-		"./argon2": "./src/argon2.ts"
+		"./argon2": "./src/argon2.ts",
+		"./argon2-lanes": "./src/argon2-lanes.ts"
 	},
 	"scripts": {
 		"check-types": "tsc -b",
@@ -13,6 +14,7 @@
 		"vectors": "node scripts/vectors.ts"
 	},
 	"dependencies": {
+		"hash-wasm": "4.12.0",
 		"libsodium-sumo": "0.8.4",
 		"libsodium-wrappers-sumo": "0.8.4"
 	},

@@ -47,6 +47,23 @@ export type ParsedImport = {
 
 export class ImportError extends Error {}
 
+/**
+ * A file that its app protected with a password: thrown where the format is found, with
+ * what opens it. The import dialog asks for the password and calls `open`, which throws
+ * WrongPasswordError (./protected.ts) for a wrong one, so it can ask again.
+ */
+export class LockedExport extends Error {
+	constructor(
+		readonly app: "Bitwarden" | "Proton Pass",
+		readonly open: (
+			password: string,
+			argon2?: import("./protected").Argon2Lanes,
+		) => Promise<ParsedImport>,
+	) {
+		super(`That ${app} export is protected with a password.`);
+	}
+}
+
 /** Gathers the items a format reads, and counts what it leaves behind. */
 export function collect(source: ImportSource, format: string) {
 	const result: ParsedImport = {
