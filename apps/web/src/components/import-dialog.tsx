@@ -111,6 +111,8 @@ export function ImportDialog({
 	const [vaultId, setVaultId] = useState(fallbackVault);
 	// Opening a protected file takes a while; whatever happens in between wins over it.
 	const attempt = useRef(0);
+	// A KeePass database opening in its worker, which Cancel or closing the dialog ends.
+	const opening = useRef<AbortController | null>(null);
 
 	useEffect(() => {
 		if (open) {
@@ -142,14 +144,20 @@ export function ImportDialog({
 		}
 	};
 
-	/** Opens a protected export with its password, here on this device. */
+	/** Opens a protected export with its password, and a database's key file, here. */
 	const unlock = async (
 		step: Extract<Step, { name: "unlock" }>,
 		password: string,
+		keyFile?: File,
 	) => {
 		const mine = ++attempt.current;
+		const controller = new AbortController();
+		opening.current = controller;
 		try {
-			const parsed = await step.locked.open(password);
+			const parsed = await step.locked.open(password, {
+				keyFile: keyFile ? await keyFile.arrayBuffer() : undefined,
+				signal: controller.signal,
+			});
 			if (mine !== attempt.current) return;
 			if (parsed.items.length === 0) {
 				return setStep({
@@ -229,7 +237,14 @@ export function ImportDialog({
 		}
 	};
 
+	/** Stops a database opening: its worker is ended, and whatever it was doing ignored. */
+	const stopOpening = () => {
+		attempt.current++;
+		opening.current?.abort();
+	};
+
 	const close = () => {
+		stopOpening();
 		onOpenChange(false);
 		if (step.name === "done") onImported?.(step.vaultId);
 	};
@@ -272,7 +287,9 @@ export function ImportDialog({
 							: step.name === "export"
 								? `Export your items from ${step.app.name}, then bring the file here. It never leaves this device unencrypted.`
 								: step.name === "unlock"
-									? "This export is protected. vauly opens it here, on this device, and doesn't keep the password."
+									? step.locked.app === "KeePass"
+										? "vauly opens the database here, on this device, and doesn't keep its password."
+										: "This export is protected. vauly opens it here, on this device, and doesn't keep the password."
 									: step.name === "review"
 										? "Check what comes over and where it goes."
 										: step.name === "saving"
@@ -301,7 +318,8 @@ export function ImportDialog({
 					<Unlock
 						key={step.file}
 						step={step}
-						onUnlock={(password) => unlock(step, password)}
+						onUnlock={(password, keyFile) => unlock(step, password, keyFile)}
+						onCancel={stopOpening}
 						onBack={() => {
 							attempt.current++;
 							setStep(
@@ -406,32 +424,49 @@ const openingFailures: Record<KeyDerivationError["reason"], string> = {
 		"vauly couldn't open the file on this device. Try again, or open it on a computer.",
 };
 
-/** The password a protected export was made with, asked for until it opens the file. */
+/**
+ * The password a protected export was made with, asked for until it opens the file. A
+ * KeePass database can have a key file too, and opening one can be cancelled.
+ */
 function Unlock({
 	step,
 	onUnlock,
+	onCancel,
 	onBack,
 }: {
 	step: Extract<Step, { name: "unlock" }>;
-	onUnlock: (password: string) => Promise<void>;
+	onUnlock: (password: string, keyFile?: File) => Promise<void>;
+	onCancel: () => void;
 	onBack: () => void;
 }) {
 	const [password, setPassword] = useState("");
+	const [keyFile, setKeyFile] = useState<File>();
 	const [busy, setBusy] = useState(false);
 	const proton = step.locked.app === "Proton Pass";
+	const keePass = step.locked.app === "KeePass";
 	return (
 		<form
 			className="flex flex-col gap-4"
 			onSubmit={async (event) => {
 				event.preventDefault();
 				setBusy(true);
-				await onUnlock(password);
+				await onUnlock(password, keePass ? keyFile : undefined);
 				setBusy(false);
 			}}
 		>
 			<Field
-				label={proton ? "Passphrase" : "File password"}
-				hint={`The ${proton ? "passphrase" : "password"} you chose when you exported ${step.file} from ${step.locked.app}.`}
+				label={
+					keePass
+						? "Database password"
+						: proton
+							? "Passphrase"
+							: "File password"
+				}
+				hint={
+					keePass
+						? `The password you open ${step.file} with in ${step.app?.name ?? "KeePass"}.`
+						: `The ${proton ? "passphrase" : "password"} you chose when you exported ${step.file} from ${step.locked.app}.`
+				}
 			>
 				<PasswordInput
 					autoFocus
@@ -441,6 +476,19 @@ function Unlock({
 					aria-invalid={step.error ? true : undefined}
 				/>
 			</Field>
+			{keePass && (
+				<Field
+					label="Key file"
+					hint="Only if the database has one. It stays on this device too."
+				>
+					<input
+						type="file"
+						disabled={busy}
+						className="text-caption text-fg-muted file:border-line file:bg-surface file:text-fg file:mr-3 file:rounded-md file:border file:px-2.5 file:py-1"
+						onChange={(event) => setKeyFile(event.target.files?.[0])}
+					/>
+				</Field>
+			)}
 			{step.error && (
 				<p
 					role="alert"
@@ -451,11 +499,25 @@ function Unlock({
 				</p>
 			)}
 			<DialogFooter>
-				<Button type="button" variant="ghost" disabled={busy} onClick={onBack}>
-					Choose another file
-				</Button>
-				<Button type="submit" disabled={!password || busy}>
-					{busy ? "Opening…" : "Open the file"}
+				{busy && keePass ? (
+					<Button type="button" variant="ghost" onClick={onCancel}>
+						Cancel
+					</Button>
+				) : (
+					<Button
+						type="button"
+						variant="ghost"
+						disabled={busy}
+						onClick={onBack}
+					>
+						Choose another file
+					</Button>
+				)}
+				<Button
+					type="submit"
+					disabled={busy || !(password || (keePass && keyFile))}
+				>
+					{busy ? "Opening…" : keePass ? "Open the database" : "Open the file"}
 				</Button>
 			</DialogFooter>
 		</form>
@@ -733,7 +795,7 @@ function Review({
 					<span className="text-caption text-fg-muted">
 						{parsed.source === "CSV"
 							? "CSV"
-							: `${parsed.source} ${parsed.format === "CSV" ? "CSV" : "export"}`}{" "}
+							: `${parsed.source} ${parsed.format === "CSV" ? "CSV" : parsed.format === "KDBX" ? "database" : "export"}`}{" "}
 						· {counts.join(", ") || "nothing new"}
 					</span>
 				</div>
