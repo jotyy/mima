@@ -180,7 +180,9 @@ test("the server gets a field's ID, never its label, and refuses a label", async
 	};
 	const reveal = events.find((event) => event.action === "revealed");
 	expect(reveal?.detail).toMatch(/^field:[a-z0-9]{8}$/);
-	expect(JSON.stringify(events)).not.toContain("PIN");
+	// Only what the log says, not its IDs, whose random letters can spell "PIN".
+	const said = events.map(({ action, detail }) => ({ action, detail }));
+	expect(JSON.stringify(said)).not.toContain("PIN");
 
 	const refused = await apiFromPage(page, "items/log", {
 		id: reveal?.itemId,
