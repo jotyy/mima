@@ -8,6 +8,7 @@ import { ImportError, LockedExport, parseImport, readImport } from ".";
 import { fixture } from "./fixtures";
 import { KDBX_LIMITS } from "./kdbx-limits";
 import { KdbxOpenError, keyFileKey, openKdbx } from "./kdbx-open";
+import { parseKeePassXml } from "./keepass";
 
 // KeePass databases opened in place of an XML export: written by fixtures/kdbx/make.ts
 // with each app's settings, then read the way the import worker reads them.
@@ -165,15 +166,56 @@ describe("KeePass databases", () => {
 		expect(() => readImport(old)).toThrow("(KDBX 2)");
 	});
 
-	test("attachments are counted and left out, so the XML stays small", async () => {
-		const { xml: text, attachments } = await openKdbx(
+	test("attachments come beside the XML, as files on their items", async () => {
+		const { xml: text, files } = await openKdbx(
 			file("attachments.kdbx"),
 			"example-keepass-password",
 		);
 		// The entry's two. Not its earlier version's, nor the Recycle Bin's.
-		expect(attachments).toBe(2);
+		expect(files.map(({ name, size }) => [name, size])).toEqual([
+			["server.p12", 19],
+			["recovery.txt", 22],
+		]);
+		expect(new TextDecoder().decode(files[0]?.data)).toBe(
+			"example certificate",
+		);
 		expect(text).not.toContain("<Binary");
-		expect(parseImport(text).left).toEqual({ trashed: 1 });
+		const parsed = parseKeePassXml(
+			text,
+			new Map([
+				[
+					files[0]?.entry ?? "",
+					files.map(({ name, size, data }) => ({
+						name,
+						size,
+						data: data && new Uint8Array(data),
+					})),
+				],
+			]),
+		);
+		expect(parsed.left).toEqual({ trashed: 1 });
+		const github = parsed.items.find((item) => item.name === "GitHub");
+		const attached = github && parsed.files?.get(github);
+		expect(attached?.map((one) => one.name)).toEqual([
+			"server.p12",
+			"recovery.txt",
+		]);
+		expect(new TextDecoder().decode(attached?.[1]?.data)).toBe(
+			"example recovery codes",
+		);
+	});
+
+	test("an attachment over the file limit comes with its size, not its bytes", async () => {
+		const { files } = await openKdbx(
+			file("attachments.kdbx"),
+			"example-keepass-password",
+			undefined,
+			20,
+		);
+		expect(files.map(({ name, size, data }) => [name, size, !!data])).toEqual([
+			["server.p12", 19, true],
+			["recovery.txt", 22, false],
+		]);
 	});
 
 	test("a small file that unpacks past the limit is refused before it unpacks", async () => {

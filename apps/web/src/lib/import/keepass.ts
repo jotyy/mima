@@ -1,15 +1,29 @@
+import { gunzipSync } from "fflate";
+
 import type { PreviousSecret } from "../vault-data";
 import { type Field, isoDate, splitTags } from "./item";
+import { KDBX_LIMITS } from "./kdbx-limits";
 import { collect, ImportError, type ParsedImport } from "./parsed";
 import { child, children, parseXml, type XmlNode } from "./xml";
 
-// KeePass 2's XML export, which KeePassXC also writes. Groups nest; their names become a
-// folder path. The Recycle Bin, the entry templates and each entry's own history (its
-// earlier versions) are left out, though earlier passwords come along.
+// KeePass 2's XML export, which KeePassXC also writes, and what the import worker makes
+// of a .kdbx database. Groups nest; their names become a folder path. The Recycle Bin,
+// the entry templates and each entry's own history (its earlier versions) are left out,
+// though earlier passwords come along. Attachments come as files.
 
 const standard = ["Title", "UserName", "Password", "URL", "Notes"];
 
-export function parseKeePassXml(text: string): ParsedImport {
+/** An attachment: its bytes, or only its size when it's too big to have been sent. */
+export type KeePassFile = { name: string; size: number; data?: Uint8Array };
+
+/**
+ * Reads the XML. A database's attachments come from the import worker (kdbx-open.ts),
+ * by entry UUID, as `opened`; an XML export's are in the XML itself.
+ */
+export function parseKeePassXml(
+	text: string,
+	opened?: Map<string, KeePassFile[]>,
+): ParsedImport {
 	let file: XmlNode;
 	try {
 		file = parseXml(text);
@@ -33,6 +47,19 @@ export function parseKeePassXml(text: string): ParsedImport {
 	const root = child(child(file, "Root"), "Group");
 	if (!root) throw new ImportError("That KeePass export has no entries.");
 
+	// Each attachment by where its item's file list says it is, to fill in once all are added.
+	const found = new Map<string, KeePassFile>();
+	const binaries = exportedBinaries(meta);
+	const attachmentsOf = (entry: XmlNode) => {
+		if (opened)
+			return opened.get(child(entry, "UUID")?.text.trim() ?? "") ?? [];
+		return children(entry, "Binary").flatMap((binary) => {
+			const file = binaries(binary);
+			if (!file) leave("attachment");
+			return file ? [file] : [];
+		});
+	};
+
 	const walk = (group: XmlNode, path: string[]) => {
 		const uuid = child(group, "UUID")?.text.trim();
 		if (recycleBin && uuid === recycleBin) {
@@ -53,7 +80,11 @@ export function parseKeePassXml(text: string): ParsedImport {
 					});
 				}
 			}
-			leave("attachment", children(entry, "Binary").length);
+			const files = attachmentsOf(entry).map((attached) => {
+				const path = `keepass/${found.size}`;
+				found.set(path, attached);
+				return { name: attached.name, path };
+			});
 			add({
 				name: value("Title"),
 				username: value("UserName"),
@@ -65,6 +96,7 @@ export function parseKeePassXml(text: string): ParsedImport {
 				folder: path.join("/"),
 				fields,
 				history: historyOf(entry, value("Password")),
+				files,
 			});
 		}
 		for (const inner of children(group, "Group")) {
@@ -73,7 +105,61 @@ export function parseKeePassXml(text: string): ParsedImport {
 	};
 	// The top group is the database itself, so its name isn't part of the path.
 	walk(root, []);
+	for (const list of result.files?.values() ?? []) {
+		for (const file of list) {
+			const attached = found.get(file.path);
+			if (attached)
+				Object.assign(file, { data: attached.data, size: attached.size });
+		}
+	}
 	return result;
+}
+
+/**
+ * An XML export keeps each attachment once, under Meta's Binaries, as base64 and often
+ * compressed, and its entries refer to it by ID; older exports keep it in the entry.
+ * What they all unpack to together is capped, as for a database (kdbx-limits.ts), and
+ * checked before anything is unpacked: GZIP ends with the size it unpacks to.
+ */
+function exportedBinaries(meta: XmlNode | undefined) {
+	const pool = new Map(
+		children(child(meta, "Binaries"), "Binary").map((node) => [
+			node.attrs.ID ?? "",
+			node,
+		]),
+	);
+	const unpacked = new Map<XmlNode, Uint8Array | null>();
+	let left = KDBX_LIMITS.unpacked;
+	const unpack = (node: XmlNode) => {
+		if (unpacked.has(node)) return unpacked.get(node) ?? undefined;
+		let bytes: Uint8Array | null;
+		try {
+			bytes = Uint8Array.from(atob(node.text.replace(/\s+/g, "")), (char) =>
+				char.charCodeAt(0),
+			);
+			if (node.attrs.Compressed?.toLowerCase() === "true") {
+				const size =
+					bytes.length < 18
+						? 0
+						: new DataView(bytes.buffer).getUint32(bytes.length - 4, true);
+				bytes = size <= left ? gunzipSync(bytes) : null;
+			}
+			if (bytes && bytes.length > left) bytes = null;
+		} catch {
+			bytes = null;
+		}
+		if (bytes) left -= bytes.length;
+		unpacked.set(node, bytes);
+		return bytes ?? undefined;
+	};
+	return (binary: XmlNode): KeePassFile | undefined => {
+		const name = child(binary, "Key")?.text;
+		const value = child(binary, "Value");
+		const ref = value?.attrs.Ref;
+		const source = ref === undefined ? value : pool.get(ref);
+		const data = source && unpack(source);
+		return name && data ? { name, size: data.length, data } : undefined;
+	};
 }
 
 /** An entry's strings, and which of them KeePass protects, as it does its password. */

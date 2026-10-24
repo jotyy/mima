@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 
 import { describe, expect, test } from "bun:test";
-import { strToU8, zipSync } from "fflate";
+import { gzipSync, strToU8, zipSync } from "fflate";
 
 import { ImportError, LockedExport, parseImport, readImport } from ".";
 import { fixtureText } from "./fixtures";
@@ -12,7 +12,14 @@ describe("KeePass XML", () => {
 	test("KeePass: groups, tags, custom fields, history and its one-time codes", () => {
 		const result = parseImport(fixtureText("keepass.xml"));
 		expect(result.source).toBe("KeePass");
-		expect(result.left).toEqual({ attachment: 1, trashed: 1 });
+		expect(result.left).toEqual({ trashed: 1 });
+		// Its attachment, kept compressed in Meta, comes as a file on its item.
+		const mail = result.items.find((item) => item.name === "Mail & Calendar");
+		const attached = mail && result.files?.get(mail);
+		expect(attached?.map((file) => file.name)).toEqual(["codes.txt"]);
+		expect(new TextDecoder().decode(attached?.[0]?.data)).toBe(
+			"example code 1\nexample code 2\n",
+		);
 		expect(result.folders).toEqual(["Work", "Work/Servers"]);
 		expect(result.items).toEqual([
 			{
@@ -92,6 +99,54 @@ describe("KeePass XML", () => {
 			),
 		).toThrow(LockedExport);
 	});
+});
+
+test("an XML export's attachments come as files, within what may be unpacked", () => {
+	const base64 = (bytes: Uint8Array) => Buffer.from(bytes).toString("base64");
+	const text = (value: string) => new TextEncoder().encode(value);
+	// Says it unpacks to 300 MiB: refused before anything is unpacked.
+	const huge = gzipSync(text("x"));
+	new DataView(huge.buffer).setUint32(huge.length - 4, 300 * 1024 * 1024, true);
+	const entry = (title: string, binaries: string) =>
+		`<Entry><UUID>${base64(text(title.padEnd(16)))}</UUID><String><Key>Title</Key><Value>${title}</Value></String><String><Key>Password</Key><Value>example-pass</Value></String>${binaries}</Entry>`;
+	const parsed = parseImport(`<?xml version="1.0" encoding="utf-8"?>
+<KeePassFile>
+	<Meta>
+		<Generator>KeePass</Generator>
+		<Binaries>
+			<Binary ID="0" Compressed="True">${base64(gzipSync(text("example certificate")))}</Binary>
+			<Binary ID="1">${base64(text("example notes"))}</Binary>
+			<Binary ID="2" Compressed="True">${base64(huge)}</Binary>
+		</Binaries>
+	</Meta>
+	<Root><Group><Name>Example</Name>
+		${entry(
+			"Server",
+			`<Binary><Key>server.p12</Key><Value Ref="0" /></Binary>
+			<Binary><Key>notes.txt</Key><Value Ref="1" /></Binary>
+			<Binary><Key>inline.txt</Key><Value>${base64(text("example inline"))}</Value></Binary>
+			<Binary><Key>disk.img</Key><Value Ref="2" /></Binary>
+			<Binary><Key>gone.txt</Key><Value Ref="9" /></Binary>`,
+		)}
+		${entry("Backup", `<Binary><Key>copy.p12</Key><Value Ref="0" /></Binary>`)}
+	</Group></Root>
+</KeePassFile>`);
+	const filesOf = (name: string) => {
+		const item = parsed.items.find((one) => one.name === name);
+		return (item && parsed.files?.get(item))?.map((file) => [
+			file.name,
+			new TextDecoder().decode(file.data),
+		]);
+	};
+	expect(filesOf("Server")).toEqual([
+		["server.p12", "example certificate"],
+		["notes.txt", "example notes"],
+		["inline.txt", "example inline"],
+	]);
+	// Kept once in Meta, it goes with each entry that refers to it.
+	expect(filesOf("Backup")).toEqual([["copy.p12", "example certificate"]]);
+	// One that would unpack past the limit, and one whose ID isn't there.
+	expect(parsed.left).toEqual({ attachment: 2 });
 });
 
 test("parseXml reads entities, CDATA and self-closing tags", () => {

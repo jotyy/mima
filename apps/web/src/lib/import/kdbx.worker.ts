@@ -1,4 +1,4 @@
-import { KdbxOpenError, openKdbx } from "./kdbx-open";
+import { type KdbxAttachment, KdbxOpenError, openKdbx } from "./kdbx-open";
 
 // The import worker: a KeePass database opens here, because its key derivation (Argon2)
 // is WebAssembly, which the page's CSP doesn't let compile. Built into the key worker's
@@ -10,15 +10,22 @@ export type KdbxRequest = {
 	file: ArrayBuffer;
 	password: string;
 	keyFile?: ArrayBuffer;
+	/** The largest file the instance takes: bigger attachments come without their bytes. */
+	fileLimit?: number;
 };
 export type KdbxResponse =
-	| { xml: string; attachments: number }
+	| { xml: string; files: KdbxAttachment[] }
 	| { failure: KdbxOpenError["reason"]; message: string };
 
 self.onmessage = async ({ data }: MessageEvent<KdbxRequest>) => {
 	let response: KdbxResponse;
 	try {
-		response = await openKdbx(data.file, data.password, data.keyFile);
+		response = await openKdbx(
+			data.file,
+			data.password,
+			data.keyFile,
+			data.fileLimit,
+		);
 	} catch (error) {
 		response =
 			error instanceof KdbxOpenError
@@ -29,5 +36,11 @@ self.onmessage = async ({ data }: MessageEvent<KdbxRequest>) => {
 							"That database couldn't be read. It may be damaged; export it to XML instead.",
 					};
 	}
-	self.postMessage(response);
+	// The attachments' bytes are moved to the page, not copied.
+	self.postMessage(
+		response,
+		"files" in response
+			? response.files.flatMap((file) => (file.data ? [file.data] : []))
+			: [],
+	);
 };
