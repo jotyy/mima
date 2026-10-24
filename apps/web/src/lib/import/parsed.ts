@@ -47,18 +47,26 @@ export type ParsedImport = {
 
 export class ImportError extends Error {}
 
+/** What opening a protected file can take besides its password. */
+export type OpenWith = {
+	/** Argon2id with lanes: the key worker in the app, given directly in tests. */
+	argon2?: import("./protected").Argon2Lanes;
+	/** A KeePass database's key file, if it has one. */
+	keyFile?: ArrayBuffer;
+	/** Ends the opening: a KeePass database can take minutes to derive its key. */
+	signal?: AbortSignal;
+};
+
 /**
  * A file that its app protected with a password: thrown where the format is found, with
  * what opens it. The import dialog asks for the password and calls `open`, which throws
- * WrongPasswordError (./protected.ts) for a wrong one, so it can ask again.
+ * WrongPasswordError (./protected.ts) for a wrong one, so it can ask again. A KeePass
+ * database also takes a key file, and opens in a worker that can be cancelled.
  */
 export class LockedExport extends Error {
 	constructor(
-		readonly app: "Bitwarden" | "Proton Pass",
-		readonly open: (
-			password: string,
-			argon2?: import("./protected").Argon2Lanes,
-		) => Promise<ParsedImport>,
+		readonly app: "Bitwarden" | "Proton Pass" | "KeePass",
+		readonly open: (password: string, more?: OpenWith) => Promise<ParsedImport>,
 	) {
 		super(`That ${app} export is protected with a password.`);
 	}

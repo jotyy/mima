@@ -115,21 +115,20 @@ The export holds only the vaults you own. Each item is tagged with its vault and
 
 ## KeePass
 
-Use **KeePass XML (2.x)**. It keeps groups, tags, custom fields, one-time codes and earlier passwords. The `.kdbx` database itself is encrypted, so vauly can't read it.
-1. Open your database in KeePass.
-2. Choose **File › Export**.
-3. Choose **KeePass XML (2.x)** and save the file.
+Bring the `.kdbx` database itself; there's nothing to export. It keeps groups, tags, custom fields, one-time codes and earlier passwords.
+1. Close the database in KeePass, so everything is saved.
+2. Drop its `.kdbx` file into vauly.
+3. Enter its password, and choose its key file if it has one.
 
-Entries in the Recycle Bin stay behind. **KeePass CSV (1.x)** works too, but it has only titles, usernames, passwords, websites and notes. [KeePass's help](https://keepass.info/help/base/importexport.html)
+vauly opens the database in your browser, in a worker that can't connect anywhere, and the password never leaves it. It reads KDBX 3.1 and 4, with AES-KDF or Argon2. A database whose key settings ask for more than 1 GiB of memory, 100 Argon2 passes, 16 lanes or 200 million AES-KDF rounds is turned away, with the setting to lower under **Database Settings › Security**.
+
+A database that needs your Windows user account can't be opened outside KeePass. For that one, choose **File › Export › KeePass XML (2.x)** and bring that file instead; it keeps the same things. Entries in the Recycle Bin stay behind either way, and so do attachments for now; the review counts them. **KeePass CSV (1.x)** works too, but it has only titles, usernames, passwords, websites and notes. [KeePass's help](https://keepass.info/help/base/importexport.html)
 
 ## KeePassXC
 
-Use XML. It keeps groups, tags, custom fields and earlier passwords.
-1. Open your database in KeePassXC.
-2. Choose **Database › Export › XML File…**
-3. Confirm the export and save the file.
+Bring the `.kdbx` database itself, as for [KeePass](#keepass): close it in KeePassXC, drop the file into vauly, and enter its password and key file. It keeps groups, tags, custom fields, one-time codes and earlier passwords.
 
-KeePassXC's CSV works too, with one-time codes but without tags and custom fields. [KeePassXC's user guide](https://keepassxc.org/docs/KeePassXC_UserGuide)
+A database that needs a YubiKey (challenge-response) can't be opened outside KeePassXC. For that one, choose **Database › Export › XML File…** and bring that file instead. KeePassXC's CSV works too, with one-time codes but without tags and custom fields. [KeePassXC's user guide](https://keepassxc.org/docs/KeePassXC_UserGuide)
 
 ## Enpass
 

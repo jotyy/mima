@@ -1,0 +1,69 @@
+diff --git a/dist/kdbxweb.js b/dist/kdbxweb.js
+index 7d330745e3ebc4c99c09a573824ae3bb08583565..39fe1e2ab2c901ee6bf40e31c068ff7e46c286a5 100644
+--- a/dist/kdbxweb.js
++++ b/dist/kdbxweb.js
+@@ -11,6 +11,19 @@
+ })(this, function(__WEBPACK_EXTERNAL_MODULE_crypto__, __WEBPACK_EXTERNAL_MODULE__xmldom_xmldom__) {
+ return /******/ (() => { // webpackBootstrap
+ /******/ 	"use strict";
++/******/ 	// Patched for vauly: what inflating may allocate, in total, until setInflateLimit is
++/******/ 	// called again. GZIP ends with the size it unpacks to, which fflate sizes its output
++/******/ 	// by and never grows past, so checking that bounds the memory a file can ask for.
++/******/ 	var inflateLeft = Infinity;
++/******/ 	function cappedGunzip(fflate, KdbxError, data) {
++/******/ 		var l = data.length;
++/******/ 		var size = l < 18 ? 0 : (data[l - 4] | data[l - 3] << 8 | data[l - 2] << 16 | data[l - 1] << 24) >>> 0;
++/******/ 		if (size > inflateLeft) {
++/******/ 			throw new KdbxError("InflateLimit", "unpacks to " + size + " bytes");
++/******/ 		}
++/******/ 		inflateLeft -= size;
++/******/ 		return fflate.gunzipSync(data);
++/******/ 	}
+ /******/ 	var __webpack_modules__ = ({
+ 
+ /***/ "./crypto/chacha20.ts":
+@@ -2344,7 +2357,7 @@ class KdbxFormat {
+                         return this.decryptData(data, keys.cipherKey).then((data) => {
+                             (0, byte_utils_1.zeroBuffer)(keys.cipherKey);
+                             if (this.kdbx.header.compression === consts_1.CompressionAlgorithm.GZip) {
+-                                data = (0, byte_utils_1.arrayToBuffer)((0, fflate_1.gunzipSync)(new Uint8Array(data)));
++                                data = (0, byte_utils_1.arrayToBuffer)(cappedGunzip(fflate_1, kdbx_error_1.KdbxError, new Uint8Array(data)));
+                             }
+                             stm = new binary_stream_1.BinaryStream((0, byte_utils_1.arrayToBuffer)(data));
+                             this.kdbx.header.readInnerHeader(stm, this.ctx);
+@@ -2470,7 +2483,7 @@ class KdbxFormat {
+                 data = this.trimStartBytesV3(data);
+                 return HashedBlockTransform.decrypt(data).then((data) => {
+                     if (this.kdbx.header.compression === consts_1.CompressionAlgorithm.GZip) {
+-                        data = (0, byte_utils_1.arrayToBuffer)((0, fflate_1.gunzipSync)(new Uint8Array(data)));
++                        data = (0, byte_utils_1.arrayToBuffer)(cappedGunzip(fflate_1, kdbx_error_1.KdbxError, new Uint8Array(data)));
+                     }
+                     return (0, byte_utils_1.bytesToString)(data);
+                 });
+@@ -5598,7 +5611,7 @@ function getProtectedBinary(node) {
+     const compressed = strToBoolean(node.getAttribute(XmlNames.Attr.Compressed));
+     let bytes = (0, byte_utils_1.base64ToBytes)(text);
+     if (compressed) {
+-        bytes = (0, fflate_1.gunzipSync)(bytes);
++        bytes = cappedGunzip(fflate_1, kdbx_error_1.KdbxError, bytes);
+     }
+     return (0, byte_utils_1.arrayToBuffer)(bytes);
+ }
+@@ -8408,6 +8421,7 @@ const var_dictionary_1 = __webpack_require__(/*! ./utils/var-dictionary */ "./ut
+ Object.defineProperty(exports, "VarDictionary", ({ enumerable: true, get: function () { return var_dictionary_1.VarDictionary; } }));
+ const XmlUtils = __webpack_require__(/*! ./utils/xml-utils */ "./utils/xml-utils.ts");
+ exports.XmlUtils = XmlUtils;
++exports.setInflateLimit = function (bytes) { inflateLeft = bytes; };
+ 
+ })();
+ 
+diff --git a/dist/types/index.d.ts b/dist/types/index.d.ts
+index 2f8728c5607223dd61b47621354a35f8d0cf4c97..bf7d8134ff38c34770362ececb60a8e5ff7c40a2 100644
+--- a/dist/types/index.d.ts
++++ b/dist/types/index.d.ts
+@@ -29,3 +29,5 @@ import { Int64 } from './utils/int64';
+ import { VarDictionary } from './utils/var-dictionary';
+ import * as XmlUtils from './utils/xml-utils';
+ export { ChaCha20, CryptoEngine, HashedBlockTransform, HmacBlockTransform, KeyEncryptorAes, KeyEncryptorKdf, ProtectSaltGenerator, ProtectedValue, Salsa20, Consts, XmlNames, KdbxError, Kdbx, KdbxEditState, KdbxBinaries, KdbxBinaryRef, KdbxBinaryRefWithValue, KdbxBinaryWithHash, KdbxBinary, KdbxBinaryOrRef, KdbxBinaryIn, KdbxContext, KdbxCredentials, KdbxCredentials as Credentials, KdbxChallengeResponseFn, KdbxCustomData, KdbxCustomDataMap, KdbxCustomDataItem, KdbxDeletedObject, KdbxEntry, KdbxEntryEditState, KdbxEntryField, KdbxAutoTypeItem, KdbxEntryAutoType, KdbxFormat, KdbxGroup, KdbxHeader, KdbxMeta, KdbxMetaEditState, KdbxCustomIcon, KdbxMemoryProtection, KdbxTimes, KdbxUuid, BinaryStream, ByteUtils, Int64, VarDictionary, XmlUtils };
++/** Patched for vauly: what inflating may allocate, in total, from now on. */
++export declare function setInflateLimit(bytes: number): void;

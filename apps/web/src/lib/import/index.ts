@@ -3,6 +3,8 @@ import { unzipSync } from "fflate";
 import type { ItemFields } from "../vault-data";
 import { parseCsvExport, parseDashlane } from "./csv";
 import { parseJsonExport } from "./json";
+import { openKdbxInWorker } from "./kdbx";
+import { checkKdbxHeader } from "./kdbx-header";
 import { parseKeePassXml } from "./keepass";
 import { ImportError, LockedExport, type ParsedImport } from "./parsed";
 import {
@@ -24,6 +26,7 @@ export {
 	type ImportSource,
 	type Leftover,
 	LockedExport,
+	type OpenWith,
 	type ParsedImport,
 } from "./parsed";
 export { WrongPasswordError } from "./protected";
@@ -39,9 +42,21 @@ export async function readImportFile(file: File): Promise<ParsedImport> {
 export function readImport(bytes: Uint8Array): ParsedImport {
 	if (startsWith(bytes, [0x50, 0x4b, 0x03, 0x04])) return readZip(bytes);
 	if (startsWith(bytes, [0x03, 0xd9, 0xa2, 0x9a])) {
-		throw new ImportError(
-			"That's an encrypted KeePass database. Export it as XML from KeePass, or as CSV from KeePassXC.",
-		);
+		// A KeePass database: refused now if it asks too much, else opened in a worker with
+		// its password and key file, then read as KeePass's XML export is.
+		checkKdbxHeader(bytes);
+		throw new LockedExport("KeePass", async (password, more) => {
+			const { xml, attachments } = await openKdbxInWorker(
+				bytes.slice().buffer,
+				password,
+				more?.keyFile,
+				more?.signal,
+			);
+			return withAttachments(
+				{ ...parseKeePassXml(xml), format: "KDBX" },
+				attachments,
+			);
+		});
 	}
 	return parseImport(decodeText(bytes));
 }
@@ -74,7 +89,7 @@ export function parseImport(text: string): ParsedImport {
 			checkBitwardenExport(root);
 			throw new LockedExport(
 				"Bitwarden",
-				async (password, argon2 = keyWorker) =>
+				async (password, { argon2 = keyWorker } = {}) =>
 					parseImport(await openBitwardenExport(root, password, argon2)),
 			);
 		}

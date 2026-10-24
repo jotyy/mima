@@ -154,9 +154,9 @@ export default defineConfig(() => {
 		resolve: {
 			tsconfigPaths: true,
 		},
-		// What the key worker and the service worker load, bundled when the dev server starts
-		// rather than when one first runs, which would reload the page. The dev server finds
-		// the page's own dependencies by itself.
+		// What the key worker, the import worker and the service worker load, bundled when
+		// the dev server starts rather than when one first runs, which would reload the page.
+		// The dev server finds the page's own dependencies by itself.
 		optimizeDeps: {
 			include: [
 				"@vauly/crypto > libsodium-wrappers-sumo",
@@ -164,10 +164,13 @@ export default defineConfig(() => {
 				"workbox-core",
 				"workbox-precaching",
 				"workbox-routing",
+				"kdbxweb",
+				"hash-wasm",
 			],
 		},
-		// The key worker (src/lib/argon2.worker.ts) and everything it loads go in a folder of
-		// their own, which _headers serves with the worker's CSP (security-headers.ts).
+		// The key worker (src/lib/argon2.worker.ts), the import worker that opens KeePass
+		// databases (src/lib/import/kdbx.worker.ts) and everything they load go in a folder
+		// of their own, which _headers serves with the workers' CSP (security-headers.ts).
 		worker: {
 			format: "es" as const,
 			rolldownOptions: {

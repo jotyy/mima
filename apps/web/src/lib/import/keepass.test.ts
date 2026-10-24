@@ -3,7 +3,7 @@
 import { describe, expect, test } from "bun:test";
 import { strToU8, zipSync } from "fflate";
 
-import { ImportError, parseImport, readImport } from ".";
+import { ImportError, LockedExport, parseImport, readImport } from ".";
 import { fixtureText } from "./fixtures";
 import { keePassTime } from "./keepass";
 import { parseXml } from "./xml";
@@ -81,15 +81,16 @@ describe("KeePass XML", () => {
 		expect(keePassTime("2016-12-31T21:33:52Z")).toBe("2016-12-31T21:33:52Z");
 	});
 
-	test("other XML, and the encrypted database, are turned away", () => {
+	test("other XML is turned away, and the database asks for its password", () => {
 		expect(() => parseImport("<html><body>hi</body></html>")).toThrow(
 			ImportError,
 		);
+		// kdbx.test.ts opens it.
 		expect(() =>
 			readImport(
 				new Uint8Array([0x03, 0xd9, 0xa2, 0x9a, 0x67, 0xfb, 0x4b, 0xb5]),
 			),
-		).toThrow("encrypted KeePass database");
+		).toThrow(LockedExport);
 	});
 });
 

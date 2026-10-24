@@ -28,7 +28,7 @@ async function unlock(bytes: Uint8Array, password: string) {
 	if (!locked) throw new Error("Not locked");
 	return {
 		app: locked.app,
-		parsed: await locked.open(password, argon2idLanes),
+		parsed: await locked.open(password, { argon2: argon2idLanes }),
 	};
 }
 
