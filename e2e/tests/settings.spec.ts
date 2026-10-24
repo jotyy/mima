@@ -55,6 +55,31 @@ test("renaming yourself shows the new name in the app", async ({ page }) => {
 	await expect(page.getByRole("button", { name: owner.name })).toBeVisible();
 });
 
+test("About shows the version and commit that /vauly.json reports", async ({
+	page,
+}) => {
+	const config = (await (await page.request.get("/vauly.json")).json()) as {
+		version: string;
+		commit: string;
+	};
+	expect(config.version).toMatch(/^\d+\.\d+\.\d+(-[\w.]+)?$/);
+	expect(config.commit).toMatch(/^[0-9a-f]{40}$/);
+
+	await signIn(page, owner);
+	await openSettings(page);
+	const version = page.getByTestId("version");
+	await expect(version).toHaveText(
+		`${config.version} · ${config.commit.slice(0, 7)}`,
+	);
+	const release = /^\d+\.\d+\.\d+$/.test(config.version);
+	await expect(version).toHaveAttribute(
+		"href",
+		release
+			? `https://github.com/jotyy/vauly/releases/tag/v${config.version}`
+			: /docs\/updating\//,
+	);
+});
+
 test("the auto-lock time is kept on this device", async ({ page }) => {
 	await signIn(page, owner);
 	await openSettings(page);

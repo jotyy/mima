@@ -1,6 +1,6 @@
 # Updating vauly
 
-New versions of vauly are [releases on GitHub](https://github.com/jotyy/vauly/releases). This page covers how to bring your copy up to date, what updates by itself and what doesn't, and what an update needs from you when it needs anything.
+New versions of vauly are [releases on GitHub](https://github.com/jotyy/vauly/releases). This page covers how to bring your copy up to date, what updates by itself and what doesn't, and what an update needs from you when it needs anything. **Settings › About** shows the version a copy runs.
 
 ## Before you update
 
@@ -55,7 +55,7 @@ Until October 24, 2026, vauly's main branch had changes that weren't released ye
 1. Replace `.github/workflows/update.yml`, as in [Update the workflows](#update-the-workflows).
 2. Run **Update vauly**.
 
-A copy on 0.1.0 then moves to the latest release. A copy that already took main after 0.1.0 stays where it is, because its database may have changes that 0.1.x doesn't. It moves on once a release has everything it has.
+A copy on 0.1.0 then moves to the latest release. A copy that already took main after 0.1.0 stays where it is, because its database may have changes that 0.1.x doesn't. It moves on once a release has everything it has, and until then **Settings › About** says it runs a development version.
 
 ### Updating from 0.1.0
 

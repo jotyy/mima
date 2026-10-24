@@ -1,5 +1,5 @@
-// How this instance is set up: its API's address, its logo and breach-check settings, and
-// the demo account on the demo. They come from /vauly.json when the app starts, not from
+// How this instance is set up: its API's address, its logo and breach-check settings, the
+// demo account on the demo, and which version of vauly it runs. They come from /vauly.json when the app starts, not from
 // the build, so every instance of a version serves the same files and anyone can check
 // them (vauly verify). The last copy stays on the device, to start without a connection.
 
@@ -10,6 +10,10 @@ export type InstanceConfig = {
 	brandfetch: string;
 	breachCheck: boolean;
 	demo?: { email: string; password: string };
+	/** The version, such as "0.2.0", or "0.3.0-dev" from vauly's development branch. */
+	version: string;
+	/** The commit the app was built from, in this copy's repository. */
+	commit: string;
 };
 
 const KEY = "vauly.config";
@@ -17,6 +21,8 @@ const defaults: InstanceConfig = {
 	server: "",
 	brandfetch: "",
 	breachCheck: true,
+	version: "",
+	commit: "",
 };
 let current = defaults;
 
@@ -30,6 +36,8 @@ function parse(value: unknown): InstanceConfig {
 		server: typeof raw.server === "string" ? raw.server : "",
 		brandfetch: typeof raw.brandfetch === "string" ? raw.brandfetch : "",
 		breachCheck: raw.breachCheck !== false,
+		version: typeof raw.version === "string" ? raw.version : "",
+		commit: typeof raw.commit === "string" ? raw.commit : "",
 		...(typeof demo?.email === "string" && {
 			demo: {
 				email: demo.email,

@@ -28,8 +28,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: Commit or version
-      description: The commit you're running (`git rev-parse --short HEAD`), or "latest main".
+      label: Version
+      description: What Settings › About shows in the web app, such as "0.1.1 · 1a2b3c4". If you build vauly yourself, the commit (`git rev-parse --short HEAD`).
   - type: dropdown
     id: where
     attributes:

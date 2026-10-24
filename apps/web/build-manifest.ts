@@ -49,6 +49,22 @@ function git(args: string[]) {
 	}
 }
 
+/**
+ * The version being built: the release a release build names (VAULY_VERSION), else the
+ * repository's, which is the plain version in a release and X.Y.0-dev on next.
+ */
+export function buildVersion() {
+	if (process.env.VAULY_VERSION) return process.env.VAULY_VERSION;
+	try {
+		const root = JSON.parse(
+			readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+		) as { version?: unknown };
+		return typeof root.version === "string" ? root.version : "dev";
+	} catch {
+		return "dev";
+	}
+}
+
 /** The commit being built: from CI when it says, else from git. */
 export function buildCommit() {
 	return (
@@ -137,7 +153,7 @@ export function buildManifest(
 	}
 	return {
 		format: 2,
-		version: process.env.VAULY_VERSION || "dev",
+		version: buildVersion(),
 		commit: buildCommit(),
 		dirty: git(["status", "--porcelain", "--untracked-files=no"]) !== "",
 		config,

@@ -7,7 +7,13 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin, type ResolvedConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
-import { buildDate, buildManifest, MANIFEST_PATH } from "./build-manifest";
+import {
+	buildCommit,
+	buildDate,
+	buildManifest,
+	buildVersion,
+	MANIFEST_PATH,
+} from "./build-manifest";
 import { headersFile, KEY_WORKER_DIR } from "./security-headers";
 
 /** A VITE_ setting: the stack passes them through `define`, a plain build reads the env. */
@@ -47,7 +53,13 @@ function instanceConfig(config: ResolvedConfig | undefined) {
  */
 function vaulyJson(): Plugin {
 	let config: ResolvedConfig | undefined;
-	const body = () => JSON.stringify(instanceConfig(config));
+	// The settings, and which vauly this is, for Settings › About and anyone who asks.
+	const body = () =>
+		JSON.stringify({
+			...instanceConfig(config),
+			version: buildVersion(),
+			commit: buildCommit(),
+		});
 	return {
 		name: "vauly-json",
 		configResolved(resolved) {
