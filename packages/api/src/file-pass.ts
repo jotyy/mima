@@ -78,7 +78,9 @@ export async function readPass(
 	// Written so that a missing or garbled time fails too.
 	if (!(until >= now)) return null;
 	const signature = fromBase64Url(rawSignature);
-	if (!signature || !fileId || !grantId) return null;
+	// One spelling per signature: base64 can write the same bytes more than one way.
+	if (!signature || toBase64Url(signature) !== rawSignature) return null;
+	if (!fileId || !grantId) return null;
 	const genuine = await crypto.subtle.verify(
 		"HMAC",
 		await passKey(secret),

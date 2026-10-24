@@ -313,7 +313,9 @@ test("a file pass works for its agent and grant only, and ends with the grant", 
 	expect(
 		await asAgent(request, token, "file", { token: pass, index: 0 }),
 	).toContain('"data"');
-	const tampered = `${pass.slice(0, -1)}${pass.endsWith("A") ? "B" : "A"}`;
+	// A character in the middle of the signature: the last one has spare bits.
+	const at = pass.length - 10;
+	const tampered = `${pass.slice(0, at)}${pass[at] === "A" ? "B" : "A"}${pass.slice(at + 1)}`;
 	expect(
 		await asAgent(request, token, "file", { token: tampered, index: 0 }),
 	).toContain("no longer good");
