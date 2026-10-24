@@ -512,7 +512,7 @@ function Items({
 				</Button>
 			</header>
 
-			{settings && <Settings onDone={() => setSettings(false)} />}
+			{settings && <Settings logos={logos} onDone={() => setSettings(false)} />}
 
 			{!settings && (
 				<>
@@ -662,12 +662,17 @@ function Items({
  * This browser's choices: whether vauly asks for passkeys, and where it doesn't, and
  * whether it shows website logos.
  */
-function Settings({ onDone }: { onDone: () => void }) {
+function Settings({
+	logos,
+	onDone,
+}: {
+	/** As Items keeps them, so the instance's setting shows once it arrives. */
+	logos: LogoSettings | null;
+	onDone: () => void;
+}) {
 	const [passkeys, setPasskeys] = useState<PasskeySettings | null>(null);
-	const [logos, setLogos] = useState<LogoSettings | null>(null);
 	useEffect(() => {
 		void getPasskeySettings().then(setPasskeys);
-		void getLogoSettings().then(setLogos);
 	}, []);
 	const change = async (next: PasskeySettings) => {
 		setPasskeys(next);
@@ -716,10 +721,7 @@ function Settings({ onDone }: { onDone: () => void }) {
 					aria-label="Show website logos"
 					checked={logos.shown && !logosOff}
 					disabled={logosOff}
-					onCheckedChange={async (shown) => {
-						setLogos({ ...logos, shown });
-						await setLogosShown(shown);
-					}}
+					onCheckedChange={(shown) => void setLogosShown(shown)}
 				/>
 			</div>
 			{passkeys.notOn.length > 0 && (
